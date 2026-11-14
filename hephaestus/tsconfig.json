@@ -1,0 +1,59 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "types": [
+      "vitest/globals",
+      "node"
+    ],
+    "paths": {
+      "@hephaestus/core": [
+        "./libs/core/src/index.ts"
+      ],
+      "@hephaestus/core/*": [
+        "./libs/core/src/*"
+      ],
+      "@hephaestus/agents": [
+        "./libs/agents/src/index.ts"
+      ],
+      "@hephaestus/agents/*": [
+        "./libs/agents/src/*"
+      ],
+      "@hephaestus/organizations": [
+        "./libs/organizations/src/index.ts"
+      ],
+      "@hephaestus/organizations/*": [
+        "./libs/organizations/src/*"
+      ],
+      "@hephaestus/workspaces": [
+        "./libs/workspaces/src/index.ts"
+      ],
+      "@hephaestus/workspaces/*": [
+        "./libs/workspaces/src/*"
+      ],
+      "@hephaestus/projects": [
+        "./libs/projects/src/index.ts"
+      ],
+      "@hephaestus/projects/*": [
+        "./libs/projects/src/*"
+      ]
+    },
+    "rewriteRelativeImportExtensions": true
+  }
+}

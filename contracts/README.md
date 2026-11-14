@@ -1,0 +1,26 @@
+# Aether-os contracts
+
+API contracts shared between Aether-os components, published in the workspace as the `@aether-os/contracts` package. These specs are the source of truth: change the spec first, then regenerate types in each consumer.
+
+| Spec | Served by | Consumed by |
+|---|---|---|
+| `polis.openapi.yaml` | Polis | (Hephaestus, Agora, Kairos, Iris, once wired) |
+| `hephaestus.openapi.yaml` | Hephaestus | Iris |
+
+## Regenerating
+
+```bash
+pnpm generate:api                        # from the workspace root: every consumer
+pnpm --filter hephaestus generate:api    # -> libs/core/src/api/generated/hephaestus-api.ts
+pnpm --filter iris generate:api          # -> lib/api/generated/hephaestus-api.ts
+pnpm --filter polis generate:api         # -> libs/core/src/api/generated/polis-api.ts
+```
+
+Consumers declare `"@aether-os/contracts": "workspace:*"` and read specs from `node_modules/@aether-os/contracts/`, so the scripts keep working if this package is later published to a registry.
+
+All use [openapi-typescript](https://openapi-ts.dev), which also validates the spec. Generated files are committed, so builds don't depend on running the generator.
+
+- **Hephaestus / Polis**: request/response DTO classes `implements ApiSchema<'Name'>` (from `@hephaestus/core` / `@polis/core`), so `tsc` fails when a controller drifts from the spec. Runtime validation is still done by the class-validator decorators, so keep the constraints in the spec and the decorators in sync.
+- **Iris**: imports `ApiSchema<'Name'>` / `ApiPaths` from `@/lib/api`.
+
+The organization and project endpoints still appear in `hephaestus.openapi.yaml` because Hephaestus still serves them; remove them there when Hephaestus switches to Polis.

@@ -1,0 +1,120 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Aether-os
+
+Aether-os is a platform for building, running and supporting AI agents. This folder is a single git repository and pnpm workspace (a monorepo). Each component lives in its own subdirectory with its own `package.json`, tooling and `CLAUDE.md`; read that file before working inside a component.
+
+| Component | Owns | Location | Status |
+|---|---|---|---|
+| **Pistis** | Authentication: an OIDC provider that federates external identity providers (e.g. Entra ID, Auth0); user identity, service accounts, API keys, and the tokens other services verify | not created yet | Planned |
+| **Polis** | Tenancy: organizations, projects, and memberships (which user belongs to which organization, with what role) | `polis/` | Active |
+| **Agora** | Agent management: agent definitions and their immutable versions | not created yet | Planned |
+| **Themis** | Policies: versioned Rego policy sets per organization/project, served to OPA as bundles ([APS](https://agentpolicyspecification.github.io)) | not created yet | Planned |
+| **Kairos** | Automations: a trigger (e.g. an incoming GitHub issue) bound to an agent | not created yet | Planned |
+| **Hephaestus** | Task management and execution: runs tasks with an agent, in sandboxed workspaces | `hephaestus/` | Active, being reshaped |
+| **Loculus** | Object storage: S3-compatible, issues signed URLs | not in this folder | Separate service |
+| **Krepis** | `@aether-os/krepis`: shared foundation library for the NestJS services (errors, events, transactions, pagination, HTTP helpers, shared IDs) | `krepis/` | Active |
+| **OpenBao** | Secrets and credentials (LLM provider keys, repository tokens, tool and integration credentials) | infrastructure | Planned |
+| **RabbitMQ** | Event bus between services | infrastructure | Planned |
+| **OpenTelemetry + Jaeger + Langfuse** | Observability: OTLP from every service; service traces in Jaeger, LLM traces in Langfuse | infrastructure | Planned |
+| **Seshat** | MCP server for RAG and long-term memory | not in this folder | Separate service |
+| **Kriterion** | Eval framework for measuring agent quality | not in this folder | Separate |
+| **Iris** | Web frontend for operating Aether-os (Next.js) | `iris/` | Blank scaffold |
+
+The names come from Greek, Egyptian and Roman antiquity: Pistis is trust and good faith; the polis is the city-state and the agora its gathering place; Kairos is the god of the opportune moment; Themis the goddess of law and order; Hephaestus the smith who does the work; Seshat the goddess of writing and record-keeping; *kritērion* is "a standard for judging"; Iris the messenger between gods and mortals; a *loculus* (Latin) is a small compartment or niche; the *krepis* is the stepped platform a Greek temple stands on.
+
+## How the pieces fit
+
+1. **Pistis** authenticates users and services. It is itself an OIDC provider and can federate external identity providers (Entra ID, Auth0 and others) for sign-in, but it is always the only token issuer: other services trust Pistis tokens and never an external provider's tokens directly. Users are identified by their Pistis `sub`, with external identities linked to it by provider and external subject, never by email address alone. Other services verify the tokens it issues and take the acting user from them, which replaces today's `createdBy` request fields. When issuing a token, Pistis asks Polis for the user's memberships and includes them as claims (organization and role), so services check "may this user act in this organization" from the token instead of calling Polis on every request.
+2. **Polis** is the tenant root and owns memberships. Every other service stores `organizationId` / `projectId` and resolves them in Polis; writes are rejected while an organization is suspended. Because token claims can be stale until the token expires, Polis should publish changes such as an organization being suspended or a membership being revoked, so services can react before then.
+3. In **Agora** you define an agent and its versions (instructions, model, tools, skills, capabilities, runtime config). A version moves draft → published → deprecated, and only one version per agent is published at a time.
+4. In **Themis** you write policies (Rego) and group them into versioned policy sets, scoped to an organization or project. An agent version references a policy set version.
+5. In **Kairos** you create an automation that binds a trigger to an agent.
+6. When a trigger fires, a task is created in **Hephaestus**, which runs it with the agent, provisioning a workspace when the runtime needs a sandbox. Hephaestus uses **[Mastra](https://mastra.ai)** as its agent runtime and sandbox layer: it turns the pinned agent version into a Mastra `Agent` (instructions, model, tools, skills) running against a Mastra workspace whose sandbox is the task's workspace (`@mastra/docker` locally, a microVM-backed provider such as Docker Cloud Sandboxes, E2B or Daytona in production). Hephaestus stays the source of truth for task and workspace state; Mastra sits behind ports in Hephaestus's domain layer (a runtime port and a `SandboxProvisioner` port) so it can be upgraded or swapped in one place. Sandboxes must be hardened: drop all capabilities, read-only root filesystem, PID limit, non-root user, egress only through an allowlisting proxy for `restricted` network access, and secrets delivered as short-lived files rather than container environment variables. Hephaestus enforces policy with the [Agent Policy Specification](https://agentpolicyspecification.github.io) TypeScript SDK (which has a Mastra integration): every LLM input, tool call and output goes through an `ApsEngine` backed by an OPA server (sidecar) that pulls its bundles from Themis. Evaluation fails closed (`on_error: "deny"`): if OPA is unreachable, the agent stops. APS is a draft spec with pre-release SDKs, so keep it behind a thin layer in Hephaestus.
+7. Secrets live in **OpenBao** (the open-source Vault fork), never in service databases, agent configuration or the agent's context. Store them per organization and project (e.g. `orgs/{organizationId}/projects/{projectId}/...`) and reference them by path. Hephaestus fetches what a task needs when the task starts and injects it into the runtime or sandbox. Prefer short-lived, dynamically issued credentials where the backend supports it.
+8. Files (task inputs and outputs, artifacts, uploads) live in **Loculus**. Services ask Loculus for signed URLs and pass those on rather than proxying file bytes or holding storage credentials themselves; clients such as Iris or a sandbox upload and download directly with the URL.
+9. While running, agents use **Seshat** over MCP for retrieval and memory. **Kriterion** evaluates results per agent version.
+10. **Iris** is the UI over all services.
+
+Design rule: a task must record the concrete `agentVersionId` it runs (and through it the policy set version), resolved when the task is created (not "latest"), so runs are reproducible and evaluable per version. Agent versions and automations reference secrets by OpenBao path, never by value. Likewise, persist Loculus object keys, never signed URLs: URLs expire, so request a fresh one when a file is needed.
+
+## Identity and permissions
+
+The agreed design is in `docs/identity.md`; read it before touching authentication, roles or permissions. In short: Pistis is the only token issuer (it federates Entra ID, Auth0 and others); a token is scoped to one organization; roles exist at organization and project level and live on Polis memberships; tasks run as service accounts, never as users, using task tokens obtained through token exchange; every service enforces authentication, tenancy and `@RequirePermission` through Krepis, using one fixed role → permission table defined in Krepis.
+
+## Tasks and artifacts
+
+The task model is being designed in `docs/tasks.md` (documentation only for now). Agreed so far: work is modelled as **tasks and subtasks** (a subtask is a task with a parent), with `dependsOn` between tasks in the same tree; a `task_plan` artifact creates subtasks of the task that produced it; every successful task outcome is an **artifact** (text, a pull request, a file, a `task_plan` that creates new tasks and subtasks, …), with exactly one primary artifact per successful task; failed tasks can leave `partial` artifacts; artifacts that need approval start as `draft` and are only delivered once approved (reviewers approve, reject, or request changes, which yields a revised draft); tasks can be created from versioned **task templates** (organization-wide or per project; project templates can extend but not weaken organization ones) that carry a definition of done (acceptance criteria), and **verification is always part of the task**: Hephaestus checks every criterion before the task can succeed (`judge` checks through Kriterion's evaluators), and failures go back to the agent; long-lived specs are documents, kept in the project's Git repository or, without one, in Loculus, with Hephaestus and Seshat both able to hold such documents by referencing the Loculus object; retention and "delete artifacts with the task" are project-level settings.
+
+## Events
+
+Services communicate asynchronously over **RabbitMQ**: for example Polis announcing suspended organizations and revoked memberships, Kairos triggers creating Hephaestus tasks, task status updates for Iris, and Kriterion reacting to finished tasks.
+
+- Each service publishes its domain events to its own topic exchange (e.g. `polis.events`) with routing keys like `organization.suspended`. Each consuming service binds its own durable queue to the keys it cares about.
+- Publish through a transactional outbox: write the event in the same database transaction as the state change, and have a relay publish it. This keeps an event from being lost, or from being sent for a change that was rolled back.
+- Consumers must be idempotent, because delivery is at-least-once. Deduplicate on `eventId` (see `DomainEvent` in `core`).
+- Starting a task in Hephaestus is supported two ways, both going through the same application service:
+  - **Internal callers** (e.g. Kairos) send a create-task command over RabbitMQ, so triggers survive Hephaestus being down.
+  - **Third parties** use the Hephaestus HTTP API, which returns the task ID and validation errors immediately.
+
+  Both paths need an idempotency key (the message's ID, or an `Idempotency-Key` header), so a redelivered message or a retried request never starts the same task twice.
+- Event payloads are contracts like the HTTP APIs: describe them in `contracts/` (AsyncAPI) and generate types from them.
+
+## Observability
+
+- Every service is instrumented with OpenTelemetry and exports over OTLP to an OpenTelemetry Collector, which routes the data onwards: all traces to **Jaeger** (service-level view: HTTP calls, RabbitMQ hops, database queries, latency), and LLM spans additionally to Langfuse.
+- LLM-specific traces (prompts, completions, tool calls, token usage, cost) go to **Langfuse**, which accepts OTLP. APS policy decisions are recorded there too, through the SDK's OpenTelemetry or Langfuse audit handler.
+- Trace context must cross service boundaries: over HTTP via the standard `traceparent` header, and over RabbitMQ by copying it into message headers when publishing and restoring it when consuming. A task triggered by a GitHub issue then shows up as one trace from Kairos through Hephaestus.
+- Put the task ID, organization ID, agent version ID and policy set version on spans, so traces can be filtered per tenant and per version (which is also what Kriterion needs).
+- Traces contain prompts and tool arguments, so they can contain secrets and personal data. Redact before export (APS `redact` decisions, plus Collector processors), and never put secret values in span attributes.
+
+## Current state vs. target
+
+The code doesn't match the model yet:
+
+- Hephaestus still contains its original `organizations` and `projects` libs, which Polis was copied from, and `agents` and `workspaces` call `OrganizationService` in-process. These are to be replaced by calls to Polis.
+- Hephaestus still contains `libs/agents` (agents and versions); that belongs in Agora once Agora exists.
+- Hephaestus has no tasks module yet; the `ExecutionId` type and the workspace's `executionId` field anticipate it.
+
+Until the move happens, don't add new organization or project features to Hephaestus; add them to Polis.
+
+## Working across components
+
+### Workspace
+
+The root `pnpm-workspace.yaml` lists the packages: `contracts` (`@aether-os/contracts`), `krepis` (`@aether-os/krepis`), `polis`, `hephaestus` and `iris`. There is one lockfile, at the root; always run `pnpm install` from the root. Add new services to `pnpm-workspace.yaml`.
+
+```bash
+pnpm install               # whole workspace
+pnpm build                 # every package, in dependency order (Krepis first)
+pnpm lint | test | test:e2e | generate:api    # across all packages
+pnpm --filter polis test   # one package (or run pnpm inside its directory)
+```
+
+- **Packages stay publishable.** The workspace is set up so moving to a package registry later is cheap: packages depend on each other with `workspace:*` (which `pnpm publish` rewrites to real versions), import only from each other's published entry points (never another package's `src/`, no TypeScript path aliases across packages), and `contracts` is consumed as a package (`node_modules/@aether-os/contracts/...`) rather than by relative path.
+- **Contracts:** `contracts/` holds the API specs (`polis.openapi.yaml`, `hephaestus.openapi.yaml`), one per service. Each spec is the source of truth for that service's HTTP API: edit it first, then run `pnpm generate:api` (root, or in the service and each consumer; currently Iris consumes Hephaestus) and commit the regenerated files. See `contracts/README.md`.
+- **Krepis:** shared NestJS code goes in `krepis/`, never copied between services. Consumers depend on it with `workspace:*` plus `dependenciesMeta.injected`, so pnpm copies it into each consumer and its peer dependencies (Nest, TypeORM, class-validator) resolve to the consumer's own copies. `syncInjectedDepsAfterScripts` refreshes those copies whenever Krepis's `build` script runs. See `krepis/CLAUDE.md`.
+
+## Local development
+
+`docker-compose.yml` at this root runs the shared infrastructure; the app services run outside it with `pnpm` from their own directories.
+
+```bash
+docker compose up -d       # Postgres, RabbitMQ, OpenBao, OPA, OTel Collector, Jaeger, Langfuse
+docker compose down -v     # stop and wipe all data
+```
+
+| What | Where |
+|---|---|
+| Iris / Polis / Hephaestus | `localhost:3000` / `3001` / `3002` (each app's default `PORT`) |
+| Postgres | `localhost:5432`, user `aether` / `aether`, one database per service (`infra/postgres/init/`) |
+| RabbitMQ | AMQP `localhost:5672`, UI `localhost:15672`, `aether` / `aether` |
+| OpenBao | `localhost:8200`, root token `dev-root-token` (dev mode: in-memory, wiped on restart) |
+| OPA | `localhost:8181` |
+| OTLP | `localhost:4317` (gRPC), `localhost:4318` (HTTP) → Collector (`infra/otel-collector/config.yaml`) → Jaeger and Langfuse |
+| Jaeger UI | `localhost:16686` |
+| Langfuse UI | `localhost:3100`, login `dev@aether-os.local` / `aether-dev`, API keys `pk-lf-local` / `sk-lf-local` |
+
+All credentials are fixed local-only values. MinIO in the compose file is only Langfuse's storage, not a stand-in for Loculus. The services still use SQLite; the per-service Postgres databases are ready for the move to Postgres with migrations.

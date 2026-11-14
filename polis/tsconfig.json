@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "types": [
+      "vitest/globals",
+      "node"
+    ],
+    "paths": {
+      "@polis/core": [
+        "./libs/core/src/index.ts"
+      ],
+      "@polis/core/*": [
+        "./libs/core/src/*"
+      ],
+      "@polis/organizations": [
+        "./libs/organizations/src/index.ts"
+      ],
+      "@polis/organizations/*": [
+        "./libs/organizations/src/*"
+      ],
+      "@polis/projects": [
+        "./libs/projects/src/index.ts"
+      ],
+      "@polis/projects/*": [
+        "./libs/projects/src/*"
+      ]
+    },
+    "rewriteRelativeImportExtensions": true
+  }
+}

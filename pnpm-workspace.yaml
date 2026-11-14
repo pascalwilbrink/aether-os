@@ -1,0 +1,19 @@
+packages:
+  - contracts
+  - krepis
+  - polis
+  - hephaestus
+  - iris
+
+# Native builds allowed during install.
+onlyBuiltDependencies:
+  - better-sqlite3
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver
+
+# Krepis is injected (copied) into its consumers so its peer dependencies
+# resolve to each consumer's copy of Nest/TypeORM/class-validator. Re-sync the
+# copies automatically whenever Krepis is rebuilt.
+syncInjectedDepsAfterScripts:
+  - build

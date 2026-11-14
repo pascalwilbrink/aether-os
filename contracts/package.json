@@ -1,0 +1,11 @@
+{
+  "name": "@aether-os/contracts",
+  "version": "0.1.0",
+  "description": "Aether-os API contracts (OpenAPI, later AsyncAPI)",
+  "private": true,
+  "license": "UNLICENSED",
+  "files": ["*.openapi.yaml", "*.asyncapi.yaml"],
+  "exports": {
+    "./*": "./*"
+  }
+}

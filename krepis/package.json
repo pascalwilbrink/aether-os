@@ -1,0 +1,44 @@
+{
+  "name": "@aether-os/krepis",
+  "version": "0.1.0",
+  "description": "Shared foundation for Aether-os NestJS services",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "lint": "oxlint --type-aware src/",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepare": "pnpm build"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^12.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.0",
+    "typeorm": "^1.1.0"
+  },
+  "devDependencies": {
+    "@nestjs/common": "^12.5.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.19.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "oxlint": "^1.93.0",
+    "oxlint-tsgolint": "^7.0.2007",
+    "prettier": "^3.10.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "typeorm": "^1.1.3",
+    "typescript": "^6.0.3"
+  }
+}

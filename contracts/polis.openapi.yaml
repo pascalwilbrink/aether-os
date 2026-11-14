@@ -1,0 +1,339 @@
+openapi: 3.1.0
+info:
+  title: Polis API
+  version: 0.1.0
+  description: |
+    Tenancy service for Aether-os: organizations and the projects inside them.
+    Other services store organization and project IDs and resolve them here.
+
+    Business-rule violations return 409 with a machine-readable `error` code.
+    Validation failures return 400; unknown resources 404.
+
+tags:
+  - name: organizations
+  - name: projects
+
+paths:
+  /organizations:
+    post:
+      tags: [organizations]
+      operationId: createOrganization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrganizationRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [organizations]
+      operationId: listOrganizations
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /organizations/by-slug/{slug}:
+    get:
+      tags: [organizations]
+      operationId: getOrganizationBySlug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /organizations/{organizationId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [organizations]
+      operationId: getOrganization
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /organizations/{organizationId}/suspend:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [organizations]
+      operationId: suspendOrganization
+      responses:
+        '200':
+          description: Suspended
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /organizations/{organizationId}/activate:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [organizations]
+      operationId: activateOrganization
+      responses:
+        '200':
+          description: Active
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /organizations/{organizationId}/projects:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [projects]
+      operationId: createProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateProjectRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [projects]
+      operationId: listProjects
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /organizations/{organizationId}/projects/{projectId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [projects]
+      operationId: getProject
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /organizations/{organizationId}/projects/{projectId}/archive:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      tags: [projects]
+      operationId: archiveProject
+      responses:
+        '204': { description: Archived }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+components:
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema: { type: string }
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema: { type: integer, minimum: 0, default: 0 }
+
+  responses:
+    ValidationError:
+      description: Request failed validation
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ValidationErrorResponse' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/HttpErrorResponse' }
+    DomainError:
+      description: Business rule violated
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/DomainErrorResponse' }
+
+  schemas:
+    # ---------- errors ----------
+    HttpErrorResponse:
+      type: object
+      required: [statusCode, message]
+      properties:
+        statusCode: { type: integer }
+        message: { type: string }
+        error: { type: string }
+    ValidationErrorResponse:
+      type: object
+      required: [statusCode, message, error]
+      properties:
+        statusCode: { type: integer, const: 400 }
+        message:
+          oneOf:
+            - type: string
+            - type: array
+              items: { type: string }
+        error: { type: string }
+    DomainErrorCode:
+      type: string
+      enum:
+        - ORGANIZATION_ALREADY_SUSPENDED
+        - ORGANIZATION_SLUG_TAKEN
+        - ORGANIZATION_SUSPENDED
+        - PROJECT_ARCHIVED
+        - PROJECT_SLUG_TAKEN
+    DomainErrorResponse:
+      type: object
+      required: [statusCode, error, message]
+      properties:
+        statusCode: { type: integer, const: 409 }
+        error: { $ref: '#/components/schemas/DomainErrorCode' }
+        message: { type: string }
+
+    # ---------- shared ----------
+    Slug:
+      type: string
+      minLength: 3
+      maxLength: 63
+      pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+      description: Lowercase letters, digits and single hyphens.
+    Timestamp:
+      type: string
+      format: date-time
+
+    # ---------- organizations ----------
+    OrganizationStatus:
+      type: string
+      enum: [active, suspended]
+    CreateOrganizationRequest:
+      type: object
+      additionalProperties: false
+      required: [name, slug, createdBy]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        slug: { $ref: '#/components/schemas/Slug' }
+        createdBy:
+          type: string
+          minLength: 1
+          description: Temporary until authentication exists.
+    OrganizationResponse:
+      type: object
+      required: [id, name, slug, status, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        slug: { type: string }
+        status: { $ref: '#/components/schemas/OrganizationStatus' }
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    OrganizationPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/OrganizationResponse' }
+
+    # ---------- projects ----------
+    ProjectStatus:
+      type: string
+      enum: [active, archived]
+    CreateProjectRequest:
+      type: object
+      additionalProperties: false
+      required: [name, slug, description, createdBy]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        slug:
+          $ref: '#/components/schemas/Slug'
+          description: Unique within the organization.
+        description: { type: string, maxLength: 2000 }
+        createdBy: { type: string, minLength: 1 }
+    ProjectResponse:
+      type: object
+      required: [id, organizationId, name, slug, description, status, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/ProjectStatus' }
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    ProjectPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/ProjectResponse' }
+
+    # ---------- pagination ----------
+    PageMeta:
+      type: object
+      required: [total, limit, offset]
+      properties:
+        total: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1 }
+        offset: { type: integer, minimum: 0 }

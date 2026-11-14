@@ -1,0 +1,837 @@
+openapi: 3.1.0
+info:
+  title: Hephaestus API
+  version: 0.1.0
+  description: |
+    AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
+    contract; Hephaestus and Iris generate their API types from this file.
+
+    Business-rule violations return 409 with a machine-readable `error` code
+    (see `DomainError`). Validation failures return 400; unknown resources 404.
+
+tags:
+  - name: organizations
+  - name: projects
+  - name: agents
+  - name: agent-versions
+  - name: workspaces
+
+paths:
+  /organizations:
+    post:
+      tags: [organizations]
+      operationId: createOrganization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrganizationRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [organizations]
+      operationId: listOrganizations
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /organizations/by-slug/{slug}:
+    get:
+      tags: [organizations]
+      operationId: getOrganizationBySlug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /organizations/{organizationId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [organizations]
+      operationId: getOrganization
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /organizations/{organizationId}/suspend:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [organizations]
+      operationId: suspendOrganization
+      responses:
+        '200':
+          description: Suspended
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /organizations/{organizationId}/activate:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [organizations]
+      operationId: activateOrganization
+      responses:
+        '200':
+          description: Active
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /organizations/{organizationId}/projects:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [projects]
+      operationId: createProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateProjectRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [projects]
+      operationId: listProjects
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /organizations/{organizationId}/projects/{projectId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [projects]
+      operationId: getProject
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /organizations/{organizationId}/projects/{projectId}/archive:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      tags: [projects]
+      operationId: archiveProject
+      responses:
+        '204': { description: Archived }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /organizations/{organizationId}/agents:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [agents]
+      operationId: createAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAgentRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgentResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [agents]
+      operationId: listAgents
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgentPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /organizations/{organizationId}/agents/{agentId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/AgentId'
+    get:
+      tags: [agents]
+      operationId: getAgent
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgentResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /organizations/{organizationId}/agents/{agentId}/archive:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/AgentId'
+    post:
+      tags: [agents]
+      operationId: archiveAgent
+      responses:
+        '204': { description: Archived }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /organizations/{organizationId}/agents/{agentId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/AgentId'
+    post:
+      tags: [agent-versions]
+      operationId: createAgentVersion
+      description: Creates a draft version; the version number is assigned by the server.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAgentVersionRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgentVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [agent-versions]
+      operationId: listAgentVersions
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Highest version first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgentVersionPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /organizations/{organizationId}/agents/{agentId}/versions/{versionId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/AgentId'
+      - $ref: '#/components/parameters/VersionId'
+    get:
+      tags: [agent-versions]
+      operationId: getAgentVersion
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgentVersionResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /organizations/{organizationId}/agents/{agentId}/versions/{versionId}/publish:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/AgentId'
+      - $ref: '#/components/parameters/VersionId'
+    post:
+      tags: [agent-versions]
+      operationId: publishAgentVersion
+      description: Publishes a draft and deprecates the previously published version.
+      responses:
+        '200':
+          description: Published
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgentVersionResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /organizations/{organizationId}/workspaces:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [workspaces]
+      operationId: createWorkspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateWorkspaceRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkspaceResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [workspaces]
+      operationId: listWorkspaces
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkspacePage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /organizations/{organizationId}/workspaces/{workspaceId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [workspaces]
+      operationId: getWorkspace
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkspaceResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /organizations/{organizationId}/workspaces/{workspaceId}/acquire:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/WorkspaceId'
+    post:
+      tags: [workspaces]
+      operationId: acquireWorkspace
+      responses:
+        '200': { $ref: '#/components/responses/WorkspaceTransition' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /organizations/{organizationId}/workspaces/{workspaceId}/release:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/WorkspaceId'
+    post:
+      tags: [workspaces]
+      operationId: releaseWorkspace
+      responses:
+        '200': { $ref: '#/components/responses/WorkspaceTransition' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /organizations/{organizationId}/workspaces/{workspaceId}/suspend:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/WorkspaceId'
+    post:
+      tags: [workspaces]
+      operationId: suspendWorkspace
+      responses:
+        '200': { $ref: '#/components/responses/WorkspaceTransition' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /organizations/{organizationId}/workspaces/{workspaceId}/resume:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/WorkspaceId'
+    post:
+      tags: [workspaces]
+      operationId: resumeWorkspace
+      responses:
+        '200': { $ref: '#/components/responses/WorkspaceTransition' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /organizations/{organizationId}/workspaces/{workspaceId}/destroy:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/WorkspaceId'
+    post:
+      tags: [workspaces]
+      operationId: destroyWorkspace
+      description: Starts teardown (status `stopping`); the provisioner completes it.
+      responses:
+        '200': { $ref: '#/components/responses/WorkspaceTransition' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+components:
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema: { type: string }
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string }
+    AgentId:
+      name: agentId
+      in: path
+      required: true
+      schema: { type: string }
+    VersionId:
+      name: versionId
+      in: path
+      required: true
+      schema: { type: string }
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema: { type: integer, minimum: 0, default: 0 }
+
+  responses:
+    ValidationError:
+      description: Request failed validation
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ValidationErrorResponse' }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/HttpErrorResponse' }
+    DomainError:
+      description: Business rule violated
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/DomainErrorResponse' }
+    WorkspaceTransition:
+      description: Transition applied
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/WorkspaceResponse' }
+
+  schemas:
+    # ---------- errors ----------
+    HttpErrorResponse:
+      type: object
+      required: [statusCode, message]
+      properties:
+        statusCode: { type: integer }
+        message: { type: string }
+        error: { type: string }
+    ValidationErrorResponse:
+      type: object
+      required: [statusCode, message, error]
+      properties:
+        statusCode: { type: integer, const: 400 }
+        message:
+          oneOf:
+            - type: string
+            - type: array
+              items: { type: string }
+        error: { type: string }
+    DomainErrorCode:
+      type: string
+      enum:
+        - AGENT_ARCHIVED
+        - AGENT_VERSION_CONFLICT
+        - AGENT_VERSION_INVALID_TRANSITION
+        - ORGANIZATION_ALREADY_SUSPENDED
+        - ORGANIZATION_SLUG_TAKEN
+        - ORGANIZATION_SUSPENDED
+        - PROJECT_ARCHIVED
+        - PROJECT_SLUG_TAKEN
+        - WORKSPACE_INVALID_EXPIRY
+        - WORKSPACE_INVALID_TRANSITION
+    DomainErrorResponse:
+      type: object
+      required: [statusCode, error, message]
+      properties:
+        statusCode: { type: integer, const: 409 }
+        error: { $ref: '#/components/schemas/DomainErrorCode' }
+        message: { type: string }
+
+    # ---------- shared ----------
+    Slug:
+      type: string
+      minLength: 3
+      maxLength: 63
+      pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+      description: Lowercase letters, digits and single hyphens.
+    Timestamp:
+      type: string
+      format: date-time
+
+    # ---------- organizations ----------
+    OrganizationStatus:
+      type: string
+      enum: [active, suspended]
+    CreateOrganizationRequest:
+      type: object
+      additionalProperties: false
+      required: [name, slug, createdBy]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        slug: { $ref: '#/components/schemas/Slug' }
+        createdBy:
+          type: string
+          minLength: 1
+          description: Temporary until authentication exists.
+    OrganizationResponse:
+      type: object
+      required: [id, name, slug, status, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        slug: { type: string }
+        status: { $ref: '#/components/schemas/OrganizationStatus' }
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    OrganizationPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/OrganizationResponse' }
+
+    # ---------- projects ----------
+    ProjectStatus:
+      type: string
+      enum: [active, archived]
+    CreateProjectRequest:
+      type: object
+      additionalProperties: false
+      required: [name, slug, description, createdBy]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        slug:
+          $ref: '#/components/schemas/Slug'
+          description: Unique within the organization.
+        description: { type: string, maxLength: 2000 }
+        createdBy: { type: string, minLength: 1 }
+    ProjectResponse:
+      type: object
+      required: [id, organizationId, name, slug, description, status, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/ProjectStatus' }
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    ProjectPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/ProjectResponse' }
+
+    # ---------- agents ----------
+    AgentStatus:
+      type: string
+      enum: [active, archived]
+    CreateAgentRequest:
+      type: object
+      additionalProperties: false
+      required: [name, description, createdBy]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        createdBy: { type: string, minLength: 1 }
+    AgentResponse:
+      type: object
+      required: [id, organizationId, name, description, status, latestVersionId, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        name: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/AgentStatus' }
+        latestVersionId:
+          type: [string, 'null']
+          description: The currently published version, if any.
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    AgentPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/AgentResponse' }
+
+    # ---------- agent versions ----------
+    AgentVersionStatus:
+      type: string
+      enum: [draft, published, deprecated]
+    AgentModelConfiguration:
+      type: object
+      additionalProperties: false
+      required: [provider, model]
+      properties:
+        provider: { type: string, minLength: 1 }
+        model: { type: string, minLength: 1 }
+        temperature: { type: number, minimum: 0, maximum: 2 }
+        maxTokens: { type: integer, minimum: 1 }
+    AgentToolConfiguration:
+      type: object
+      additionalProperties: false
+      required: [name, enabled]
+      properties:
+        name: { type: string, minLength: 1 }
+        enabled: { type: boolean }
+        configuration:
+          type: object
+          additionalProperties: true
+    AgentSkillConfiguration:
+      type: object
+      additionalProperties: false
+      required: [name, version, enabled]
+      properties:
+        name: { type: string, minLength: 1 }
+        version: { type: string, minLength: 1 }
+        enabled: { type: boolean }
+    AgentExecutionMode:
+      type: string
+      enum: [standard, coding]
+    AgentRuntimeConfiguration:
+      type: object
+      additionalProperties: false
+      required: [provider, executionMode, sandboxRequired]
+      properties:
+        provider: { type: string, minLength: 1 }
+        executionMode: { $ref: '#/components/schemas/AgentExecutionMode' }
+        sandboxRequired: { type: boolean }
+    CreateAgentVersionRequest:
+      type: object
+      additionalProperties: false
+      required: [instructions, model, capabilities, tools, skills, runtime, createdBy]
+      properties:
+        instructions: { type: string, minLength: 1 }
+        model: { $ref: '#/components/schemas/AgentModelConfiguration' }
+        capabilities:
+          type: array
+          items: { type: string }
+        tools:
+          type: array
+          items: { $ref: '#/components/schemas/AgentToolConfiguration' }
+        skills:
+          type: array
+          items: { $ref: '#/components/schemas/AgentSkillConfiguration' }
+        runtime: { $ref: '#/components/schemas/AgentRuntimeConfiguration' }
+        createdBy: { type: string, minLength: 1 }
+    AgentVersionResponse:
+      type: object
+      required: [id, agentId, organizationId, version, status, instructions, model, capabilities, tools, skills, runtime, createdBy, createdAt, publishedAt]
+      properties:
+        id: { type: string }
+        agentId: { type: string }
+        organizationId: { type: string }
+        version: { type: integer, minimum: 1 }
+        status: { $ref: '#/components/schemas/AgentVersionStatus' }
+        instructions: { type: string }
+        model: { $ref: '#/components/schemas/AgentModelConfiguration' }
+        capabilities:
+          type: array
+          items: { type: string }
+        tools:
+          type: array
+          items: { $ref: '#/components/schemas/AgentToolConfiguration' }
+        skills:
+          type: array
+          items: { $ref: '#/components/schemas/AgentSkillConfiguration' }
+        runtime: { $ref: '#/components/schemas/AgentRuntimeConfiguration' }
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        publishedAt:
+          type: [string, 'null']
+          format: date-time
+    AgentVersionPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/AgentVersionResponse' }
+
+    # ---------- workspaces ----------
+    WorkspaceStatus:
+      type: string
+      enum: [requested, provisioning, ready, in_use, suspended, stopping, destroyed, failed, expired]
+    RepositoryProvider:
+      type: string
+      enum: [github, gitlab, bitbucket]
+    RepositoryConfiguration:
+      type: object
+      additionalProperties: false
+      required: [provider, repositoryUrl, branch]
+      properties:
+        provider: { $ref: '#/components/schemas/RepositoryProvider' }
+        repositoryUrl:
+          type: string
+          format: uri
+          pattern: '^https://'
+        branch: { type: string, minLength: 1 }
+        commitSha:
+          type: string
+          pattern: '^[0-9a-f]{7,40}$'
+    NetworkAccess:
+      type: string
+      enum: [none, restricted, full]
+    SandboxConfiguration:
+      type: object
+      additionalProperties: false
+      required: [provider, image, cpuLimit, memoryLimitMb, networkAccess]
+      properties:
+        provider: { type: string, minLength: 1 }
+        image: { type: string, minLength: 1 }
+        cpuLimit: { type: number, exclusiveMinimum: 0 }
+        memoryLimitMb: { type: integer, minimum: 1 }
+        networkAccess: { $ref: '#/components/schemas/NetworkAccess' }
+    SandboxReference:
+      type: object
+      required: [provider, resourceId]
+      properties:
+        provider: { type: string }
+        resourceId: { type: string }
+    CreateWorkspaceRequest:
+      type: object
+      additionalProperties: false
+      required: [projectId, executionId, repository, sandbox, workingDirectory, expiresAt]
+      properties:
+        projectId: { type: string, minLength: 1 }
+        executionId: { type: string, minLength: 1 }
+        repository: { $ref: '#/components/schemas/RepositoryConfiguration' }
+        sandbox: { $ref: '#/components/schemas/SandboxConfiguration' }
+        workingDirectory:
+          type: string
+          pattern: '^/'
+          description: Absolute path inside the sandbox.
+        expiresAt:
+          type: string
+          format: date-time
+          description: Must be in the future.
+    WorkspaceResponse:
+      type: object
+      required: [id, organizationId, projectId, executionId, status, repository, sandbox, sandboxReference, workingDirectory, failureReason, expiresAt, createdAt, updatedAt, startedAt, destroyedAt]
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        projectId: { type: string }
+        executionId: { type: string }
+        status: { $ref: '#/components/schemas/WorkspaceStatus' }
+        repository: { $ref: '#/components/schemas/RepositoryConfiguration' }
+        sandbox: { $ref: '#/components/schemas/SandboxConfiguration' }
+        sandboxReference:
+          oneOf:
+            - $ref: '#/components/schemas/SandboxReference'
+            - type: 'null'
+        workingDirectory: { type: string }
+        failureReason: { type: [string, 'null'] }
+        expiresAt: { $ref: '#/components/schemas/Timestamp' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        startedAt:
+          type: [string, 'null']
+          format: date-time
+        destroyedAt:
+          type: [string, 'null']
+          format: date-time
+    WorkspacePage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/WorkspaceResponse' }
+
+    # ---------- pagination ----------
+    PageMeta:
+      type: object
+      required: [total, limit, offset]
+      properties:
+        total: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1 }
+        offset: { type: integer, minimum: 0 }

@@ -1,0 +1,14 @@
+{
+  "name": "aether-os",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r build",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test",
+    "test:e2e": "pnpm -r --if-present test:e2e",
+    "generate:api": "pnpm -r --if-present generate:api",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down"
+  },
+  "packageManager": "pnpm@10.34.9"
+}
