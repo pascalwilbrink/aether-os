@@ -71,8 +71,9 @@ function issueToFieldError(
   location: Location,
 ): ProblemFieldError {
   const path = issue.path.map(String);
-  const missing =
-    issue.code === 'invalid_type' && valueAt(input, path) === undefined;
+  // Whatever Zod calls it (invalid_type, invalid_value for an enum, …), an
+  // issue on a value that isn't there means the field is required.
+  const missing = valueAt(input, path) === undefined;
 
   return {
     ...locate(path, location),

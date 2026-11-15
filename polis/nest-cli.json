@@ -33,6 +33,15 @@
       "compilerOptions": {
         "tsConfigPath": "libs/projects/tsconfig.lib.json"
       }
+    },
+    "memberships": {
+      "type": "library",
+      "root": "libs/memberships",
+      "entryFile": "index",
+      "sourceRoot": "libs/memberships/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/memberships/tsconfig.lib.json"
+      }
     }
   }
 }

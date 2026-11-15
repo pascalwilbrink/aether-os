@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'ORGANIZATION_SLUG_TAKEN' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_SLUG_TAKEN';
+export type DomainErrorCode = 'ORGANIZATION_SLUG_TAKEN' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_SLUG_TAKEN' | 'MEMBERSHIP_EXISTS';
 
 /**
  * Problem details for a business-rule violation.
@@ -73,6 +73,54 @@ export type ProjectResponse = {
 
 export type ProjectPage = PageMeta & {
     items: Array<ProjectResponse>;
+};
+
+/**
+ * The kind of principal (`sub_type` in Pistis tokens).
+ */
+export type SubjectType = 'user' | 'service_account';
+
+/**
+ * The principal's Pistis `sub`.
+ */
+export type Subject = string;
+
+/**
+ * A fixed organization role (see `docs/identity.md`).
+ */
+export type OrganizationRole = 'owner' | 'admin' | 'member' | 'viewer';
+
+/**
+ * One or more roles. Duplicates are ignored; responses list each role
+ * once, in the order owner, admin, member, viewer.
+ *
+ */
+export type OrganizationRoles = Array<OrganizationRole>;
+
+export type CreateMembershipRequest = {
+    subjectType: SubjectType;
+    subject: Subject;
+    roles: OrganizationRoles;
+    createdBy: string;
+};
+
+export type UpdateMembershipRequest = {
+    roles: OrganizationRoles;
+};
+
+export type MembershipResponse = {
+    id: string;
+    organizationId: string;
+    subjectType: SubjectType;
+    subject: string;
+    roles: Array<OrganizationRole>;
+    createdBy: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+};
+
+export type MembershipPage = PageMeta & {
+    items: Array<MembershipResponse>;
 };
 
 export type PageMeta = {
@@ -148,6 +196,8 @@ export type ProblemFieldError = {
 export type OrganizationId = string;
 
 export type ProjectId = string;
+
+export type MembershipId = string;
 
 /**
  * Page size.
@@ -524,3 +574,236 @@ export type ArchiveProjectResponses = {
 };
 
 export type ArchiveProjectResponse = ArchiveProjectResponses[keyof ArchiveProjectResponses];
+
+export type ListMembershipsData = {
+    body?: never;
+    path: {
+        organizationId: string;
+    };
+    query?: {
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/organizations/{organizationId}/memberships';
+};
+
+export type ListMembershipsErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListMembershipsError = ListMembershipsErrors[keyof ListMembershipsErrors];
+
+export type ListMembershipsResponses = {
+    /**
+     * Newest first
+     */
+    200: MembershipPage;
+};
+
+export type ListMembershipsResponse = ListMembershipsResponses[keyof ListMembershipsResponses];
+
+export type CreateMembershipData = {
+    body: CreateMembershipRequest;
+    path: {
+        organizationId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/memberships';
+};
+
+export type CreateMembershipErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type CreateMembershipError = CreateMembershipErrors[keyof CreateMembershipErrors];
+
+export type CreateMembershipResponses = {
+    /**
+     * Created
+     */
+    201: MembershipResponse;
+};
+
+export type CreateMembershipResponse = CreateMembershipResponses[keyof CreateMembershipResponses];
+
+export type DeleteMembershipData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        membershipId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/memberships/{membershipId}';
+};
+
+export type DeleteMembershipErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type DeleteMembershipError = DeleteMembershipErrors[keyof DeleteMembershipErrors];
+
+export type DeleteMembershipResponses = {
+    /**
+     * Deleted
+     */
+    204: void;
+};
+
+export type DeleteMembershipResponse = DeleteMembershipResponses[keyof DeleteMembershipResponses];
+
+export type GetMembershipData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        membershipId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/memberships/{membershipId}';
+};
+
+export type GetMembershipErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type GetMembershipError = GetMembershipErrors[keyof GetMembershipErrors];
+
+export type GetMembershipResponses = {
+    /**
+     * OK
+     */
+    200: MembershipResponse;
+};
+
+export type GetMembershipResponse = GetMembershipResponses[keyof GetMembershipResponses];
+
+export type UpdateMembershipData = {
+    body: UpdateMembershipRequest;
+    path: {
+        organizationId: string;
+        membershipId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/memberships/{membershipId}';
+};
+
+export type UpdateMembershipErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type UpdateMembershipError = UpdateMembershipErrors[keyof UpdateMembershipErrors];
+
+export type UpdateMembershipResponses = {
+    /**
+     * Updated
+     */
+    200: MembershipResponse;
+};
+
+export type UpdateMembershipResponse = UpdateMembershipResponses[keyof UpdateMembershipResponses];
+
+export type ListMembershipsOfSubjectData = {
+    body?: never;
+    path?: never;
+    query: {
+        subjectType: SubjectType;
+        subject: Subject;
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/memberships';
+};
+
+export type ListMembershipsOfSubjectErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+};
+
+export type ListMembershipsOfSubjectError = ListMembershipsOfSubjectErrors[keyof ListMembershipsOfSubjectErrors];
+
+export type ListMembershipsOfSubjectResponses = {
+    /**
+     * Newest first
+     */
+    200: MembershipPage;
+};
+
+export type ListMembershipsOfSubjectResponse = ListMembershipsOfSubjectResponses[keyof ListMembershipsOfSubjectResponses];

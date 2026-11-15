@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { DatabaseModule, polisConfigModule } from '@polis/core';
+import { MembershipsModule } from '@polis/memberships';
 import { OrganizationsModule } from '@polis/organizations';
 import { ProjectsModule } from '@polis/projects';
 
@@ -11,6 +12,7 @@ import { ProjectsModule } from '@polis/projects';
     DatabaseModule,
     OrganizationsModule,
     ProjectsModule,
+    MembershipsModule,
   ],
 })
 export class AppModule {}

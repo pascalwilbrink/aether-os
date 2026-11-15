@@ -52,8 +52,8 @@ Rules:
 | `organization.suspended` / `organization.reactivated` | `organizationId`, `reason` | Every service (reject writes / resume) |
 | `organization.deleted` | `organizationId` | Every service (delete tenant data) |
 | `project.created` / `project.deleted` | `projectId` | Hephaestus, Kairos, Themis, Seshat |
-| `membership.granted` | `principal`, `scope` (organization or project), `role` | Pistis, Iris, Kerykes |
-| `membership.role-changed` | `principal`, `scope`, `from`, `to` | Pistis, every service (drop cached permissions; Kerykes updates its recipient copy) |
+| `membership.granted` | `principal`, `scope` (organization or project), `roles` | Pistis, Iris, Kerykes |
+| `membership.role-changed` | `principal`, `scope`, `from`, `to` (role lists) | Pistis, every service (drop cached permissions; Kerykes updates its recipient copy) |
 | `membership.revoked` | `principal`, `scope` | Pistis, every service |
 
 ### Agora (`agora.events`)
