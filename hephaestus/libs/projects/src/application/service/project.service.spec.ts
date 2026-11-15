@@ -97,7 +97,9 @@ describe('ProjectService (sqlite)', () => {
   });
 
   it('archives once, then blocks findActiveById', async () => {
-    await expect(service.findActiveById(orgId, projectId)).resolves.toBeDefined();
+    await expect(
+      service.findActiveById(orgId, projectId),
+    ).resolves.toBeDefined();
 
     await service.archive(orgId, projectId);
 
@@ -131,12 +133,17 @@ describe('ProjectService (sqlite)', () => {
   });
 
   it('lists projects per organization', async () => {
-    await service.create(projectInput('project-2' as ProjectId, orgId, 'other'));
+    await service.create(
+      projectInput('project-2' as ProjectId, orgId, 'other'),
+    );
     await service.create(projectInput('project-3' as ProjectId, otherOrgId));
 
     const page = await service.list(orgId, { limit: 10, offset: 0 });
 
     expect(page.total).toBe(2);
-    expect(page.items.map((p) => p.id).sort()).toEqual(['project-1', 'project-2']);
+    expect(page.items.map((p) => p.id).sort()).toEqual([
+      'project-1',
+      'project-2',
+    ]);
   });
 });

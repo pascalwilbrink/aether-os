@@ -152,7 +152,9 @@ describe('WorkspaceService (sqlite)', () => {
     await service.suspend(orgId, workspaceId);
     await service.resume(orgId, workspaceId);
     await service.destroy(orgId, workspaceId);
-    expect((await service.findById(orgId, workspaceId)).status).toBe('stopping');
+    expect((await service.findById(orgId, workspaceId)).status).toBe(
+      'stopping',
+    );
 
     await service.markDestroyed(orgId, workspaceId);
     workspace = await service.findById(orgId, workspaceId);
@@ -162,16 +164,18 @@ describe('WorkspaceService (sqlite)', () => {
   });
 
   it('rejects invalid transitions', async () => {
-    await expect(
-      service.acquire(orgId, workspaceId),
-    ).rejects.toBeInstanceOf(InvalidWorkspaceTransitionError);
+    await expect(service.acquire(orgId, workspaceId)).rejects.toBeInstanceOf(
+      InvalidWorkspaceTransitionError,
+    );
 
-    await expect(
-      service.destroy(orgId, workspaceId),
-    ).rejects.toBeInstanceOf(InvalidWorkspaceTransitionError);
+    await expect(service.destroy(orgId, workspaceId)).rejects.toBeInstanceOf(
+      InvalidWorkspaceTransitionError,
+    );
 
     // Nothing was persisted by the failed attempts.
-    expect((await service.findById(orgId, workspaceId)).status).toBe('requested');
+    expect((await service.findById(orgId, workspaceId)).status).toBe(
+      'requested',
+    );
   });
 
   it('records failures and allows destroying failed workspaces', async () => {
@@ -183,16 +187,18 @@ describe('WorkspaceService (sqlite)', () => {
     expect(failed.failureReason).toBe('image pull failed');
 
     await service.destroy(orgId, workspaceId);
-    expect((await service.findById(orgId, workspaceId)).status).toBe('stopping');
+    expect((await service.findById(orgId, workspaceId)).status).toBe(
+      'stopping',
+    );
   });
 
   it('expires, and cannot expire twice', async () => {
     await service.expire(orgId, workspaceId);
     expect((await service.findById(orgId, workspaceId)).status).toBe('expired');
 
-    await expect(
-      service.expire(orgId, workspaceId),
-    ).rejects.toBeInstanceOf(InvalidWorkspaceTransitionError);
+    await expect(service.expire(orgId, workspaceId)).rejects.toBeInstanceOf(
+      InvalidWorkspaceTransitionError,
+    );
   });
 
   it('requires an active project in the same organization', async () => {
@@ -204,7 +210,9 @@ describe('WorkspaceService (sqlite)', () => {
 
     // A project from another organization is not visible.
     await expect(
-      service.create(workspaceInput('ws-2' as WorkspaceId, orgId, otherProjectId)),
+      service.create(
+        workspaceInput('ws-2' as WorkspaceId, orgId, otherProjectId),
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
 
     await projects.archive(orgId, projectId);
@@ -225,15 +233,17 @@ describe('WorkspaceService (sqlite)', () => {
     await expect(
       service.create(workspaceInput('ws-2' as WorkspaceId)),
     ).rejects.toBeInstanceOf(OrganizationSuspendedError);
-    await expect(
-      service.acquire(orgId, workspaceId),
-    ).rejects.toBeInstanceOf(OrganizationSuspendedError);
+    await expect(service.acquire(orgId, workspaceId)).rejects.toBeInstanceOf(
+      OrganizationSuspendedError,
+    );
 
     // Reads, destroy and provisioner callbacks still work.
     await expect(service.findById(orgId, workspaceId)).resolves.toBeDefined();
     await service.destroy(orgId, workspaceId);
     await service.markDestroyed(orgId, workspaceId);
-    expect((await service.findById(orgId, workspaceId)).status).toBe('destroyed');
+    expect((await service.findById(orgId, workspaceId)).status).toBe(
+      'destroyed',
+    );
 
     await expect(
       service.list('missing' as OrganizationId, { limit: 10, offset: 0 }),

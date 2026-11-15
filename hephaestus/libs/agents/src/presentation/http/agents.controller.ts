@@ -52,7 +52,9 @@ export class AgentsController {
       query,
     );
 
-    return PageResponse.fromPage(page, (agent) => AgentResponse.fromDomain(agent));
+    return PageResponse.fromPage(page, (agent) =>
+      AgentResponse.fromDomain(agent),
+    );
   }
 
   @Get(':agentId')

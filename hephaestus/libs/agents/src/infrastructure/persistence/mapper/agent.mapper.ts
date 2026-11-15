@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import type {
-  AgentId,
-  AgentVersionId,
-  OrganizationId,
-} from '@hephaestus/core';
+import type { AgentId, AgentVersionId, OrganizationId } from '@hephaestus/core';
 
 import { Agent } from '../../../domain/agent.js';
 import { AgentEntity } from '../entity/agent.entity.js';

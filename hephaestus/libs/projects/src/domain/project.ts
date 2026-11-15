@@ -20,9 +20,7 @@ export interface ProjectProps extends CreateProjectProps {
 }
 
 export class Project {
-  private constructor(
-    private readonly props: ProjectProps,
-  ) {}
+  private constructor(private readonly props: ProjectProps) {}
 
   static create(props: CreateProjectProps): Project {
     const now = new Date();

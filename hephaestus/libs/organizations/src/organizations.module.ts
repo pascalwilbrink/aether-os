@@ -21,7 +21,10 @@ import { OrganizationsController } from './presentation/http/organizations.contr
   providers: [
     OrganizationService,
     OrganizationMapper,
-    { provide: OrganizationRepository, useClass: TypeOrmOrganizationRepository },
+    {
+      provide: OrganizationRepository,
+      useClass: TypeOrmOrganizationRepository,
+    },
   ],
   exports: [OrganizationService],
 })

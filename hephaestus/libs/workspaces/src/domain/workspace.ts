@@ -77,9 +77,7 @@ const TERMINAL_OR_STOPPING: readonly WorkspaceStatus[] = [
 ];
 
 export class Workspace {
-  private constructor(
-    private readonly props: WorkspaceProps,
-  ) {}
+  private constructor(private readonly props: WorkspaceProps) {}
 
   static create(props: CreateWorkspaceProps): Workspace {
     const now = new Date();
@@ -106,12 +104,8 @@ export class Workspace {
       expiresAt: new Date(props.expiresAt),
       createdAt: new Date(props.createdAt),
       updatedAt: new Date(props.updatedAt),
-      startedAt: props.startedAt
-        ? new Date(props.startedAt)
-        : null,
-      destroyedAt: props.destroyedAt
-        ? new Date(props.destroyedAt)
-        : null,
+      startedAt: props.startedAt ? new Date(props.startedAt) : null,
+      destroyedAt: props.destroyedAt ? new Date(props.destroyedAt) : null,
     });
   }
 
@@ -166,15 +160,11 @@ export class Workspace {
   }
 
   get startedAt(): Date | null {
-    return this.props.startedAt
-      ? new Date(this.props.startedAt)
-      : null;
+    return this.props.startedAt ? new Date(this.props.startedAt) : null;
   }
 
   get destroyedAt(): Date | null {
-    return this.props.destroyedAt
-      ? new Date(this.props.destroyedAt)
-      : null;
+    return this.props.destroyedAt ? new Date(this.props.destroyedAt) : null;
   }
 
   get failureReason(): string | null {

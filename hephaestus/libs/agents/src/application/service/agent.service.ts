@@ -30,10 +30,7 @@ export interface CreateAgentInput {
   createdBy: string;
 }
 
-export type CreateAgentVersionInput = Omit<
-  CreateAgentVersionProps,
-  'version'
->;
+export type CreateAgentVersionInput = Omit<CreateAgentVersionProps, 'version'>;
 
 /**
  * Reads require the organization to exist (404 otherwise); writes also
@@ -99,9 +96,7 @@ export class AgentService {
     return this.loadVersion(organizationId, agentId, versionId);
   }
 
-  async createVersion(
-    input: CreateAgentVersionInput,
-  ): Promise<AgentVersion> {
+  async createVersion(input: CreateAgentVersionInput): Promise<AgentVersion> {
     await this.organizations.findActiveById(input.organizationId);
 
     const agent = await this.loadAgent(input.organizationId, input.agentId);
@@ -113,11 +108,10 @@ export class AgentService {
     // Concurrent creates can pick the same number; the unique constraint
     // rejects all but one, and the losers retry with a fresh number.
     for (let attempt = 1; ; attempt++) {
-      const versionNumber =
-        await this.versionRepository.getNextVersionNumber(
-          input.organizationId,
-          input.agentId,
-        );
+      const versionNumber = await this.versionRepository.getNextVersionNumber(
+        input.organizationId,
+        input.agentId,
+      );
 
       const version = AgentVersion.create({
         ...input,
@@ -159,11 +153,7 @@ export class AgentService {
       );
 
       const previous = agent.latestVersionId
-        ? await this.loadVersion(
-            organizationId,
-            agentId,
-            agent.latestVersionId,
-          )
+        ? await this.loadVersion(organizationId, agentId, agent.latestVersionId)
         : null;
 
       version.publish();
@@ -199,10 +189,7 @@ export class AgentService {
     organizationId: OrganizationId,
     agentId: AgentId,
   ): Promise<Agent> {
-    const agent = await this.agentRepository.findById(
-      organizationId,
-      agentId,
-    );
+    const agent = await this.agentRepository.findById(organizationId, agentId);
 
     if (!agent) {
       throw new NotFoundException('Agent not found');

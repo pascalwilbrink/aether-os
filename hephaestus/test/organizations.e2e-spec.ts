@@ -36,7 +36,12 @@ describe('Organizations (e2e)', () => {
     const byId = await request(app.getHttpServer())
       .get(`/organizations/${org.id}`)
       .expect(200);
-    expect(byId.body).toMatchObject({ id: org.id, name: 'Acme', slug: 'acme', status: 'active' });
+    expect(byId.body).toMatchObject({
+      id: org.id,
+      name: 'Acme',
+      slug: 'acme',
+      status: 'active',
+    });
     expect(byId.body).not.toHaveProperty('props');
 
     const bySlug = await request(app.getHttpServer())
@@ -44,7 +49,9 @@ describe('Organizations (e2e)', () => {
       .expect(200);
     expect(bySlug.body.id).toBe(org.id);
 
-    await request(app.getHttpServer()).get('/organizations/unknown').expect(404);
+    await request(app.getHttpServer())
+      .get('/organizations/unknown')
+      .expect(404);
   });
 
   it('validates the slug and rejects duplicates', async () => {
@@ -68,13 +75,19 @@ describe('Organizations (e2e)', () => {
     const org = await createOrganization();
     const server = app.getHttpServer();
 
-    const suspended = await request(server).post(`/organizations/${org.id}/suspend`).expect(200);
+    const suspended = await request(server)
+      .post(`/organizations/${org.id}/suspend`)
+      .expect(200);
     expect(suspended.body.status).toBe('suspended');
 
-    const again = await request(server).post(`/organizations/${org.id}/suspend`).expect(409);
+    const again = await request(server)
+      .post(`/organizations/${org.id}/suspend`)
+      .expect(409);
     expect(again.body.error).toBe('ORGANIZATION_ALREADY_SUSPENDED');
 
-    const activated = await request(server).post(`/organizations/${org.id}/activate`).expect(200);
+    const activated = await request(server)
+      .post(`/organizations/${org.id}/activate`)
+      .expect(200);
     expect(activated.body.status).toBe('active');
   });
 

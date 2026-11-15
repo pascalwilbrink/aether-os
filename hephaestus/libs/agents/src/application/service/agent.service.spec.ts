@@ -2,11 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import type {
-  AgentId,
-  AgentVersionId,
-  OrganizationId,
-} from '@hephaestus/core';
+import type { AgentId, AgentVersionId, OrganizationId } from '@hephaestus/core';
 import {
   OrganizationService,
   OrganizationSuspendedError,
@@ -27,7 +23,11 @@ function versionInput(id: string) {
     agentId,
     organizationId: orgId,
     instructions: 'Be helpful.',
-    model: { provider: 'anthropic', model: 'claude-opus-5-5', temperature: 0.2 },
+    model: {
+      provider: 'anthropic',
+      model: 'claude-opus-5-5',
+      temperature: 0.2,
+    },
     capabilities: ['chat'],
     tools: [{ name: 'search', enabled: true, configuration: { depth: 2 } }],
     skills: [{ name: 'summarize', version: '1.0.0', enabled: true }],
@@ -177,7 +177,9 @@ describe('AgentService (sqlite)', () => {
       service.createVersion(versionInput('v-3')),
     ]);
 
-    expect(versions.map((v) => v.version).sort((a, b) => a - b)).toEqual([1, 2, 3]);
+    expect(versions.map((v) => v.version).sort((a, b) => a - b)).toEqual([
+      1, 2, 3,
+    ]);
   });
 
   it('rolls back the whole publish when saving the agent fails', async () => {
@@ -189,9 +191,9 @@ describe('AgentService (sqlite)', () => {
       new Error('agent save failed'),
     );
 
-    await expect(
-      service.publishVersion(orgId, agentId, v2.id),
-    ).rejects.toThrow('agent save failed');
+    await expect(service.publishVersion(orgId, agentId, v2.id)).rejects.toThrow(
+      'agent save failed',
+    );
 
     const versions = moduleRef.get(AgentVersionRepository);
 
@@ -252,7 +254,10 @@ describe('AgentService (sqlite)', () => {
 
   it('404s when listing versions of an unknown agent', async () => {
     await expect(
-      service.listVersions(orgId, 'missing' as AgentId, { limit: 10, offset: 0 }),
+      service.listVersions(orgId, 'missing' as AgentId, {
+        limit: 10,
+        offset: 0,
+      }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -288,8 +293,8 @@ describe('AgentService (sqlite)', () => {
   it('rejects versions for archived agents', async () => {
     await service.archive(orgId, agentId);
 
-    await expect(
-      service.createVersion(versionInput('v-1')),
-    ).rejects.toThrow('archived');
+    await expect(service.createVersion(versionInput('v-1'))).rejects.toThrow(
+      'archived',
+    );
   });
 });
