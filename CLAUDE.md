@@ -101,7 +101,7 @@ Services communicate asynchronously over **RabbitMQ**: for example Polis announc
 
 The code doesn't match the model yet:
 
-- Hephaestus still contains its original `organizations` and `projects` libs, which Polis was copied from, and `agents` and `workspaces` call `OrganizationService` in-process. These are to be replaced by calls to Polis.
+- Hephaestus still contains its own `organizations` and `projects` libs (ported from Polis, in the target structure), and `agents` and `workspaces` call `OrganizationsService` / `ProjectsService` in-process. These are to be replaced by Polis: its events (a local copy of organization and project status) and its API.
 - Hephaestus still contains `libs/agents` (agents and versions); that belongs in Agora once Agora exists.
 - Hephaestus has no tasks module yet; the `ExecutionId` type and the workspace's `executionId` field anticipate it.
 
@@ -121,7 +121,7 @@ pnpm --filter polis test   # one package (or run pnpm inside its directory)
 pnpm format:check          # prettier, as CI runs it (`pnpm format` in a package fixes it)
 ```
 
-`test:e2e` needs Docker where a package tests against Postgres and RabbitMQ (Krepis, Polis): Testcontainers starts `postgres:17.5-alpine` and `rabbitmq:4.1-management` per run. Where Docker Hub can't be reached for Testcontainers' Ryuk image, run with `TESTCONTAINERS_RYUK_DISABLED=true`.
+`test:e2e` needs Docker (Krepis, Polis, Hephaestus): Testcontainers starts `postgres:17.5-alpine` and `rabbitmq:4.1-management` per run. Where Docker Hub can't be reached for Testcontainers' Ryuk image, run with `TESTCONTAINERS_RYUK_DISABLED=true`.
 
 **CI** (`.github/workflows/ci.yml`, on pushes to `main` and on pull requests) runs, in order: `pnpm install --frozen-lockfile`, `pnpm generate:api` (fails if the generated files differ from what's committed), `format:check`, `lint`, `build`, `test` and `test:e2e`. Each step only covers the packages changed since the base commit (the pull request's merge base, or the previous `main` commit) plus the packages that depend on them, so a Krepis change also checks Polis and Hephaestus, a `contracts` change checks every consumer, and changes only to `docs/` or `infra/` check nothing. Changes to the lockfile, `pnpm-workspace.yaml`, the root `package.json` or `.github/` check everything (see `.github/scripts/affected-filter.sh`). Run the same locally before pushing.
 
@@ -151,4 +151,4 @@ docker compose down -v     # stop and wipe all data
 | Mailpit | SMTP `localhost:1025` (any credentials), UI `localhost:8025`: catches all local email; production uses Resend or SES |
 | Grafana | `localhost:3300` (no login locally): logs from Loki, linked to traces in Jaeger |
 
-All credentials are fixed local-only values. MinIO in the compose file is only Langfuse's storage, not a stand-in for Loculus. Polis runs on its Postgres database with migrations (`cd polis && cp .env.example .env && pnpm start:dev`); Hephaestus still uses SQLite until it's converted.
+All credentials are fixed local-only values. MinIO in the compose file is only Langfuse's storage, not a stand-in for Loculus. Polis and Hephaestus run on their own Postgres databases with migrations (`cd polis && cp .env.example .env && pnpm start:dev`, likewise in `hephaestus`); there's no SQLite left.

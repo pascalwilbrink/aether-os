@@ -4,72 +4,61 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Hephaestus is a NestJS 12 (ESM, TypeScript 6) backend for managing AI agents: organizations own projects and agents; agents have immutable, versioned configurations (model, tools, skills, runtime); workspaces are sandboxed execution environments tied to a project. Persistence is TypeORM over better-sqlite3. The README is the unmodified Nest starter and has no project-specific info.
+Hephaestus is the Aether-os service that runs agents (see `../CLAUDE.md`). Today it holds **agents** with immutable, numbered **versions** (instructions, model, tools, skills, runtime; draft → published → deprecated, one published at a time), and **workspaces**: sandboxed execution environments in a project, driven by user actions and provisioner callbacks. It also still holds its own copies of **organizations** and **projects**, ported from Polis; they're to be replaced by Polis (calls and its events).
 
-Target role (see `../CLAUDE.md`): Hephaestus becomes the task runner. Agents move to Agora and organizations/projects to Polis; Hephaestus gains tasks and runs them with [Mastra](https://mastra.ai) as the agent runtime and sandbox layer, behind ports in its domain layer.
+Target role: Hephaestus becomes the task runner. Agents move to Agora; Hephaestus gains tasks and runs them with [Mastra](https://mastra.ai) as the agent runtime and sandbox layer, behind injected interfaces.
+
+It follows `../docs/engineering.md` like Polis: NestJS 12 (ESM, TypeScript 6), controller → service → TypeORM repository with mappers, Zod DTOs generated from the spec, `typeorm-transactional`, Postgres with migrations, tests against Postgres in containers.
 
 ## Commands
 
-Package manager is **pnpm**.
-
 ```bash
 pnpm install                   # from the workspace root (../)
-pnpm start:dev                 # watch mode, port $PORT (default 3002)
-pnpm build                     # nest build -> dist/
-pnpm lint                      # oxlint --type-aware over src/ libs/ test/
+cp .env.example .env           # once; then `docker compose up -d` in ../ for Postgres
+pnpm start:dev                 # build, run migrations, then watch mode on $PORT (default 3002)
+pnpm build
+pnpm lint                      # oxlint --type-aware; no-floating-promises is an error
 pnpm format                    # prettier (single quotes, trailing commas)
-pnpm generate:api              # regenerate API types from @aether-os/contracts (../contracts/)hephaestus.openapi.yaml
+pnpm generate:api              # regenerate libs/core/src/api/generated from ../contracts/hephaestus.openapi.yaml
 
-pnpm test                      # unit tests: **/*.spec.ts (vitest)
-pnpm test:e2e                  # e2e tests: test/*.e2e-spec.ts, in-memory DB
-pnpm test libs/agents/src/application/service/agent.service.spec.ts   # single file
-pnpm test -t "publishes"    # filter by test name
-pnpm test:e2e test/agents.e2e-spec.ts
+pnpm migration:run             # apply pending migrations (on dist/: build first)
+pnpm migration:show
+pnpm build && pnpm migration:generate src/database/migrations/<Name>   # then review it and add it to migrations/index.ts
+
+pnpm test                      # unit tests (libs/**/*.spec.ts): transition tables, mappers, config; no database
+pnpm test:e2e                  # integration (libs/**/*.int-spec.ts) and e2e (test/*.e2e-spec.ts) against Postgres; needs Docker
+pnpm test libs/workspaces/src/workspace-transitions.spec.ts   # single file
+pnpm test:e2e -t "publishes"   # filter by test name
 ```
 
-Lint enforces `typescript/no-floating-promises` as an error.
+## Configuration
+
+Environment variables, validated at startup with the Zod schema in `libs/core/src/config/env.ts` (`hephaestusConfigModule()`, through Krepis's `validateEnv`): `DATABASE_URL` (required, Postgres), `PORT` (3002), `NODE_ENV`. Locally they come from `.env` (gitignored; `.env.example` has the defaults for `docker compose`).
 
 ## Database
 
-- SQLite file at `data/hephaestus.sqlite` (override with `DATABASE_PATH`; e2e config sets `:memory:`).
-- `synchronize: true` outside `NODE_ENV=production` — schema is generated from entities, there are **no migrations** yet. Changing an entity changes the dev DB schema on next start.
-- Unit "service" specs are integration-style: they build a `Test.createTestingModule` with an in-memory `TypeOrmModule.forRoot` plus the feature module, rather than mocking repositories.
+- **Postgres**, Hephaestus's own database (`hephaestus` in `../docker-compose.yml`), connected in `libs/core/src/database/database.module.ts` with Krepis's `postgresOptions` and `createTransactionalDataSource`.
+- **Migrations only:** `src/database/migrations/` (registered in `migrations/index.ts`, oldest first), run by `pnpm migration:run` as a separate step, never at startup. The TypeORM CLI uses `src/database/data-source.ts` (compiled to `dist/`); list new entities there and in `test/global-setup.ts`. No down migrations: keep them compatible with the previous release.
+- **Columns:** `uuid` IDs, `timestamptz`, `text`, enums as `text` with a check constraint, configuration objects as `jsonb`, and an index matching each keyset pagination.
+- **Tests** run against Postgres 17.5 in a container started once per `test:e2e` run (`test/global-setup.ts`): it applies the migrations and fails if the entities differ from the migrated schema. Files run one at a time; every test starts from emptied tables (`test/database.ts`).
 
 ## Architecture
 
-### Monorepo layout
+`src/` is the app shell: `main.ts` calls Krepis's `initializeTransactions()` before Nest boots and `configureHttpApp(app)` (the `/v1` prefix, Zod validation, the response serializer, problem details); `app.module.ts` imports the config, database and feature modules. Code lives in Nest libraries under `libs/`, registered in `nest-cli.json` and aliased in `tsconfig.json` as `@hephaestus/<name>`.
 
-`src/` is just the app shell: `main.ts` calls Krepis's `configureHttpApp(app)` (the `/v1` prefix, the strict validation pipe and the problem details filter), and every e2e test calls it on the app it creates, before `init()`. All real code lives in Nest libraries under `libs/`, registered in `nest-cli.json` and aliased in `tsconfig.json` as `@hephaestus/<name>`. When adding a library, update both files (vitest resolves aliases via `resolve.tsconfigPaths`).
+Dependency graph: `core` ← `organizations` ← `projects`; `organizations` ← `agents`; `organizations`, `projects` ← `workspaces`. A library's `index.ts` exports its module, services and errors, never entities, mappers or repositories.
 
-Module dependency graph: `core` ← `organizations` ← `projects` ← `workspaces`; `agents` depends on `organizations`. Cross-module access goes through the other module's exported **service** (e.g. `OrganizationService.findActiveById`), never its repositories.
+Each feature library has the layout described in `../polis/CLAUDE.md`: `*.module.ts`, `*.controller.ts` (routes only), `*.service.ts` (rules, `@Transactional()`, tenancy; returns response DTOs), `*.entity.ts`, `*.mapper.ts` (UUIDv7 IDs), `*-transitions.ts` (the lifecycle as a pure table, tested exhaustively), `*.errors.ts` and one-line `createZodDto` classes in `dto/`.
 
-### Per-module layering (DDD / hexagonal)
-
-**Target** (agreed, see `../docs/engineering.md`): controller → service → TypeORM repository, with an injected mapper per resource (DTO ↔ entity) and no separate domain layer or repository ports; external systems (Mastra, sandboxes) stay behind injected interfaces. The current code still uses the layering below; don't extend it.
-
-Each feature lib follows the same structure — copy an existing module (e.g. `libs/agents`) when adding one:
-
-- `domain/` — aggregate classes with a private constructor, `static create()` (new, sets defaults/status) and `static reconstitute()` (from persistence). State lives in a private `props` object; getters return copies (`structuredClone`) of nested data. State transitions are methods that throw `DomainError` subclasses on invalid transitions. Repository **ports** are abstract classes in `domain/repository/` (used directly as Nest DI tokens).
-- `application/service/` — use-case services. Convention: reads call `organizations.findById` (404 if missing); writes call `organizations.findActiveById` (throws `OrganizationSuspendedError` if suspended). Missing resources throw Nest `NotFoundException`.
-- `infrastructure/persistence/` — TypeORM `entity/`, `mapper/` (`toEntity` / `toDomain`, casting raw strings back to branded IDs), and `repository/TypeOrm*Repository` implementing the port. Bound in the module via `{ provide: XRepository, useClass: TypeOrmXRepository }`.
-- `presentation/http/` — (target: Zod-generated DTOs with `createZodDto` and a `ZodValidationPipe`, see `../docs/engineering.md`) controllers and class-validator request/response DTOs (`XResponse.fromDomain`). Controllers generate IDs with `randomUUID()`. Routes are nested under `organizations/:organizationId/...`.
-- `index.ts` — public surface of the lib; export anything other libs need.
-
-### Core conventions (`libs/core` and Krepis)
-
-Most of `@hephaestus/core` is re-exported from the shared `@aether-os/krepis` package (`../krepis`); only the service-specific IDs (`AgentId`, `AgentVersionId`, `ExecutionId`, `WorkspaceId`), `DatabaseModule` and the generated API types live in `libs/core` itself. Change shared code in Krepis and run `pnpm build` there; the copy here is refreshed automatically.
-
-
-- **Branded IDs**: `OrganizationId` and `ProjectId` come from Krepis; Hephaestus-only IDs are in `core/src/id/id.ts`.
-- **Errors**: extend `DomainError(message, CODE)`. Krepis's `ProblemDetailsFilter` turns every error into problem details (`application/problem+json`, see `../docs/api.md`): a `DomainError` becomes **HTTP 409** with its `code`, validation failures `400 VALIDATION_FAILED` with `errors`, `NotFoundException` `404 NOT_FOUND`. Add new codes to the spec's `DomainErrorCode` enum too.
-- **Transactions**: `TransactionManager.run(work)` uses `AsyncLocalStorage`; nested calls join the outer transaction. TypeORM repositories must resolve their `Repository` per call via `TypeOrmTransactionManager.getRepository(Entity)` (a getter, not a field) so they participate in the active transaction. Modules import `TransactionModule` and still register entities with `TypeOrmModule.forFeature` (for `autoLoadEntities`).
-- **Unique constraints**: catch with `isUniqueViolation(error)` in the repository and rethrow as a domain error (see agent version numbering, which retries on conflict up to 5 times).
-- **Pagination**: cursor (keyset) based. Controllers take `@Query() PaginationQuery` (`limit` 1–100, default 50; opaque `cursor`), repositories return `Page<T>` (`items`, `nextCursor`) from Krepis's `findPage(repository, { where, sortBy, direction }, page)`, and controllers respond with `PageResponse.fromPage(page, mapFn)`. `where` holds the tenant filters; a cursor only works with the filters and sort it was made with (`400 INVALID_CURSOR` otherwise).
+- **Tenancy:** reads call `OrganizationsService.assertExists` (404); writes call `assertAcceptsWrites` (404 or `ORGANIZATION_SUSPENDED`, holding a shared lock on the organization). Workspaces are created through `ProjectsService.assertAcceptsWrites` (also `PROJECT_ARCHIVED`). Everything is looked up within its organization, so another organization's resource is a 404.
+- **Agents and versions:** `AgentsService` owns agents, `AgentVersionsService` owns versions and reaches agents through `AgentsService`. Creating or publishing a version calls `lockForVersionChange`, which locks the agent row (`AGENT_ARCHIVED` for archived agents): concurrent requests for one agent take turns, so version numbers are gapless and only one version is published. Publishing deprecates the previous published version in the same transaction; publishing the published version returns it unchanged; a deprecated version can't be published (`AGENT_VERSION_INVALID_TRANSITION`). Archiving an agent is idempotent.
+- **Workspaces:** `workspace-transitions.ts` lists every allowed (status, action) pair; anything else is `WORKSPACE_INVALID_TRANSITION`. Workspace transitions are strict, not idempotent. User actions (acquire, release, suspend, resume) need an active organization; destroy only an existing one (a suspended organization can still release resources); provisioner callbacks (`startProvisioning`, `markReady`, `markDestroyed`, `markFailed`, `expire`, service methods without HTTP routes) skip the check. `expiresAt` must be in the future (`WORKSPACE_INVALID_EXPIRY`).
+- **Errors:** `DomainError` subclasses become `409` problem details with their `code`; add new codes to the spec's `DomainErrorCode` enum too.
 
 ### API contract
 
-The HTTP API is specified in `../contracts/hephaestus.openapi.yaml` (spec-first). `pnpm generate:api` reads it from the `@aether-os/contracts` workspace package and writes `libs/core/src/api/generated/hephaestus-api.ts` (committed; never hand-edit). Every request/response DTO declares `implements ApiSchema<'SchemaName'>` from `@hephaestus/core`, so `tsc`/`pnpm build` fails when a DTO drifts from the spec. Note that `implements` doesn't catch extra fields in a DTO that the spec lacks, and the class-validator decorators (runtime validation) must be kept in line with the spec's constraints by hand. When adding or changing an endpoint: edit the spec, regenerate, then update the DTO/controller.
+Spec-first: `../contracts/hephaestus.openapi.yaml`. `pnpm generate:api` runs `@hey-api/openapi-ts` (`openapi-ts.config.ts`: types and Zod schemas) into `libs/core/src/api/generated/` (committed, formatted, never hand-edited); Iris generates its types from the same spec. To change an endpoint: edit the spec, regenerate (here and in `../iris`), then update the DTO classes, mapper and controller.
 
-### ESM specifics
+### ESM
 
-`"type": "module"` with `nodenext` resolution: relative imports must include the `.js` extension (`./agent.js`). `main.ts` uses top-level `await`.
+`"type": "module"` with `nodenext` resolution: relative imports need the `.js` extension. `main.ts` uses top-level `await`.

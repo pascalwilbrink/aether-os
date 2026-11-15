@@ -1,7 +1,7 @@
-// Shared Aether-os foundation (errors, events, transactions, pagination,
-// HTTP helpers, shared IDs). Re-exported so libs keep importing @hephaestus/core.
+// Shared Aether-os foundation (errors, pagination, HTTP conventions,
+// transactions, configuration). Re-exported so libs import @hephaestus/core.
 export * from '@aether-os/krepis';
 
-export * from './id/index.js';
-export * from './database/index.js';
 export * from './api/index.js';
+export * from './config/index.js';
+export * from './database/index.js';

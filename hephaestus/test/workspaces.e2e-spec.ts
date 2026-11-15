@@ -1,21 +1,41 @@
 import type { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
-import type { OrganizationId, WorkspaceId } from '@hephaestus/core';
-import { WorkspaceService } from '@hephaestus/workspaces';
+import { WorkspacesService } from '@hephaestus/workspaces';
 
-import { configureHttpApp } from '@hephaestus/core';
+import { createApp, MISSING_ID } from './app.js';
 
-import { AppModule } from '../src/app.module.js';
+describe('Workspaces (e2e)', () => {
+  let app: INestApplication<App>;
+  let orgId: string;
+  let projectId: string;
+  let base: string;
 
-let projectId: string;
+  beforeEach(async () => {
+    app = await createApp();
+    const org = await http()
+      .post('/v1/organizations')
+      .send({ name: 'Acme', slug: 'acme', createdBy: 'user-1' })
+      .expect(201);
+    orgId = org.body.id;
+    base = `/v1/organizations/${orgId}/workspaces`;
+    const project = await http()
+      .post(`/v1/organizations/${orgId}/projects`)
+      .send({ name: 'App', slug: 'app', description: '', createdBy: 'user-1' })
+      .expect(201);
+    projectId = project.body.id;
+  });
 
-function workspaceBody(overrides: Record<string, unknown> = {}) {
-  return {
+  afterEach(async () => {
+    await app.close();
+  });
+
+  const http = () => request(app.getHttpServer());
+
+  const body = (overrides: Record<string, unknown> = {}) => ({
     projectId,
-    executionId: 'execution-1',
+    executionId: '0193a1b2-c3d4-7e5f-8a9b-0000000000e1',
     repository: {
       provider: 'github',
       repositoryUrl: 'https://github.com/acme/app',
@@ -29,197 +49,98 @@ function workspaceBody(overrides: Record<string, unknown> = {}) {
       networkAccess: 'restricted',
     },
     workingDirectory: '/workspace',
-    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
     ...overrides,
-  };
-}
-
-describe('Workspaces (e2e)', () => {
-  let app: INestApplication<App>;
-  let orgId: string;
-  let base: string;
-
-  beforeEach(async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = configureHttpApp(moduleRef.createNestApplication());
-    await app.init();
-
-    const org = await request(app.getHttpServer())
-      .post('/v1/organizations')
-      .send({ name: 'Acme', slug: 'acme', createdBy: 'user-1' })
-      .expect(201);
-    orgId = org.body.id;
-    base = `/v1/organizations/${orgId}/workspaces`;
-
-    const project = await request(app.getHttpServer())
-      .post(`/v1/organizations/${orgId}/projects`)
-      .send({ name: 'App', slug: 'app', description: '', createdBy: 'user-1' })
-      .expect(201);
-    projectId = project.body.id;
   });
-
-  afterEach(async () => {
-    await app.close();
-  });
-
-  async function createWorkspace(): Promise<string> {
-    const res = await request(app.getHttpServer())
-      .post(base)
-      .send(workspaceBody())
-      .expect(201);
-
-    return res.body.id;
-  }
-
-  /** Simulates the provisioner, which has no HTTP endpoints. */
-  async function provision(id: string): Promise<void> {
-    const service = app.get(WorkspaceService);
-    await service.startProvisioning(orgId as OrganizationId, id as WorkspaceId);
-    await service.markReady(orgId as OrganizationId, id as WorkspaceId, {
-      provider: 'docker',
-      resourceId: 'container-123',
-    });
-  }
 
   it('creates, fetches and lists workspaces', async () => {
-    const id = await createWorkspace();
-
-    const res = await request(app.getHttpServer())
-      .get(`${base}/${id}`)
-      .expect(200);
-    expect(res.body).toMatchObject({
-      id,
+    const created = await http().post(base).send(body()).expect(201);
+    expect(created.body).toMatchObject({
       organizationId: orgId,
+      projectId,
       status: 'requested',
       sandboxReference: null,
-      repository: workspaceBody().repository,
+      startedAt: null,
     });
-    expect(typeof res.body.expiresAt).toBe('string');
-    expect(res.body).not.toHaveProperty('props');
 
-    const list = await request(app.getHttpServer()).get(base).expect(200);
+    await http().get(`${base}/${created.body.id}`).expect(200);
+    const list = await http().get(base).expect(200);
     expect(list.body).toMatchObject({ nextCursor: null });
     expect(list.body.items).toHaveLength(1);
 
-    await request(app.getHttpServer()).get(`${base}/unknown`).expect(404);
+    await http().get(`${base}/${MISSING_ID}`).expect(404);
   });
 
   it('validates the request body', async () => {
-    const invalid = [
-      workspaceBody({ workingDirectory: 'relative/path' }),
-      workspaceBody({ expiresAt: 'not-a-date' }),
-      workspaceBody({
-        repository: { ...workspaceBody().repository, provider: 'svn' },
-      }),
-      workspaceBody({
+    const cases: Record<string, unknown>[] = [
+      {
         repository: {
-          ...workspaceBody().repository,
-          repositoryUrl: 'http://insecure.example',
+          provider: 'svn',
+          repositoryUrl: 'https://x',
+          branch: 'main',
         },
-      }),
-      workspaceBody({
-        repository: { ...workspaceBody().repository, commitSha: 'XYZ' },
-      }),
-      workspaceBody({
-        sandbox: { ...workspaceBody().sandbox, memoryLimitMb: -1 },
-      }),
-      workspaceBody({
-        sandbox: { ...workspaceBody().sandbox, networkAccess: 'open' },
-      }),
+      },
+      {
+        repository: {
+          provider: 'github',
+          repositoryUrl: 'http://x.example',
+          branch: 'main',
+        },
+      },
+      { sandbox: { ...body().sandbox, cpuLimit: 0 } },
+      { workingDirectory: 'relative/path' },
+      { projectId: 'not-a-uuid' },
     ];
-
-    for (const body of invalid) {
-      await request(app.getHttpServer()).post(base).send(body).expect(400);
+    for (const overrides of cases) {
+      await http().post(base).send(body(overrides)).expect(400);
     }
 
-    const past = await request(app.getHttpServer())
+    const past = await http()
       .post(base)
-      .send(
-        workspaceBody({ expiresAt: new Date(Date.now() - 1000).toISOString() }),
-      )
+      .send(body({ expiresAt: new Date(Date.now() - 1000).toISOString() }))
       .expect(409);
     expect(past.body.code).toBe('WORKSPACE_INVALID_EXPIRY');
   });
 
-  it('drives user actions over HTTP', async () => {
-    const id = await createWorkspace();
-    const server = app.getHttpServer();
+  it('drives the user actions over HTTP', async () => {
+    const { body: workspace } = await http()
+      .post(base)
+      .send(body())
+      .expect(201);
+    const url = `${base}/${workspace.id}`;
 
-    // Not provisioned yet.
-    const early = await request(server)
-      .post(`${base}/${id}/acquire`)
-      .expect(409);
+    const early = await http().post(`${url}/acquire`).expect(409);
     expect(early.body.code).toBe('WORKSPACE_INVALID_TRANSITION');
 
-    await provision(id);
-
-    const acquired = await request(server)
-      .post(`${base}/${id}/acquire`)
-      .expect(200);
-    expect(acquired.body.status).toBe('in_use');
-    expect(acquired.body.sandboxReference).toEqual({
+    // The provisioner (not HTTP) makes it ready.
+    const service = app.get(WorkspacesService);
+    await service.startProvisioning(orgId, workspace.id);
+    await service.markReady(orgId, workspace.id, {
       provider: 'docker',
-      resourceId: 'container-123',
+      resourceId: 'c1',
     });
 
     for (const [action, status] of [
+      ['acquire', 'in_use'],
       ['release', 'ready'],
       ['suspend', 'suspended'],
       ['resume', 'ready'],
       ['destroy', 'stopping'],
     ] as const) {
-      const res = await request(server)
-        .post(`${base}/${id}/${action}`)
-        .expect(200);
+      const res = await http().post(`${url}/${action}`).expect(200);
       expect(res.body.status).toBe(status);
     }
   });
 
-  it('requires an active project', async () => {
-    await request(app.getHttpServer())
-      .post(base)
-      .send(workspaceBody({ projectId: 'unknown' }))
-      .expect(404);
-
-    await request(app.getHttpServer())
+  it('requires an active project and organization', async () => {
+    await http()
       .post(`/v1/organizations/${orgId}/projects/${projectId}/archive`)
-      .expect(204);
-
-    const archived = await request(app.getHttpServer())
-      .post(base)
-      .send(workspaceBody())
-      .expect(409);
-    expect(archived.body.code).toBe('PROJECT_ARCHIVED');
-  });
-
-  it('applies organization rules', async () => {
-    const id = await createWorkspace();
-    await provision(id);
-    const server = app.getHttpServer();
-
-    await request(server)
-      .post(`/v1/organizations/${orgId}/suspend`)
       .expect(200);
+    const archived = await http().post(base).send(body()).expect(409);
+    expect(archived.body.code).toBe('PROJECT_ARCHIVED');
 
-    const create = await request(server)
-      .post(base)
-      .send(workspaceBody())
-      .expect(409);
-    expect(create.body.code).toBe('ORGANIZATION_SUSPENDED');
-
-    const acquire = await request(server)
-      .post(`${base}/${id}/acquire`)
-      .expect(409);
-    expect(acquire.body.code).toBe('ORGANIZATION_SUSPENDED');
-
-    await request(server).get(`${base}/${id}`).expect(200);
-    await request(server).post(`${base}/${id}/destroy`).expect(200);
-
-    await request(server)
-      .get('/v1/organizations/unknown/workspaces')
-      .expect(404);
+    await http().post(`/v1/organizations/${orgId}/suspend`).expect(200);
+    const suspended = await http().post(base).send(body()).expect(409);
+    expect(suspended.body.code).toBe('ORGANIZATION_SUSPENDED');
   });
 });

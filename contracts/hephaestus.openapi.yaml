@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -9,7 +9,10 @@ info:
     Follows `../docs/api.md`: paths under `/v1`, errors as problem details
     (`Problem`, `application/problem+json`; business-rule violations are 409
     with a `DomainErrorCode`), and lists paginated with `limit` / `cursor` →
-    `items` / `nextCursor`.
+    `items` / `nextCursor`. IDs are UUIDs; a path parameter that isn't one is
+    `400`. Actions are idempotent where that's natural (archiving an archived
+    agent or project, suspending a suspended organization, publishing the
+    published version); workspace transitions stay strict (`409`).
 
 tags:
   - name: organizations
@@ -65,6 +68,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /v1/organizations/{organizationId}:
@@ -79,6 +83,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /v1/organizations/{organizationId}/suspend:
@@ -89,12 +94,12 @@ paths:
       operationId: suspendOrganization
       responses:
         '200':
-          description: Suspended
+          description: Suspended (or already suspended)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
 
   /v1/organizations/{organizationId}/activate:
     parameters:
@@ -104,12 +109,12 @@ paths:
       operationId: activateOrganization
       responses:
         '200':
-          description: Active
+          description: Active (or already active)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
 
   /v1/organizations/{organizationId}/projects:
     parameters:
@@ -159,6 +164,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ProjectResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /v1/organizations/{organizationId}/projects/{projectId}/archive:
@@ -169,7 +175,12 @@ paths:
       tags: [projects]
       operationId: archiveProject
       responses:
-        '204': { description: Archived }
+        '200':
+          description: Archived (or already archived)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
@@ -221,6 +232,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AgentResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /v1/organizations/{organizationId}/agents/{agentId}/archive:
@@ -231,7 +243,12 @@ paths:
       tags: [agents]
       operationId: archiveAgent
       responses:
-        '204': { description: Archived }
+        '200':
+          description: Archived (or already archived)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AgentResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
@@ -286,6 +303,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AgentVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /v1/organizations/{organizationId}/agents/{agentId}/versions/{versionId}/publish:
@@ -296,13 +314,17 @@ paths:
     post:
       tags: [agent-versions]
       operationId: publishAgentVersion
-      description: Publishes a draft and deprecates the previously published version.
+      description: |
+        Publishes a draft and deprecates the previously published version.
+        Publishing the version that's already published returns it unchanged;
+        a deprecated version can't be published again (409).
       responses:
         '200':
           description: Published
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AgentVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
@@ -354,6 +376,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/WorkspaceResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /v1/organizations/{organizationId}/workspaces/{workspaceId}/acquire:
@@ -365,6 +388,7 @@ paths:
       operationId: acquireWorkspace
       responses:
         '200': { $ref: '#/components/responses/WorkspaceTransition' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
@@ -377,6 +401,7 @@ paths:
       operationId: releaseWorkspace
       responses:
         '200': { $ref: '#/components/responses/WorkspaceTransition' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
@@ -389,6 +414,7 @@ paths:
       operationId: suspendWorkspace
       responses:
         '200': { $ref: '#/components/responses/WorkspaceTransition' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
@@ -401,6 +427,7 @@ paths:
       operationId: resumeWorkspace
       responses:
         '200': { $ref: '#/components/responses/WorkspaceTransition' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
@@ -414,6 +441,7 @@ paths:
       description: Starts teardown (status `stopping`); the provisioner completes it.
       responses:
         '200': { $ref: '#/components/responses/WorkspaceTransition' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
@@ -423,27 +451,27 @@ components:
       name: organizationId
       in: path
       required: true
-      schema: { type: string }
+      schema: { type: string, format: uuid }
     ProjectId:
       name: projectId
       in: path
       required: true
-      schema: { type: string }
+      schema: { type: string, format: uuid }
     AgentId:
       name: agentId
       in: path
       required: true
-      schema: { type: string }
+      schema: { type: string, format: uuid }
     VersionId:
       name: versionId
       in: path
       required: true
-      schema: { type: string }
+      schema: { type: string, format: uuid }
     WorkspaceId:
       name: workspaceId
       in: path
       required: true
-      schema: { type: string }
+      schema: { type: string, format: uuid }
     Limit: { $ref: './common.openapi.yaml#/components/parameters/Limit' }
     Cursor: { $ref: './common.openapi.yaml#/components/parameters/Cursor' }
 
@@ -470,7 +498,6 @@ components:
         - AGENT_ARCHIVED
         - AGENT_VERSION_CONFLICT
         - AGENT_VERSION_INVALID_TRANSITION
-        - ORGANIZATION_ALREADY_SUSPENDED
         - ORGANIZATION_SLUG_TAKEN
         - ORGANIZATION_SUSPENDED
         - PROJECT_ARCHIVED
@@ -516,7 +543,7 @@ components:
       type: object
       required: [id, name, slug, status, createdBy, createdAt, updatedAt]
       properties:
-        id: { type: string }
+        id: { type: string, format: uuid }
         name: { type: string }
         slug: { type: string }
         status: { $ref: '#/components/schemas/OrganizationStatus' }
@@ -552,8 +579,8 @@ components:
       type: object
       required: [id, organizationId, name, slug, description, status, createdBy, createdAt, updatedAt]
       properties:
-        id: { type: string }
-        organizationId: { type: string }
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
         name: { type: string }
         slug: { type: string }
         description: { type: string }
@@ -587,13 +614,14 @@ components:
       type: object
       required: [id, organizationId, name, description, status, latestVersionId, createdBy, createdAt, updatedAt]
       properties:
-        id: { type: string }
-        organizationId: { type: string }
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
         name: { type: string }
         description: { type: string }
         status: { $ref: '#/components/schemas/AgentStatus' }
         latestVersionId:
           type: [string, 'null']
+          format: uuid
           description: The currently published version, if any.
         createdBy: { type: string }
         createdAt: { $ref: '#/components/schemas/Timestamp' }
@@ -672,9 +700,9 @@ components:
       type: object
       required: [id, agentId, organizationId, version, status, instructions, model, capabilities, tools, skills, runtime, createdBy, createdAt, publishedAt]
       properties:
-        id: { type: string }
-        agentId: { type: string }
-        organizationId: { type: string }
+        id: { type: string, format: uuid }
+        agentId: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
         version: { type: integer, minimum: 1 }
         status: { $ref: '#/components/schemas/AgentVersionStatus' }
         instructions: { type: string }
@@ -749,8 +777,8 @@ components:
       additionalProperties: false
       required: [projectId, executionId, repository, sandbox, workingDirectory, expiresAt]
       properties:
-        projectId: { type: string, minLength: 1 }
-        executionId: { type: string, minLength: 1 }
+        projectId: { type: string, format: uuid }
+        executionId: { type: string, format: uuid }
         repository: { $ref: '#/components/schemas/RepositoryConfiguration' }
         sandbox: { $ref: '#/components/schemas/SandboxConfiguration' }
         workingDirectory:
@@ -765,10 +793,10 @@ components:
       type: object
       required: [id, organizationId, projectId, executionId, status, repository, sandbox, sandboxReference, workingDirectory, failureReason, expiresAt, createdAt, updatedAt, startedAt, destroyedAt]
       properties:
-        id: { type: string }
-        organizationId: { type: string }
-        projectId: { type: string }
-        executionId: { type: string }
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        executionId: { type: string, format: uuid }
         status: { $ref: '#/components/schemas/WorkspaceStatus' }
         repository: { $ref: '#/components/schemas/RepositoryConfiguration' }
         sandbox: { $ref: '#/components/schemas/SandboxConfiguration' }
