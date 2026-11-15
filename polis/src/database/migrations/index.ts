@@ -1,6 +1,7 @@
 import { Initial1794741066659 } from './1794741066659-Initial.js';
 import { Memberships1794743007032 } from './1794743007032-Memberships.js';
 import { Outbox1794744119144 } from './1794744119144-Outbox.js';
+import { ProjectMemberships1794766125332 } from './1794766125332-ProjectMemberships.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -12,4 +13,5 @@ export const migrations = [
   Initial1794741066659,
   Memberships1794743007032,
   Outbox1794744119144,
+  ProjectMemberships1794766125332,
 ];

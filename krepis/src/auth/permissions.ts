@@ -96,7 +96,7 @@ export function projectRoleGrants(
 }
 
 /** The highest project role an organization role allows (docs/identity.md, the cap). */
-function projectRoleCap(
+export function projectRoleCap(
   roles: readonly OrganizationRole[],
 ): ProjectRole | null {
   if (roles.includes('owner') || roles.includes('admin')) {

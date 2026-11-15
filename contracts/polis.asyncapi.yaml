@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Polis events
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Events Polis publishes to the `polis.events` topic exchange on RabbitMQ;
     the routing key is the event type. Every message is the Krepis
@@ -47,6 +47,9 @@ channels:
       membershipGranted: { $ref: '#/components/messages/membershipGranted' }
       membershipRoleChanged: { $ref: '#/components/messages/membershipRoleChanged' }
       membershipRevoked: { $ref: '#/components/messages/membershipRevoked' }
+      projectMembershipGranted: { $ref: '#/components/messages/projectMembershipGranted' }
+      projectMembershipRoleChanged: { $ref: '#/components/messages/projectMembershipRoleChanged' }
+      projectMembershipRevoked: { $ref: '#/components/messages/projectMembershipRevoked' }
 
 operations:
   publishPolisEvents:
@@ -61,6 +64,9 @@ operations:
       - $ref: '#/channels/polisEvents/messages/membershipGranted'
       - $ref: '#/channels/polisEvents/messages/membershipRoleChanged'
       - $ref: '#/channels/polisEvents/messages/membershipRevoked'
+      - $ref: '#/channels/polisEvents/messages/projectMembershipGranted'
+      - $ref: '#/channels/polisEvents/messages/projectMembershipRoleChanged'
+      - $ref: '#/channels/polisEvents/messages/projectMembershipRevoked'
 
 components:
   messages:
@@ -144,6 +150,37 @@ components:
             properties:
               eventType: { const: membership.revoked }
               payload: { $ref: '#/components/schemas/MembershipRevoked' }
+
+    projectMembershipGranted:
+      name: project-membership.granted
+      summary: A member got a role in a project.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: project-membership.granted }
+              payload: { $ref: '#/components/schemas/ProjectMembershipGranted' }
+    projectMembershipRoleChanged:
+      name: project-membership.role-changed
+      summary: A project membership's role changed (also when an organization role was lowered and the grant was capped); drop cached permissions.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: project-membership.role-changed }
+              payload: { $ref: '#/components/schemas/ProjectMembershipRoleChanged' }
+    projectMembershipRevoked:
+      name: project-membership.revoked
+      summary: A principal lost its role in a project (also when it left the organization).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: project-membership.revoked }
+              payload: { $ref: '#/components/schemas/ProjectMembershipRevoked' }
 
   schemas:
     Uuid: { type: string, format: uuid }
@@ -229,6 +266,43 @@ components:
         membershipId: { $ref: '#/components/schemas/Uuid' }
         principal: { $ref: '#/components/schemas/Principal' }
         scope: { $ref: '#/components/schemas/OrganizationScope' }
+    ProjectMembershipGranted:
+      type: object
+      additionalProperties: false
+      required: [membershipId, principal, scope, role]
+      properties:
+        membershipId: { $ref: '#/components/schemas/Uuid' }
+        principal: { $ref: '#/components/schemas/Principal' }
+        scope: { $ref: '#/components/schemas/ProjectScope' }
+        role: { $ref: '#/components/schemas/ProjectRole' }
+    ProjectMembershipRoleChanged:
+      type: object
+      additionalProperties: false
+      required: [membershipId, principal, scope, from, to]
+      properties:
+        membershipId: { $ref: '#/components/schemas/Uuid' }
+        principal: { $ref: '#/components/schemas/Principal' }
+        scope: { $ref: '#/components/schemas/ProjectScope' }
+        from: { $ref: '#/components/schemas/ProjectRole' }
+        to: { $ref: '#/components/schemas/ProjectRole' }
+    ProjectMembershipRevoked:
+      type: object
+      additionalProperties: false
+      required: [membershipId, principal, scope]
+      properties:
+        membershipId: { $ref: '#/components/schemas/Uuid' }
+        principal: { $ref: '#/components/schemas/Principal' }
+        scope: { $ref: '#/components/schemas/ProjectScope' }
+    ProjectScope:
+      type: object
+      additionalProperties: false
+      required: [type, organizationId, projectId]
+      properties:
+        type: { const: project }
+        organizationId: { $ref: '#/components/schemas/Uuid' }
+        projectId: { $ref: '#/components/schemas/Uuid' }
+    ProjectRole:
+      enum: [approver, editor, viewer]
     Principal:
       type: object
       additionalProperties: false

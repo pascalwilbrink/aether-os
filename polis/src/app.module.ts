@@ -12,6 +12,7 @@ import {
 } from '@polis/core';
 import { MembershipsModule } from '@polis/memberships';
 import { OrganizationsModule } from '@polis/organizations';
+import { ProjectMembershipsModule } from '@polis/project-memberships';
 import { ProjectsModule } from '@polis/projects';
 
 // Validation, the /v1 prefix and problem details: configureHttpApp (main.ts).
@@ -45,6 +46,7 @@ import { ProjectsModule } from '@polis/projects';
     OrganizationsModule,
     ProjectsModule,
     MembershipsModule,
+    ProjectMembershipsModule,
   ],
 })
 export class AppModule {}

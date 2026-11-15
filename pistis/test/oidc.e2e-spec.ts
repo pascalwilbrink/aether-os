@@ -18,6 +18,7 @@ import { FakePolisDirectory } from './fake-polis-directory.js';
 const ISSUER = 'http://127.0.0.1/oidc';
 const REDIRECT_URI = 'http://localhost:3000/auth/callback';
 const ORG = '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
+const PROJECT = '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5c';
 const PASSWORD = 'a long enough password';
 
 const path = (location: string) => {
@@ -169,7 +170,9 @@ describe('Signing in and issuing tokens (e2e)', () => {
   });
 
   it('signs in with a password and issues an organization token with roles from Polis', async () => {
-    polis.addMember(userId, ORG, ['admin', 'member']);
+    polis
+      .addMember(userId, ORG, ['admin', 'member'])
+      .grantProject(userId, ORG, PROJECT, 'approver');
 
     const { callback, verifier } = await authorize({
       resource: `urn:aether-os:org:${ORG}`,
@@ -192,7 +195,7 @@ describe('Signing in and issuing tokens (e2e)', () => {
       sub_type: 'user',
       org_id: ORG,
       org_roles: ['admin', 'member'],
-      project_roles: {},
+      project_roles: { [PROJECT]: 'approver' },
     });
     // What every service's AuthGuard does with it (Krepis).
     await expect(

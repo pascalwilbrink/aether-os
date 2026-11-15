@@ -18,7 +18,10 @@ import type { CreateProjectRequest } from './dto/create-project.request.js';
 import type { ProjectResponse } from './dto/project.response.js';
 import { nextProjectStatus } from './project-transitions.js';
 import { ProjectEntity } from './project.entity.js';
-import { ProjectSlugTakenError } from './project.errors.js';
+import {
+  ProjectArchivedError,
+  ProjectSlugTakenError,
+} from './project.errors.js';
 import { ProjectMapper } from './project.mapper.js';
 
 /**
@@ -131,6 +134,35 @@ export class ProjectsService {
     }
 
     return this.mapper.toResponse(entity);
+  }
+
+  /**
+   * For writes to a project's resources (its memberships): 404 unless it
+   * exists in the organization, `ORGANIZATION_SUSPENDED` or
+   * `PROJECT_ARCHIVED` unless both are active. Locks the project row (shared)
+   * until the transaction ends, so it can't be archived halfway through.
+   */
+  @Transactional()
+  async assertActive(organizationId: string, projectId: string): Promise<void> {
+    await this.organizations.assertAcceptsWrites(organizationId);
+    const entity = await this.projects.findOne({
+      where: { id: projectId, organizationId },
+      lock: { mode: 'pessimistic_read' },
+    });
+    if (!entity) {
+      throw new NotFoundException(`Project ${projectId} not found`);
+    }
+    if (entity.status !== 'active') {
+      throw new ProjectArchivedError(projectId);
+    }
+  }
+
+  /** For reads of a project's resources: 404 unless it exists. */
+  async assertExists(organizationId: string, projectId: string): Promise<void> {
+    await this.organizations.assertExists(organizationId);
+    if (!(await this.projects.existsBy({ id: projectId, organizationId }))) {
+      throw new NotFoundException(`Project ${projectId} not found`);
+    }
   }
 
   /** Scoped to the organization: another organization's project is a 404. */

@@ -207,7 +207,7 @@ export class OidcProviderService implements OnModuleInit, OnModuleDestroy {
   /**
    * The Aether-os claims of an access token (docs/identity.md): `sub_type`,
    * and for an organization resource `org_id`, `org_roles` (from Polis, now)
-   * and `project_roles` (none until project memberships exist). A user who
+   * and `project_roles` (explicit grants; Krepis caps them again). A user who
    * isn't a member any more, or a suspended organization, gets no token.
    */
   private async extraTokenClaims(
@@ -229,9 +229,10 @@ export class OidcProviderService implements OnModuleInit, OnModuleDestroy {
       return { sub_type: 'user' };
     }
 
-    const [roles, status] = await Promise.all([
+    const [roles, status, projectRoles] = await Promise.all([
       this.directory.membershipRoles(accountId, organizationId),
       this.directory.organizationStatus(organizationId),
+      this.directory.projectRoles(accountId, organizationId),
     ]);
     if (!roles) {
       throw new errors.InvalidGrant('not a member of the organization');
@@ -244,7 +245,7 @@ export class OidcProviderService implements OnModuleInit, OnModuleDestroy {
       sub_type: 'user',
       org_id: organizationId,
       org_roles: roles,
-      project_roles: {},
+      project_roles: projectRoles,
     };
   }
 }

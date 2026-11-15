@@ -6,7 +6,11 @@ import {
 
 import { createPolisHttpClient, PolisApi, ServiceTokens } from '@pistis/core';
 
-import { PolisDirectory, type OrganizationRole } from './polis-directory.js';
+import {
+  PolisDirectory,
+  type OrganizationRole,
+  type ProjectRole,
+} from './polis-directory.js';
 
 export const POLIS_DIRECTORY_OPTIONS = Symbol('POLIS_DIRECTORY_OPTIONS');
 
@@ -60,6 +64,37 @@ export class HttpPolisDirectory extends PolisDirectory {
     } while (cursor);
 
     return null;
+  }
+
+  async projectRoles(
+    userId: string,
+    organizationId: string,
+  ): Promise<Record<string, ProjectRole>> {
+    const roles: Record<string, ProjectRole> = {};
+    let cursor: string | undefined;
+    do {
+      const { data, response } = await this.call(() =>
+        PolisApi.listProjectMembershipsOfSubject({
+          client: this.client,
+          query: {
+            organizationId,
+            subjectType: 'user',
+            subject: userId,
+            limit: 100,
+            cursor,
+          },
+        }),
+      );
+      if (!response?.ok || !data) {
+        throw this.unavailable(response?.status);
+      }
+      for (const item of data.items) {
+        roles[item.projectId] = item.role;
+      }
+      cursor = data.nextCursor ?? undefined;
+    } while (cursor);
+
+    return roles;
   }
 
   async organizationStatus(

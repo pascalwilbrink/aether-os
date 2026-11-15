@@ -23,10 +23,16 @@ import type {
   CreateOrganizationResponses,
   CreateProjectData,
   CreateProjectErrors,
+  CreateProjectMembershipData,
+  CreateProjectMembershipErrors,
+  CreateProjectMembershipResponses,
   CreateProjectResponses,
   DeleteMembershipData,
   DeleteMembershipErrors,
   DeleteMembershipResponses,
+  DeleteProjectMembershipData,
+  DeleteProjectMembershipErrors,
+  DeleteProjectMembershipResponses,
   GetMembershipData,
   GetMembershipErrors,
   GetMembershipResponses,
@@ -38,6 +44,9 @@ import type {
   GetOrganizationResponses,
   GetProjectData,
   GetProjectErrors,
+  GetProjectMembershipData,
+  GetProjectMembershipErrors,
+  GetProjectMembershipResponses,
   GetProjectResponses,
   ListMembershipsData,
   ListMembershipsErrors,
@@ -48,6 +57,12 @@ import type {
   ListOrganizationsData,
   ListOrganizationsErrors,
   ListOrganizationsResponses,
+  ListProjectMembershipsData,
+  ListProjectMembershipsErrors,
+  ListProjectMembershipsOfSubjectData,
+  ListProjectMembershipsOfSubjectErrors,
+  ListProjectMembershipsOfSubjectResponses,
+  ListProjectMembershipsResponses,
   ListProjectsData,
   ListProjectsErrors,
   ListProjectsResponses,
@@ -57,6 +72,9 @@ import type {
   UpdateMembershipData,
   UpdateMembershipErrors,
   UpdateMembershipResponses,
+  UpdateProjectMembershipData,
+  UpdateProjectMembershipErrors,
+  UpdateProjectMembershipResponses,
 } from './types.gen.js';
 
 export type Options<
@@ -356,5 +374,134 @@ export const listMembershipsOfSubject = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/memberships',
+    ...options,
+  });
+
+export const listProjectMemberships = <ThrowOnError extends boolean = false>(
+  options: Options<ListProjectMembershipsData, ThrowOnError>,
+): RequestResult<
+  ListProjectMembershipsResponses,
+  ListProjectMembershipsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListProjectMembershipsResponses,
+    ListProjectMembershipsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/memberships',
+    ...options,
+  });
+
+/**
+ * Grants a member of the organization one role in the project. The
+ * role can't exceed what the organization role allows (`member` →
+ * `approver`, `viewer` → `viewer`; `PROJECT_ROLE_EXCEEDS_CAP`), and a
+ * service account is never an `approver`. The principal must be a
+ * member of the organization (`PROJECT_MEMBER_NOT_IN_ORGANIZATION`);
+ * the project must be active (`PROJECT_ARCHIVED`).
+ *
+ */
+export const createProjectMembership = <ThrowOnError extends boolean = false>(
+  options: Options<CreateProjectMembershipData, ThrowOnError>,
+): RequestResult<
+  CreateProjectMembershipResponses,
+  CreateProjectMembershipErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    CreateProjectMembershipResponses,
+    CreateProjectMembershipErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/memberships',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+export const deleteProjectMembership = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteProjectMembershipData, ThrowOnError>,
+): RequestResult<
+  DeleteProjectMembershipResponses,
+  DeleteProjectMembershipErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).delete<
+    DeleteProjectMembershipResponses,
+    DeleteProjectMembershipErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/memberships/{membershipId}',
+    ...options,
+  });
+
+export const getProjectMembership = <ThrowOnError extends boolean = false>(
+  options: Options<GetProjectMembershipData, ThrowOnError>,
+): RequestResult<
+  GetProjectMembershipResponses,
+  GetProjectMembershipErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetProjectMembershipResponses,
+    GetProjectMembershipErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/memberships/{membershipId}',
+    ...options,
+  });
+
+/**
+ * Replaces the role (same cap as granting).
+ */
+export const updateProjectMembership = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateProjectMembershipData, ThrowOnError>,
+): RequestResult<
+  UpdateProjectMembershipResponses,
+  UpdateProjectMembershipErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    UpdateProjectMembershipResponses,
+    UpdateProjectMembershipErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/memberships/{membershipId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * One principal's project roles in one organization. Pistis uses it to
+ * put `project_roles` in tokens.
+ *
+ */
+export const listProjectMembershipsOfSubject = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<ListProjectMembershipsOfSubjectData, ThrowOnError>,
+): RequestResult<
+  ListProjectMembershipsOfSubjectResponses,
+  ListProjectMembershipsOfSubjectErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListProjectMembershipsOfSubjectResponses,
+    ListProjectMembershipsOfSubjectErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/project-memberships',
     ...options,
   });

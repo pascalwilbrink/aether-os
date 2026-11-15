@@ -11,6 +11,8 @@ import { POLIS_EVENT_TYPES } from './generated/polis-events.gen.js';
 
 /** What every membership event carries. */
 export type MembershipEventBase = PolisEventPayloads['membership.revoked'];
+export type ProjectMembershipEventBase =
+  PolisEventPayloads['project-membership.revoked'];
 
 /** Every Polis event in the spec goes to RabbitMQ. */
 export const POLIS_PUBLISHED_EVENTS: readonly string[] = POLIS_EVENT_TYPES;

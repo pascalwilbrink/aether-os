@@ -7,6 +7,7 @@ import { OutboxMessageEntity, postgresOptions } from '@aether-os/krepis';
 import { OrganizationEntity } from '../../libs/organizations/src/organization.entity.js';
 import { MembershipEntity } from '../../libs/memberships/src/membership.entity.js';
 import { ProjectEntity } from '../../libs/projects/src/project.entity.js';
+import { ProjectMembershipEntity } from '../../libs/project-memberships/src/project-membership.entity.js';
 import { migrations } from './migrations/index.js';
 
 /**
@@ -34,6 +35,7 @@ export default new DataSource(
       ProjectEntity,
       MembershipEntity,
       OutboxMessageEntity,
+      ProjectMembershipEntity,
     ],
   }),
 );
