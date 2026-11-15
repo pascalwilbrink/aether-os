@@ -5,5 +5,9 @@ import { DataSource } from 'typeorm';
 export async function resetDatabase(
   app: INestApplicationContext,
 ): Promise<void> {
-  await app.get(DataSource).query('TRUNCATE users, user_providers');
+  await app
+    .get(DataSource)
+    .query(
+      'TRUNCATE users, user_providers, password_credentials, oidc_payloads',
+    );
 }

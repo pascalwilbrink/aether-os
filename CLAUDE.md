@@ -8,7 +8,7 @@ Aether-os is a platform for building, running and supporting AI agents. This fol
 
 | Component | Owns | Location | Status |
 |---|---|---|---|
-| **Pistis** | Authentication: an OIDC provider that federates external identity providers (e.g. Entra ID, Auth0); user identity, service accounts, API keys, and the tokens other services verify | `pistis/` | Active: users and linked identities; tokens next |
+| **Pistis** | Authentication: an OIDC provider that federates external identity providers (e.g. Entra ID, Auth0); user identity, service accounts, API keys, and the tokens other services verify | `pistis/` | Active: users, linked identities, password sign-in, user tokens; upstream OIDC sign-in next |
 | **Polis** | Tenancy: organizations, projects, and memberships (which user belongs to which organization, with what role) | `polis/` | Active |
 | **Agora** | Agent management: agent definitions and their immutable versions | not created yet | Planned |
 | **Themis** | Policies: versioned Rego policy sets per organization/project, served to OPA as bundles ([APS](https://agentpolicyspecification.github.io)) | not created yet | Planned |

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Pistis API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Authentication for Aether-os (see `../docs/identity.md`). Pistis owns
     **users** and the **external identities** linked to them: a user signs in
@@ -10,6 +10,10 @@ info:
     (the `sub` of the tokens Pistis will issue). Identities are linked by
     `(provider, subject)`, the provider's own stable identifier, and never by
     email address.
+
+    Pistis is also an identity provider itself: the `password` provider
+    (a login and a password, kept by Pistis) is a linked identity like any
+    other, so a user can have a password and, say, Google at the same time.
 
     Follows `../docs/api.md`: paths under `/v1`, errors as problem details,
     cursor pagination, UUIDs.
@@ -24,8 +28,9 @@ paths:
       tags: [users]
       operationId: createUser
       description: |
-        Creates a user with a first linked identity, so the user can sign in
-        from the start. Users who sign in through a provider for the first
+        Creates a user with a first identity, so the user can sign in from the
+        start: either an external one (`provider`) or a password
+        (`password`), exactly one of them. Users who sign in through a provider for the first
         time are created by the sign-in itself.
       requestBody:
         required: true
@@ -118,6 +123,44 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1/users/{userId}/password:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    post:
+      tags: [user-providers]
+      operationId: setUpPassword
+      description: |
+        Gives the user a password identity: a login (normalized to lowercase)
+        and a password. `PASSWORD_ALREADY_SET` if they have one;
+        `IDENTITY_ALREADY_LINKED` if another user has the login.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PasswordIdentityRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProviderResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    put:
+      tags: [user-providers]
+      operationId: changePassword
+      description: Replaces the password of the user's password identity (404 if they have none).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangePasswordRequest' }
+      responses:
+        '204': { description: Changed }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /v1/users/{userId}/providers:
     parameters:
       - $ref: '#/components/parameters/UserId'
@@ -127,7 +170,9 @@ paths:
       description: |
         Links another external identity to the user, so either signs in as
         the same user. An identity belongs to at most one user
-        (`IDENTITY_ALREADY_LINKED`).
+        (`IDENTITY_ALREADY_LINKED`). The `password` provider is set up with
+        `POST /v1/users/{userId}/password` instead
+        (`PASSWORD_PROVIDER_RESERVED`).
       requestBody:
         required: true
         content:
@@ -205,6 +250,8 @@ components:
       enum:
         - IDENTITY_ALREADY_LINKED
         - USER_LAST_PROVIDER
+        - PASSWORD_ALREADY_SET
+        - PASSWORD_PROVIDER_RESERVED
     DomainProblem:
       description: Problem details for a business-rule violation.
       allOf:
@@ -234,7 +281,8 @@ components:
     CreateUserRequest:
       type: object
       additionalProperties: false
-      required: [displayName, email, provider]
+      required: [displayName, email]
+      description: Exactly one of `provider` and `password`.
       properties:
         displayName: { type: string, minLength: 1, maxLength: 200 }
         email:
@@ -242,6 +290,7 @@ components:
             - $ref: '#/components/schemas/Email'
             - type: 'null'
         provider: { $ref: '#/components/schemas/LinkUserProviderRequest' }
+        password: { $ref: '#/components/schemas/PasswordIdentityRequest' }
     UpdateUserRequest:
       type: object
       additionalProperties: false
@@ -307,6 +356,31 @@ components:
         emailVerified:
           type: boolean
           description: Whether the provider says it verified the email.
+    Login:
+      type: string
+      minLength: 3
+      maxLength: 320
+      description: |
+        What the user types to sign in with a password, usually their email
+        address. Stored lowercase and trimmed; unique across users.
+    Password:
+      type: string
+      minLength: 12
+      maxLength: 256
+      description: Stored only as a scrypt hash.
+    PasswordIdentityRequest:
+      type: object
+      additionalProperties: false
+      required: [login, password]
+      properties:
+        login: { $ref: '#/components/schemas/Login' }
+        password: { $ref: '#/components/schemas/Password' }
+    ChangePasswordRequest:
+      type: object
+      additionalProperties: false
+      required: [password]
+      properties:
+        password: { $ref: '#/components/schemas/Password' }
     UserProviderResponse:
       type: object
       required: [id, userId, provider, subject, email, emailVerified, createdAt, lastSignInAt]

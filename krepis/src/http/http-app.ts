@@ -26,8 +26,21 @@ export const UNVERSIONED_PATHS = ['health'];
  * leaves paths outside it (other than `UNVERSIONED_PATHS`) to Express's plain
  * 404, which no client should reach.
  */
-export function configureHttpApp(app: INestApplication): INestApplication {
-  app.setGlobalPrefix(API_VERSION_PREFIX, { exclude: UNVERSIONED_PATHS });
+export interface HttpAppOptions {
+  /**
+   * More routes served without `/v1`, for paths fixed by external standards
+   * (e.g. Pistis's OpenID Connect sign-in pages, `interaction/*path`).
+   */
+  unversionedPaths?: string[];
+}
+
+export function configureHttpApp(
+  app: INestApplication,
+  options: HttpAppOptions = {},
+): INestApplication {
+  app.setGlobalPrefix(API_VERSION_PREFIX, {
+    exclude: [...UNVERSIONED_PATHS, ...(options.unversionedPaths ?? [])],
+  });
   app.use(
     (
       request: { headers: Record<string, string | string[] | undefined> },

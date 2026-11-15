@@ -14,6 +14,8 @@ import {
 import { ZodSerializerDto } from '@pistis/core';
 
 import { AccountsService } from './accounts.service.js';
+import { ChangePasswordRequest } from './dto/change-password.request.js';
+import { PasswordIdentityRequest } from './dto/password-identity.request.js';
 import { CreateUserRequest } from './dto/create-user.request.js';
 import { LinkUserProviderRequest } from './dto/link-user-provider.request.js';
 import { ListUserProvidersQuery } from './dto/list-user-providers.query.js';
@@ -25,6 +27,7 @@ import { UserProviderPage } from './dto/user-provider-page.response.js';
 import { UserProviderParams } from './dto/user-provider.params.js';
 import { UserProviderResponse } from './dto/user-provider.response.js';
 import { UserResponse } from './dto/user.response.js';
+import { PasswordsService } from './passwords.service.js';
 import { UserProvidersService } from './user-providers.service.js';
 import { UsersService } from './users.service.js';
 
@@ -71,6 +74,26 @@ export class UsersController {
   @ZodSerializerDto(UserResponse)
   enable(@Param() { userId }: UserParams) {
     return this.users.enable(userId);
+  }
+}
+
+@Controller('users/:userId/password')
+export class PasswordsController {
+  constructor(private readonly passwords: PasswordsService) {}
+
+  @Post()
+  @ZodSerializerDto(UserProviderResponse)
+  setUp(
+    @Param() { userId }: UserParams,
+    @Body() body: PasswordIdentityRequest,
+  ) {
+    return this.passwords.setUp(userId, body);
+  }
+
+  @Put()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  change(@Param() { userId }: UserParams, @Body() body: ChangePasswordRequest) {
+    return this.passwords.change(userId, body);
   }
 }
 

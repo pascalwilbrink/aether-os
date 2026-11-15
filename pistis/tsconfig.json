@@ -34,6 +34,12 @@
       ],
       "@pistis/users/*": [
         "./libs/users/src/*"
+      ],
+      "@pistis/oidc": [
+        "./libs/oidc/src/index.ts"
+      ],
+      "@pistis/oidc/*": [
+        "./libs/oidc/src/*"
       ]
     },
     "rewriteRelativeImportExtensions": true

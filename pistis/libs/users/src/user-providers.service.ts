@@ -17,6 +17,7 @@ import { UserProviderEntity } from './user-provider.entity.js';
 import { UserProviderMapper } from './user-provider.mapper.js';
 import {
   IdentityAlreadyLinkedError,
+  PasswordProviderReservedError,
   UserLastProviderError,
 } from './users.errors.js';
 import { UsersService } from './users.service.js';
@@ -31,9 +32,24 @@ export class UserProvidersService {
     private readonly users: UsersService,
   ) {}
 
-  /** Links an identity to a user; `IDENTITY_ALREADY_LINKED` if it's anyone's. */
-  @Transactional()
+  /**
+   * Links an external identity to a user (`IDENTITY_ALREADY_LINKED` if it's
+   * anyone's). Not for `password`, which needs a credential: see
+   * `PasswordsService.setUp`.
+   */
   async link(
+    userId: string,
+    dto: LinkUserProviderRequest,
+  ): Promise<UserProviderResponse> {
+    if (dto.provider === 'password') {
+      throw new PasswordProviderReservedError();
+    }
+    return this.linkInternal(userId, dto);
+  }
+
+  /** Links any identity, `password` included (for `PasswordsService`). */
+  @Transactional()
+  async linkInternal(
     userId: string,
     dto: LinkUserProviderRequest,
   ): Promise<UserProviderResponse> {
@@ -85,6 +101,16 @@ export class UserProvidersService {
       throw new UserLastProviderError(userId);
     }
     await this.providers.remove(entity);
+  }
+
+  /** The user's identity at a provider, if any. */
+  async findForUser(
+    userId: string,
+    provider: string,
+  ): Promise<UserProviderResponse | null> {
+    const entity = await this.providers.findOneBy({ userId, provider });
+
+    return entity ? this.mapper.toResponse(entity) : null;
   }
 
   /** The link for an identity, if any (for sign-in). */

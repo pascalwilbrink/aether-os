@@ -2,7 +2,12 @@
 
 import * as z from 'zod';
 
-export const zDomainErrorCode = z.enum(['IDENTITY_ALREADY_LINKED', 'USER_LAST_PROVIDER']);
+export const zDomainErrorCode = z.enum([
+    'IDENTITY_ALREADY_LINKED',
+    'USER_LAST_PROVIDER',
+    'PASSWORD_ALREADY_SET',
+    'PASSWORD_PROVIDER_RESERVED'
+]);
 
 export const zTimestamp = z.iso.datetime();
 
@@ -53,10 +58,35 @@ export const zLinkUserProviderRequest = z.object({
     emailVerified: z.boolean()
 });
 
+/**
+ * What the user types to sign in with a password, usually their email
+ * address. Stored lowercase and trimmed; unique across users.
+ *
+ */
+export const zLogin = z.string().min(3).max(320);
+
+/**
+ * Stored only as a scrypt hash.
+ */
+export const zPassword = z.string().min(12).max(256);
+
+export const zPasswordIdentityRequest = z.object({
+    login: zLogin,
+    password: zPassword
+});
+
+/**
+ * Exactly one of `provider` and `password`.
+ */
 export const zCreateUserRequest = z.object({
     displayName: z.string().min(1).max(200),
     email: zEmail.nullable(),
-    provider: zLinkUserProviderRequest
+    provider: zLinkUserProviderRequest.optional(),
+    password: zPasswordIdentityRequest.optional()
+});
+
+export const zChangePasswordRequest = z.object({
+    password: zPassword
 });
 
 export const zUserProviderResponse = z.object({
@@ -211,6 +241,28 @@ export const zEnableUserPath = z.object({
  * Active (or already active)
  */
 export const zEnableUserResponse = zUserResponse;
+
+export const zSetUpPasswordBody = zPasswordIdentityRequest;
+
+export const zSetUpPasswordPath = z.object({
+    userId: z.uuid()
+});
+
+/**
+ * Created
+ */
+export const zSetUpPasswordResponse = zUserProviderResponse;
+
+export const zChangePasswordBody = zChangePasswordRequest;
+
+export const zChangePasswordPath = z.object({
+    userId: z.uuid()
+});
+
+/**
+ * Changed
+ */
+export const zChangePasswordResponse = z.void();
 
 export const zListUserProvidersPath = z.object({
     userId: z.uuid()

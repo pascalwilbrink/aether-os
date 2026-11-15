@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
 
-import { Transactional } from '@pistis/core';
+import { Transactional, ValidationProblemException } from '@pistis/core';
 
 import type { CreateUserRequest } from './dto/create-user.request.js';
 import type { UserResponse } from './dto/user.response.js';
+import { PasswordsService } from './passwords.service.js';
 import { UserProvidersService } from './user-providers.service.js';
-import { IdentityAlreadyLinkedError } from './users.errors.js';
+import {
+  IdentityAlreadyLinkedError,
+  InvalidCredentialsError,
+} from './users.errors.js';
 import { UsersService } from './users.service.js';
 
 /** What an identity provider tells Pistis about whoever just signed in. */
@@ -35,16 +39,60 @@ export class AccountsService {
   constructor(
     private readonly users: UsersService,
     private readonly providers: UserProvidersService,
+    private readonly passwords: PasswordsService,
   ) {}
 
-  /** A user who can sign in from the start, through their first identity. */
+  /**
+   * A user who can sign in from the start, through their first identity:
+   * an external one (`provider`) or a password (`password`), exactly one.
+   */
   @Transactional()
   async createUser(dto: CreateUserRequest): Promise<UserResponse> {
+    if (Boolean(dto.provider) === Boolean(dto.password)) {
+      throw new ValidationProblemException([
+        {
+          pointer: dto.provider ? '/password' : '/provider',
+          parameter: null,
+          code: dto.provider ? 'INVALID' : 'REQUIRED',
+          detail: 'Give exactly one of provider and password.',
+        },
+      ]);
+    }
     const user = await this.users.create({
       displayName: dto.displayName,
       email: dto.email,
     });
-    await this.providers.link(user.id, dto.provider);
+    if (dto.password) {
+      await this.passwords.setUp(user.id, dto.password);
+    } else if (dto.provider) {
+      await this.providers.link(user.id, dto.provider);
+    }
+
+    return user;
+  }
+
+  /**
+   * Signs in with a login and password: the user, or `INVALID_CREDENTIALS`
+   * without saying which part was wrong (`USER_DISABLED` for a disabled
+   * user with the right password). Not exposed over HTTP: the sign-in page
+   * calls it.
+   */
+  @Transactional()
+  async signInWithPassword(
+    login: string,
+    password: string,
+  ): Promise<UserResponse> {
+    const identity = await this.passwords.verify(login, password);
+    if (!identity) {
+      throw new InvalidCredentialsError();
+    }
+    const now = new Date();
+    const user = await this.users.recordSignIn(identity.userId, now);
+    await this.providers.recordSignIn(
+      identity.id,
+      { email: identity.email, emailVerified: identity.emailVerified },
+      now,
+    );
 
     return user;
   }
