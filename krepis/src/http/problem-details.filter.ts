@@ -11,6 +11,11 @@ import type { Request, Response } from 'express';
 import { DomainError } from '../error/domain-error.js';
 import { InvalidCursorError } from '../pagination/cursor.js';
 import {
+  currentTraceContext,
+  parseTraceContext,
+  traceIdOf as traceIdOfHeaders,
+} from '../telemetry/trace-context.js';
+import {
   PROBLEM_CONTENT_TYPE,
   ProblemCode,
   problemTitle,
@@ -176,16 +181,13 @@ function asExposedClientError(
   return null;
 }
 
-const TRACEPARENT = /^[\da-f]{2}-([\da-f]{32})-[\da-f]{16}-[\da-f]{2}$/;
-
 /**
- * The request's trace ID, from the W3C `traceparent` header. Once services
- * run OpenTelemetry, the instrumentation sets that context on every request.
+ * The request's trace ID: the current span's when OpenTelemetry runs,
+ * otherwise the one in the request's `traceparent` header.
  */
 function traceIdOf(request: Request): string | null {
-  const header = request.headers?.traceparent;
-  const value = Array.isArray(header) ? header[0] : header;
-  const traceId = value ? TRACEPARENT.exec(value.trim())?.[1] : undefined;
+  const headers =
+    currentTraceContext() ?? parseTraceContext(request.headers ?? {});
 
-  return traceId && !/^0+$/.test(traceId) ? traceId : null;
+  return headers ? traceIdOfHeaders(headers) : null;
 }

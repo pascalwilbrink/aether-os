@@ -12,6 +12,16 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 | `hephaestus.openapi.yaml` | Hephaestus | Iris |
 | `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Pistis, every service (once they consume) |
 
+## Event types (AsyncAPI)
+
+`*.asyncapi.yaml` describe the events a service publishes. Give each message a `name` (the event type) and an envelope whose `payload` refers to a named schema. The package's `aether-asyncapi-types` command (`bin/asyncapi-types.mjs`) validates a spec with the official AsyncAPI parser and generates, with `json-schema-to-typescript`, an interface per event payload (`organization.created` → `OrganizationCreated`), the `<Service>EventPayloads` map, the `<Service>EventType` union and `<SERVICE>_EVENT_TYPES`:
+
+```bash
+aether-asyncapi-types node_modules/@aether-os/contracts/polis.asyncapi.yaml libs/core/src/events/generated/polis-events.gen.ts --name Polis
+```
+
+Polis runs it in `pnpm generate:api`; a consumer of another service's events runs it the same way on that spec. Generated files are committed and checked by CI like the OpenAPI ones.
+
 ## Regenerating
 
 ```bash

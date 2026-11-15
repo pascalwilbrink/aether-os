@@ -5,5 +5,6 @@ export * from './config/index.js';
 export * from './database/index.js';
 export * from './http/index.js';
 export * from './pagination/index.js';
+export * from './telemetry/index.js';
 // `@aether-os/krepis/testing` (Testcontainers helpers) is a separate entry
 // point, so services don't load it at runtime.

@@ -1,11 +1,23 @@
 {
   "name": "@aether-os/contracts",
   "version": "0.1.0",
-  "description": "Aether-os API contracts (OpenAPI, later AsyncAPI)",
+  "description": "Aether-os API contracts (OpenAPI and AsyncAPI) and the AsyncAPI type generator",
   "private": true,
   "license": "UNLICENSED",
-  "files": ["*.openapi.yaml", "*.asyncapi.yaml"],
+  "files": [
+    "*.openapi.yaml",
+    "*.asyncapi.yaml",
+    "bin"
+  ],
   "exports": {
     "./*": "./*"
+  },
+  "type": "module",
+  "bin": {
+    "aether-asyncapi-types": "./bin/asyncapi-types.mjs"
+  },
+  "dependencies": {
+    "@asyncapi/parser": "^3.6.6",
+    "json-schema-to-typescript": "^16.0.0"
   }
 }

@@ -5,6 +5,7 @@ import type { Repository } from 'typeorm';
 import { Propagation, Transactional } from 'typeorm-transactional';
 import { v7 as uuidv7 } from 'uuid';
 
+import { currentTraceContext } from '../telemetry/trace-context.js';
 import type { DomainEvent, NewDomainEvent } from './domain-event.js';
 import { EVENTS_OPTIONS, type EventsOptions } from './events.options.js';
 import { OutboxMessageEntity } from './outbox-message.entity.js';
@@ -16,6 +17,8 @@ import { OutboxMessageEntity } from './outbox-message.entity.js';
  * 1. Events listed in `publish` are written to the outbox in that
  *    transaction, so they're stored if and only if the change commits; the
  *    relay publishes them afterwards.
+ *    The current trace context (`traceparent`, `tracestate`) is stored with
+ *    it and published as AMQP headers.
  * 2. The event is emitted locally as `<service>.<eventType>` and awaited, so
  *    local handlers that only touch this service's database run in the same
  *    transaction (and roll it back if they fail).
@@ -55,7 +58,8 @@ export class DomainEvents {
         exchange: `${this.options.service}.events`,
         routingKey: event.eventType,
         message: JSON.parse(JSON.stringify(event)) as Record<string, unknown>,
-        headers: {},
+        // Published as AMQP headers, so consumers continue the trace.
+        headers: { ...currentTraceContext() },
         createdAt: event.occurredAt,
         publishedAt: null,
         attempts: 0,

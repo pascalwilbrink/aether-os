@@ -19,6 +19,7 @@ import { createTransactionalDataSource } from '../database/transactional.js';
 import type { DomainEvent } from './domain-event.js';
 import { DomainEvents } from './domain-events.js';
 import { EventsModule } from './events.module.js';
+import { runWithTraceContext } from '../telemetry/trace-context.js';
 import { OnEvent } from './index.js';
 import { MessagePublisher } from './message-publisher.js';
 import { OutboxRelay } from './outbox-relay.js';
@@ -143,6 +144,7 @@ describe('Outbox (Postgres + RabbitMQ)', () => {
     });
     expect(rows[0].message.eventId).toBe(rows[0].id);
     expect(things.seen.map((e) => e.eventId)).toEqual([rows[0].id]);
+    expect(rows[0].headers).toEqual({}); // not in a trace
   });
 
   it('stores nothing when the change rolls back', async () => {
@@ -180,7 +182,11 @@ describe('Outbox (Postgres + RabbitMQ)', () => {
     await channel.bindQueue(queue, 'test.events', 'thing.*');
 
     const id = '0193a1b2-c3d4-7e5f-8a9b-000000000003';
-    await things.create(id, 'three');
+    const traceparent =
+      '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+    await runWithTraceContext({ traceparent, tracestate: 'a=1' }, () =>
+      things.create(id, 'three'),
+    );
     expect(await relay.relayBatch()).toBe(1);
     expect(await relay.relayBatch()).toBe(0);
 
@@ -194,6 +200,12 @@ describe('Outbox (Postgres + RabbitMQ)', () => {
       deliveryMode: 2,
     });
     expect(JSON.parse(message.content.toString())).toEqual(row.message);
+    // The trace context travels with the event.
+    expect(row.headers).toEqual({ traceparent, tracestate: 'a=1' });
+    expect(message.properties.headers).toMatchObject({
+      traceparent,
+      tracestate: 'a=1',
+    });
 
     await connection.close();
   });
