@@ -46,7 +46,11 @@ describe('OrganizationService (sqlite)', () => {
     const byId = await service.findById(orgId);
     const bySlug = await service.findBySlug('acme');
 
-    expect(byId).toMatchObject({ name: 'Acme', slug: 'acme', status: 'active' });
+    expect(byId).toMatchObject({
+      name: 'Acme',
+      slug: 'acme',
+      status: 'active',
+    });
     expect(bySlug.id).toBe(orgId);
     expect(byId.createdAt).toBeInstanceOf(Date);
   });

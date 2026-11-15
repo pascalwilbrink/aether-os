@@ -11,7 +11,11 @@ const versionBody = {
   capabilities: ['chat'],
   tools: [{ name: 'search', enabled: true, configuration: { depth: 2 } }],
   skills: [{ name: 'summarize', version: '1.0.0', enabled: true }],
-  runtime: { provider: 'local', executionMode: 'standard', sandboxRequired: false },
+  runtime: {
+    provider: 'local',
+    executionMode: 'standard',
+    sandboxRequired: false,
+  },
   createdBy: 'user-1',
 };
 
@@ -48,7 +52,11 @@ describe('Agents (e2e)', () => {
   async function createAgent(): Promise<string> {
     const res = await request(app.getHttpServer())
       .post(base)
-      .send({ name: 'Helper', description: 'A helpful agent', createdBy: 'user-1' })
+      .send({
+        name: 'Helper',
+        description: 'A helpful agent',
+        createdBy: 'user-1',
+      })
       .expect(201);
 
     return res.body.id;
@@ -57,7 +65,9 @@ describe('Agents (e2e)', () => {
   it('creates and fetches an agent', async () => {
     const id = await createAgent();
 
-    const res = await request(app.getHttpServer()).get(`${base}/${id}`).expect(200);
+    const res = await request(app.getHttpServer())
+      .get(`${base}/${id}`)
+      .expect(200);
 
     expect(res.body).toMatchObject({
       id,
@@ -88,7 +98,10 @@ describe('Agents (e2e)', () => {
 
     await request(app.getHttpServer())
       .post(`${base}/${id}/versions`)
-      .send({ ...versionBody, runtime: { ...versionBody.runtime, executionMode: 'turbo' } })
+      .send({
+        ...versionBody,
+        runtime: { ...versionBody.runtime, executionMode: 'turbo' },
+      })
       .expect(400);
   });
 
@@ -100,7 +113,11 @@ describe('Agents (e2e)', () => {
       .send(versionBody)
       .expect(201);
 
-    expect(created.body).toMatchObject({ version: 1, status: 'draft', publishedAt: null });
+    expect(created.body).toMatchObject({
+      version: 1,
+      status: 'draft',
+      publishedAt: null,
+    });
     expect(created.body.tools).toEqual(versionBody.tools);
 
     const published = await request(app.getHttpServer())
@@ -110,7 +127,9 @@ describe('Agents (e2e)', () => {
     expect(published.body.status).toBe('published');
     expect(typeof published.body.publishedAt).toBe('string');
 
-    const agent = await request(app.getHttpServer()).get(`${base}/${id}`).expect(200);
+    const agent = await request(app.getHttpServer())
+      .get(`${base}/${id}`)
+      .expect(200);
     expect(agent.body.latestVersionId).toBe(created.body.id);
   });
 
@@ -152,7 +171,9 @@ describe('Agents (e2e)', () => {
       .expect(200);
 
     expect(list.body.total).toBe(2);
-    expect(list.body.items.map((v: { version: number }) => v.version)).toEqual([2, 1]);
+    expect(list.body.items.map((v: { version: number }) => v.version)).toEqual([
+      2, 1,
+    ]);
 
     const fetched = await request(app.getHttpServer())
       .get(`${base}/${id}/versions/${v1.body.id}`)
@@ -172,15 +193,30 @@ describe('Agents (e2e)', () => {
     const id = await createAgent();
     const server = app.getHttpServer();
 
-    const v1 = await request(server).post(`${base}/${id}/versions`).send(versionBody).expect(201);
-    const v2 = await request(server).post(`${base}/${id}/versions`).send(versionBody).expect(201);
+    const v1 = await request(server)
+      .post(`${base}/${id}/versions`)
+      .send(versionBody)
+      .expect(201);
+    const v2 = await request(server)
+      .post(`${base}/${id}/versions`)
+      .send(versionBody)
+      .expect(201);
 
-    await request(server).post(`${base}/${id}/versions/${v1.body.id}/publish`).expect(200);
-    await request(server).post(`${base}/${id}/versions/${v2.body.id}/publish`).expect(200);
+    await request(server)
+      .post(`${base}/${id}/versions/${v1.body.id}/publish`)
+      .expect(200);
+    await request(server)
+      .post(`${base}/${id}/versions/${v2.body.id}/publish`)
+      .expect(200);
 
-    const list = await request(server).get(`${base}/${id}/versions`).expect(200);
+    const list = await request(server)
+      .get(`${base}/${id}/versions`)
+      .expect(200);
     expect(
-      list.body.items.map((v: { version: number; status: string }) => [v.version, v.status]),
+      list.body.items.map((v: { version: number; status: string }) => [
+        v.version,
+        v.status,
+      ]),
     ).toEqual([
       [2, 'published'],
       [1, 'deprecated'],
@@ -192,18 +228,25 @@ describe('Agents (e2e)', () => {
       .post('/organizations/unknown/agents')
       .send({ name: 'Helper', description: '', createdBy: 'user-1' })
       .expect(404);
-    await request(app.getHttpServer()).get('/organizations/unknown/agents').expect(404);
+    await request(app.getHttpServer())
+      .get('/organizations/unknown/agents')
+      .expect(404);
   });
 
   it('blocks writes for a suspended organization', async () => {
     const server = app.getHttpServer();
     const id = await createAgent();
-    const version = await request(server).post(`${base}/${id}/versions`).send(versionBody).expect(201);
+    const version = await request(server)
+      .post(`${base}/${id}/versions`)
+      .send(versionBody)
+      .expect(201);
 
     await request(server).post(`/organizations/${orgId}/suspend`).expect(200);
 
     for (const call of [
-      request(server).post(base).send({ name: 'X', description: '', createdBy: 'user-1' }),
+      request(server)
+        .post(base)
+        .send({ name: 'X', description: '', createdBy: 'user-1' }),
       request(server).post(`${base}/${id}/versions`).send(versionBody),
       request(server).post(`${base}/${id}/versions/${version.body.id}/publish`),
       request(server).post(`${base}/${id}/archive`),
@@ -217,7 +260,9 @@ describe('Agents (e2e)', () => {
     await request(server).get(`${base}/${id}/versions`).expect(200);
 
     await request(server).post(`/organizations/${orgId}/activate`).expect(200);
-    await request(server).post(`${base}/${id}/versions/${version.body.id}/publish`).expect(200);
+    await request(server)
+      .post(`${base}/${id}/versions/${version.body.id}/publish`)
+      .expect(200);
   });
 
   it('maps business-rule violations to 409', async () => {
@@ -237,7 +282,9 @@ describe('Agents (e2e)', () => {
       .expect(409);
     expect(republish.body.error).toBe('AGENT_VERSION_INVALID_TRANSITION');
 
-    await request(app.getHttpServer()).post(`${base}/${id}/archive`).expect(204);
+    await request(app.getHttpServer())
+      .post(`${base}/${id}/archive`)
+      .expect(204);
 
     const afterArchive = await request(app.getHttpServer())
       .post(`${base}/${id}/versions`)

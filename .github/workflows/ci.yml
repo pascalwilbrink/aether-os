@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Build, lint and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the base commit is needed to work out what changed
+
+      # Version comes from "packageManager" in the root package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Also builds Krepis (its `prepare` script) and syncs it into consumers.
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Only packages changed since the base, plus their dependents, are
+      # checked below; see .github/scripts/affected-filter.sh.
+      - name: Select changed packages
+        id: affected
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          base="$BASE"
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            base="$(git merge-base "$BASE" HEAD)"
+          fi
+          filter="$(.github/scripts/affected-filter.sh "$base")"
+          echo "filter=$filter" >> "$GITHUB_OUTPUT"
+          echo "Selected packages:"
+          pnpm -r $filter exec sh -c 'echo "  $PNPM_PACKAGE_NAME"' 2>/dev/null || true
+
+      - name: Generated API types are up to date
+        run: |
+          pnpm -r ${{ steps.affected.outputs.filter }} --if-present generate:api
+          if ! git diff --exit-code; then
+            echo "::error::Generated API files differ from contracts/. Run 'pnpm generate:api' and commit the result."
+            exit 1
+          fi
+
+      - name: Format
+        run: pnpm -r ${{ steps.affected.outputs.filter }} --if-present format:check
+
+      - name: Lint
+        run: pnpm -r ${{ steps.affected.outputs.filter }} --if-present lint
+
+      - name: Build
+        run: pnpm -r ${{ steps.affected.outputs.filter }} --if-present build
+
+      - name: Unit tests
+        run: pnpm -r ${{ steps.affected.outputs.filter }} --if-present test
+
+      - name: E2E tests
+        run: pnpm -r ${{ steps.affected.outputs.filter }} --if-present test:e2e

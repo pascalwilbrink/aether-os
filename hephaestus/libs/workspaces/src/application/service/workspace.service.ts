@@ -134,9 +134,7 @@ export class WorkspaceService {
   }
 
   expire(organizationId: OrganizationId, workspaceId: WorkspaceId) {
-    return this.change(organizationId, workspaceId, 'none', (w) =>
-      w.expire(),
-    );
+    return this.change(organizationId, workspaceId, 'none', (w) => w.expire());
   }
 
   private async change(

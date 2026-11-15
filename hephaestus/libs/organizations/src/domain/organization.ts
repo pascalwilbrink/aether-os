@@ -19,9 +19,7 @@ export interface OrganizationProps extends CreateOrganizationProps {
 }
 
 export class Organization {
-  private constructor(
-    private readonly props: OrganizationProps,
-  ) {}
+  private constructor(private readonly props: OrganizationProps) {}
 
   static create(props: CreateOrganizationProps): Organization {
     const now = new Date();

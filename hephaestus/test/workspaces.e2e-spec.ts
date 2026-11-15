@@ -85,7 +85,9 @@ describe('Workspaces (e2e)', () => {
   it('creates, fetches and lists workspaces', async () => {
     const id = await createWorkspace();
 
-    const res = await request(app.getHttpServer()).get(`${base}/${id}`).expect(200);
+    const res = await request(app.getHttpServer())
+      .get(`${base}/${id}`)
+      .expect(200);
     expect(res.body).toMatchObject({
       id,
       organizationId: orgId,
@@ -106,11 +108,24 @@ describe('Workspaces (e2e)', () => {
     const invalid = [
       workspaceBody({ workingDirectory: 'relative/path' }),
       workspaceBody({ expiresAt: 'not-a-date' }),
-      workspaceBody({ repository: { ...workspaceBody().repository, provider: 'svn' } }),
-      workspaceBody({ repository: { ...workspaceBody().repository, repositoryUrl: 'http://insecure.example' } }),
-      workspaceBody({ repository: { ...workspaceBody().repository, commitSha: 'XYZ' } }),
-      workspaceBody({ sandbox: { ...workspaceBody().sandbox, memoryLimitMb: -1 } }),
-      workspaceBody({ sandbox: { ...workspaceBody().sandbox, networkAccess: 'open' } }),
+      workspaceBody({
+        repository: { ...workspaceBody().repository, provider: 'svn' },
+      }),
+      workspaceBody({
+        repository: {
+          ...workspaceBody().repository,
+          repositoryUrl: 'http://insecure.example',
+        },
+      }),
+      workspaceBody({
+        repository: { ...workspaceBody().repository, commitSha: 'XYZ' },
+      }),
+      workspaceBody({
+        sandbox: { ...workspaceBody().sandbox, memoryLimitMb: -1 },
+      }),
+      workspaceBody({
+        sandbox: { ...workspaceBody().sandbox, networkAccess: 'open' },
+      }),
     ];
 
     for (const body of invalid) {
@@ -119,7 +134,9 @@ describe('Workspaces (e2e)', () => {
 
     const past = await request(app.getHttpServer())
       .post(base)
-      .send(workspaceBody({ expiresAt: new Date(Date.now() - 1000).toISOString() }))
+      .send(
+        workspaceBody({ expiresAt: new Date(Date.now() - 1000).toISOString() }),
+      )
       .expect(409);
     expect(past.body.error).toBe('WORKSPACE_INVALID_EXPIRY');
   });
@@ -129,14 +146,21 @@ describe('Workspaces (e2e)', () => {
     const server = app.getHttpServer();
 
     // Not provisioned yet.
-    const early = await request(server).post(`${base}/${id}/acquire`).expect(409);
+    const early = await request(server)
+      .post(`${base}/${id}/acquire`)
+      .expect(409);
     expect(early.body.error).toBe('WORKSPACE_INVALID_TRANSITION');
 
     await provision(id);
 
-    const acquired = await request(server).post(`${base}/${id}/acquire`).expect(200);
+    const acquired = await request(server)
+      .post(`${base}/${id}/acquire`)
+      .expect(200);
     expect(acquired.body.status).toBe('in_use');
-    expect(acquired.body.sandboxReference).toEqual({ provider: 'docker', resourceId: 'container-123' });
+    expect(acquired.body.sandboxReference).toEqual({
+      provider: 'docker',
+      resourceId: 'container-123',
+    });
 
     for (const [action, status] of [
       ['release', 'ready'],
@@ -144,7 +168,9 @@ describe('Workspaces (e2e)', () => {
       ['resume', 'ready'],
       ['destroy', 'stopping'],
     ] as const) {
-      const res = await request(server).post(`${base}/${id}/${action}`).expect(200);
+      const res = await request(server)
+        .post(`${base}/${id}/${action}`)
+        .expect(200);
       expect(res.body.status).toBe(status);
     }
   });
@@ -173,10 +199,15 @@ describe('Workspaces (e2e)', () => {
 
     await request(server).post(`/organizations/${orgId}/suspend`).expect(200);
 
-    const create = await request(server).post(base).send(workspaceBody()).expect(409);
+    const create = await request(server)
+      .post(base)
+      .send(workspaceBody())
+      .expect(409);
     expect(create.body.error).toBe('ORGANIZATION_SUSPENDED');
 
-    const acquire = await request(server).post(`${base}/${id}/acquire`).expect(409);
+    const acquire = await request(server)
+      .post(`${base}/${id}/acquire`)
+      .expect(409);
     expect(acquire.body.error).toBe('ORGANIZATION_SUSPENDED');
 
     await request(server).get(`${base}/${id}`).expect(200);

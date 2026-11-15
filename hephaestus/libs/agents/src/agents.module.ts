@@ -30,7 +30,10 @@ import { AgentsController } from './presentation/http/agents.controller.js';
     AgentMapper,
     AgentVersionMapper,
     { provide: AgentRepository, useClass: TypeOrmAgentRepository },
-    { provide: AgentVersionRepository, useClass: TypeOrmAgentVersionRepository },
+    {
+      provide: AgentVersionRepository,
+      useClass: TypeOrmAgentVersionRepository,
+    },
   ],
   exports: [AgentService],
 })

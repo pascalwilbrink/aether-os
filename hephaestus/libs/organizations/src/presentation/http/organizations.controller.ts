@@ -51,9 +51,7 @@ export class OrganizationsController {
   }
 
   @Get('by-slug/:slug')
-  async findBySlug(
-    @Param('slug') slug: string,
-  ): Promise<OrganizationResponse> {
+  async findBySlug(@Param('slug') slug: string): Promise<OrganizationResponse> {
     const organization = await this.organizationService.findBySlug(slug);
 
     return OrganizationResponse.fromDomain(organization);
