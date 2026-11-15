@@ -99,9 +99,9 @@ describe('OrganizationService (sqlite)', () => {
       createdBy: 'user-1',
     });
 
-    const page = await service.list({ limit: 1, offset: 0 });
+    const page = await service.list({ limit: 1 });
 
-    expect(page.total).toBe(2);
     expect(page.items).toHaveLength(1);
+    expect(page.nextCursor).not.toBeNull();
   });
 });

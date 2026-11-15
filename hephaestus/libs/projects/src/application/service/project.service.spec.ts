@@ -128,7 +128,7 @@ describe('ProjectService (sqlite)', () => {
     await expect(service.findById(orgId, projectId)).resolves.toBeDefined();
 
     await expect(
-      service.list('missing' as OrganizationId, { limit: 10, offset: 0 }),
+      service.list('missing' as OrganizationId, { limit: 10 }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -138,9 +138,9 @@ describe('ProjectService (sqlite)', () => {
     );
     await service.create(projectInput('project-3' as ProjectId, otherOrgId));
 
-    const page = await service.list(orgId, { limit: 10, offset: 0 });
+    const page = await service.list(orgId, { limit: 10 });
 
-    expect(page.total).toBe(2);
+    expect(page.nextCursor).toBeNull();
     expect(page.items.map((p) => p.id).sort()).toEqual([
       'project-1',
       'project-2',

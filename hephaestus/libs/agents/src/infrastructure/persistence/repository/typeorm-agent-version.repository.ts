@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import type { Repository } from 'typeorm';
 
 import {
+  findPage,
+  mapPage,
   TypeOrmTransactionManager,
   isUniqueViolation,
   type AgentId,
@@ -58,21 +60,19 @@ export class TypeOrmAgentVersionRepository extends AgentVersionRepository {
   async findByAgent(
     organizationId: OrganizationId,
     agentId: AgentId,
-    { limit, offset }: PageRequest,
+    page: PageRequest,
   ): Promise<Page<AgentVersion>> {
-    const [entities, total] = await this.repository.findAndCount({
-      where: { organizationId, agentId },
-      order: { version: 'DESC' },
-      take: limit,
-      skip: offset,
-    });
+    const entities = await findPage(
+      this.repository,
+      {
+        where: { organizationId, agentId },
+        sortBy: 'version',
+        direction: 'DESC',
+      },
+      page,
+    );
 
-    return {
-      items: entities.map((entity) => this.mapper.toDomain(entity)),
-      total,
-      limit,
-      offset,
-    };
+    return mapPage(entities, (entity) => this.mapper.toDomain(entity));
   }
 
   async getNextVersionNumber(

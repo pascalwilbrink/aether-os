@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import type { Repository } from 'typeorm';
 
 import {
+  findPage,
+  mapPage,
   TypeOrmTransactionManager,
   isUniqueViolation,
   type OrganizationId,
@@ -53,18 +55,13 @@ export class TypeOrmOrganizationRepository extends OrganizationRepository {
     return entity ? this.mapper.toDomain(entity) : null;
   }
 
-  async findAll({ limit, offset }: PageRequest): Promise<Page<Organization>> {
-    const [entities, total] = await this.repository.findAndCount({
-      order: { createdAt: 'DESC', id: 'ASC' },
-      take: limit,
-      skip: offset,
-    });
+  async findAll(page: PageRequest): Promise<Page<Organization>> {
+    const entities = await findPage(
+      this.repository,
+      { where: {}, sortBy: 'createdAt', direction: 'DESC' },
+      page,
+    );
 
-    return {
-      items: entities.map((entity) => this.mapper.toDomain(entity)),
-      total,
-      limit,
-      offset,
-    };
+    return mapPage(entities, (entity) => this.mapper.toDomain(entity));
   }
 }

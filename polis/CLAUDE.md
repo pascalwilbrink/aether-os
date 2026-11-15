@@ -34,7 +34,7 @@ Shared infrastructure (Postgres, RabbitMQ, OpenBao, OPA, OTel, Jaeger, Langfuse)
 
 ## Architecture
 
-`src/` is only the app shell (global `ValidationPipe` with `whitelist`/`forbidNonWhitelisted`/`transform`, and the global `DomainErrorFilter`). Code lives in Nest libraries under `libs/`, registered in `nest-cli.json` and aliased in `tsconfig.json` as `@polis/<name>`; update both when adding a library.
+`src/` is only the app shell: `main.ts` calls Krepis's `configureHttpApp(app)` (the `/v1` prefix, the strict validation pipe and the problem details filter), and every e2e test calls it on the app it creates, before `init()`. Code lives in Nest libraries under `libs/`, registered in `nest-cli.json` and aliased in `tsconfig.json` as `@polis/<name>`; update both when adding a library.
 
 Dependency graph: `core` ← `organizations` ← `projects`. Cross-module access goes through the exported **service** (e.g. `OrganizationService.findActiveById`), never another module's repositories.
 
@@ -51,10 +51,10 @@ Each feature lib currently uses this layering:
 `libs/core` conventions (most of `@polis/core` is re-exported from the shared `@aether-os/krepis` package in `../krepis`; only `DatabaseModule` and the generated API types live in `libs/core`. Change shared code in Krepis and run `pnpm build` there; the copy here is refreshed automatically):
 
 - **Branded IDs** (`OrganizationId`, `ProjectId`) come from Krepis.
-- **Errors**: extend `DomainError(message, CODE)`; `DomainErrorFilter` maps them to **HTTP 409** `{ statusCode, error: code, message }`. Add new codes to the spec's `DomainErrorCode` enum too.
+- **Errors**: extend `DomainError(message, CODE)`; Krepis's `ProblemDetailsFilter` turns them into **HTTP 409** problem details with that `code` (and every other error into problem details too, see `../docs/api.md`). Add new codes to the spec's `DomainErrorCode` enum too.
 - **Transactions**: `TransactionManager.run(work)` uses `AsyncLocalStorage`, and nested calls join the outer transaction. Repositories resolve their TypeORM `Repository` per call via `TypeOrmTransactionManager.getRepository(Entity)` (a getter, not a field).
 - **Unique constraints**: catch with `isUniqueViolation(error)` in the repository and rethrow as a domain error (slug taken).
-- **Pagination**: `@Query() PaginationQuery` (`limit` 1–100, default 50; `offset`) → `Page<T>` → `PageResponse.fromPage(page, mapFn)`.
+- **Pagination**: cursor (keyset) based: `@Query() PaginationQuery` (`limit` 1–100, default 50; opaque `cursor`) → `findPage(repository, { where, sortBy, direction }, page)` in the repository → `Page<T>` (`items`, `nextCursor`) → `PageResponse.fromPage(page, mapFn)`.
 
 ### API contract
 

@@ -1,0 +1,101 @@
+openapi: 3.1.0
+info:
+  title: Aether-os common definitions
+  version: 0.1.0
+  description: |
+    Definitions every Aether-os API shares (see `../docs/api.md`): problem
+    details for errors and cursor pagination. Service specs reference them
+    with `$ref: './common.openapi.yaml#/components/...'`. Implemented once, in
+    Krepis (`@aether-os/krepis`).
+
+paths: {}
+
+components:
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Page size.
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: |
+        Opaque cursor from the previous page's `nextCursor`; leave it out for
+        the first page. A cursor only works with the filters it was made with
+        (otherwise `400 INVALID_CURSOR`).
+      schema: { type: string, minLength: 1, maxLength: 1024 }
+
+  schemas:
+    Problem:
+      type: object
+      description: |
+        Problem details (RFC 9457), served as `application/problem+json`.
+        `code`, `traceId` and `errors` are Aether-os extensions. Clients switch
+        on `code`; `detail` is for people.
+      required: [type, title, status, detail, instance, code, traceId, errors]
+      properties:
+        type:
+          type: string
+          description: '`urn:aether-os:problem:<code in kebab case>`, one per `code`.'
+          examples: ['urn:aether-os:problem:organization-suspended']
+        title:
+          type: string
+          description: Short summary, the same for every occurrence of the type.
+        status:
+          type: integer
+          description: The HTTP status, repeated.
+        detail:
+          type: string
+          description: Explanation of this occurrence. Safe to show; not stable.
+        instance:
+          type: string
+          description: The request path.
+        code:
+          type: string
+          description: |
+            Stable, machine-readable code: `VALIDATION_FAILED`,
+            `INVALID_CURSOR`, `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`,
+            `VERSION_MISMATCH`, `RATE_LIMITED`, `INTERNAL`, `UNAVAILABLE`, or
+            a domain error code listed by the operation.
+        traceId:
+          type: [string, 'null']
+          description: The request's trace ID, for finding it in Jaeger.
+        errors:
+          type: array
+          description: One entry per invalid input (`VALIDATION_FAILED`); otherwise empty.
+          items: { $ref: '#/components/schemas/ProblemFieldError' }
+    ProblemFieldError:
+      type: object
+      description: One invalid input. Exactly one of `pointer` and `parameter` is set.
+      required: [pointer, parameter, code, detail]
+      properties:
+        pointer:
+          type: [string, 'null']
+          description: JSON Pointer (RFC 6901) into the request body, e.g. `/name`.
+        parameter:
+          type: [string, 'null']
+          description: Name of the invalid query or path parameter.
+        code:
+          type: string
+          enum: [REQUIRED, UNKNOWN_FIELD, INVALID]
+        detail: { type: string }
+    NextCursor:
+      type: [string, 'null']
+      description: Pass as `cursor` to get the next page; `null` on the last page.
+
+  responses:
+    BadRequest:
+      description: |
+        The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+        `INVALID_CURSOR`.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: '`NOT_FOUND`: the resource doesn''t exist.'
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }

@@ -146,9 +146,7 @@ Rules:
 ## Current state
 
 - **Methods:** the specs already use only `GET` and `POST`, with actions for state changes (`/suspend`, `/archive`, `/publish`), so nothing to remove. `PUT` and `DELETE` will appear with the first editable resources.
-- **Versioning:** no paths have a `/v1` prefix yet; every spec and controller needs it (in Nest: a global `v1` prefix or URI versioning, configured once per service, e.g. through Krepis).
-- **Errors:** Krepis's `DomainErrorFilter` returns `{ statusCode, error, message }`; it becomes the problem details filter, and the specs' `DomainErrorResponse` becomes the shared `Problem` schema. The existing `DomainError` codes are kept as `code`.
-- **Pagination:** Krepis's `PaginationQuery` / `Page` use `limit` / `offset` and return `total`; they become `limit` / `cursor` and `nextCursor`, and the repositories move to keyset queries.
+- **Versioning, errors, pagination:** done. Krepis's `configureHttpApp` sets the `/v1` prefix and turns every error into problem details (the shared `Problem` schema is in `contracts/common.openapi.yaml`), and lists use keyset pagination through Krepis's `findPage`. Not yet: `Retry-After` on `429` / `503`, and `400` for path parameters that aren't UUIDs (see IDs below).
 - **Actions:** some actions are not idempotent yet (e.g. suspending a suspended organization returns `ORGANIZATION_ALREADY_SUSPENDED`); per the rule above they return the unchanged resource instead.
 - **IDs:** the services already generate UUIDs (`randomUUID()`, v4), but store them as `varchar` and the specs don't declare `format: uuid`. The move to Postgres is the moment to switch the columns to `uuid`, and to v7.
 

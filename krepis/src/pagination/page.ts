@@ -1,15 +1,15 @@
+/** A page request: page size and the cursor from the previous page, if any. */
 export interface PageRequest {
   limit: number;
-  offset: number;
+  cursor?: string | null;
 }
 
+/** One page of a cursor-paginated list; `nextCursor` is null on the last page. */
 export interface Page<T> {
   items: T[];
-  total: number;
-  limit: number;
-  offset: number;
+  nextCursor: string | null;
 }
 
 export function mapPage<T, R>(page: Page<T>, map: (item: T) => R): Page<R> {
-  return { ...page, items: page.items.map(map) };
+  return { items: page.items.map(map), nextCursor: page.nextCursor };
 }

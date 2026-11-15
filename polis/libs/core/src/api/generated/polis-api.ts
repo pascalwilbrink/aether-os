@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/organizations": {
+    "/v1/organizations": {
         parameters: {
             query?: never;
             header?: never;
@@ -20,7 +20,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/organizations/by-slug/{slug}": {
+    "/v1/organizations/by-slug/{slug}": {
         parameters: {
             query?: never;
             header?: never;
@@ -36,7 +36,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/organizations/{organizationId}": {
+    "/v1/organizations/{organizationId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -54,7 +54,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/organizations/{organizationId}/suspend": {
+    "/v1/organizations/{organizationId}/suspend": {
         parameters: {
             query?: never;
             header?: never;
@@ -72,7 +72,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/organizations/{organizationId}/activate": {
+    "/v1/organizations/{organizationId}/activate": {
         parameters: {
             query?: never;
             header?: never;
@@ -90,7 +90,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/organizations/{organizationId}/projects": {
+    "/v1/organizations/{organizationId}/projects": {
         parameters: {
             query?: never;
             header?: never;
@@ -108,7 +108,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/organizations/{organizationId}/projects/{projectId}": {
+    "/v1/organizations/{organizationId}/projects/{projectId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -127,7 +127,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/organizations/{organizationId}/projects/{projectId}/archive": {
+    "/v1/organizations/{organizationId}/projects/{projectId}/archive": {
         parameters: {
             query?: never;
             header?: never;
@@ -150,24 +150,42 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        HttpErrorResponse: {
-            statusCode: number;
-            message: string;
-            error?: string;
-        };
-        ValidationErrorResponse: {
-            /** @constant */
-            statusCode: 400;
-            message: string | string[];
-            error: string;
+        /**
+         * @description Problem details (RFC 9457), served as `application/problem+json`.
+         *     `code`, `traceId` and `errors` are Aether-os extensions. Clients switch
+         *     on `code`; `detail` is for people.
+         */
+        Problem: {
+            /**
+             * @description `urn:aether-os:problem:<code in kebab case>`, one per `code`.
+             * @example urn:aether-os:problem:organization-suspended
+             */
+            type: string;
+            /** @description Short summary, the same for every occurrence of the type. */
+            title: string;
+            /** @description The HTTP status, repeated. */
+            status: number;
+            /** @description Explanation of this occurrence. Safe to show; not stable. */
+            detail: string;
+            /** @description The request path. */
+            instance: string;
+            /**
+             * @description Stable, machine-readable code: `VALIDATION_FAILED`,
+             *     `INVALID_CURSOR`, `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`,
+             *     `VERSION_MISMATCH`, `RATE_LIMITED`, `INTERNAL`, `UNAVAILABLE`, or
+             *     a domain error code listed by the operation.
+             */
+            code: string;
+            /** @description The request's trace ID, for finding it in Jaeger. */
+            traceId: string | null;
+            /** @description One entry per invalid input (`VALIDATION_FAILED`); otherwise empty. */
+            errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
         DomainErrorCode: "ORGANIZATION_ALREADY_SUSPENDED" | "ORGANIZATION_SLUG_TAKEN" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "PROJECT_SLUG_TAKEN";
-        DomainErrorResponse: {
-            /** @constant */
-            statusCode: 409;
-            error: components["schemas"]["DomainErrorCode"];
-            message: string;
+        /** @description Problem details for a business-rule violation. */
+        DomainProblem: components["schemas"]["Problem"] & {
+            code: components["schemas"]["DomainErrorCode"];
         };
         /** @description Lowercase letters, digits and single hyphens. */
         Slug: string;
@@ -217,45 +235,70 @@ export interface components {
             items: components["schemas"]["ProjectResponse"][];
         };
         PageMeta: {
-            total: number;
-            limit: number;
-            offset: number;
+            nextCursor: components["schemas"]["NextCursor"];
+        };
+        /** @description Pass as `cursor` to get the next page; `null` on the last page. */
+        NextCursor: string | null;
+        /** @description One invalid input. Exactly one of `pointer` and `parameter` is set. */
+        ProblemFieldError: {
+            /** @description JSON Pointer (RFC 6901) into the request body, e.g. `/name`. */
+            pointer: string | null;
+            /** @description Name of the invalid query or path parameter. */
+            parameter: string | null;
+            /** @enum {string} */
+            code: "REQUIRED" | "UNKNOWN_FIELD" | "INVALID";
+            detail: string;
         };
     };
     responses: {
-        /** @description Request failed validation */
         ValidationError: {
             headers: {
                 [name: string]: unknown;
             };
-            content: {
-                "application/json": components["schemas"]["ValidationErrorResponse"];
-            };
+            content?: never;
         };
-        /** @description Resource not found */
+        /** @description `NOT_FOUND`: the resource doesn't exist. */
         NotFound: {
             headers: {
                 [name: string]: unknown;
             };
             content: {
-                "application/json": components["schemas"]["HttpErrorResponse"];
+                "application/problem+json": components["schemas"]["Problem"];
             };
         };
-        /** @description Business rule violated */
+        /** @description A business rule forbids this (409, with a `DomainErrorCode`). */
         DomainError: {
             headers: {
                 [name: string]: unknown;
             };
             content: {
-                "application/json": components["schemas"]["DomainErrorResponse"];
+                "application/problem+json": components["schemas"]["DomainProblem"];
+            };
+        };
+        /**
+         * @description The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+         *     `INVALID_CURSOR`.
+         */
+        BadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
             };
         };
     };
     parameters: {
         OrganizationId: string;
         ProjectId: string;
+        /** @description Page size. */
         Limit: number;
-        Offset: number;
+        /**
+         * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+         *     the first page. A cursor only works with the filters it was made with
+         *     (otherwise `400 INVALID_CURSOR`).
+         */
+        Cursor: string;
     };
     requestBodies: never;
     headers: never;
@@ -266,8 +309,14 @@ export interface operations {
     listOrganizations: {
         parameters: {
             query?: {
+                /** @description Page size. */
                 limit?: components["parameters"]["Limit"];
-                offset?: components["parameters"]["Offset"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
             };
             header?: never;
             path?: never;
@@ -284,7 +333,7 @@ export interface operations {
                     "application/json": components["schemas"]["OrganizationPage"];
                 };
             };
-            400: components["responses"]["ValidationError"];
+            400: components["responses"]["BadRequest"];
         };
     };
     createOrganization: {
@@ -309,7 +358,7 @@ export interface operations {
                     "application/json": components["schemas"]["OrganizationResponse"];
                 };
             };
-            400: components["responses"]["ValidationError"];
+            400: components["responses"]["BadRequest"];
             409: components["responses"]["DomainError"];
         };
     };
@@ -410,8 +459,14 @@ export interface operations {
     listProjects: {
         parameters: {
             query?: {
+                /** @description Page size. */
                 limit?: components["parameters"]["Limit"];
-                offset?: components["parameters"]["Offset"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
             };
             header?: never;
             path: {
@@ -430,7 +485,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProjectPage"];
                 };
             };
-            400: components["responses"]["ValidationError"];
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -458,7 +513,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProjectResponse"];
                 };
             };
-            400: components["responses"]["ValidationError"];
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
         };

@@ -6,8 +6,10 @@ info:
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
 
-    Business-rule violations return 409 with a machine-readable `error` code
-    (see `DomainError`). Validation failures return 400; unknown resources 404.
+    Follows `../docs/api.md`: paths under `/v1`, errors as problem details
+    (`Problem`, `application/problem+json`; business-rule violations are 409
+    with a `DomainErrorCode`), and lists paginated with `limit` / `cursor` →
+    `items` / `nextCursor`.
 
 tags:
   - name: organizations
@@ -17,7 +19,7 @@ tags:
   - name: workspaces
 
 paths:
-  /organizations:
+  /v1/organizations:
     post:
       tags: [organizations]
       operationId: createOrganization
@@ -39,7 +41,7 @@ paths:
       operationId: listOrganizations
       parameters:
         - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
           description: Newest first
@@ -48,7 +50,7 @@ paths:
               schema: { $ref: '#/components/schemas/OrganizationPage' }
         '400': { $ref: '#/components/responses/ValidationError' }
 
-  /organizations/by-slug/{slug}:
+  /v1/organizations/by-slug/{slug}:
     get:
       tags: [organizations]
       operationId: getOrganizationBySlug
@@ -65,7 +67,7 @@ paths:
               schema: { $ref: '#/components/schemas/OrganizationResponse' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /organizations/{organizationId}:
+  /v1/organizations/{organizationId}:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
     get:
@@ -79,7 +81,7 @@ paths:
               schema: { $ref: '#/components/schemas/OrganizationResponse' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /organizations/{organizationId}/suspend:
+  /v1/organizations/{organizationId}/suspend:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
     post:
@@ -94,7 +96,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
-  /organizations/{organizationId}/activate:
+  /v1/organizations/{organizationId}/activate:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
     post:
@@ -109,7 +111,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
-  /organizations/{organizationId}/projects:
+  /v1/organizations/{organizationId}/projects:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
     post:
@@ -134,7 +136,7 @@ paths:
       operationId: listProjects
       parameters:
         - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
           description: Newest first
@@ -144,7 +146,7 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /organizations/{organizationId}/projects/{projectId}:
+  /v1/organizations/{organizationId}/projects/{projectId}:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
       - $ref: '#/components/parameters/ProjectId'
@@ -159,7 +161,7 @@ paths:
               schema: { $ref: '#/components/schemas/ProjectResponse' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /organizations/{organizationId}/projects/{projectId}/archive:
+  /v1/organizations/{organizationId}/projects/{projectId}/archive:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
       - $ref: '#/components/parameters/ProjectId'
@@ -171,7 +173,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
-  /organizations/{organizationId}/agents:
+  /v1/organizations/{organizationId}/agents:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
     post:
@@ -196,7 +198,7 @@ paths:
       operationId: listAgents
       parameters:
         - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
           description: Newest first
@@ -206,7 +208,7 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /organizations/{organizationId}/agents/{agentId}:
+  /v1/organizations/{organizationId}/agents/{agentId}:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
       - $ref: '#/components/parameters/AgentId'
@@ -221,7 +223,7 @@ paths:
               schema: { $ref: '#/components/schemas/AgentResponse' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /organizations/{organizationId}/agents/{agentId}/archive:
+  /v1/organizations/{organizationId}/agents/{agentId}/archive:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
       - $ref: '#/components/parameters/AgentId'
@@ -233,7 +235,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
-  /organizations/{organizationId}/agents/{agentId}/versions:
+  /v1/organizations/{organizationId}/agents/{agentId}/versions:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
       - $ref: '#/components/parameters/AgentId'
@@ -260,7 +262,7 @@ paths:
       operationId: listAgentVersions
       parameters:
         - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
           description: Highest version first
@@ -270,7 +272,7 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /organizations/{organizationId}/agents/{agentId}/versions/{versionId}:
+  /v1/organizations/{organizationId}/agents/{agentId}/versions/{versionId}:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
       - $ref: '#/components/parameters/AgentId'
@@ -286,7 +288,7 @@ paths:
               schema: { $ref: '#/components/schemas/AgentVersionResponse' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /organizations/{organizationId}/agents/{agentId}/versions/{versionId}/publish:
+  /v1/organizations/{organizationId}/agents/{agentId}/versions/{versionId}/publish:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
       - $ref: '#/components/parameters/AgentId'
@@ -304,7 +306,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
-  /organizations/{organizationId}/workspaces:
+  /v1/organizations/{organizationId}/workspaces:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
     post:
@@ -329,7 +331,7 @@ paths:
       operationId: listWorkspaces
       parameters:
         - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
           description: Newest first
@@ -339,7 +341,7 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /organizations/{organizationId}/workspaces/{workspaceId}:
+  /v1/organizations/{organizationId}/workspaces/{workspaceId}:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
       - $ref: '#/components/parameters/WorkspaceId'
@@ -354,7 +356,7 @@ paths:
               schema: { $ref: '#/components/schemas/WorkspaceResponse' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /organizations/{organizationId}/workspaces/{workspaceId}/acquire:
+  /v1/organizations/{organizationId}/workspaces/{workspaceId}/acquire:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
       - $ref: '#/components/parameters/WorkspaceId'
@@ -366,7 +368,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
-  /organizations/{organizationId}/workspaces/{workspaceId}/release:
+  /v1/organizations/{organizationId}/workspaces/{workspaceId}/release:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
       - $ref: '#/components/parameters/WorkspaceId'
@@ -378,7 +380,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
-  /organizations/{organizationId}/workspaces/{workspaceId}/suspend:
+  /v1/organizations/{organizationId}/workspaces/{workspaceId}/suspend:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
       - $ref: '#/components/parameters/WorkspaceId'
@@ -390,7 +392,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
-  /organizations/{organizationId}/workspaces/{workspaceId}/resume:
+  /v1/organizations/{organizationId}/workspaces/{workspaceId}/resume:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
       - $ref: '#/components/parameters/WorkspaceId'
@@ -402,7 +404,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
-  /organizations/{organizationId}/workspaces/{workspaceId}/destroy:
+  /v1/organizations/{organizationId}/workspaces/{workspaceId}/destroy:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
       - $ref: '#/components/parameters/WorkspaceId'
@@ -442,33 +444,17 @@ components:
       in: path
       required: true
       schema: { type: string }
-    Limit:
-      name: limit
-      in: query
-      required: false
-      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
-    Offset:
-      name: offset
-      in: query
-      required: false
-      schema: { type: integer, minimum: 0, default: 0 }
+    Limit: { $ref: './common.openapi.yaml#/components/parameters/Limit' }
+    Cursor: { $ref: './common.openapi.yaml#/components/parameters/Cursor' }
 
   responses:
-    ValidationError:
-      description: Request failed validation
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ValidationErrorResponse' }
-    NotFound:
-      description: Resource not found
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/HttpErrorResponse' }
+    ValidationError: { $ref: './common.openapi.yaml#/components/responses/BadRequest' }
+    NotFound: { $ref: './common.openapi.yaml#/components/responses/NotFound' }
     DomainError:
-      description: Business rule violated
+      description: A business rule forbids this (409, with a `DomainErrorCode`).
       content:
-        application/json:
-          schema: { $ref: '#/components/schemas/DomainErrorResponse' }
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/DomainProblem' }
     WorkspaceTransition:
       description: Transition applied
       content:
@@ -477,24 +463,7 @@ components:
 
   schemas:
     # ---------- errors ----------
-    HttpErrorResponse:
-      type: object
-      required: [statusCode, message]
-      properties:
-        statusCode: { type: integer }
-        message: { type: string }
-        error: { type: string }
-    ValidationErrorResponse:
-      type: object
-      required: [statusCode, message, error]
-      properties:
-        statusCode: { type: integer, const: 400 }
-        message:
-          oneOf:
-            - type: string
-            - type: array
-              items: { type: string }
-        error: { type: string }
+    Problem: { $ref: './common.openapi.yaml#/components/schemas/Problem' }
     DomainErrorCode:
       type: string
       enum:
@@ -508,13 +477,14 @@ components:
         - PROJECT_SLUG_TAKEN
         - WORKSPACE_INVALID_EXPIRY
         - WORKSPACE_INVALID_TRANSITION
-    DomainErrorResponse:
-      type: object
-      required: [statusCode, error, message]
-      properties:
-        statusCode: { type: integer, const: 409 }
-        error: { $ref: '#/components/schemas/DomainErrorCode' }
-        message: { type: string }
+    DomainProblem:
+      description: Problem details for a business-rule violation.
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          required: [code]
+          properties:
+            code: { $ref: '#/components/schemas/DomainErrorCode' }
 
     # ---------- shared ----------
     Slug:
@@ -830,8 +800,6 @@ components:
     # ---------- pagination ----------
     PageMeta:
       type: object
-      required: [total, limit, offset]
+      required: [nextCursor]
       properties:
-        total: { type: integer, minimum: 0 }
-        limit: { type: integer, minimum: 1 }
-        offset: { type: integer, minimum: 0 }
+        nextCursor: { $ref: './common.openapi.yaml#/components/schemas/NextCursor' }
