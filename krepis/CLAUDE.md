@@ -8,14 +8,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `id/`: the `Brand` helper and platform-wide IDs (`OrganizationId`, `ProjectId`). Service-specific IDs stay in the service.
 - `error/`: `DomainError(message, code)`; services extend it for business-rule violations (→ 409).
-- `event/`: the `DomainEvent` shape (`eventId`, `aggregateId`, `aggregateVersion`, `eventType`, `occurredAt`, `payload`). Agreed, not built yet: it gains `schemaVersion`, `organizationId`, `projectId` and `actor`, and is also the message envelope on RabbitMQ (see `../docs/events.md`).
+- `event/`: the messaging module, outbound side (`../docs/events.md`, `../docs/engineering.md` Events in code):
+  - `DomainEvent`, the envelope (`eventId` UUIDv7, `eventType`, `schemaVersion`, `aggregateId`, `aggregateVersion`, `occurredAt`, `organizationId`, `projectId`, `actor`, `payload`), which is also the published message.
+  - `EventsModule.forRoot({ service, publish, relay? })` (global): `DomainEvents.emit(event)` must run inside a transaction (`Propagation.MANDATORY`); event types in `publish` are written to the `outbox` table in that transaction, then the event is emitted locally as `<service>.<eventType>` and awaited (`@OnEvent`, re-exported). Each service creates the `outbox` table with its own migration (`OutboxMessageEntity` in its data source).
+  - `OutboxRelay` (with `relay: { useFactory → { url, intervalMs, batchSize, retentionMs } }`): publishes waiting rows in batches to the `<service>.events` topic exchange (routing key = event type, `messageId` = event ID, persistent), using `FOR UPDATE SKIP LOCKED` so instances share the work; marks a row published only after the broker's confirm, records failures (`attempts`, `lastError`) and retries them; deletes published rows after the retention period. `relayBatch()` runs one batch (tests). The broker is behind `MessagePublisher`; `RabbitMqMessagePublisher` uses `@golevelup/nestjs-rabbitmq` and starts even while RabbitMQ is down (events wait in the outbox).
+  - Not yet: consuming (queues, inbox deduplication, retries, dead-lettering) and `traceparent` headers (the `headers` column is ready for them).
 - `database/`:
   - `initializeTransactions()` (call in `main.ts` before Nest boots, and in test setup) and `createTransactionalDataSource(options)` (for `TypeOrmModule.forRootAsync({ dataSourceFactory })`; replaces an earlier registration of the same name, as e2e tests create many apps): `typeorm-transactional`, with `Transactional`, `Propagation` and the commit/rollback hooks re-exported.
   - `postgresOptions({ url, migrations?, entities? })`: every service's Postgres settings (`SnakeNamingStrategy`, `synchronize` and `migrationsRun` off).
   - `isUniqueViolation` (SQLite and Postgres).
   - Legacy, for Hephaestus until it's converted: `TransactionManager` / `TypeOrmTransactionManager` and `TransactionModule`.
 - `config/`: `validateEnv(zodSchema)`, the `validate` function for `ConfigModule.forRoot`; it names invalid variables without echoing their values.
-- `testing/` (separate entry point `@aether-os/krepis/testing`, needs `@testcontainers/postgresql`): `startTestPostgres()`, Postgres 17.5 in a container for a test run's global setup.
+- `testing/` (separate entry point `@aether-os/krepis/testing`, needs `@testcontainers/postgresql` and `@testcontainers/rabbitmq`): `startTestPostgres()` and `startTestRabbitMq()`, Postgres 17.5 and RabbitMQ 4.1 (the compose versions) in containers for a test run's global setup.
 - `pagination/`: cursor pagination (`../docs/api.md`): `PageRequest` (`limit`, `cursor`), `Page` (`items`, `nextCursor`), `mapPage`, and opaque cursors (`encodeCursor` / `decodeCursor`: base64url JSON with the last item's sort key and ID, bound to a hash of the query's sort and filters; `InvalidCursorError` otherwise).
 - `database/findPage`: keyset pagination over a TypeORM `Repository` (`(sortBy, id) < (key, id)`, tie-broken by ID in the same direction, `limit + 1` rows to detect a next page).
 - `http/`: `configureHttpApp(app)` (the `/v1` prefix, except `health`; `ProblemValidationPipe`; `ProblemDetailsFilter`), which every service calls in `main.ts` and in its e2e tests. `ProblemDetailsFilter` turns `DomainError` (409), `ValidationProblemException` (400 `VALIDATION_FAILED` with `errors`), `InvalidCursorError` (400), Nest `HttpException`s and unknown errors (500, logged, no internals) into RFC 9457 problem details with `code`, `traceId` (from `traceparent`) and `errors`. `ZodValidationPipe` validates parameters typed as `createZodDto` classes: it rejects unknown fields (by comparing the input with Zod's stripped output, since the generated schemas aren't strict), coerces numeric and boolean query and path strings, and reports a JSON Pointer per body field or the parameter name. `ProblemValidationPipe` does the same for class-validator DTOs (Hephaestus) and skips Zod DTOs. `configureHttpApp` also installs nestjs-zod's `ZodSerializerInterceptor`, so handlers with `@ZodSerializerDto(X)` return only what the spec allows (a response that breaks its schema is a 500). `createZodDto` and `ZodSerializerDto` are re-exported. Also `PaginationQuery` and `PageResponse` (class-validator, for Hephaestus).
@@ -33,7 +37,7 @@ pnpm dev       # tsc --watch
 pnpm lint
 pnpm format
 pnpm test      # vitest: src/**/*.spec.ts (the HTTP conventions run against a real Nest app)
-pnpm test:e2e  # src/**/*.int-spec.ts against Postgres in a container (findPage); needs Docker
+pnpm test:e2e  # src/**/*.int-spec.ts against Postgres and RabbitMQ in containers (findPage, outbox); needs Docker
 ```
 
 ## How services consume it

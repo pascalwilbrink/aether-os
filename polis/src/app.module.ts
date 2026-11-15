@@ -1,6 +1,14 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
-import { DatabaseModule, polisConfigModule } from '@polis/core';
+import {
+  DatabaseModule,
+  EventsModule,
+  POLIS_PUBLISHED_EVENTS,
+  PolisEventsModule,
+  polisConfigModule,
+  type Env,
+} from '@polis/core';
 import { MembershipsModule } from '@polis/memberships';
 import { OrganizationsModule } from '@polis/organizations';
 import { ProjectsModule } from '@polis/projects';
@@ -10,6 +18,19 @@ import { ProjectsModule } from '@polis/projects';
   imports: [
     polisConfigModule(),
     DatabaseModule,
+    // Outbox and relay: events are published to polis.events on RabbitMQ.
+    EventsModule.forRoot({
+      service: 'polis',
+      publish: POLIS_PUBLISHED_EVENTS,
+      relay: {
+        inject: [ConfigService],
+        useFactory: (config: ConfigService<Env, true>) => ({
+          url: config.get('RABBITMQ_URL', { infer: true }),
+          intervalMs: config.get('OUTBOX_RELAY_INTERVAL_MS', { infer: true }),
+        }),
+      },
+    }),
+    PolisEventsModule,
     OrganizationsModule,
     ProjectsModule,
     MembershipsModule,

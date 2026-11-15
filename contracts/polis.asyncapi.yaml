@@ -1,0 +1,220 @@
+asyncapi: 3.0.0
+info:
+  title: Polis events
+  version: 0.1.0
+  description: |
+    Events Polis publishes to the `polis.events` topic exchange on RabbitMQ;
+    the routing key is the event type. Every message is the Krepis
+    `DomainEvent` envelope (see `../docs/events.md`), JSON, persistent, with
+    the event ID as AMQP `messageId` and the event type as `type`.
+
+    Delivery is at least once (transactional outbox and relay): deduplicate on
+    `eventId`, and ignore an event whose `aggregateVersion` is not newer than
+    the one already applied for that `aggregateId`. Polis emits an event only
+    when something changed: repeated actions (suspending a suspended
+    organization, a PUT that keeps the same roles) publish nothing.
+
+    Types for these payloads are hand-written for now in
+    `polis/libs/core/src/events/polis-events.ts`; keep them in line with this
+    file until types are generated from it.
+
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:5672
+    protocol: amqp
+    description: RabbitMQ from ../docker-compose.yml
+
+channels:
+  polisEvents:
+    address: polis.events
+    description: Topic exchange; consumers bind their own durable queue (`<consumer>.polis-events`) to the routing keys they need.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: polis.events
+          type: topic
+          durable: true
+          autoDelete: false
+    messages:
+      organizationCreated: { $ref: '#/components/messages/organizationCreated' }
+      organizationSuspended: { $ref: '#/components/messages/organizationSuspended' }
+      organizationReactivated: { $ref: '#/components/messages/organizationReactivated' }
+      projectCreated: { $ref: '#/components/messages/projectCreated' }
+      projectArchived: { $ref: '#/components/messages/projectArchived' }
+      membershipGranted: { $ref: '#/components/messages/membershipGranted' }
+      membershipRoleChanged: { $ref: '#/components/messages/membershipRoleChanged' }
+      membershipRevoked: { $ref: '#/components/messages/membershipRevoked' }
+
+operations:
+  publishPolisEvents:
+    action: send
+    channel: { $ref: '#/channels/polisEvents' }
+    messages:
+      - $ref: '#/channels/polisEvents/messages/organizationCreated'
+      - $ref: '#/channels/polisEvents/messages/organizationSuspended'
+      - $ref: '#/channels/polisEvents/messages/organizationReactivated'
+      - $ref: '#/channels/polisEvents/messages/projectCreated'
+      - $ref: '#/channels/polisEvents/messages/projectArchived'
+      - $ref: '#/channels/polisEvents/messages/membershipGranted'
+      - $ref: '#/channels/polisEvents/messages/membershipRoleChanged'
+      - $ref: '#/channels/polisEvents/messages/membershipRevoked'
+
+components:
+  messages:
+    organizationCreated:
+      name: organization.created
+      summary: An organization was created.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - properties:
+              eventType: { const: organization.created }
+              payload:
+                type: object
+                required: [organizationId, slug]
+                properties:
+                  organizationId: { $ref: '#/components/schemas/Uuid' }
+                  slug: { type: string }
+    organizationSuspended:
+      name: organization.suspended
+      summary: An organization was suspended; reject writes for it.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - properties:
+              eventType: { const: organization.suspended }
+              payload: { $ref: '#/components/schemas/OrganizationStatusPayload' }
+    organizationReactivated:
+      name: organization.reactivated
+      summary: A suspended organization was activated again.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - properties:
+              eventType: { const: organization.reactivated }
+              payload: { $ref: '#/components/schemas/OrganizationStatusPayload' }
+    projectCreated:
+      name: project.created
+      summary: A project was created (`projectId` is also in the envelope).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - properties:
+              eventType: { const: project.created }
+              payload: { $ref: '#/components/schemas/ProjectPayload' }
+    projectArchived:
+      name: project.archived
+      summary: A project was archived (final).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - properties:
+              eventType: { const: project.archived }
+              payload: { $ref: '#/components/schemas/ProjectPayload' }
+    membershipGranted:
+      name: membership.granted
+      summary: A principal became a member of an organization.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - properties:
+              eventType: { const: membership.granted }
+              payload:
+                allOf:
+                  - $ref: '#/components/schemas/MembershipPayload'
+                  - required: [roles]
+                    properties:
+                      roles: { $ref: '#/components/schemas/Roles' }
+    membershipRoleChanged:
+      name: membership.role-changed
+      summary: A membership's roles changed; drop cached permissions.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - properties:
+              eventType: { const: membership.role-changed }
+              payload:
+                allOf:
+                  - $ref: '#/components/schemas/MembershipPayload'
+                  - required: [from, to]
+                    properties:
+                      from: { $ref: '#/components/schemas/Roles' }
+                      to: { $ref: '#/components/schemas/Roles' }
+    membershipRevoked:
+      name: membership.revoked
+      summary: A principal was removed from an organization.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - properties:
+              eventType: { const: membership.revoked }
+              payload: { $ref: '#/components/schemas/MembershipPayload' }
+
+  schemas:
+    Uuid: { type: string, format: uuid }
+    Envelope:
+      type: object
+      description: Krepis's `DomainEvent`.
+      required: [eventId, eventType, schemaVersion, aggregateId, aggregateVersion, occurredAt, organizationId, projectId, actor, payload]
+      properties:
+        eventId: { $ref: '#/components/schemas/Uuid', description: 'UUIDv7; the deduplication key.' }
+        eventType: { type: string }
+        schemaVersion: { type: integer, const: 1 }
+        aggregateId: { $ref: '#/components/schemas/Uuid' }
+        aggregateVersion: { type: integer, minimum: 1 }
+        occurredAt: { type: string, format: date-time }
+        organizationId: { $ref: '#/components/schemas/Uuid' }
+        projectId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        actor:
+          description: Null until requests are authenticated (Pistis).
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [sub, sub_type]
+              properties:
+                sub: { type: string }
+                sub_type: { enum: [user, service_account, service] }
+                act:
+                  type: object
+                  properties:
+                    sub: { type: string }
+        payload: { type: object }
+    OrganizationStatusPayload:
+      type: object
+      required: [organizationId, reason]
+      properties:
+        organizationId: { $ref: '#/components/schemas/Uuid' }
+        reason: { type: [string, 'null'] }
+    ProjectPayload:
+      type: object
+      required: [projectId]
+      properties:
+        projectId: { $ref: '#/components/schemas/Uuid' }
+    MembershipPayload:
+      type: object
+      required: [membershipId, principal, scope]
+      properties:
+        membershipId: { $ref: '#/components/schemas/Uuid' }
+        principal:
+          type: object
+          required: [sub, sub_type]
+          properties:
+            sub: { type: string, description: The principal's Pistis `sub`. }
+            sub_type: { enum: [user, service_account] }
+        scope:
+          type: object
+          required: [type, organizationId]
+          properties:
+            type: { const: organization }
+            organizationId: { $ref: '#/components/schemas/Uuid' }
+    Roles:
+      type: array
+      minItems: 1
+      items: { enum: [owner, admin, member, viewer] }
+      description: Each role once, highest first.

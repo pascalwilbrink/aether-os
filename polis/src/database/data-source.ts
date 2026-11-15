@@ -2,7 +2,7 @@ import 'reflect-metadata';
 
 import { DataSource } from 'typeorm';
 
-import { postgresOptions } from '@aether-os/krepis';
+import { OutboxMessageEntity, postgresOptions } from '@aether-os/krepis';
 
 import { OrganizationEntity } from '../../libs/organizations/src/organization.entity.js';
 import { MembershipEntity } from '../../libs/memberships/src/membership.entity.js';
@@ -29,6 +29,11 @@ export default new DataSource(
   postgresOptions({
     url,
     migrations,
-    entities: [OrganizationEntity, ProjectEntity, MembershipEntity],
+    entities: [
+      OrganizationEntity,
+      ProjectEntity,
+      MembershipEntity,
+      OutboxMessageEntity,
+    ],
   }),
 );

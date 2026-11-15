@@ -7,5 +7,5 @@ export async function resetDatabase(
 ): Promise<void> {
   await app
     .get(DataSource)
-    .query('TRUNCATE organizations, projects, memberships');
+    .query('TRUNCATE organizations, projects, memberships, outbox');
 }

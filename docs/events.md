@@ -46,12 +46,14 @@ Rules:
 
 ### Polis (`polis.events`)
 
+**Published** since Polis's outbox landed; the contract is `../contracts/polis.asyncapi.yaml`, which is the source for these events from now on (membership payloads also carry `membershipId`). Not built yet: `organization.deleted` and `project.deleted` (Polis has no deletes), and project memberships.
+
 | Event | Payload | Consumers |
 |---|---|---|
 | `organization.created` | `organizationId`, `slug` | Pistis, Iris |
 | `organization.suspended` / `organization.reactivated` | `organizationId`, `reason` | Every service (reject writes / resume) |
 | `organization.deleted` | `organizationId` | Every service (delete tenant data) |
-| `project.created` / `project.deleted` | `projectId` | Hephaestus, Kairos, Themis, Seshat |
+| `project.created` / `project.archived` / `project.deleted` | `projectId` | Hephaestus, Kairos, Themis, Seshat |
 | `membership.granted` | `principal`, `scope` (organization or project), `roles` | Pistis, Iris, Kerykes |
 | `membership.role-changed` | `principal`, `scope`, `from`, `to` (role lists) | Pistis, every service (drop cached permissions; Kerykes updates its recipient copy) |
 | `membership.revoked` | `principal`, `scope` | Pistis, every service |

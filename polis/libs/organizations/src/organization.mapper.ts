@@ -17,6 +17,7 @@ export class OrganizationMapper {
       createdBy: dto.createdBy,
       createdAt: now,
       updatedAt: now,
+      version: 1,
     } satisfies OrganizationEntity);
   }
 

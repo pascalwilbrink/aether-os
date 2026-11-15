@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 
 import { OrganizationsService } from '@polis/organizations';
 
+import { outboxEvents } from '../../../test/outbox.js';
 import { createTestingModule } from '../../../test/testing-module.js';
 import { ProjectsModule } from './projects.module.js';
 import { ProjectsService } from './projects.service.js';
@@ -113,5 +114,27 @@ describe('ProjectsService (Postgres)', () => {
     await expect(projects.list(orgId, { limit: 10 })).resolves.toMatchObject({
       items: [{ id: project.id }],
     });
+  });
+
+  it('stores project events with the project in the envelope', async () => {
+    const project = await create();
+    await projects.archive(orgId, project.id);
+    await projects.archive(orgId, project.id);
+
+    const events = (await outboxEvents(moduleRef)).filter((e) =>
+      e.eventType.startsWith('project.'),
+    );
+    expect(
+      events.map((e) => [
+        e.eventType,
+        e.aggregateVersion,
+        e.organizationId,
+        e.projectId,
+        e.payload,
+      ]),
+    ).toEqual([
+      ['project.created', 1, orgId, project.id, { projectId: project.id }],
+      ['project.archived', 2, orgId, project.id, { projectId: project.id }],
+    ]);
   });
 });

@@ -6,6 +6,7 @@ import {
   findPage,
   isUniqueViolation,
   mapPage,
+  PolisEvents,
   Transactional,
   type Page,
   type PageRequest,
@@ -31,6 +32,7 @@ export class OrganizationsService {
     @InjectRepository(OrganizationEntity)
     private readonly organizations: Repository<OrganizationEntity>,
     private readonly mapper: OrganizationMapper,
+    private readonly events: PolisEvents,
   ) {}
 
   @Transactional()
@@ -44,6 +46,13 @@ export class OrganizationsService {
       }
       throw error;
     }
+    await this.events.emit({
+      eventType: 'organization.created',
+      aggregateId: entity.id,
+      aggregateVersion: entity.version,
+      organizationId: entity.id,
+      payload: { organizationId: entity.id, slug: entity.slug },
+    });
 
     return this.mapper.toResponse(entity);
   }
@@ -116,7 +125,18 @@ export class OrganizationsService {
     if (next !== entity.status) {
       entity.status = next;
       entity.updatedAt = new Date();
+      entity.version += 1;
       await this.organizations.save(entity);
+      await this.events.emit({
+        eventType:
+          next === 'suspended'
+            ? 'organization.suspended'
+            : 'organization.reactivated',
+        aggregateId: entity.id,
+        aggregateVersion: entity.version,
+        organizationId: entity.id,
+        payload: { organizationId: entity.id, reason: null },
+      });
     }
 
     return this.mapper.toResponse(entity);

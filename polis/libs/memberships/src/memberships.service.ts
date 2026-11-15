@@ -6,7 +6,9 @@ import {
   findPage,
   isUniqueViolation,
   mapPage,
+  PolisEvents,
   Transactional,
+  type MembershipEventBase,
   type Page,
   type PageRequest,
 } from '@polis/core';
@@ -32,6 +34,7 @@ export class MembershipsService {
     private readonly memberships: Repository<MembershipEntity>,
     private readonly mapper: MembershipMapper,
     private readonly organizations: OrganizationsService,
+    private readonly events: PolisEvents,
   ) {}
 
   @Transactional()
@@ -50,6 +53,13 @@ export class MembershipsService {
       }
       throw error;
     }
+    await this.events.emit({
+      eventType: 'membership.granted',
+      aggregateId: entity.id,
+      aggregateVersion: entity.version,
+      organizationId,
+      payload: { ...this.eventBase(entity), roles: entity.roles },
+    });
 
     return this.mapper.toResponse(entity);
   }
@@ -92,7 +102,22 @@ export class MembershipsService {
     await this.organizations.assertAcceptsWrites(organizationId);
 
     const entity = await this.load(organizationId, membershipId, true);
-    await this.memberships.save(this.mapper.applyTo(entity, dto, new Date()));
+    const from = entity.roles;
+    this.mapper.applyTo(entity, dto, new Date());
+    if (sameRoles(from, entity.roles)) {
+      // Nothing changed: no new version, no event.
+      return this.mapper.toResponse(
+        await this.load(organizationId, membershipId),
+      );
+    }
+    await this.memberships.save(entity);
+    await this.events.emit({
+      eventType: 'membership.role-changed',
+      aggregateId: entity.id,
+      aggregateVersion: entity.version,
+      organizationId,
+      payload: { ...this.eventBase(entity), from, to: entity.roles },
+    });
 
     return this.mapper.toResponse(entity);
   }
@@ -102,7 +127,23 @@ export class MembershipsService {
     await this.organizations.assertAcceptsWrites(organizationId);
 
     const entity = await this.load(organizationId, membershipId, true);
+    const base = this.eventBase(entity);
     await this.memberships.remove(entity);
+    await this.events.emit({
+      eventType: 'membership.revoked',
+      aggregateId: base.membershipId,
+      aggregateVersion: entity.version + 1,
+      organizationId,
+      payload: base,
+    });
+  }
+
+  private eventBase(entity: MembershipEntity): MembershipEventBase {
+    return {
+      membershipId: entity.id,
+      principal: { sub: entity.subject, sub_type: entity.subjectType },
+      scope: { type: 'organization', organizationId: entity.organizationId },
+    };
   }
 
   private async page(
@@ -136,4 +177,8 @@ export class MembershipsService {
 
     return entity;
   }
+}
+
+function sameRoles(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((role, i) => role === b[i]);
 }

@@ -121,7 +121,7 @@ pnpm --filter polis test   # one package (or run pnpm inside its directory)
 pnpm format:check          # prettier, as CI runs it (`pnpm format` in a package fixes it)
 ```
 
-`test:e2e` needs Docker where a package tests against Postgres (Krepis, Polis): Testcontainers starts `postgres:17.5-alpine` per run. Where Docker Hub can't be reached for Testcontainers' Ryuk image, run with `TESTCONTAINERS_RYUK_DISABLED=true`.
+`test:e2e` needs Docker where a package tests against Postgres and RabbitMQ (Krepis, Polis): Testcontainers starts `postgres:17.5-alpine` and `rabbitmq:4.1-management` per run. Where Docker Hub can't be reached for Testcontainers' Ryuk image, run with `TESTCONTAINERS_RYUK_DISABLED=true`.
 
 **CI** (`.github/workflows/ci.yml`, on pushes to `main` and on pull requests) runs, in order: `pnpm install --frozen-lockfile`, `pnpm generate:api` (fails if the generated files differ from what's committed), `format:check`, `lint`, `build`, `test` and `test:e2e`. Each step only covers the packages changed since the base commit (the pull request's merge base, or the previous `main` commit) plus the packages that depend on them, so a Krepis change also checks Polis and Hephaestus, a `contracts` change checks every consumer, and changes only to `docs/` or `infra/` check nothing. Changes to the lockfile, `pnpm-workspace.yaml`, the root `package.json` or `.github/` check everything (see `.github/scripts/affected-filter.sh`). Run the same locally before pushing.
 
