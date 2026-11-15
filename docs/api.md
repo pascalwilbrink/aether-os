@@ -147,8 +147,8 @@ Rules:
 
 - **Methods:** the specs already use only `GET` and `POST`, with actions for state changes (`/suspend`, `/archive`, `/publish`), so nothing to remove. `PUT` and `DELETE` will appear with the first editable resources.
 - **Versioning, errors, pagination:** done. Krepis's `configureHttpApp` sets the `/v1` prefix and turns every error into problem details (the shared `Problem` schema is in `contracts/common.openapi.yaml`), and lists use keyset pagination through Krepis's `findPage`. Not yet: `Retry-After` on `429` / `503`, `ETag` / `If-Match`, and `Location` on `201`.
-- **Actions:** idempotent in Polis (suspend, activate, archive return the unchanged resource). Hephaestus still returns errors such as `ORGANIZATION_ALREADY_SUSPENDED` for repeated actions.
-- **IDs:** Polis generates UUIDv7 in its mappers, stores them as `uuid`, declares `format: uuid` and answers `400` for path IDs that aren't UUIDs. Hephaestus still uses `randomUUID()` (v4) in `varchar` columns.
+- **Actions:** idempotent where natural in Polis and Hephaestus (suspend, activate, archive, publishing the published agent version return the unchanged resource). Workspace transitions are deliberately strict.
+- **IDs:** Polis and Hephaestus generate UUIDv7 in their mappers, store them as `uuid`, declare `format: uuid` and answer `400` for path IDs that aren't UUIDs.
 
 ## Open questions
 

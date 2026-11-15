@@ -1,8 +1,7 @@
 import { QueryFailedError } from 'typeorm';
 
 /**
- * True when a query failed on a unique constraint.
- * SQLite reports SQLITE_CONSTRAINT_UNIQUE; Postgres uses SQLSTATE 23505.
+ * True when a query failed on a unique constraint (Postgres SQLSTATE 23505).
  */
 export function isUniqueViolation(error: unknown): boolean {
   if (!(error instanceof QueryFailedError)) {
@@ -11,5 +10,5 @@ export function isUniqueViolation(error: unknown): boolean {
 
   const code = (error.driverError as { code?: string } | undefined)?.code;
 
-  return code === 'SQLITE_CONSTRAINT_UNIQUE' || code === '23505';
+  return code === '23505';
 }

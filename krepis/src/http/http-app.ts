@@ -5,7 +5,6 @@ import { ZodSerializerInterceptor } from 'nestjs-zod';
 import { runWithTraceContext } from '../telemetry/trace-context.js';
 
 import { ProblemDetailsFilter } from './problem-details.filter.js';
-import { ProblemValidationPipe } from './problem-validation.pipe.js';
 import { ZodValidationPipe } from './zod-validation.pipe.js';
 
 /** Every endpoint is under the major version (docs/api.md). */
@@ -16,8 +15,7 @@ export const UNVERSIONED_PATHS = ['health'];
 
 /**
  * Applies the platform's HTTP conventions to a Nest app: the `/v1` prefix,
- * strict validation (Zod DTOs through `ZodValidationPipe`, class-validator
- * DTOs through `ProblemValidationPipe`), responses checked and stripped
+ * strict validation of Zod DTOs (`ZodValidationPipe`), responses checked and stripped
  * against their schema where a handler declares `@ZodSerializerDto`,
  * problem details for every error, and the request's trace context
  * (`traceparent`) kept for the request, so events emitted while handling it
@@ -37,7 +35,7 @@ export function configureHttpApp(app: INestApplication): INestApplication {
       next: () => void,
     ) => runWithTraceContext(request.headers, next),
   );
-  app.useGlobalPipes(new ZodValidationPipe(), new ProblemValidationPipe());
+  app.useGlobalPipes(new ZodValidationPipe());
   app.useGlobalInterceptors(new ZodSerializerInterceptor(app.get(Reflector)));
   app.useGlobalFilters(new ProblemDetailsFilter());
 

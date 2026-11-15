@@ -1,30 +1,17 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { TransactionModule } from '@hephaestus/core';
 import { OrganizationsModule } from '@hephaestus/organizations';
 
-import { ProjectService } from './application/service/project.service.js';
-import { ProjectRepository } from './domain/repository/project.repository.js';
-import { ProjectEntity } from './infrastructure/persistence/entity/project.entity.js';
-import { ProjectMapper } from './infrastructure/persistence/mapper/project.mapper.js';
-import { TypeOrmProjectRepository } from './infrastructure/persistence/repository/typeorm-project.repository.js';
-import { ProjectsController } from './presentation/http/projects.controller.js';
+import { ProjectEntity } from './project.entity.js';
+import { ProjectMapper } from './project.mapper.js';
+import { ProjectsController } from './projects.controller.js';
+import { ProjectsService } from './projects.service.js';
 
 @Module({
-  imports: [
-    // Registers the entity with autoLoadEntities; the repository resolves
-    // it through TypeOrmTransactionManager.
-    TypeOrmModule.forFeature([ProjectEntity]),
-    TransactionModule,
-    OrganizationsModule,
-  ],
+  imports: [TypeOrmModule.forFeature([ProjectEntity]), OrganizationsModule],
   controllers: [ProjectsController],
-  providers: [
-    ProjectService,
-    ProjectMapper,
-    { provide: ProjectRepository, useClass: TypeOrmProjectRepository },
-  ],
-  exports: [ProjectService],
+  providers: [ProjectsService, ProjectMapper],
+  exports: [ProjectsService],
 })
 export class ProjectsModule {}

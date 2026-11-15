@@ -1,9 +1,17 @@
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import { configureHttpApp } from '@hephaestus/core';
+
+import {
+  configureHttpApp,
+  initializeTransactions,
+  type Env,
+} from '@hephaestus/core';
+
 import { AppModule } from './app.module.js';
 
-async function bootstrap() {
-  const app = configureHttpApp(await NestFactory.create(AppModule));
-  await app.listen(process.env.PORT ?? 3002);
-}
-await bootstrap();
+// Before Nest boots, so @Transactional() methods find their context.
+initializeTransactions();
+
+const app = configureHttpApp(await NestFactory.create(AppModule));
+const config = app.get<ConfigService<Env, true>>(ConfigService);
+await app.listen(config.get('PORT', { infer: true }));

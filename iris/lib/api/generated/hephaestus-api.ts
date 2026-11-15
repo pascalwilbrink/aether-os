@@ -255,7 +255,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Publishes a draft and deprecates the previously published version. */
+        /**
+         * @description Publishes a draft and deprecates the previously published version.
+         *     Publishing the version that's already published returns it unchanged;
+         *     a deprecated version can't be published again (409).
+         */
         post: operations["publishAgentVersion"];
         delete?: never;
         options?: never;
@@ -432,7 +436,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ORGANIZATION_ALREADY_SUSPENDED" | "ORGANIZATION_SLUG_TAKEN" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "PROJECT_SLUG_TAKEN" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ORGANIZATION_SLUG_TAKEN" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "PROJECT_SLUG_TAKEN" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -450,6 +454,7 @@ export interface components {
             createdBy: string;
         };
         OrganizationResponse: {
+            /** Format: uuid */
             id: string;
             name: string;
             slug: string;
@@ -471,7 +476,9 @@ export interface components {
             createdBy: string;
         };
         ProjectResponse: {
+            /** Format: uuid */
             id: string;
+            /** Format: uuid */
             organizationId: string;
             name: string;
             slug: string;
@@ -492,12 +499,17 @@ export interface components {
             createdBy: string;
         };
         AgentResponse: {
+            /** Format: uuid */
             id: string;
+            /** Format: uuid */
             organizationId: string;
             name: string;
             description: string;
             status: components["schemas"]["AgentStatus"];
-            /** @description The currently published version, if any. */
+            /**
+             * Format: uuid
+             * @description The currently published version, if any.
+             */
             latestVersionId: string | null;
             createdBy: string;
             createdAt: components["schemas"]["Timestamp"];
@@ -543,8 +555,11 @@ export interface components {
             createdBy: string;
         };
         AgentVersionResponse: {
+            /** Format: uuid */
             id: string;
+            /** Format: uuid */
             agentId: string;
+            /** Format: uuid */
             organizationId: string;
             version: number;
             status: components["schemas"]["AgentVersionStatus"];
@@ -587,7 +602,9 @@ export interface components {
             resourceId: string;
         };
         CreateWorkspaceRequest: {
+            /** Format: uuid */
             projectId: string;
+            /** Format: uuid */
             executionId: string;
             repository: components["schemas"]["RepositoryConfiguration"];
             sandbox: components["schemas"]["SandboxConfiguration"];
@@ -600,9 +617,13 @@ export interface components {
             expiresAt: string;
         };
         WorkspaceResponse: {
+            /** Format: uuid */
             id: string;
+            /** Format: uuid */
             organizationId: string;
+            /** Format: uuid */
             projectId: string;
+            /** Format: uuid */
             executionId: string;
             status: components["schemas"]["WorkspaceStatus"];
             repository: components["schemas"]["RepositoryConfiguration"];
@@ -781,6 +802,7 @@ export interface operations {
                     "application/json": components["schemas"]["OrganizationResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -804,6 +826,7 @@ export interface operations {
                     "application/json": components["schemas"]["OrganizationResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -818,7 +841,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Suspended */
+            /** @description Suspended (or already suspended) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -827,8 +850,8 @@ export interface operations {
                     "application/json": components["schemas"]["OrganizationResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
         };
     };
     activateOrganization: {
@@ -842,7 +865,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Active */
+            /** @description Active (or already active) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -851,8 +874,8 @@ export interface operations {
                     "application/json": components["schemas"]["OrganizationResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
         };
     };
     listProjects: {
@@ -938,6 +961,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProjectResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -953,13 +977,16 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Archived */
-            204: {
+            /** @description Archived (or already archived) */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
         };
@@ -1047,6 +1074,7 @@ export interface operations {
                     "application/json": components["schemas"]["AgentResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -1062,13 +1090,16 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Archived */
-            204: {
+            /** @description Archived (or already archived) */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
         };
@@ -1159,6 +1190,7 @@ export interface operations {
                     "application/json": components["schemas"]["AgentVersionResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -1184,6 +1216,7 @@ export interface operations {
                     "application/json": components["schemas"]["AgentVersionResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
         };
@@ -1271,6 +1304,7 @@ export interface operations {
                     "application/json": components["schemas"]["WorkspaceResponse"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -1287,6 +1321,7 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["WorkspaceTransition"];
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
         };
@@ -1304,6 +1339,7 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["WorkspaceTransition"];
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
         };
@@ -1321,6 +1357,7 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["WorkspaceTransition"];
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
         };
@@ -1338,6 +1375,7 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["WorkspaceTransition"];
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
         };
@@ -1355,6 +1393,7 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["WorkspaceTransition"];
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
         };

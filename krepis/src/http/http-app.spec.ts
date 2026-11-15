@@ -11,15 +11,12 @@ import {
   Query,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { IsInt, IsString, MinLength, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
 import request from 'supertest';
 import { z } from 'zod';
 
 import { DomainError } from '../error/domain-error.js';
 import { InvalidCursorError } from '../pagination/cursor.js';
 import { configureHttpApp } from './http-app.js';
-import { PaginationQuery } from './page.query.js';
 import { createZodDto, ZodSerializerDto } from './index.js';
 
 // Shaped like the schemas @hey-api/openapi-ts generates from a spec.
@@ -35,11 +32,16 @@ const zWidgetQuery = z.object({
   archived: z.boolean().optional(),
 });
 const zWidget = z.object({ id: z.string(), name: z.string() });
+const zThingsQuery = z.object({
+  limit: z.int().gte(1).lte(100).optional().default(50),
+  cursor: z.string().min(1).max(1024).optional(),
+});
 
 class CreateWidget extends createZodDto(zCreateWidget) {}
 class WidgetPath extends createZodDto(zWidgetPath) {}
 class WidgetQuery extends createZodDto(zWidgetQuery) {}
 class Widget extends createZodDto(zWidget) {}
+class ThingsQuery extends createZodDto(zThingsQuery) {}
 
 @Controller('widgets')
 class WidgetsController {
@@ -72,38 +74,14 @@ class ThingArchivedError extends DomainError {
   }
 }
 
-class Owner {
-  @IsString()
-  @MinLength(1)
-  name: string;
-}
-
-class CreateThing {
-  @IsString()
-  @MinLength(1)
-  name: string;
-
-  @IsInt()
-  size: number;
-
-  @ValidateNested()
-  @Type(() => Owner)
-  owner: Owner;
-}
-
 @Controller('things')
 class ThingsController {
   @Get()
-  list(@Query() query: PaginationQuery) {
+  list(@Query() query: ThingsQuery) {
     if (query.cursor === 'bad') {
       throw new InvalidCursorError();
     }
     return { items: [], nextCursor: null, limit: query.limit };
-  }
-
-  @Post()
-  create(@Body() body: CreateThing) {
-    return body;
   }
 
   @Get('archived')
@@ -192,46 +170,6 @@ describe('configureHttpApp', () => {
     });
   });
 
-  it('reports each invalid body field with a JSON Pointer', async () => {
-    const res = await http()
-      .post('/v1/things')
-      .send({ size: 'big', owner: { name: '' }, extra: true })
-      .expect(400)
-      .expect('Content-Type', /application\/problem\+json/);
-
-    expect(res.body).toMatchObject({
-      type: 'urn:aether-os:problem:validation-failed',
-      status: 400,
-      code: 'VALIDATION_FAILED',
-      traceId: null,
-    });
-    expect(res.body.errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          pointer: '/name',
-          parameter: null,
-          code: 'REQUIRED',
-        }),
-        expect.objectContaining({ pointer: '/size', code: 'INVALID' }),
-        expect.objectContaining({ pointer: '/owner/name', code: 'INVALID' }),
-        expect.objectContaining({ pointer: '/extra', code: 'UNKNOWN_FIELD' }),
-      ]),
-    );
-    expect(res.body.errors).toHaveLength(4);
-  });
-
-  it('names invalid query parameters', async () => {
-    const res = await http().get('/v1/things?limit=abc').expect(400);
-
-    expect(res.body.errors).toEqual([
-      expect.objectContaining({
-        pointer: null,
-        parameter: 'limit',
-        code: 'INVALID',
-      }),
-    ]);
-  });
-
   it('maps an invalid cursor to 400 INVALID_CURSOR', async () => {
     const res = await http().get('/v1/things?cursor=bad').expect(400);
 
@@ -263,7 +201,7 @@ describe('configureHttpApp', () => {
 
   it('answers a malformed JSON body with 400 problem details', async () => {
     const res = await http()
-      .post('/v1/things')
+      .post('/v1/widgets')
       .set('Content-Type', 'application/json')
       .send('{"name":')
       .expect(400)
