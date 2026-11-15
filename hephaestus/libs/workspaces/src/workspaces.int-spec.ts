@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 
+import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
 import {
   organizationEvent,
   projectArchived,
@@ -14,6 +15,14 @@ const missing = '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
 const executionId = '0193a1b2-c3d4-7e5f-8a9b-0000000000e1';
 const reference = { provider: 'docker', resourceId: 'container-1' };
 
+const caller = testPrincipal({
+  sub: 'user-1',
+  subType: 'user',
+  organizationId: '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b',
+  organizationRoles: ['owner'],
+  scopes: [],
+});
+
 describe('WorkspacesService (Postgres)', () => {
   let moduleRef: TestingModule;
   let workspaces: WorkspacesService;
@@ -23,7 +32,7 @@ describe('WorkspacesService (Postgres)', () => {
 
   beforeEach(async () => {
     ({ moduleRef, polis } = await createTestingModule(WorkspacesModule));
-    workspaces = moduleRef.get(WorkspacesService);
+    workspaces = actingAs(moduleRef.get(WorkspacesService), caller);
     orgId = polis.organization();
     projectId = polis.project(orgId);
   });

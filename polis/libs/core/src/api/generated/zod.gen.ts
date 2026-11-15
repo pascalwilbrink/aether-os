@@ -28,8 +28,7 @@ export const zOrganizationStatus = z.enum(['active', 'suspended']);
 
 export const zCreateOrganizationRequest = z.object({
     name: z.string().min(1).max(200),
-    slug: zSlug,
-    createdBy: z.string().min(1)
+    slug: zSlug
 });
 
 export const zOrganizationResponse = z.object({
@@ -48,8 +47,7 @@ export const zProjectStatus = z.enum(['active', 'archived']);
 export const zCreateProjectRequest = z.object({
     name: z.string().min(1).max(200),
     slug: zSlug,
-    description: z.string().max(2000),
-    createdBy: z.string().min(1)
+    description: z.string().max(2000)
 });
 
 export const zProjectResponse = z.object({
@@ -95,8 +93,7 @@ export const zOrganizationRoles = z.array(zOrganizationRole).min(1);
 export const zCreateMembershipRequest = z.object({
     subjectType: zSubjectType,
     subject: zSubject,
-    roles: zOrganizationRoles,
-    createdBy: z.string().min(1)
+    roles: zOrganizationRoles
 });
 
 export const zUpdateMembershipRequest = z.object({

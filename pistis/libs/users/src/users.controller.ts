@@ -11,7 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { ZodSerializerDto } from '@pistis/core';
+import { PlatformAccess, ZodSerializerDto } from '@pistis/core';
 
 import { AccountsService } from './accounts.service.js';
 import { ChangePasswordRequest } from './dto/change-password.request.js';
@@ -32,6 +32,8 @@ import { UserProvidersService } from './user-providers.service.js';
 import { UsersService } from './users.service.js';
 
 @Controller('users')
+// Platform operators only, for now (self-service needs user routes).
+@PlatformAccess('platform:manage')
 export class UsersController {
   constructor(
     private readonly users: UsersService,
@@ -78,6 +80,8 @@ export class UsersController {
 }
 
 @Controller('users/:userId/password')
+// Platform operators only, for now (self-service needs user routes).
+@PlatformAccess('platform:manage')
 export class PasswordsController {
   constructor(private readonly passwords: PasswordsService) {}
 
@@ -98,6 +102,8 @@ export class PasswordsController {
 }
 
 @Controller('users/:userId/providers')
+// Platform operators only, for now (self-service needs user routes).
+@PlatformAccess('platform:manage')
 export class UserProvidersController {
   constructor(private readonly providers: UserProvidersService) {}
 

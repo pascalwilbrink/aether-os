@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Polis API
-  version: 0.4.0
+  version: 0.5.0
   description: |
     Tenancy service for Aether-os: organizations, the projects inside them, and
     memberships (which principal belongs to which organization, with which roles).
@@ -14,6 +14,16 @@ info:
     `400`. Actions are idempotent: suspending a suspended organization, or
     archiving an archived project, returns the unchanged resource.
 
+    Every operation needs a Pistis access token (`Authorization: Bearer`);
+    `x-permission` names what it requires (`../docs/identity.md`). Tokens are
+    scoped to one organization: an `{organizationId}` other than the token's
+    is 404. Platform services call with their own token and its platform
+    permissions (`platform:read`, `platform:manage`). `createdBy` is the
+    caller's `sub`.
+
+security:
+  - pistis: []
+
 tags:
   - name: organizations
   - name: projects
@@ -24,12 +34,15 @@ paths:
     post:
       tags: [organizations]
       operationId: createOrganization
+      x-permission: 'any user (becomes its `owner`), or a platform service with `platform:manage`'
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/CreateOrganizationRequest' }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '201':
           description: Created
           content:
@@ -40,10 +53,13 @@ paths:
     get:
       tags: [organizations]
       operationId: listOrganizations
+      x-permission: 'platform services with `platform:read`'
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Newest first
           content:
@@ -55,12 +71,15 @@ paths:
     get:
       tags: [organizations]
       operationId: getOrganizationBySlug
+      x-permission: 'the token''s own organization, or `platform:read`'
       parameters:
         - name: slug
           in: path
           required: true
           schema: { type: string }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: OK
           content:
@@ -74,7 +93,10 @@ paths:
     get:
       tags: [organizations]
       operationId: getOrganization
+      x-permission: '`org:read`, or `platform:read`'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: OK
           content:
@@ -89,7 +111,10 @@ paths:
     post:
       tags: [organizations]
       operationId: suspendOrganization
+      x-permission: '`platform:manage`'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Suspended (or already suspended)
           content:
@@ -104,7 +129,10 @@ paths:
     post:
       tags: [organizations]
       operationId: activateOrganization
+      x-permission: '`platform:manage`'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Active (or already active)
           content:
@@ -119,12 +147,15 @@ paths:
     post:
       tags: [projects]
       operationId: createProject
+      x-permission: '`project:create`'
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/CreateProjectRequest' }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '201':
           description: Created
           content:
@@ -136,10 +167,13 @@ paths:
     get:
       tags: [projects]
       operationId: listProjects
+      x-permission: '`org:read`; lists only the projects the caller can read (all with `platform:read`)'
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Newest first
           content:
@@ -155,7 +189,10 @@ paths:
     get:
       tags: [projects]
       operationId: getProject
+      x-permission: '`project:read` in that project, or `platform:read`'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: OK
           content:
@@ -171,7 +208,10 @@ paths:
     post:
       tags: [projects]
       operationId: archiveProject
+      x-permission: '`project:manage` in that project'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Archived (or already archived)
           content:
@@ -187,6 +227,7 @@ paths:
     post:
       tags: [memberships]
       operationId: createMembership
+      x-permission: '`member:manage`; granting `owner` needs an `owner`'
       description: Adds a principal to the organization with one or more roles.
       requestBody:
         required: true
@@ -194,6 +235,8 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/CreateMembershipRequest' }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '201':
           description: Created
           content:
@@ -205,10 +248,13 @@ paths:
     get:
       tags: [memberships]
       operationId: listMemberships
+      x-permission: '`member:read`'
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Newest first
           content:
@@ -224,7 +270,10 @@ paths:
     get:
       tags: [memberships]
       operationId: getMembership
+      x-permission: '`member:read`'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: OK
           content:
@@ -235,6 +284,7 @@ paths:
     put:
       tags: [memberships]
       operationId: updateMembership
+      x-permission: '`member:manage`; changing an `owner`''s roles, or granting `owner`, needs an `owner`'
       description: Replaces the membership's roles.
       requestBody:
         required: true
@@ -242,6 +292,8 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/UpdateMembershipRequest' }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Updated
           content:
@@ -253,8 +305,11 @@ paths:
     delete:
       tags: [memberships]
       operationId: deleteMembership
+      x-permission: '`member:manage`; removing an `owner` needs an `owner`'
       description: Removes the principal from the organization.
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '204': { description: Deleted }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -264,6 +319,7 @@ paths:
     get:
       tags: [memberships]
       operationId: listMembershipsOfSubject
+      x-permission: 'the caller''s own memberships (`subject` = the token''s `sub`), or `platform:read`'
       description: |
         Every organization membership of one principal, across organizations.
         Pistis uses it to put organization and role claims in tokens.
@@ -279,6 +335,8 @@ paths:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Newest first
           content:
@@ -306,7 +364,15 @@ components:
     Limit: { $ref: './common.openapi.yaml#/components/parameters/Limit' }
     Cursor: { $ref: './common.openapi.yaml#/components/parameters/Cursor' }
 
+  securitySchemes:
+    pistis:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A Pistis access token (`../docs/identity.md`).
   responses:
+    Unauthorized: { $ref: './common.openapi.yaml#/components/responses/Unauthorized' }
+    Forbidden: { $ref: './common.openapi.yaml#/components/responses/Forbidden' }
     ValidationError: { $ref: './common.openapi.yaml#/components/responses/BadRequest' }
     NotFound: { $ref: './common.openapi.yaml#/components/responses/NotFound' }
     DomainError:
@@ -359,14 +425,10 @@ components:
     CreateOrganizationRequest:
       type: object
       additionalProperties: false
-      required: [name, slug, createdBy]
+      required: [name, slug]
       properties:
         name: { type: string, minLength: 1, maxLength: 200 }
         slug: { $ref: '#/components/schemas/Slug' }
-        createdBy:
-          type: string
-          minLength: 1
-          description: Temporary until authentication exists.
     OrganizationResponse:
       type: object
       required: [id, name, slug, status, createdBy, createdAt, updatedAt, version]
@@ -396,14 +458,13 @@ components:
     CreateProjectRequest:
       type: object
       additionalProperties: false
-      required: [name, slug, description, createdBy]
+      required: [name, slug, description]
       properties:
         name: { type: string, minLength: 1, maxLength: 200 }
         slug:
           $ref: '#/components/schemas/Slug'
           description: Unique within the organization.
         description: { type: string, maxLength: 2000 }
-        createdBy: { type: string, minLength: 1 }
     ProjectResponse:
       type: object
       required: [id, organizationId, name, slug, description, status, createdBy, createdAt, updatedAt, version]
@@ -452,12 +513,11 @@ components:
     CreateMembershipRequest:
       type: object
       additionalProperties: false
-      required: [subjectType, subject, roles, createdBy]
+      required: [subjectType, subject, roles]
       properties:
         subjectType: { $ref: '#/components/schemas/SubjectType' }
         subject: { $ref: '#/components/schemas/Subject' }
         roles: { $ref: '#/components/schemas/OrganizationRoles' }
-        createdBy: { type: string, minLength: 1 }
     UpdateMembershipRequest:
       type: object
       additionalProperties: false

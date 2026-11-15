@@ -1,8 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
 import {
+  AccessControl,
   findPage,
   isUniqueViolation,
   mapPage,
@@ -35,16 +40,48 @@ export class MembershipsService {
     private readonly mapper: MembershipMapper,
     private readonly organizations: OrganizationsService,
     private readonly events: PolisEvents,
+    private readonly access: AccessControl,
   ) {}
 
+  /** Grants a membership; granting `owner` takes an owner. */
   @Transactional()
-  async create(
+  create(
     organizationId: string,
     dto: CreateMembershipRequest,
   ): Promise<MembershipResponse> {
+    this.assertMayTouchOwners(dto.roles);
+    return this.grant(organizationId, dto, this.access.principal().sub);
+  }
+
+  /**
+   * Makes the user who founded an organization its first owner, in the
+   * transaction that created it (`FoundersService`).
+   */
+  @Transactional()
+  grantFounder(
+    organizationId: string,
+    userId: string,
+  ): Promise<MembershipResponse> {
+    return this.grant(
+      organizationId,
+      { subjectType: 'user', subject: userId, roles: ['owner'] },
+      userId,
+    );
+  }
+
+  private async grant(
+    organizationId: string,
+    dto: CreateMembershipRequest,
+    createdBy: string,
+  ): Promise<MembershipResponse> {
     await this.organizations.assertAcceptsWrites(organizationId);
 
-    const entity = this.mapper.toEntity(dto, organizationId, new Date());
+    const entity = this.mapper.toEntity(
+      dto,
+      organizationId,
+      createdBy,
+      new Date(),
+    );
     try {
       await this.memberships.insert(entity);
     } catch (error) {
@@ -73,12 +110,21 @@ export class MembershipsService {
     return this.page({ organizationId }, page);
   }
 
-  /** Every membership of one principal, across organizations (for Pistis). */
+  /**
+   * Every membership of one principal, across organizations: Pistis (for
+   * token claims, `platform:read`), or the principal itself (to choose an
+   * organization).
+   */
   listOfSubject(
     subjectType: SubjectType,
     subject: string,
     page: PageRequest,
   ): Promise<Page<MembershipResponse>> {
+    const caller = this.access.principal();
+    const own = caller.subType === subjectType && caller.sub === subject;
+    if (!own && !this.access.hasPlatformPermission('platform:read')) {
+      throw new ForbiddenException('Only your own memberships');
+    }
     return this.page({ subjectType, subject }, page);
   }
 
@@ -102,6 +148,7 @@ export class MembershipsService {
     await this.organizations.assertAcceptsWrites(organizationId);
 
     const entity = await this.load(organizationId, membershipId, true);
+    this.assertMayTouchOwners([...entity.roles, ...dto.roles]);
     const from = entity.roles;
     this.mapper.applyTo(entity, dto, new Date());
     if (sameRoles(from, entity.roles)) {
@@ -127,6 +174,7 @@ export class MembershipsService {
     await this.organizations.assertAcceptsWrites(organizationId);
 
     const entity = await this.load(organizationId, membershipId, true);
+    this.assertMayTouchOwners(entity.roles);
     const base = this.eventBase(entity);
     await this.memberships.remove(entity);
     await this.events.emit({
@@ -136,6 +184,16 @@ export class MembershipsService {
       organizationId,
       payload: base,
     });
+  }
+
+  /** Owners are managed by owners only (docs/identity.md, Roles). */
+  private assertMayTouchOwners(roles: readonly string[]): void {
+    if (
+      roles.includes('owner') &&
+      !this.access.principal().organizationRoles.includes('owner')
+    ) {
+      throw new ForbiddenException('Only owners manage owners');
+    }
   }
 
   private eventBase(entity: MembershipEntity): MembershipEventBase {

@@ -1,6 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
 import amqp from 'amqplib';
-import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { DataSource } from 'typeorm';
 import { inject } from 'vitest';
@@ -8,6 +7,7 @@ import { inject } from 'vitest';
 import { OutboxRelay } from '@polis/core';
 
 import { createApp } from './app.js';
+import { asOperator } from './auth.js';
 
 describe('Events (e2e)', () => {
   let app: INestApplication<App>;
@@ -31,13 +31,12 @@ describe('Events (e2e)', () => {
   });
 
   it('publishes an organization change to polis.events', async () => {
-    const org = await request(app.getHttpServer())
+    const operator = await asOperator(app);
+    const org = await operator
       .post('/v1/organizations')
-      .send({ name: 'Acme', slug: 'acme', createdBy: 'user-1' })
+      .send({ name: 'Acme', slug: 'acme' })
       .expect(201);
-    await request(app.getHttpServer())
-      .post(`/v1/organizations/${org.body.id}/suspend`)
-      .expect(200);
+    await operator.post(`/v1/organizations/${org.body.id}/suspend`).expect(200);
 
     await expect(app.get(OutboxRelay).relayBatch()).resolves.toBe(2);
 
@@ -50,6 +49,8 @@ describe('Events (e2e)', () => {
       aggregateVersion: 1,
       organizationId: org.body.id,
       payload: { organizationId: org.body.id, slug: 'acme' },
+      // Who did it: the token's principal.
+      actor: { sub: 'operator', sub_type: 'service' },
     });
     expect(suspended.properties.type).toBe('organization.suspended');
 
@@ -64,11 +65,13 @@ describe('Events (e2e)', () => {
   it("carries the request's trace context to the message", async () => {
     const traceparent =
       '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
-    await request(app.getHttpServer())
+    await (
+      await asOperator(app)
+    )
       .post('/v1/organizations')
       .set('traceparent', traceparent)
       .set('tracestate', 'vendor=x')
-      .send({ name: 'Acme', slug: 'acme', createdBy: 'user-1' })
+      .send({ name: 'Acme', slug: 'acme' })
       .expect(201);
 
     await app.get(OutboxRelay).relayBatch();

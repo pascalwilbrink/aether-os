@@ -1,11 +1,36 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
-import { DatabaseModule, pistisConfigModule } from '@pistis/core';
-import { OidcModule } from '@pistis/oidc';
+import {
+  AuthModule,
+  DatabaseModule,
+  pistisConfigModule,
+  type Env,
+} from '@pistis/core';
+import {
+  OidcModule,
+  publicKeys,
+  SIGNING_KEYS,
+  type SigningKeys,
+} from '@pistis/oidc';
 import { UsersModule } from '@pistis/users';
 
-// Validation, the /v1 prefix and problem details: configureHttpApp (main.ts).
+// Validation, the /v1 prefix and problem details: configurePistisApp (main.ts).
 @Module({
-  imports: [pistisConfigModule(), DatabaseModule, UsersModule, OidcModule],
+  imports: [
+    pistisConfigModule(),
+    DatabaseModule,
+    UsersModule,
+    OidcModule,
+    // Pistis's API takes Pistis's tokens, checked against its own keys.
+    AuthModule.forRootAsync({
+      imports: [OidcModule],
+      inject: [ConfigService, SIGNING_KEYS],
+      useFactory: (config: ConfigService<Env, true>, keys: SigningKeys) => ({
+        issuer: config.get('PISTIS_ISSUER', { infer: true }),
+        jwks: publicKeys(keys),
+      }),
+    }),
+  ],
 })
 export class AppModule {}

@@ -11,8 +11,9 @@ describe('AgentMapper', () => {
 
   it('creates an active agent without a published version', () => {
     const entity = mapper.toEntity(
-      { name: 'Helper', description: 'Helps', createdBy: 'user-1' },
+      { name: 'Helper', description: 'Helps' },
       organizationId,
+      'user-1',
       now,
     );
 
@@ -45,10 +46,10 @@ describe('AgentVersionMapper', () => {
           executionMode: 'standard',
           sandboxRequired: false,
         },
-        createdBy: 'user-1',
       },
       { organizationId, agentId: '0193a1b2-c3d4-7e5f-8a9b-000000000001' },
       3,
+      'user-1',
       now,
     );
 

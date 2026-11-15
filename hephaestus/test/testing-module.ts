@@ -2,6 +2,7 @@ import type { DynamicModule, Type } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 
 import {
+  AuthModule,
   DatabaseModule,
   EventsModule,
   hephaestusConfigModule,
@@ -10,6 +11,7 @@ import { PolisClient } from '@hephaestus/tenancy';
 
 import { POLIS_SUBSCRIPTIONS } from '../src/app.module.js';
 import { resetDatabase } from './database.js';
+import { tokens } from './tokens.js';
 import { FakePolis } from './fake-polis.js';
 
 /**
@@ -30,6 +32,8 @@ export async function createTestingModule(
         publish: [],
         subscribe: { polis: POLIS_SUBSCRIPTIONS },
       }),
+      // AccessControl; tests act as a principal with actingAs().
+      AuthModule.forRoot({ issuer: tokens.issuer, jwks: tokens.jwks }),
       ...modules,
     ],
   })

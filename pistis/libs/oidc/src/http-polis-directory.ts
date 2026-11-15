@@ -4,7 +4,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 
-import { createPolisHttpClient, PolisApi } from '@pistis/core';
+import { createPolisHttpClient, PolisApi, ServiceTokens } from '@pistis/core';
 
 import { PolisDirectory, type OrganizationRole } from './polis-directory.js';
 
@@ -20,13 +20,18 @@ export interface PolisDirectoryOptions {
 export class HttpPolisDirectory extends PolisDirectory {
   private readonly client: ReturnType<typeof createPolisHttpClient>;
 
-  constructor(@Inject(POLIS_DIRECTORY_OPTIONS) options: PolisDirectoryOptions) {
+  constructor(
+    @Inject(POLIS_DIRECTORY_OPTIONS) options: PolisDirectoryOptions,
+    tokens: ServiceTokens,
+  ) {
     super();
     const timeoutMs = options.timeoutMs ?? 5000;
     this.client = createPolisHttpClient({
       baseUrl: options.baseUrl,
       fetch: (input, init) =>
         fetch(input, { ...init, signal: AbortSignal.timeout(timeoutMs) }),
+      // Pistis's own service token (platform:read), for Polis's bearer auth.
+      auth: () => tokens.token(),
     });
   }
 

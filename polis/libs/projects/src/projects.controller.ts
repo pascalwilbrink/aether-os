@@ -9,7 +9,11 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { ZodSerializerDto } from '@polis/core';
+import {
+  PlatformAccess,
+  RequirePermission,
+  ZodSerializerDto,
+} from '@polis/core';
 
 import { CreateProjectRequest } from './dto/create-project.request.js';
 import { ListProjectsQuery } from './dto/list-projects.query.js';
@@ -24,6 +28,7 @@ export class ProjectsController {
   constructor(private readonly projects: ProjectsService) {}
 
   @Post()
+  @RequirePermission('project:create')
   @ZodSerializerDto(ProjectResponse)
   create(
     @Param() { organizationId }: ProjectsParams,
@@ -33,6 +38,8 @@ export class ProjectsController {
   }
 
   @Get()
+  @RequirePermission('org:read')
+  @PlatformAccess('platform:read')
   @ZodSerializerDto(ProjectPage)
   list(
     @Param() { organizationId }: ProjectsParams,
@@ -42,12 +49,15 @@ export class ProjectsController {
   }
 
   @Get(':projectId')
+  @RequirePermission('project:read', { project: 'projectId' })
+  @PlatformAccess('platform:read')
   @ZodSerializerDto(ProjectResponse)
   findById(@Param() { organizationId, projectId }: ProjectParams) {
     return this.projects.findById(organizationId, projectId);
   }
 
   @Post(':projectId/archive')
+  @RequirePermission('project:manage', { project: 'projectId' })
   @HttpCode(HttpStatus.OK)
   @ZodSerializerDto(ProjectResponse)
   archive(@Param() { organizationId, projectId }: ProjectParams) {

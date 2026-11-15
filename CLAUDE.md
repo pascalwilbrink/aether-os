@@ -8,7 +8,7 @@ Aether-os is a platform for building, running and supporting AI agents. This fol
 
 | Component | Owns | Location | Status |
 |---|---|---|---|
-| **Pistis** | Authentication: an OIDC provider that federates external identity providers (e.g. Entra ID, Auth0); user identity, service accounts, API keys, and the tokens other services verify | `pistis/` | Active: users, linked identities, password and external OIDC sign-in, user tokens; verification in Krepis next |
+| **Pistis** | Authentication: an OIDC provider that federates external identity providers (e.g. Entra ID, Auth0); user identity, service accounts, API keys, and the tokens other services verify | `pistis/` | Active: users, linked identities, password and external OIDC sign-in, user and platform service tokens; service accounts and token exchange next |
 | **Polis** | Tenancy: organizations, projects, and memberships (which user belongs to which organization, with what role) | `polis/` | Active |
 | **Agora** | Agent management: agent definitions and their immutable versions | not created yet | Planned |
 | **Themis** | Policies: versioned Rego policy sets per organization/project, served to OPA as bundles ([APS](https://agentpolicyspecification.github.io)) | not created yet | Planned |
@@ -17,7 +17,7 @@ Aether-os is a platform for building, running and supporting AI agents. This fol
 | **Kerykes** | Notifications: turns events that need people (reviews waiting, failures, paused work, budgets) into in-app, email and Slack / Teams messages (chat via Proxenos), with per-user preferences | not created yet | Planned |
 | **Hephaestus** | Task management and execution: runs tasks with an agent, in sandboxed workspaces | `hephaestus/` | Active, being reshaped |
 | **Loculus** | Object storage: S3-compatible, issues signed URLs | not in this folder | Separate service |
-| **Krepis** | `@aether-os/krepis`: shared foundation library for the NestJS services (errors, events, transactions, pagination, HTTP helpers, shared IDs) | `krepis/` | Active |
+| **Krepis** | `@aether-os/krepis`: shared foundation library for the NestJS services (token verification and permissions, errors, events, transactions, pagination, HTTP helpers, shared IDs) | `krepis/` | Active |
 | **OpenBao** | Secrets and credentials (LLM provider keys, repository tokens, tool and integration credentials) | infrastructure | Planned |
 | **RabbitMQ** | Event bus between services | infrastructure | Planned |
 | **OpenTelemetry + Jaeger + Langfuse + Loki** | Observability: OTLP from every service; service traces in Jaeger, LLM traces in Langfuse, logs in Loki, browsed in Grafana | infrastructure | Planned |
@@ -29,7 +29,7 @@ The names come from Greek, Egyptian and Roman antiquity: Pistis is trust and goo
 
 ## How the pieces fit
 
-1. **Pistis** authenticates users and services. It is itself an OIDC provider and can federate external identity providers (Entra ID, Auth0 and others) for sign-in, but it is always the only token issuer: other services trust Pistis tokens and never an external provider's tokens directly. Users are identified by their Pistis `sub`, with external identities linked to it by provider and external subject, never by email address alone. Other services verify the tokens it issues and take the acting user from them, which replaces today's `createdBy` request fields. When issuing a token, Pistis asks Polis for the user's memberships and includes them as claims (organization and role), so services check "may this user act in this organization" from the token instead of calling Polis on every request.
+1. **Pistis** authenticates users and services. It is itself an OIDC provider and can federate external identity providers (Entra ID, Auth0 and others) for sign-in, but it is always the only token issuer: other services trust Pistis tokens and never an external provider's tokens directly. Users are identified by their Pistis `sub`, with external identities linked to it by provider and external subject, never by email address alone. Other services verify the tokens it issues (Krepis's `AuthModule`) and take the acting principal from them (`createdBy`, and the `actor` of events). When issuing a token, Pistis asks Polis for the user's memberships and includes them as claims (organization and role), so services check "may this user act in this organization" from the token instead of calling Polis on every request.
 2. **Polis** is the tenant root and owns memberships. Every other service stores `organizationId` / `projectId` and resolves them in Polis; writes are rejected while an organization is suspended. Because token claims can be stale until the token expires, Polis should publish changes such as an organization being suspended or a membership being revoked, so services can react before then.
 3. In **Agora** you define an agent and its versions (instructions, model, tools, skills, capabilities, runtime config). A version moves draft → published → deprecated, and only one version per agent is published at a time.
 4. In **Themis** you write policies (Rego) and group them into versioned policy sets, scoped to an organization or project. An agent version references a policy set version.

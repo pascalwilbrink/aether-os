@@ -2,7 +2,9 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
-import { createApp, MISSING_ID } from './app.js';
+import { TokenSigner } from '@pistis/oidc';
+
+import { createApp, MISSING_ID, operatorAgent } from './app.js';
 
 const googleIdentity = {
   provider: 'google',
@@ -13,16 +15,18 @@ const googleIdentity = {
 
 describe('Users (e2e)', () => {
   let app: INestApplication<App>;
+  let operator: Awaited<ReturnType<typeof operatorAgent>>;
 
   beforeEach(async () => {
     app = await createApp();
+    operator = await operatorAgent(app);
   });
 
   afterEach(async () => {
     await app.close();
   });
 
-  const http = () => request(app.getHttpServer());
+  const http = () => operator;
 
   async function createUser(provider = googleIdentity) {
     const res = await http()
@@ -146,5 +150,29 @@ describe('Users (e2e)', () => {
     // ... and the user was rolled back with the failed link.
     const list = await http().get('/v1/users').expect(200);
     expect(list.body.items).toHaveLength(1);
+  });
+
+  it('is for platform operators only', async () => {
+    const server = app.getHttpServer();
+    await request(server).get('/v1/users').expect(401);
+
+    const signer = app.get(TokenSigner);
+    const reader = await signer.sign(
+      { sub: 'hephaestus', sub_type: 'service', scope: 'platform:read' },
+      600,
+    );
+    await request(server)
+      .get('/v1/users')
+      .set('authorization', `Bearer ${reader}`)
+      .expect(403);
+
+    const user = await signer.sign(
+      { sub: '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b', sub_type: 'user' },
+      600,
+    );
+    await request(server)
+      .get('/v1/users')
+      .set('authorization', `Bearer ${user}`)
+      .expect(403);
   });
 });

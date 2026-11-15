@@ -22,7 +22,6 @@ export type AgentStatus = 'active' | 'archived';
 export type CreateAgentRequest = {
     name: string;
     description: string;
-    createdBy: string;
 };
 
 export type AgentResponse = {
@@ -82,7 +81,6 @@ export type CreateAgentVersionRequest = {
     tools: Array<AgentToolConfiguration>;
     skills: Array<AgentSkillConfiguration>;
     runtime: AgentRuntimeConfiguration;
-    createdBy: string;
 };
 
 export type AgentVersionResponse = {
@@ -302,6 +300,19 @@ export type ListAgentsErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
@@ -340,6 +351,19 @@ export type CreateAgentErrors = {
      *
      */
     400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
     /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
@@ -385,6 +409,19 @@ export type GetAgentErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
@@ -424,6 +461,19 @@ export type ArchiveAgentErrors = {
      *
      */
     400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
     /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
@@ -481,6 +531,19 @@ export type ListAgentVersionsErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
@@ -520,6 +583,19 @@ export type CreateAgentVersionErrors = {
      *
      */
     400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
     /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
@@ -566,6 +642,19 @@ export type GetAgentVersionErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
@@ -606,6 +695,19 @@ export type PublishAgentVersionErrors = {
      *
      */
     400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
     /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
@@ -662,6 +764,19 @@ export type ListWorkspacesErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
@@ -700,6 +815,19 @@ export type CreateWorkspaceErrors = {
      *
      */
     400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
     /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
@@ -745,6 +873,19 @@ export type GetWorkspaceErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
@@ -784,6 +925,19 @@ export type AcquireWorkspaceErrors = {
      *
      */
     400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
     /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
@@ -829,6 +983,19 @@ export type ReleaseWorkspaceErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
@@ -872,6 +1039,19 @@ export type SuspendWorkspaceErrors = {
      *
      */
     400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
     /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
@@ -917,6 +1097,19 @@ export type ResumeWorkspaceErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
@@ -960,6 +1153,19 @@ export type DestroyWorkspaceErrors = {
      *
      */
     400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
     /**
      * `NOT_FOUND`: the resource doesn't exist.
      */

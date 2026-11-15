@@ -14,7 +14,7 @@ describe('ProjectMapper', () => {
   };
 
   it('creates an active project in the organization', () => {
-    const entity = mapper.toEntity(dto, organizationId, now);
+    const entity = mapper.toEntity(dto, organizationId, dto.createdBy, now);
 
     expect(entity).toMatchObject({
       ...dto,
@@ -27,7 +27,7 @@ describe('ProjectMapper', () => {
 
   it('maps to a response that matches the spec', () => {
     const response = mapper.toResponse(
-      mapper.toEntity(dto, organizationId, now),
+      mapper.toEntity(dto, organizationId, dto.createdBy, now),
     );
 
     expect(zProjectResponse.parse(response)).toEqual(response);

@@ -14,7 +14,7 @@ describe('MembershipMapper', () => {
   };
 
   it('creates a membership with normalized roles', () => {
-    const entity = mapper.toEntity(dto, organizationId, created);
+    const entity = mapper.toEntity(dto, organizationId, dto.createdBy, created);
 
     expect(entity).toMatchObject({
       organizationId,
@@ -30,7 +30,7 @@ describe('MembershipMapper', () => {
   it('replaces the roles on update and maps to the spec', () => {
     const later = new Date('2026-11-16T09:30:00.000Z');
     const entity = mapper.applyTo(
-      mapper.toEntity(dto, organizationId, created),
+      mapper.toEntity(dto, organizationId, dto.createdBy, created),
       { roles: ['viewer'] },
       later,
     );

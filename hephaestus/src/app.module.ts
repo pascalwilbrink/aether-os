@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import {
+  AuthModule,
   DatabaseModule,
   EventsModule,
   hephaestusConfigModule,
@@ -40,6 +41,14 @@ export const POLIS_SUBSCRIPTIONS = [
           }),
         }),
       },
+    }),
+    // Pistis tokens on every request, and the permission table (Krepis).
+    AuthModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => ({
+        issuer: config.get('PISTIS_ISSUER', { infer: true }),
+        jwks: config.get('PISTIS_JWKS', { infer: true }),
+      }),
     }),
     TenancyModule,
     AgentsModule,

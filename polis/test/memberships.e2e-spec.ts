@@ -1,21 +1,28 @@
 import type { INestApplication } from '@nestjs/common';
-import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
 import { createApp, MISSING_ID } from './app.js';
+import {
+  asMember,
+  asOperator,
+  asOwner,
+  type Client,
+  foundOrganization,
+} from './auth.js';
 
 describe('Memberships (e2e)', () => {
   let app: INestApplication<App>;
   let orgId: string;
   let base: string;
+  let owner: Client;
+  let operator: Client;
 
   beforeEach(async () => {
     app = await createApp();
-    const org = await http()
-      .post('/v1/organizations')
-      .send({ name: 'Acme', slug: 'acme', createdBy: 'user-0' })
-      .expect(201);
-    orgId = org.body.id;
+    // Founded by user-0, its first owner.
+    orgId = (await foundOrganization(app, 'acme', 'user-0')).id;
+    owner = await asOwner(app, orgId, 'user-0');
+    operator = await asOperator(app);
     base = `/v1/organizations/${orgId}/memberships`;
   });
 
@@ -23,7 +30,7 @@ describe('Memberships (e2e)', () => {
     await app.close();
   });
 
-  const http = () => request(app.getHttpServer());
+  const http = () => owner;
 
   const add = (body: Record<string, unknown> = {}) =>
     http()
@@ -32,7 +39,6 @@ describe('Memberships (e2e)', () => {
         subjectType: 'user',
         subject: 'user-1',
         roles: ['member'],
-        createdBy: 'user-0',
         ...body,
       });
 
@@ -61,7 +67,13 @@ describe('Memberships (e2e)', () => {
     expect(updated.body.roles).toEqual(['owner']);
 
     const list = await http().get(base).expect(200);
-    expect(list.body).toEqual({ items: [updated.body], nextCursor: null });
+    expect(list.body).toEqual({
+      items: [
+        updated.body,
+        expect.objectContaining({ subject: 'user-0', roles: ['owner'] }),
+      ],
+      nextCursor: null,
+    });
 
     await http().delete(url).expect(204);
     await http().get(url).expect(404);
@@ -104,22 +116,20 @@ describe('Memberships (e2e)', () => {
   });
 
   it("lists a principal's memberships across organizations", async () => {
-    const globex = await http()
-      .post('/v1/organizations')
-      .send({ name: 'Globex', slug: 'globex', createdBy: 'user-0' })
-      .expect(201);
+    const globex = { body: await foundOrganization(app, 'globex', 'user-0') };
     await add().expect(201);
-    await http()
+    await (
+      await asOwner(app, globex.body.id, 'user-0')
+    )
       .post(`/v1/organizations/${globex.body.id}/memberships`)
       .send({
         subjectType: 'user',
         subject: 'user-1',
         roles: ['owner'],
-        createdBy: 'user-0',
       })
       .expect(201);
 
-    const res = await http()
+    const res = await operator
       .get('/v1/memberships')
       .query({ subjectType: 'user', subject: 'user-1' })
       .expect(200);
@@ -147,7 +157,7 @@ describe('Memberships (e2e)', () => {
     await http().get(`${base}/not-a-uuid`).expect(400);
 
     const created = await add().expect(201);
-    await http().post(`/v1/organizations/${orgId}/suspend`).expect(200);
+    await operator.post(`/v1/organizations/${orgId}/suspend`).expect(200);
 
     const blocked = await add({ subject: 'user-2' }).expect(409);
     expect(blocked.body.code).toBe('ORGANIZATION_SUSPENDED');
@@ -157,5 +167,55 @@ describe('Memberships (e2e)', () => {
       .expect(409);
     await http().delete(`${base}/${created.body.id}`).expect(409);
     await http().get(`${base}/${created.body.id}`).expect(200);
+  });
+
+  it('lets admins manage members, and only owners manage owners', async () => {
+    const admin = await asMember(app, orgId, ['admin'], { sub: 'user-9' });
+    const member = await add().expect(201);
+
+    await admin.get(base).expect(200);
+    await admin
+      .put(`${base}/${member.body.id}`)
+      .send({ roles: ['admin'] })
+      .expect(200);
+    await admin
+      .put(`${base}/${member.body.id}`)
+      .send({ roles: ['owner'] })
+      .expect(403);
+    await admin
+      .post(base)
+      .send({ subjectType: 'user', subject: 'user-3', roles: ['owner'] })
+      .expect(403);
+
+    const founder = (await admin.get(base).expect(200)).body.items.find(
+      (m: { subject: string }) => m.subject === 'user-0',
+    );
+    await admin.delete(`${base}/${founder.id}`).expect(403);
+    await admin
+      .put(`${base}/${founder.id}`)
+      .send({ roles: ['member'] })
+      .expect(403);
+
+    // Members and viewers read, but don't manage.
+    const viewer = await asMember(app, orgId, ['viewer']);
+    await viewer.get(base).expect(200);
+    await viewer.delete(`${base}/${member.body.id}`).expect(403);
+  });
+
+  it('lets people list their own memberships, and only theirs', async () => {
+    await add({ subject: 'user-1' }).expect(201);
+    const user = await asMember(app, orgId, ['member'], { sub: 'user-1' });
+
+    const own = await user
+      .get('/v1/memberships')
+      .query({ subjectType: 'user', subject: 'user-1' })
+      .expect(200);
+    expect(own.body.items).toEqual([
+      expect.objectContaining({ organizationId: orgId, roles: ['member'] }),
+    ]);
+    await user
+      .get('/v1/memberships')
+      .query({ subjectType: 'user', subject: 'user-0' })
+      .expect(403);
   });
 });

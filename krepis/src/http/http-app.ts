@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ZodSerializerInterceptor } from 'nestjs-zod';
 
+import { runWithRequestContext } from '../auth/request-context.js';
 import { runWithTraceContext } from '../telemetry/trace-context.js';
 
 import { ProblemDetailsFilter } from './problem-details.filter.js';
@@ -19,7 +20,9 @@ export const UNVERSIONED_PATHS = ['health'];
  * against their schema where a handler declares `@ZodSerializerDto`,
  * problem details for every error, and the request's trace context
  * (`traceparent`) kept for the request, so events emitted while handling it
- * carry it on. Call it once in `main.ts` and on every app
+ * carry it on, and a request context in which the `AuthGuard` (if the
+ * service imports `AuthModule`) records the caller, the `actor` of the
+ * events emitted while handling the request. Call it once in `main.ts` and on every app
  * an e2e test creates, before `init()`.
  *
  * Unknown paths under the prefix get `404 NOT_FOUND` problem details; Nest
@@ -46,7 +49,8 @@ export function configureHttpApp(
       request: { headers: Record<string, string | string[] | undefined> },
       _response: unknown,
       next: () => void,
-    ) => runWithTraceContext(request.headers, next),
+    ) =>
+      runWithTraceContext(request.headers, () => runWithRequestContext(next)),
   );
   app.useGlobalPipes(new ZodValidationPipe());
   app.useGlobalInterceptors(new ZodSerializerInterceptor(app.get(Reflector)));

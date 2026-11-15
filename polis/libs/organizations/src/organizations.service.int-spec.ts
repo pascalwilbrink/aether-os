@@ -1,11 +1,13 @@
 import { NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 
+import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
 import { outboxEvents } from '../../../test/outbox.js';
 import { createTestingModule } from '../../../test/testing-module.js';
 import { OrganizationsModule } from './organizations.module.js';
 import { OrganizationsService } from './organizations.service.js';
 
+const caller = testPrincipal({ sub: 'user-1' });
 const missing = '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
 
 describe('OrganizationsService (Postgres)', () => {
@@ -14,15 +16,14 @@ describe('OrganizationsService (Postgres)', () => {
 
   beforeEach(async () => {
     moduleRef = await createTestingModule(OrganizationsModule);
-    service = moduleRef.get(OrganizationsService);
+    service = actingAs(moduleRef.get(OrganizationsService), caller);
   });
 
   afterEach(async () => {
     await moduleRef.close();
   });
 
-  const create = (slug = 'acme') =>
-    service.create({ name: 'Acme', slug, createdBy: 'user-1' });
+  const create = (slug = 'acme') => service.create({ name: 'Acme', slug });
 
   it('creates and finds an organization by ID and slug', async () => {
     const created = await create();

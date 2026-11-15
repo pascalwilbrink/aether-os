@@ -1,12 +1,12 @@
 import type { INestApplication } from '@nestjs/common';
 import amqp from 'amqplib';
-import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { DataSource } from 'typeorm';
 import { v7 as uuidv7 } from 'uuid';
 import { inject } from 'vitest';
 
 import { createApp } from './app.js';
+import { asMember } from './auth.js';
 import type { FakePolis } from './fake-polis.js';
 
 describe("Polis's events over RabbitMQ (e2e)", () => {
@@ -74,17 +74,15 @@ describe("Polis's events over RabbitMQ (e2e)", () => {
   it('suspends an organization when Polis says so, and reactivates it', async () => {
     const orgId = polis.organization();
     const agents = `/v1/organizations/${orgId}/agents`;
-    const http = () => request(app.getHttpServer());
-    await http()
-      .post(agents)
-      .send({ name: 'A', description: '', createdBy: 'user-1' })
-      .expect(201);
+    const owner = await asMember(app, orgId, ['owner']);
+    const http = () => owner;
+    await http().post(agents).send({ name: 'A', description: '' }).expect(201);
 
     publishPolisEvent('organization.suspended', orgId, 2);
     await waitFor(async () => {
       const res = await http()
         .post(agents)
-        .send({ name: 'B', description: '', createdBy: 'user-1' });
+        .send({ name: 'B', description: '' });
       return res.status === 409 && res.body.code === 'ORGANIZATION_SUSPENDED';
     });
 
@@ -92,7 +90,7 @@ describe("Polis's events over RabbitMQ (e2e)", () => {
     await waitFor(async () => {
       const res = await http()
         .post(agents)
-        .send({ name: 'C', description: '', createdBy: 'user-1' });
+        .send({ name: 'C', description: '' });
       return res.status === 201;
     });
   });

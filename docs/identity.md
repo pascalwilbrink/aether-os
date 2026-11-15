@@ -2,7 +2,7 @@
 
 How Aether-os decides **who** is acting and **what** they may do. Pistis (authentication), Polis (memberships and roles), Krepis (enforcement in every service) and OpenBao (secret access) implement this together.
 
-Status: agreed design, being built. Pistis (`../pistis`) has users and their linked identities (`user_providers`: `(provider, subject)` → user, never by email), its own `password` provider, sign-in through any configured external OpenID Connect provider (`PISTIS_UPSTREAM_PROVIDERS`), and issues user tokens (authorization code with PKCE; an organization is chosen with the resource indicator `urn:aether-os:org:<id>`, and `org_roles` come from Polis at every issue and refresh). Next: verification and permissions in Krepis. Polis has organization memberships with fixed roles.
+Status: agreed design, being built. Pistis (`../pistis`) has users and their linked identities (`user_providers`: `(provider, subject)` → user, never by email), its own `password` provider, sign-in through any configured external OpenID Connect provider (`PISTIS_UPSTREAM_PROVIDERS`), user tokens (authorization code with PKCE; an organization is chosen with the resource indicator `urn:aether-os:org:<id>`, and `org_roles` come from Polis at every issue and refresh), and platform service tokens (client credentials). Krepis enforces authentication, tenancy and permissions (`AuthModule`, below), and Polis, Hephaestus and Pistis's own API require tokens. Not yet: project memberships (so `project_roles` is empty), service accounts, token exchange and task tokens, and reacting to Polis's revocation events.
 
 ## Decisions
 
@@ -115,9 +115,11 @@ Named `resource:action`. Organization-scoped permissions are checked against `or
 | `agent:read` | org | ✓ | ✓ | ✓ | ✓ |
 | `agent:write` | org | ✓ | ✓ | ✓ | |
 | `agent:publish` | org | ✓ | ✓ | | |
-| `task-template:manage` (organization-wide) | org | ✓ | ✓ | | |
-| `policy:write` (organization-wide) | org | ✓ | ✓ | | |
-| `secret:write` (organization-wide) | org | ✓ | ✓ | | |
+| `org:task-template:manage` (organization-wide task templates) | org | ✓ | ✓ | | |
+| `org:policy:write` (organization-wide policies) | org | ✓ | ✓ | | |
+| `org:secret:write` (organization-wide secrets) | org | ✓ | ✓ | | |
+
+The organization-wide variants carry an `org:` prefix in code, so every permission name has exactly one scope.
 
 | Permission | Scope | project admin | approver | editor | viewer |
 |---|---|:-:|:-:|:-:|:-:|
@@ -134,6 +136,7 @@ Named `resource:action`. Organization-scoped permissions are checked against `or
 | `task:cancel` | project | ✓ | ✓ | ✓ | |
 | `task:approve` | project | ✓ | ✓ | | |
 | `workspace:read` | project | ✓ | ✓ | ✓ | ✓ |
+| `workspace:manage` (create, acquire, release, suspend, resume, destroy) | project | ✓ | ✓ | ✓ | |
 
 Approval is gated only by `task:approve`: every principal holding it in the task's project can approve that task, with two rules:
 
@@ -145,7 +148,16 @@ Notes:
 - Agents are **organization-scoped** (shared across projects), matching the current agent API. Automations, tasks, workspaces, project policies and project secrets are project-scoped.
 - There is **no `secret:read`** for people. Secrets are write-only through the API; only task tokens read them, from OpenBao, for their own project.
 - Service accounts get roles exactly like users. An automation's service account is an organization `member` with project `editor` on its own project, and nothing else.
-- Platform-level operations (e.g. suspending an organization) are not organization roles; they belong to platform operators and are out of scope here.
+- Platform-level operations (e.g. suspending an organization) are not organization roles. They are **platform permissions**, held only by platform services (`sub_type: service`, no organization), as scopes Pistis grants per client (`platform_permissions` in `PISTIS_CLIENTS`):
+
+  | Permission | For |
+  |---|---|
+  | `platform:read` | Reading any organization, project or membership (Pistis building token claims, Hephaestus resolving an organization it hasn't seen) |
+  | `platform:manage` | Creating, suspending and activating organizations, and Pistis's user administration; for operator tooling until platform operators have their own principals |
+
+  An endpoint accepts them only where it says so (`@PlatformAccess`); everywhere else a platform service's own token is refused.
+- **Creating an organization:** any user may, and becomes its first `owner` in the same transaction; a platform service needs `platform:manage` and the organization then has no owner until one is granted. Service accounts can't.
+- **Owners are managed by owners:** granting `owner`, or changing or removing an owner's membership, needs the `owner` role (`member:manage` is not enough).
 
 ## Enforcement
 
@@ -162,6 +174,10 @@ Every service, via Krepis:
 
    Backed by a `PermissionEvaluator` interface. The first implementation is the fixed table above, defined once in Krepis. An OPA-backed implementation (policies managed in Themis) can replace it later without touching endpoints.
 
+   Where the project is only known from the resource (a workspace's project), the route requires an organization token (`@RequirePermission('org:read')`) and the service checks the project permission with `AccessControl.assertProjectPermission`; lists are filtered with `AccessControl.readableProjects()`.
+
+Every route declares its rule (`@Public`, `@Authenticated`, `@RequirePermission`, `@PlatformAccess`); a route without one is refused, so a forgotten decorator fails closed. The guard records the principal for the request, and events emitted while handling it carry it as `actor`.
+
 The table being in Krepis means a role change is a Krepis release that every service picks up. Keep it the single definition: services must not keep their own role checks.
 
 ## Revocation
@@ -175,4 +191,4 @@ OpenBao trusts Pistis through its JWT auth method. Its policies are templated on
 
 ## Open questions
 
-- Platform operators: how platform-wide administration (suspending organizations, support access) is authenticated and audited.
+- Platform operators: for now operator tooling uses a platform service client with `platform:manage`; how people who operate the platform sign in (support access) and are audited is still open.

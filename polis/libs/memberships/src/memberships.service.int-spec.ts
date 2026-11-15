@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 
+import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
 import { OrganizationsService } from '@polis/organizations';
 
 import { outboxEvents } from '../../../test/outbox.js';
@@ -8,6 +9,7 @@ import { createTestingModule } from '../../../test/testing-module.js';
 import { MembershipsModule } from './memberships.module.js';
 import { MembershipsService } from './memberships.service.js';
 
+const caller = testPrincipal({ sub: 'user-0', organizationRoles: ['owner'] });
 const missing = '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
 
 describe('MembershipsService (Postgres)', () => {
@@ -17,12 +19,12 @@ describe('MembershipsService (Postgres)', () => {
   let orgId: string;
 
   const createOrg = async (slug: string) =>
-    (await organizations.create({ name: slug, slug, createdBy: 'user-0' })).id;
+    (await organizations.create({ name: slug, slug })).id;
 
   beforeEach(async () => {
     moduleRef = await createTestingModule(MembershipsModule);
-    memberships = moduleRef.get(MembershipsService);
-    organizations = moduleRef.get(OrganizationsService);
+    memberships = actingAs(moduleRef.get(MembershipsService), caller);
+    organizations = actingAs(moduleRef.get(OrganizationsService), caller);
     orgId = await createOrg('acme');
   });
 
@@ -33,13 +35,12 @@ describe('MembershipsService (Postgres)', () => {
   const add = (
     organizationId = orgId,
     subject = 'user-1',
-    roles = ['member' as const],
+    roles: ('owner' | 'admin' | 'member' | 'viewer')[] = ['member'],
   ) =>
     memberships.create(organizationId, {
       subjectType: 'user',
       subject,
       roles,
-      createdBy: 'user-0',
     });
 
   it('adds a principal once per organization, with several roles', async () => {
@@ -57,7 +58,6 @@ describe('MembershipsService (Postgres)', () => {
         subjectType: 'service_account',
         subject: 'user-1',
         roles: ['viewer'],
-        createdBy: 'user-0',
       }),
     ).resolves.toMatchObject({ subjectType: 'service_account' });
   });

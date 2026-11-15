@@ -11,6 +11,7 @@ export class AgentMapper {
   toEntity(
     dto: CreateAgentRequest,
     organizationId: string,
+    createdBy: string,
     now: Date,
   ): AgentEntity {
     return Object.assign(new AgentEntity(), {
@@ -20,7 +21,7 @@ export class AgentMapper {
       description: dto.description,
       status: 'active',
       latestVersionId: null,
-      createdBy: dto.createdBy,
+      createdBy,
       createdAt: now,
       updatedAt: now,
     } satisfies AgentEntity);

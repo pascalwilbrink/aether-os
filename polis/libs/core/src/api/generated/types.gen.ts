@@ -35,10 +35,6 @@ export type OrganizationStatus = 'active' | 'suspended';
 export type CreateOrganizationRequest = {
     name: string;
     slug: Slug;
-    /**
-     * Temporary until authentication exists.
-     */
-    createdBy: string;
 };
 
 export type OrganizationResponse = {
@@ -65,7 +61,6 @@ export type CreateProjectRequest = {
      */
     slug: Slug;
     description: string;
-    createdBy: string;
 };
 
 export type ProjectResponse = {
@@ -111,7 +106,6 @@ export type CreateMembershipRequest = {
     subjectType: SubjectType;
     subject: Subject;
     roles: OrganizationRoles;
-    createdBy: string;
 };
 
 export type UpdateMembershipRequest = {
@@ -261,6 +255,19 @@ export type ListOrganizationsErrors = {
      *
      */
     400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
 };
 
 export type ListOrganizationsError = ListOrganizationsErrors[keyof ListOrganizationsErrors];
@@ -289,6 +296,19 @@ export type CreateOrganizationErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * A business rule forbids this (409, with a `DomainErrorCode`).
      */
     409: DomainProblem;
@@ -315,6 +335,19 @@ export type GetOrganizationBySlugData = {
 };
 
 export type GetOrganizationBySlugErrors = {
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
     /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
@@ -349,6 +382,19 @@ export type GetOrganizationErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
@@ -382,6 +428,19 @@ export type SuspendOrganizationErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
@@ -414,6 +473,19 @@ export type ActivateOrganizationErrors = {
      *
      */
     400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
     /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
@@ -460,6 +532,19 @@ export type ListProjectsErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
@@ -492,6 +577,19 @@ export type CreateProjectErrors = {
      *
      */
     400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
     /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
@@ -531,6 +629,19 @@ export type GetProjectErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
@@ -564,6 +675,19 @@ export type ArchiveProjectErrors = {
      *
      */
     400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
     /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
@@ -614,6 +738,19 @@ export type ListMembershipsErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
@@ -646,6 +783,19 @@ export type CreateMembershipErrors = {
      *
      */
     400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
     /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
@@ -685,6 +835,19 @@ export type DeleteMembershipErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
@@ -723,6 +886,19 @@ export type GetMembershipErrors = {
      */
     400: CommonOpenapiProblem;
     /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
@@ -756,6 +932,19 @@ export type UpdateMembershipErrors = {
      *
      */
     400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
     /**
      * `NOT_FOUND`: the resource doesn't exist.
      */
@@ -805,6 +994,19 @@ export type ListMembershipsOfSubjectErrors = {
      *
      */
     400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
 };
 
 export type ListMembershipsOfSubjectError = ListMembershipsOfSubjectErrors[keyof ListMembershipsOfSubjectErrors];
