@@ -41,6 +41,8 @@ The names come from Greek, Egyptian and Roman antiquity: Pistis is trust and goo
 10. **Kerykes** tells people when something needs them (a draft to review, a failed or paused task), in Iris, by email, or in Slack / Teams through Proxenos.
 11. **Iris** is the UI over all services.
 
+API rule: every HTTP API uses only `GET`, `POST`, `PUT` and `DELETE` (never `PATCH`; state changes are `POST` actions), is versioned in the path starting with `/v1`, identifies everything by UUID, returns errors as RFC 9457 problem details, and paginates with cursors. See `docs/api.md`.
+
 Design rule: a task must record the concrete `agentVersionId` it runs (and through it the policy set version), resolved when the task is created (not "latest"), so runs are reproducible and evaluable per version. Agent versions and automations reference secrets by OpenBao path, never by value. Likewise, persist Loculus object keys, never signed URLs: URLs expire, so request a fresh one when a file is needed.
 
 ## Identity and permissions
@@ -57,6 +59,7 @@ The task lifecycle (states, executions, timeouts, cancellation, retries, concurr
 
 | Document | Covers | Status |
 |---|---|---|
+| `docs/api.md` | HTTP API conventions: only `GET`/`POST`/`PUT`/`DELETE` (never `PATCH`), `/v1` path versioning, UUIDs, problem details, cursor pagination | Agreed |
 | `docs/identity.md` | Principals, tokens, roles, permissions, enforcement | Agreed |
 | `docs/tasks.md` | Tasks, subtasks, artifacts, templates, verification, documents, task lifecycle | Agreed, lifecycle proposed |
 | `docs/git.md` | GitHub App, repository access, one shared branch per task tree, webhooks, untrusted input | Agreed |

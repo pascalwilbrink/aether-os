@@ -59,7 +59,7 @@ Recommended for users, shown in Iris when connecting a repository: branch protec
 
 ## Webhooks
 
-- One public endpoint per provider in Proxenos (`POST /webhooks/github`).
+- One public endpoint per provider in Proxenos (`POST /v1/webhooks/github`).
 - Every delivery is verified (`X-Hub-Signature-256` with the app's webhook secret) before anything else; unverified requests are dropped.
 - **Deduplicated** on `X-GitHub-Delivery`, because GitHub redelivers.
 - Proxenos maps the installation to the organization and the repository to its projects, stores the payload briefly (for debugging and for automations that need the full payload; Proposal: 7 days), and publishes a normalized event (e.g. `github.issue.opened`) with the organization, projects, the author and the author's repository permission.

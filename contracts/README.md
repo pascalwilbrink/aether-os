@@ -2,6 +2,8 @@
 
 API contracts shared between Aether-os components, published in the workspace as the `@aether-os/contracts` package. These specs are the source of truth: change the spec first, then regenerate types in each consumer.
 
+Every spec follows `../docs/api.md`: only `GET`, `POST`, `PUT` and `DELETE` (never `PATCH`), paths under `/v1`, IDs as `type: string, format: uuid`, errors as the shared `Problem` schema (RFC 9457), and lists with `limit` / `cursor` → `items` / `nextCursor`.
+
 | Spec | Served by | Consumed by |
 |---|---|---|
 | `polis.openapi.yaml` | Polis | (Hephaestus, Agora, Kairos, Iris, once wired) |

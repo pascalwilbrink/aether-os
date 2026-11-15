@@ -2,7 +2,7 @@
 
 How Aether-os decides **who** is acting and **what** they may do. Pistis (authentication), Polis (memberships and roles), Krepis (enforcement in every service) and OpenBao (secret access) implement this together.
 
-Status: agreed design, documentation only; implementation is intentionally on hold. Pistis does not exist yet; Krepis and Polis don't have the pieces described here yet.
+Status: agreed design, not built yet. Pistis will be built as part of Aether-os (in this monorepo); Krepis and Polis don't have the pieces described here yet.
 
 ## Decisions
 
