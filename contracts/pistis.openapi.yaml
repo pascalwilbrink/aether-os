@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Pistis API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Authentication for Aether-os (see `../docs/identity.md`). Pistis owns
     **users** and the **external identities** linked to them: a user signs in
@@ -18,15 +18,18 @@ info:
     Follows `../docs/api.md`: paths under `/v1`, errors as problem details,
     cursor pagination, UUIDs.
 
-    For platform operators for now: every operation needs a Pistis token of
-    a platform service with `platform:manage` (`x-permission`). The OpenID
-    Connect endpoints (`/oidc/*`) and sign-in pages are not part of this API.
+    Users are for platform operators for now (a platform service with
+    `platform:manage`). Service accounts belong to an organization and are
+    managed with a token for it (`x-permission`). The OpenID Connect
+    endpoints (`/oidc/*`: sign-in, tokens, token exchange) and sign-in pages
+    are not part of this API.
 
 security:
   - pistis: []
 
 tags:
   - name: users
+  - name: service-accounts
   - name: user-providers
 
 paths:
@@ -258,6 +261,173 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
+  /v1/organizations/{organizationId}/service-accounts:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [service-accounts]
+      operationId: createServiceAccount
+      x-permission: '`service-account:manage`'
+      description: |
+        A service account in the organization: the identity an automation or
+        an integration acts as (`sub_type: service_account`). Its roles are
+        memberships in Polis, granted like a user's.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateServiceAccountRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceAccountResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    get:
+      tags: [service-accounts]
+      operationId: listServiceAccounts
+      x-permission: '`member:read`'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceAccountPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/service-accounts/{serviceAccountId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ServiceAccountId'
+    get:
+      tags: [service-accounts]
+      operationId: getServiceAccount
+      x-permission: '`member:read`'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceAccountResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/service-accounts/{serviceAccountId}/disable:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ServiceAccountId'
+    post:
+      tags: [service-accounts]
+      operationId: disableServiceAccount
+      x-permission: '`service-account:manage`'
+      description: No more tokens for it, through any API key or exchange. Idempotent.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Disabled (or already disabled)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceAccountResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/service-accounts/{serviceAccountId}/enable:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ServiceAccountId'
+    post:
+      tags: [service-accounts]
+      operationId: enableServiceAccount
+      x-permission: '`service-account:manage`'
+      description: Idempotent.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Enabled (or already enabled)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceAccountResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/service-accounts/{serviceAccountId}/api-keys:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ServiceAccountId'
+    post:
+      tags: [service-accounts]
+      operationId: createApiKey
+      x-permission: '`service-account:manage`'
+      description: |
+        A new API key for the service account. The key is in this response
+        only: Pistis keeps a hash. Exchange it for an access token at
+        `/oidc/token` (token exchange, `subject_token_type`
+        `urn:aether-os:token-type:api-key`, client `api-key`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateApiKeyRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created; `key` is shown only here
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreatedApiKeyResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [service-accounts]
+      operationId: listApiKeys
+      x-permission: '`member:read`'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first, without the keys
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiKeyPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/service-accounts/{serviceAccountId}/api-keys/{apiKeyId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ServiceAccountId'
+      - $ref: '#/components/parameters/ApiKeyId'
+    delete:
+      tags: [service-accounts]
+      operationId: revokeApiKey
+      x-permission: '`service-account:manage`'
+      description: The key stops working at once (tokens it got expire within minutes).
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '204': { description: Revoked }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   parameters:
     UserId:
@@ -267,6 +437,21 @@ components:
       schema: { type: string, format: uuid }
     UserProviderId:
       name: userProviderId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ServiceAccountId:
+      name: serviceAccountId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ApiKeyId:
+      name: apiKeyId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -300,6 +485,7 @@ components:
         - USER_LAST_PROVIDER
         - PASSWORD_ALREADY_SET
         - PASSWORD_PROVIDER_RESERVED
+        - SERVICE_ACCOUNT_DISABLED
     DomainProblem:
       description: Problem details for a business-rule violation.
       allOf:
@@ -452,6 +638,91 @@ components:
             items:
               type: array
               items: { $ref: '#/components/schemas/UserProviderResponse' }
+
+    # ---------- service accounts ----------
+    ServiceAccountStatus:
+      type: string
+      enum: [active, disabled]
+    CreateServiceAccountRequest:
+      type: object
+      additionalProperties: false
+      required: [name, description]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+    ServiceAccountResponse:
+      type: object
+      required: [id, organizationId, name, description, status, createdBy, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Its `sub` in tokens, and the `subject` of its Polis memberships.
+        organizationId: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/ServiceAccountStatus' }
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    ServiceAccountPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/ServiceAccountResponse' }
+    CreateApiKeyRequest:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200, description: What the key is for. }
+        expiresAt:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+          description: Optional; after it, the key stops working.
+    ApiKeyResponse:
+      type: object
+      required: [id, serviceAccountId, name, prefix, expiresAt, lastUsedAt, createdBy, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        serviceAccountId: { type: string, format: uuid }
+        name: { type: string }
+        prefix:
+          type: string
+          description: The key's first characters, to recognise it; never the whole key.
+        expiresAt:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        lastUsedAt:
+          oneOf:
+            - $ref: '#/components/schemas/Timestamp'
+            - type: 'null'
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+    CreatedApiKeyResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiKeyResponse'
+        - type: object
+          required: [key]
+          properties:
+            key:
+              type: string
+              description: The API key itself (`aos_…`), shown only in this response.
+    ApiKeyPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/ApiKeyResponse' }
 
     # ---------- pagination ----------
     PageMeta:

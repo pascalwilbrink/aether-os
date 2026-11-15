@@ -2,6 +2,8 @@ import 'reflect-metadata';
 
 import { DataSource } from 'typeorm';
 
+import { ApiKeyEntity } from '../../libs/service-accounts/src/api-key.entity.js';
+import { ServiceAccountEntity } from '../../libs/service-accounts/src/service-account.entity.js';
 import { postgresOptions } from '@aether-os/krepis';
 
 import { OidcPayloadEntity } from '../../libs/oidc/src/oidc-payload.entity.js';
@@ -35,6 +37,8 @@ export default new DataSource(
       UserProviderEntity,
       PasswordCredentialEntity,
       OidcPayloadEntity,
+      ServiceAccountEntity,
+      ApiKeyEntity,
     ],
   }),
 );

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { ServiceTokens, type Env } from '@pistis/core';
+import { ServiceAccountsModule } from '@pistis/service-accounts';
 import { UsersModule } from '@pistis/users';
 
 import {
@@ -21,10 +22,15 @@ import {
   SIGNING_KEYS,
   TokenSigner,
 } from './token-signer.js';
+import { TokenExchange } from './token-exchange.js';
 import { UpstreamSignInService } from './upstream/upstream-sign-in.service.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([OidcPayloadEntity]), UsersModule],
+  imports: [
+    TypeOrmModule.forFeature([OidcPayloadEntity]),
+    UsersModule,
+    ServiceAccountsModule,
+  ],
   controllers: [InteractionsController, JwksController],
   providers: [
     OidcProviderService,
@@ -37,6 +43,7 @@ import { UpstreamSignInService } from './upstream/upstream-sign-in.service.js';
         signingKeys(config.get('PISTIS_SIGNING_KEYS', { infer: true })),
     },
     TokenSigner,
+    TokenExchange,
     { provide: ServiceTokens, useClass: PistisServiceTokens },
     {
       provide: POLIS_DIRECTORY_OPTIONS,

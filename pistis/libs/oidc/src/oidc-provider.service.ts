@@ -42,6 +42,7 @@ import {
   PLATFORM_RESOURCE,
 } from './resources.js';
 import { signingAlgorithm } from './signing-keys.js';
+import { API_KEY_CLIENT, TokenExchange } from './token-exchange.js';
 import { SIGNING_KEYS, type SigningKeys } from './token-signer.js';
 
 /** Where oidc-provider's endpoints are mounted (the issuer's path). */
@@ -76,6 +77,7 @@ export class OidcProviderService implements OnModuleInit, OnModuleDestroy {
     private readonly users: UsersService,
     private readonly directory: PolisDirectory,
     @Inject(SIGNING_KEYS) private readonly jwks: SigningKeys,
+    private readonly tokenExchange: TokenExchange,
   ) {}
 
   get provider(): Provider {
@@ -92,11 +94,15 @@ export class OidcProviderService implements OnModuleInit, OnModuleDestroy {
 
     const configuration: Configuration = {
       adapter: postgresOidcAdapter(this.payloads),
-      clients: this.config.get('PISTIS_CLIENTS', {
-        infer: true,
-      }) as Configuration['clients'],
+      // The configured clients, and Pistis's own client for exchanging API keys.
+      clients: [
+        ...this.config.get('PISTIS_CLIENTS', { infer: true }),
+        API_KEY_CLIENT,
+      ] as Configuration['clients'],
       // Which platform permissions a platform service may ask for.
-      extraClientMetadata: { properties: ['platform_permissions'] },
+      extraClientMetadata: {
+        properties: ['platform_permissions', 'token_exchange'],
+      },
       clientDefaults: { id_token_signed_response_alg: signingAlgorithm(jwks) },
       jwks,
       cookies: {
@@ -181,6 +187,7 @@ export class OidcProviderService implements OnModuleInit, OnModuleDestroy {
     );
     // Behind Nest's Express app (and a proxy in production): trust X-Forwarded-*.
     this.oidc.proxy = true;
+    this.tokenExchange.register(this.oidc);
 
     this.pruning = setInterval(
       () => {

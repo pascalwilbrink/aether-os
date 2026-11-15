@@ -33,6 +33,15 @@
       "compilerOptions": {
         "tsConfigPath": "libs/oidc/tsconfig.lib.json"
       }
+    },
+    "service-accounts": {
+      "type": "library",
+      "root": "libs/service-accounts",
+      "entryFile": "index",
+      "sourceRoot": "libs/service-accounts/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/service-accounts/tsconfig.lib.json"
+      }
     }
   }
 }

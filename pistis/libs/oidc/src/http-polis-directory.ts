@@ -10,6 +10,7 @@ import {
   PolisDirectory,
   type OrganizationRole,
   type ProjectRole,
+  type SubjectType,
 } from './polis-directory.js';
 
 export const POLIS_DIRECTORY_OPTIONS = Symbol('POLIS_DIRECTORY_OPTIONS');
@@ -42,13 +43,14 @@ export class HttpPolisDirectory extends PolisDirectory {
   async membershipRoles(
     userId: string,
     organizationId: string,
+    subjectType: SubjectType = 'user',
   ): Promise<OrganizationRole[] | null> {
     let cursor: string | undefined;
     do {
       const { data, response } = await this.call(() =>
         PolisApi.listMembershipsOfSubject({
           client: this.client,
-          query: { subjectType: 'user', subject: userId, limit: 100, cursor },
+          query: { subjectType, subject: userId, limit: 100, cursor },
         }),
       );
       if (!response?.ok || !data) {
@@ -69,6 +71,7 @@ export class HttpPolisDirectory extends PolisDirectory {
   async projectRoles(
     userId: string,
     organizationId: string,
+    subjectType: SubjectType = 'user',
   ): Promise<Record<string, ProjectRole>> {
     const roles: Record<string, ProjectRole> = {};
     let cursor: string | undefined;
@@ -78,7 +81,7 @@ export class HttpPolisDirectory extends PolisDirectory {
           client: this.client,
           query: {
             organizationId,
-            subjectType: 'user',
+            subjectType,
             subject: userId,
             limit: 100,
             cursor,

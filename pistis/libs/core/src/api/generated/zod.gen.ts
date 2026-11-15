@@ -6,7 +6,8 @@ export const zDomainErrorCode = z.enum([
     'IDENTITY_ALREADY_LINKED',
     'USER_LAST_PROVIDER',
     'PASSWORD_ALREADY_SET',
-    'PASSWORD_PROVIDER_RESERVED'
+    'PASSWORD_PROVIDER_RESERVED',
+    'SERVICE_ACCOUNT_DISABLED'
 ]);
 
 export const zTimestamp = z.iso.datetime();
@@ -100,6 +101,44 @@ export const zUserProviderResponse = z.object({
     lastSignInAt: z.iso.datetime().nullable()
 });
 
+export const zServiceAccountStatus = z.enum(['active', 'disabled']);
+
+export const zCreateServiceAccountRequest = z.object({
+    name: z.string().min(1).max(200),
+    description: z.string().max(2000)
+});
+
+export const zServiceAccountResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    name: z.string(),
+    description: z.string(),
+    status: zServiceAccountStatus,
+    createdBy: z.string(),
+    createdAt: zTimestamp,
+    updatedAt: zTimestamp
+});
+
+export const zCreateApiKeyRequest = z.object({
+    name: z.string().min(1).max(200),
+    expiresAt: zTimestamp.nullish()
+});
+
+export const zApiKeyResponse = z.object({
+    id: z.uuid(),
+    serviceAccountId: z.uuid(),
+    name: z.string(),
+    prefix: z.string(),
+    expiresAt: zTimestamp.nullable(),
+    lastUsedAt: zTimestamp.nullable(),
+    createdBy: z.string(),
+    createdAt: zTimestamp
+});
+
+export const zCreatedApiKeyResponse = zApiKeyResponse.and(z.object({
+    key: z.string()
+}));
+
 /**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
@@ -115,6 +154,14 @@ export const zUserPage = zPageMeta.and(z.object({
 
 export const zUserProviderPage = zPageMeta.and(z.object({
     items: z.array(zUserProviderResponse)
+}));
+
+export const zServiceAccountPage = zPageMeta.and(z.object({
+    items: z.array(zServiceAccountResponse)
+}));
+
+export const zApiKeyPage = zPageMeta.and(z.object({
+    items: z.array(zApiKeyResponse)
 }));
 
 /**
@@ -160,6 +207,12 @@ export const zDomainProblem = zCommonOpenapiProblem.and(z.object({
 export const zUserId = z.uuid();
 
 export const zUserProviderId = z.uuid();
+
+export const zOrganizationId = z.uuid();
+
+export const zServiceAccountId = z.uuid();
+
+export const zApiKeyId = z.uuid();
 
 /**
  * Page size.
@@ -298,3 +351,96 @@ export const zUnlinkUserProviderPath = z.object({
  * Unlinked
  */
 export const zUnlinkUserProviderResponse = z.void();
+
+export const zListServiceAccountsPath = z.object({
+    organizationId: z.uuid()
+});
+
+export const zListServiceAccountsQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListServiceAccountsResponse = zServiceAccountPage;
+
+export const zCreateServiceAccountBody = zCreateServiceAccountRequest;
+
+export const zCreateServiceAccountPath = z.object({
+    organizationId: z.uuid()
+});
+
+/**
+ * Created
+ */
+export const zCreateServiceAccountResponse = zServiceAccountResponse;
+
+export const zGetServiceAccountPath = z.object({
+    organizationId: z.uuid(),
+    serviceAccountId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetServiceAccountResponse = zServiceAccountResponse;
+
+export const zDisableServiceAccountPath = z.object({
+    organizationId: z.uuid(),
+    serviceAccountId: z.uuid()
+});
+
+/**
+ * Disabled (or already disabled)
+ */
+export const zDisableServiceAccountResponse = zServiceAccountResponse;
+
+export const zEnableServiceAccountPath = z.object({
+    organizationId: z.uuid(),
+    serviceAccountId: z.uuid()
+});
+
+/**
+ * Enabled (or already enabled)
+ */
+export const zEnableServiceAccountResponse = zServiceAccountResponse;
+
+export const zListApiKeysPath = z.object({
+    organizationId: z.uuid(),
+    serviceAccountId: z.uuid()
+});
+
+export const zListApiKeysQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first, without the keys
+ */
+export const zListApiKeysResponse = zApiKeyPage;
+
+export const zCreateApiKeyBody = zCreateApiKeyRequest;
+
+export const zCreateApiKeyPath = z.object({
+    organizationId: z.uuid(),
+    serviceAccountId: z.uuid()
+});
+
+/**
+ * Created; `key` is shown only here
+ */
+export const zCreateApiKeyResponse = zCreatedApiKeyResponse;
+
+export const zRevokeApiKeyPath = z.object({
+    organizationId: z.uuid(),
+    serviceAccountId: z.uuid(),
+    apiKeyId: z.uuid()
+});
+
+/**
+ * Revoked
+ */
+export const zRevokeApiKeyResponse = z.void();

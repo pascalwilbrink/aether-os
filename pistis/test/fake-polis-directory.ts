@@ -38,6 +38,7 @@ export class FakePolisDirectory implements PolisDirectory {
   projectRoles(
     userId: string,
     organizationId: string,
+    _subjectType?: string,
   ): Promise<Record<string, ProjectRole>> {
     return Promise.resolve(
       this.grants.get(`${userId}/${organizationId}`) ?? {},
@@ -52,6 +53,7 @@ export class FakePolisDirectory implements PolisDirectory {
   membershipRoles(
     userId: string,
     organizationId: string,
+    _subjectType?: string,
   ): Promise<OrganizationRole[] | null> {
     return Promise.resolve(
       this.memberships.get(`${userId}/${organizationId}`) ?? null,
