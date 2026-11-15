@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { Repository } from 'typeorm';
+import { In, type Repository } from 'typeorm';
 
 import {
   findPage,
@@ -110,6 +110,24 @@ export class OrganizationsService {
 
   activate(id: string): Promise<OrganizationResponse> {
     return this.apply(id, 'activate');
+  }
+
+  /** Names and slugs by ID, for showing organizations next to other data. */
+  async summaries(
+    ids: readonly string[],
+  ): Promise<Map<string, { name: string; slug: string }>> {
+    const entities = ids.length
+      ? await this.organizations.find({
+          where: { id: In([...new Set(ids)]) },
+          select: { id: true, name: true, slug: true },
+        })
+      : [];
+    return new Map(
+      entities.map((entity) => [
+        entity.id,
+        { name: entity.name, slug: entity.slug },
+      ]),
+    );
   }
 
   /** For reads of an organization's resources: 404 unless it exists. */

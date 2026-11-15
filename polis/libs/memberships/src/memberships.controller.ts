@@ -27,6 +27,7 @@ import { MembershipResponse } from './dto/membership.response.js';
 import { MembershipsParams } from './dto/memberships.params.js';
 import { UpdateMembershipRequest } from './dto/update-membership.request.js';
 import { MembershipsService } from './memberships.service.js';
+import { SubjectMembershipPage } from './dto/subject-membership-page.response.js';
 
 @Controller('organizations/:organizationId/memberships')
 export class MembershipsController {
@@ -85,7 +86,7 @@ export class SubjectMembershipsController {
   @Get()
   @Authenticated()
   @PlatformAccess('platform:read')
-  @ZodSerializerDto(MembershipPage)
+  @ZodSerializerDto(SubjectMembershipPage)
   list(
     @Query() { subjectType, subject, ...page }: ListMembershipsOfSubjectQuery,
   ) {

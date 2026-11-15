@@ -30,6 +30,7 @@ process.env.PISTIS_CLIENTS = JSON.stringify([
   {
     client_id: 'iris',
     redirect_uris: ['http://localhost:3000/auth/callback'],
+    post_logout_redirect_uris: ['http://localhost:3000/'],
     grant_types: ['authorization_code', 'refresh_token'],
     token_endpoint_auth_method: 'none',
   },

@@ -31,7 +31,7 @@ export class HttpPolisClient extends PolisClient {
 
   constructor(
     @Inject(POLIS_CLIENT_OPTIONS) options: PolisClientOptions,
-    tokens: ServiceTokens,
+    private readonly tokens: ServiceTokens,
   ) {
     super();
     const timeoutMs = options.timeoutMs ?? 5000;
@@ -83,15 +83,26 @@ export class HttpPolisClient extends PolisClient {
     };
   }
 
-  /** The body of a 2xx, null for a 404, `PolisUnavailableError` otherwise. */
+  /**
+   * The body of a 2xx, null for a 404, `PolisUnavailableError` otherwise.
+   * A refused service token (401) is dropped and the call retried once with
+   * a fresh one.
+   */
   private async call<T>(
     request: () => Promise<{ data?: T; response?: Response }>,
   ): Promise<T | null> {
+    let refreshed = false;
     for (let attempt = 1; ; attempt++) {
       try {
         const { data, response } = await request();
         if (response?.status === 404) {
           return null;
+        }
+        if (response?.status === 401 && !refreshed) {
+          refreshed = true;
+          attempt--;
+          this.tokens.invalidate();
+          continue;
         }
         if (!response?.ok || data === undefined) {
           throw new PolisUnavailableError(`HTTP ${response?.status ?? '?'}`);

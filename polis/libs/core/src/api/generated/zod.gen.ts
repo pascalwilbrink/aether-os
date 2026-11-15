@@ -149,6 +149,13 @@ export const zProjectMembershipResponse = z.object({
     updatedAt: zTimestamp
 });
 
+export const zSubjectMembershipResponse = zMembershipResponse.and(z.object({
+    organization: z.object({
+        name: z.string(),
+        slug: z.string()
+    })
+}));
+
 /**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
@@ -172,6 +179,10 @@ export const zMembershipPage = zPageMeta.and(z.object({
 
 export const zProjectMembershipPage = zPageMeta.and(z.object({
     items: z.array(zProjectMembershipResponse)
+}));
+
+export const zSubjectMembershipPage = zPageMeta.and(z.object({
+    items: z.array(zSubjectMembershipResponse)
 }));
 
 /**
@@ -411,7 +422,7 @@ export const zListMembershipsOfSubjectQuery = z.object({
 /**
  * Newest first
  */
-export const zListMembershipsOfSubjectResponse = zMembershipPage;
+export const zListMembershipsOfSubjectResponse = zSubjectMembershipPage;
 
 export const zListProjectMembershipsPath = z.object({
     organizationId: z.uuid(),

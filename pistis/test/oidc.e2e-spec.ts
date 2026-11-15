@@ -91,14 +91,14 @@ describe('Signing in and issuing tokens (e2e)', () => {
         password: options.password ?? PASSWORD,
       });
     if (res.status !== 303) {
-      return { res, verifier, callback: null };
+      return { res, verifier, callback: null, agent };
     }
 
     // Back to oidc-provider, which asks for consent, which Pistis decides.
     for (let hops = 0; hops < 6; hops++) {
       const location: string = res.headers.location;
       if (location.startsWith(REDIRECT_URI)) {
-        return { res, verifier, callback: new URL(location) };
+        return { res, verifier, callback: new URL(location), agent };
       }
       res = await agent.get(path(location)).expect(303);
     }
@@ -317,5 +317,21 @@ describe('Signing in and issuing tokens (e2e)', () => {
       (more.body as { access_token: string }).access_token,
     );
     expect(granted.scope).toBe('platform:read');
+  });
+
+  it('asks to confirm signing out, on its own page', async () => {
+    // Signed in at Pistis (its session cookie is in the agent).
+    const { agent } = await authorize({});
+    const res = await agent
+      .get('/oidc/session/end')
+      .query({
+        client_id: 'iris',
+        post_logout_redirect_uri: 'http://localhost:3000/',
+      })
+      .expect(200);
+    expect(res.text).toContain('Sign out of Aether-os?');
+    expect(res.text).toContain('id="op.logoutForm"');
+    // No external assets (fonts, scripts) on Pistis's pages.
+    expect(res.text).not.toMatch(/https?:\/\/(?!127\.0\.0\.1|localhost)/);
   });
 });

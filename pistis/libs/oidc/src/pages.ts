@@ -24,6 +24,7 @@ function page(title: string, body: string): string {
   h1 { font-size: 1.25rem; margin: 0 0 1.25rem; }
   label { display: block; margin: 0 0 .75rem; font-size: .9rem; }
   input { display: block; width: 100%; box-sizing: border-box; margin-top: .25rem; padding: .55rem; font: inherit; border: 1px solid #c8c8d0; border-radius: 6px; }
+  button.secondary { margin-top: .5rem; background: transparent; color: inherit; border: 1px solid #c8c8d0; }
   button { width: 100%; padding: .6rem; font: inherit; border: 0; border-radius: 6px; background: #3b46d6; color: #fff; cursor: pointer; }
   .error { color: #b3261e; margin: 0 0 1rem; }
   .providers { display: grid; gap: .5rem; }
@@ -71,5 +72,28 @@ export function errorPage(message: string): string {
   return page(
     'Something went wrong',
     `<h1>Something went wrong</h1><p class="error">${escape(message)}</p>`,
+  );
+}
+
+/**
+ * Confirms signing out (RP-initiated logout). `form` is oidc-provider's
+ * hidden form with its anti-forgery token; the buttons submit it. Asking
+ * first means another site can't sign people out with a link.
+ */
+export function signOutPage(form: string): string {
+  return page(
+    'Sign out',
+    `<h1>Sign out of Aether-os?</h1>
+${form}
+<button type="submit" form="op.logoutForm" name="logout" value="yes" autofocus>Sign out</button>
+<button type="submit" form="op.logoutForm" class="secondary">Stay signed in</button>`,
+  );
+}
+
+/** After signing out, when the application didn't ask to be sent back. */
+export function signedOutPage(): string {
+  return page(
+    'Signed out',
+    '<h1>You are signed out</h1><p>You can close this window.</p>',
   );
 }

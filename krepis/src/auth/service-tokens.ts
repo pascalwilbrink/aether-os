@@ -10,6 +10,12 @@ import { decodeJwt } from 'jose';
 export abstract class ServiceTokens {
   /** A token valid for at least another minute. */
   abstract token(): Promise<string>;
+
+  /**
+   * Forgets a token the other service refused (401): Pistis's keys rotated,
+   * or the client was changed. The next `token()` gets a fresh one.
+   */
+  invalidate(): void {}
 }
 
 export interface ClientCredentialsOptions {
@@ -36,6 +42,10 @@ export class ClientCredentialsServiceTokens extends ServiceTokens {
 
   constructor(private readonly options: ClientCredentialsOptions) {
     super();
+  }
+
+  override invalidate(): void {
+    this.cached = undefined;
   }
 
   token(): Promise<string> {
