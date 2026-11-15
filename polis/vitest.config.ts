@@ -1,12 +1,13 @@
 import { defineConfig } from 'vitest/config';
 
+// Unit tests: pure modules (state transitions, mappers, configuration), no
+// database. Services are tested against Postgres in test:e2e.
 export default defineConfig({
-  // Resolves the path aliases declared in tsconfig.json, including the ones
-  // added by `nest g library`. Requires Vite 8, which ships this option.
+  // Resolves the path aliases declared in tsconfig.json.
   resolve: { tsconfigPaths: true },
   test: {
     globals: true,
     root: './',
-    include: ['**/*.spec.ts'],
+    include: ['libs/**/*.spec.ts', 'src/**/*.spec.ts'],
   },
 });

@@ -146,9 +146,9 @@ Rules:
 ## Current state
 
 - **Methods:** the specs already use only `GET` and `POST`, with actions for state changes (`/suspend`, `/archive`, `/publish`), so nothing to remove. `PUT` and `DELETE` will appear with the first editable resources.
-- **Versioning, errors, pagination:** done. Krepis's `configureHttpApp` sets the `/v1` prefix and turns every error into problem details (the shared `Problem` schema is in `contracts/common.openapi.yaml`), and lists use keyset pagination through Krepis's `findPage`. Not yet: `Retry-After` on `429` / `503`, and `400` for path parameters that aren't UUIDs (see IDs below).
-- **Actions:** some actions are not idempotent yet (e.g. suspending a suspended organization returns `ORGANIZATION_ALREADY_SUSPENDED`); per the rule above they return the unchanged resource instead.
-- **IDs:** the services already generate UUIDs (`randomUUID()`, v4), but store them as `varchar` and the specs don't declare `format: uuid`. The move to Postgres is the moment to switch the columns to `uuid`, and to v7.
+- **Versioning, errors, pagination:** done. Krepis's `configureHttpApp` sets the `/v1` prefix and turns every error into problem details (the shared `Problem` schema is in `contracts/common.openapi.yaml`), and lists use keyset pagination through Krepis's `findPage`. Not yet: `Retry-After` on `429` / `503`, `ETag` / `If-Match`, and `Location` on `201`.
+- **Actions:** idempotent in Polis (suspend, activate, archive return the unchanged resource). Hephaestus still returns errors such as `ORGANIZATION_ALREADY_SUSPENDED` for repeated actions.
+- **IDs:** Polis generates UUIDv7 in its mappers, stores them as `uuid`, declares `format: uuid` and answers `400` for path IDs that aren't UUIDs. Hephaestus still uses `randomUUID()` (v4) in `varchar` columns.
 
 ## Open questions
 

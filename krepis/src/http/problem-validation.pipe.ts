@@ -7,6 +7,7 @@ import {
 
 import { FieldErrorCode, type ProblemFieldError } from './problem.js';
 import { ValidationProblemException } from './validation-problem.exception.js';
+import { isZodDtoClass } from './zod-dto.js';
 
 /** Carries class-validator's errors from the exception factory to `transform`. */
 class ClassValidatorErrors extends Error {
@@ -21,8 +22,8 @@ class ClassValidatorErrors extends Error {
  * out as problem details with a JSON Pointer per body field or the name of the
  * query or path parameter.
  *
- * Target (docs/engineering.md): a ZodValidationPipe over schemas generated
- * from the specs, throwing the same exception.
+ * Zod DTOs are left to `ZodValidationPipe`, so a service can move one DTO at
+ * a time; the target (docs/engineering.md) is Zod everywhere.
  */
 @Injectable()
 export class ProblemValidationPipe extends ValidationPipe {
@@ -36,6 +37,9 @@ export class ProblemValidationPipe extends ValidationPipe {
   }
 
   override async transform(value: unknown, metadata: ArgumentMetadata) {
+    if (isZodDtoClass(metadata.metatype)) {
+      return value;
+    }
     try {
       return await super.transform(value, metadata);
     } catch (error) {

@@ -1,6 +1,7 @@
-// Shared Aether-os foundation (errors, events, transactions, pagination,
-// HTTP helpers, shared IDs). Re-exported so libs keep importing @polis/core.
+// Shared Aether-os foundation (errors, pagination, HTTP conventions,
+// transactions, configuration). Re-exported so libs import @polis/core.
 export * from '@aether-os/krepis';
 
-export * from './database/index.js';
 export * from './api/index.js';
+export * from './config/index.js';
+export * from './database/index.js';

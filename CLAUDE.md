@@ -121,11 +121,13 @@ pnpm --filter polis test   # one package (or run pnpm inside its directory)
 pnpm format:check          # prettier, as CI runs it (`pnpm format` in a package fixes it)
 ```
 
+`test:e2e` needs Docker where a package tests against Postgres (Krepis, Polis): Testcontainers starts `postgres:17.5-alpine` per run. Where Docker Hub can't be reached for Testcontainers' Ryuk image, run with `TESTCONTAINERS_RYUK_DISABLED=true`.
+
 **CI** (`.github/workflows/ci.yml`, on pushes to `main` and on pull requests) runs, in order: `pnpm install --frozen-lockfile`, `pnpm generate:api` (fails if the generated files differ from what's committed), `format:check`, `lint`, `build`, `test` and `test:e2e`. Each step only covers the packages changed since the base commit (the pull request's merge base, or the previous `main` commit) plus the packages that depend on them, so a Krepis change also checks Polis and Hephaestus, a `contracts` change checks every consumer, and changes only to `docs/` or `infra/` check nothing. Changes to the lockfile, `pnpm-workspace.yaml`, the root `package.json` or `.github/` check everything (see `.github/scripts/affected-filter.sh`). Run the same locally before pushing.
 
 - **Packages stay publishable.** The workspace is set up so moving to a package registry later is cheap: packages depend on each other with `workspace:*` (which `pnpm publish` rewrites to real versions), import only from each other's published entry points (never another package's `src/`, no TypeScript path aliases across packages), and `contracts` is consumed as a package (`node_modules/@aether-os/contracts/...`) rather than by relative path.
 - **Contracts:** `contracts/` holds the API specs (`polis.openapi.yaml`, `hephaestus.openapi.yaml`), one per service. Each spec is the source of truth for that service's HTTP API, including its validation: services generate Zod schemas from it and validate with `nestjs-zod`'s `ZodValidationPipe` (target; see `docs/engineering.md`). Edit the spec first, then run `pnpm generate:api` (root, or in the service and each consumer; currently Iris consumes Hephaestus) and commit the regenerated files. See `contracts/README.md`.
-- **Krepis:** shared NestJS code goes in `krepis/`, never copied between services. Consumers depend on it with `workspace:*` plus `dependenciesMeta.injected`, so pnpm copies it into each consumer and its peer dependencies (Nest, TypeORM, class-validator) resolve to the consumer's own copies. `syncInjectedDepsAfterScripts` refreshes those copies whenever Krepis's `build` script runs. See `krepis/CLAUDE.md`.
+- **Krepis:** shared NestJS code goes in `krepis/`, never copied between services. Consumers depend on it with `workspace:*` plus `dependenciesMeta.injected`, so pnpm copies it into each consumer and its peer dependencies (Nest, TypeORM, Zod, …) resolve to the consumer's own copies. `pnpm-workspace.yaml` sets `dedupeInjectedDeps: false`, without which pnpm 10 silently symlinks Krepis instead whenever it can, and Krepis then resolves its peers from its own `node_modules` (two TypeORM copies, broken DI). `syncInjectedDepsAfterScripts` refreshes the copies whenever Krepis's `build` script runs. See `krepis/CLAUDE.md`.
 
 ## Local development
 
@@ -149,4 +151,4 @@ docker compose down -v     # stop and wipe all data
 | Mailpit | SMTP `localhost:1025` (any credentials), UI `localhost:8025`: catches all local email; production uses Resend or SES |
 | Grafana | `localhost:3300` (no login locally): logs from Loki, linked to traces in Jaeger |
 
-All credentials are fixed local-only values. MinIO in the compose file is only Langfuse's storage, not a stand-in for Loculus. The services still use SQLite; the per-service Postgres databases are ready for the move to Postgres with migrations.
+All credentials are fixed local-only values. MinIO in the compose file is only Langfuse's storage, not a stand-in for Loculus. Polis runs on its Postgres database with migrations (`cd polis && cp .env.example .env && pnpm start:dev`); Hephaestus still uses SQLite until it's converted.
