@@ -26,6 +26,9 @@ function page(title: string, body: string): string {
   input { display: block; width: 100%; box-sizing: border-box; margin-top: .25rem; padding: .55rem; font: inherit; border: 1px solid #c8c8d0; border-radius: 6px; }
   button { width: 100%; padding: .6rem; font: inherit; border: 0; border-radius: 6px; background: #3b46d6; color: #fff; cursor: pointer; }
   .error { color: #b3261e; margin: 0 0 1rem; }
+  .providers { display: grid; gap: .5rem; }
+  .provider { display: block; padding: .6rem; text-align: center; border: 1px solid #c8c8d0; border-radius: 6px; color: inherit; text-decoration: none; }
+  .or { text-align: center; color: #888; margin: 1rem 0; font-size: .9rem; }
   @media (prefers-color-scheme: dark) { body { background: #16161a; color: #ececf1; } main { background: #222228; } input { background: #16161a; color: inherit; border-color: #444; } }
 </style>
 </head>
@@ -33,16 +36,31 @@ function page(title: string, body: string): string {
 </html>`;
 }
 
+export interface SignInPageOptions {
+  error?: string;
+  login?: string;
+  /** External providers to offer, each a button. */
+  providers?: { id: string; name: string }[];
+}
+
 export function signInPage(
   uid: string,
-  options: { error?: string; login?: string } = {},
+  options: SignInPageOptions = {},
 ): string {
+  const providers = (options.providers ?? [])
+    .map(
+      (provider) =>
+        `<a class="provider" href="/interaction/${escape(uid)}/upstream/${encodeURIComponent(provider.id)}">Sign in with ${escape(provider.name)}</a>`,
+    )
+    .join('\n');
+
   return page(
     'Sign in',
     `<h1>Sign in to Aether-os</h1>
 ${options.error ? `<p class="error" role="alert">${escape(options.error)}</p>` : ''}
+${providers ? `<nav class="providers">${providers}</nav><p class="or">or</p>` : ''}
 <form method="post" action="/interaction/${escape(uid)}/login">
-  <label>Email or login<input name="login" autocomplete="username" required value="${escape(options.login ?? '')}" autofocus></label>
+  <label>Email or login<input name="login" autocomplete="username" required value="${escape(options.login ?? '')}"></label>
   <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
   <button type="submit">Sign in</button>
 </form>`,

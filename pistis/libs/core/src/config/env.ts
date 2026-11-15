@@ -31,6 +31,30 @@ const zClient = z
   })
   .loose();
 
+/**
+ * An external OpenID Connect provider people can sign in with (Entra ID,
+ * Auth0, Google, Keycloak, …). `id` is the identity's `provider` in
+ * `user_providers`, so it must never change once people signed in with it.
+ */
+export const zUpstreamProvider = z.object({
+  id: z
+    .string()
+    .regex(
+      /^[a-z0-9][a-z0-9:._-]{0,63}$/,
+      'lowercase letters, digits, ":", ".", "_" and "-"',
+    )
+    .refine((id) => id !== 'password', 'is reserved for passwords'),
+  /** Shown on the sign-in button: "Sign in with <name>". */
+  name: z.string().min(1).max(64),
+  /** The issuer; its `/.well-known/openid-configuration` is discovered. */
+  issuer: z.url({ protocol: /^https?$/ }),
+  clientId: z.string().min(1),
+  /** Absent for a public client (PKCE only). */
+  clientSecret: z.string().min(1).optional(),
+  scopes: z.string().default('openid email profile'),
+});
+export type UpstreamProviderConfig = z.infer<typeof zUpstreamProvider>;
+
 /** Iris on localhost, for development. */
 const DEV_CLIENTS = [
   {
@@ -87,6 +111,16 @@ export const zEnv = z
       .min(300)
       .max(900)
       .default(600),
+    /** External OpenID Connect providers to sign in with, as a JSON array (none by default). */
+    PISTIS_UPSTREAM_PROVIDERS: json(z.array(zUpstreamProvider))
+      .optional()
+      .transform((providers) => providers ?? [])
+      .refine(
+        (providers) =>
+          new Set(providers.map((provider) => provider.id)).size ===
+          providers.length,
+        'provider ids must be unique',
+      ),
     /** Polis's API: memberships and organization status for organization tokens. */
     POLIS_URL: z.url({ protocol: /^https?$/ }),
   })
@@ -94,6 +128,15 @@ export const zEnv = z
     if (env.NODE_ENV !== 'production') {
       return;
     }
+    env.PISTIS_UPSTREAM_PROVIDERS.forEach((provider, index) => {
+      if (!provider.issuer.startsWith('https:')) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['PISTIS_UPSTREAM_PROVIDERS', index, 'issuer'],
+          message: 'must be https in production',
+        });
+      }
+    });
     for (const key of [
       'PISTIS_SIGNING_KEYS',
       'PISTIS_COOKIE_KEYS',
