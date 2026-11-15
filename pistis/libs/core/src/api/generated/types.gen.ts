@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'IDENTITY_ALREADY_LINKED' | 'USER_LAST_PROVIDER' | 'PASSWORD_ALREADY_SET' | 'PASSWORD_PROVIDER_RESERVED';
+export type DomainErrorCode = 'IDENTITY_ALREADY_LINKED' | 'USER_LAST_PROVIDER' | 'PASSWORD_ALREADY_SET' | 'PASSWORD_PROVIDER_RESERVED' | 'SERVICE_ACCOUNT_DISABLED';
 
 /**
  * Problem details for a business-rule violation.
@@ -120,6 +120,67 @@ export type UserProviderPage = PageMeta & {
     items: Array<UserProviderResponse>;
 };
 
+export type ServiceAccountStatus = 'active' | 'disabled';
+
+export type CreateServiceAccountRequest = {
+    name: string;
+    description: string;
+};
+
+export type ServiceAccountResponse = {
+    /**
+     * Its `sub` in tokens, and the `subject` of its Polis memberships.
+     */
+    id: string;
+    organizationId: string;
+    name: string;
+    description: string;
+    status: ServiceAccountStatus;
+    createdBy: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+};
+
+export type ServiceAccountPage = PageMeta & {
+    items: Array<ServiceAccountResponse>;
+};
+
+export type CreateApiKeyRequest = {
+    /**
+     * What the key is for.
+     */
+    name: string;
+    /**
+     * Optional; after it, the key stops working.
+     */
+    expiresAt?: Timestamp | null;
+};
+
+export type ApiKeyResponse = {
+    id: string;
+    serviceAccountId: string;
+    name: string;
+    /**
+     * The key's first characters, to recognise it; never the whole key.
+     */
+    prefix: string;
+    expiresAt: Timestamp | null;
+    lastUsedAt: Timestamp | null;
+    createdBy: string;
+    createdAt: Timestamp;
+};
+
+export type CreatedApiKeyResponse = ApiKeyResponse & {
+    /**
+     * The API key itself (`aos_…`), shown only in this response.
+     */
+    key: string;
+};
+
+export type ApiKeyPage = PageMeta & {
+    items: Array<ApiKeyResponse>;
+};
+
 export type PageMeta = {
     nextCursor: NextCursor;
 };
@@ -193,6 +254,12 @@ export type ProblemFieldError = {
 export type UserId = string;
 
 export type UserProviderId = string;
+
+export type OrganizationId = string;
+
+export type ServiceAccountId = string;
+
+export type ApiKeyId = string;
 
 /**
  * Page size.
@@ -754,3 +821,406 @@ export type UnlinkUserProviderResponses = {
 };
 
 export type UnlinkUserProviderResponse = UnlinkUserProviderResponses[keyof UnlinkUserProviderResponses];
+
+export type ListServiceAccountsData = {
+    body?: never;
+    path: {
+        organizationId: string;
+    };
+    query?: {
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/organizations/{organizationId}/service-accounts';
+};
+
+export type ListServiceAccountsErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListServiceAccountsError = ListServiceAccountsErrors[keyof ListServiceAccountsErrors];
+
+export type ListServiceAccountsResponses = {
+    /**
+     * Newest first
+     */
+    200: ServiceAccountPage;
+};
+
+export type ListServiceAccountsResponse = ListServiceAccountsResponses[keyof ListServiceAccountsResponses];
+
+export type CreateServiceAccountData = {
+    body: CreateServiceAccountRequest;
+    path: {
+        organizationId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/service-accounts';
+};
+
+export type CreateServiceAccountErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type CreateServiceAccountError = CreateServiceAccountErrors[keyof CreateServiceAccountErrors];
+
+export type CreateServiceAccountResponses = {
+    /**
+     * Created
+     */
+    201: ServiceAccountResponse;
+};
+
+export type CreateServiceAccountResponse = CreateServiceAccountResponses[keyof CreateServiceAccountResponses];
+
+export type GetServiceAccountData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        serviceAccountId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/service-accounts/{serviceAccountId}';
+};
+
+export type GetServiceAccountErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type GetServiceAccountError = GetServiceAccountErrors[keyof GetServiceAccountErrors];
+
+export type GetServiceAccountResponses = {
+    /**
+     * OK
+     */
+    200: ServiceAccountResponse;
+};
+
+export type GetServiceAccountResponse = GetServiceAccountResponses[keyof GetServiceAccountResponses];
+
+export type DisableServiceAccountData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        serviceAccountId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/service-accounts/{serviceAccountId}/disable';
+};
+
+export type DisableServiceAccountErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type DisableServiceAccountError = DisableServiceAccountErrors[keyof DisableServiceAccountErrors];
+
+export type DisableServiceAccountResponses = {
+    /**
+     * Disabled (or already disabled)
+     */
+    200: ServiceAccountResponse;
+};
+
+export type DisableServiceAccountResponse = DisableServiceAccountResponses[keyof DisableServiceAccountResponses];
+
+export type EnableServiceAccountData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        serviceAccountId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/service-accounts/{serviceAccountId}/enable';
+};
+
+export type EnableServiceAccountErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type EnableServiceAccountError = EnableServiceAccountErrors[keyof EnableServiceAccountErrors];
+
+export type EnableServiceAccountResponses = {
+    /**
+     * Enabled (or already enabled)
+     */
+    200: ServiceAccountResponse;
+};
+
+export type EnableServiceAccountResponse = EnableServiceAccountResponses[keyof EnableServiceAccountResponses];
+
+export type ListApiKeysData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        serviceAccountId: string;
+    };
+    query?: {
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/organizations/{organizationId}/service-accounts/{serviceAccountId}/api-keys';
+};
+
+export type ListApiKeysErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListApiKeysError = ListApiKeysErrors[keyof ListApiKeysErrors];
+
+export type ListApiKeysResponses = {
+    /**
+     * Newest first, without the keys
+     */
+    200: ApiKeyPage;
+};
+
+export type ListApiKeysResponse = ListApiKeysResponses[keyof ListApiKeysResponses];
+
+export type CreateApiKeyData = {
+    body: CreateApiKeyRequest;
+    path: {
+        organizationId: string;
+        serviceAccountId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/service-accounts/{serviceAccountId}/api-keys';
+};
+
+export type CreateApiKeyErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type CreateApiKeyError = CreateApiKeyErrors[keyof CreateApiKeyErrors];
+
+export type CreateApiKeyResponses = {
+    /**
+     * Created; `key` is shown only here
+     */
+    201: CreatedApiKeyResponse;
+};
+
+export type CreateApiKeyResponse = CreateApiKeyResponses[keyof CreateApiKeyResponses];
+
+export type RevokeApiKeyData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        serviceAccountId: string;
+        apiKeyId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/service-accounts/{serviceAccountId}/api-keys/{apiKeyId}';
+};
+
+export type RevokeApiKeyErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type RevokeApiKeyError = RevokeApiKeyErrors[keyof RevokeApiKeyErrors];
+
+export type RevokeApiKeyResponses = {
+    /**
+     * Revoked
+     */
+    204: void;
+};
+
+export type RevokeApiKeyResponse = RevokeApiKeyResponses[keyof RevokeApiKeyResponses];

@@ -40,6 +40,12 @@
       ],
       "@pistis/oidc/*": [
         "./libs/oidc/src/*"
+      ],
+      "@pistis/service-accounts": [
+        "./libs/service-accounts/src/index.ts"
+      ],
+      "@pistis/service-accounts/*": [
+        "./libs/service-accounts/src/*"
       ]
     },
     "rewriteRelativeImportExtensions": true

@@ -37,11 +37,15 @@ process.env.PISTIS_CLIENTS = JSON.stringify([
   {
     client_id: 'hephaestus',
     client_secret: 'hephaestus-test-secret',
-    grant_types: ['client_credentials'],
+    grant_types: [
+      'client_credentials',
+      'urn:ietf:params:oauth:grant-type:token-exchange',
+    ],
     redirect_uris: [],
     response_types: [],
     token_endpoint_auth_method: 'client_secret_basic',
     platform_permissions: ['platform:read'],
+    token_exchange: ['task-token'],
   },
 ]);
 initializeTransactions();

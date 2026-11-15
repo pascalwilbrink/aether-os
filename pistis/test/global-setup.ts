@@ -1,4 +1,6 @@
 import { DataSource } from 'typeorm';
+import { ApiKeyEntity } from '../libs/service-accounts/src/api-key.entity.js';
+import { ServiceAccountEntity } from '../libs/service-accounts/src/service-account.entity.js';
 import type { TestProject } from 'vitest/node';
 
 import { postgresOptions } from '@aether-os/krepis';
@@ -32,6 +34,8 @@ export default async function setup(project: TestProject) {
         UserProviderEntity,
         PasswordCredentialEntity,
         OidcPayloadEntity,
+        ServiceAccountEntity,
+        ApiKeyEntity,
       ],
     }),
   );

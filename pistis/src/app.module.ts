@@ -13,6 +13,7 @@ import {
   SIGNING_KEYS,
   type SigningKeys,
 } from '@pistis/oidc';
+import { ServiceAccountsModule } from '@pistis/service-accounts';
 import { UsersModule } from '@pistis/users';
 
 // Validation, the /v1 prefix and problem details: configurePistisApp (main.ts).
@@ -21,6 +22,7 @@ import { UsersModule } from '@pistis/users';
     pistisConfigModule(),
     DatabaseModule,
     UsersModule,
+    ServiceAccountsModule,
     OidcModule,
     // Pistis's API takes Pistis's tokens, checked against its own keys.
     AuthModule.forRootAsync({

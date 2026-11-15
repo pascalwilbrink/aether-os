@@ -50,3 +50,26 @@ export async function operatorAgent(app: INestApplication<App>) {
     .agent(app.getHttpServer())
     .set('authorization', `Bearer ${token}`);
 }
+
+/** A member of an organization (a user token for it), with these roles. */
+export async function memberAgent(
+  app: INestApplication<App>,
+  organizationId: string,
+  roles: string[],
+  sub = '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a00',
+) {
+  const token = await app.get(TokenSigner).sign(
+    {
+      sub,
+      sub_type: 'user',
+      org_id: organizationId,
+      org_roles: roles,
+      project_roles: {},
+      scope: 'api',
+    },
+    600,
+  );
+  return request
+    .agent(app.getHttpServer())
+    .set('authorization', `Bearer ${token}`);
+}

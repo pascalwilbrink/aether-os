@@ -8,6 +8,6 @@ export async function resetDatabase(
   await app
     .get(DataSource)
     .query(
-      'TRUNCATE users, user_providers, password_credentials, oidc_payloads',
+      'TRUNCATE users, user_providers, password_credentials, oidc_payloads, service_accounts, api_keys',
     );
 }

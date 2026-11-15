@@ -21,8 +21,15 @@ const zClient = z
     redirect_uris: z.array(z.url()).default([]),
     post_logout_redirect_uris: z.array(z.url()).optional(),
     grant_types: z.array(
-      z.enum(['authorization_code', 'refresh_token', 'client_credentials']),
+      z.enum([
+        'authorization_code',
+        'refresh_token',
+        'client_credentials',
+        'urn:ietf:params:oauth:grant-type:token-exchange',
+      ]),
     ),
+    /** Platform services only: what they may exchange for (`task-token`: Hephaestus). */
+    token_exchange: z.array(z.enum(['task-token'])).optional(),
     /** Platform services only: the platform permissions they may ask for. */
     platform_permissions: z
       .array(z.enum(['platform:read', 'platform:manage']))
@@ -74,9 +81,14 @@ const DEV_CLIENTS = [
     client_secret: 'hephaestus-dev-secret',
     redirect_uris: [],
     response_types: [],
-    grant_types: ['client_credentials'],
+    grant_types: [
+      'client_credentials',
+      'urn:ietf:params:oauth:grant-type:token-exchange',
+    ],
     token_endpoint_auth_method: 'client_secret_basic',
     platform_permissions: ['platform:read'],
+    // Task tokens for the service accounts tasks run as.
+    token_exchange: ['task-token'],
   },
   // Operator tooling for local development: create users, suspend
   // organizations (README: "Creating a user").
