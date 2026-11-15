@@ -48,7 +48,7 @@ Short-lived JWTs (5–15 minutes) signed by Pistis with asymmetric keys. Service
   "sub": "<principal id>",
   "sub_type": "user" | "service_account" | "service",
   "org_id": "<organization id>",          // absent for platform `service` tokens
-  "org_role": "owner" | "admin" | "member" | "viewer",
+  "org_roles": ["owner" | "admin" | "member" | "viewer"],  // one or more
   "project_roles": { "<project id>": "approver" | "editor" | "viewer" },  // explicit grants only
   "act": { "sub": "<actor>", "sub_type": "service" },  // present when acting on behalf of someone (RFC 8693)
   "task_id": "<task id>",                 // task tokens only
@@ -57,14 +57,14 @@ Short-lived JWTs (5–15 minutes) signed by Pistis with asymmetric keys. Service
 }
 ```
 
-- `project_roles` carries only explicit project grants, which are never `admin`. Organization `owner`s and `admin`s are project `admin` everywhere, which Krepis derives from `org_role`, so their tokens need no project list.
+- `project_roles` carries only explicit project grants, which are never `admin`. Organization `owner`s and `admin`s are project `admin` everywhere, which Krepis derives from `org_roles`, so their tokens need no project list.
 - **Delegation** uses OAuth 2.0 token exchange (RFC 8693). When Kairos fires an automation, it exchanges its own service token for one with `sub` = the automation's service account and `act` = Kairos. Audit logs record both.
 - **Task tokens:** when a task starts, Hephaestus exchanges for a token for the automation's service account, limited by `project_id` to the task's project, carrying `task_id`, and valid only for the task's lifetime. The task uses it for everything: OpenBao, Seshat, Loculus and other Aether-os APIs. Pistis's exchange rules decide which services may obtain tokens for which principals; for example, only Hephaestus may obtain task tokens.
 - **Chat action tokens:** when a linked user answers a review from Slack or Teams, Proxenos exchanges for a token with `sub` = that user and `act` = Proxenos, valid for about a minute and for that one action. Only Proxenos may obtain these, and only for users whose chat account is linked in Pistis (see `notifications.md`).
 
 ## Roles
 
-Organization roles (stored on Polis memberships):
+Organization roles (stored on Polis memberships). A membership holds **one or more** of these fixed roles; a principal has the permissions of all its roles combined, and where a rule depends on "the organization role" (the project cap below), the highest one counts:
 
 | Role | Meaning |
 |---|---|
@@ -101,7 +101,7 @@ Consequence: everything that needs project `admin` (managing automations, projec
 
 ## Permissions
 
-Named `resource:action`. Organization-scoped permissions are checked against `org_role`; project-scoped permissions against the effective project role.
+Named `resource:action`. Organization-scoped permissions are checked against `org_roles` (granted if any of the roles has the permission); project-scoped permissions against the effective project role.
 
 | Permission | Scope | owner | admin | member | viewer |
 |---|---|:-:|:-:|:-:|:-:|

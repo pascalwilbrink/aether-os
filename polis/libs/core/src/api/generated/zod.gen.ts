@@ -5,7 +5,8 @@ import * as z from 'zod';
 export const zDomainErrorCode = z.enum([
     'ORGANIZATION_SLUG_TAKEN',
     'ORGANIZATION_SUSPENDED',
-    'PROJECT_SLUG_TAKEN'
+    'PROJECT_SLUG_TAKEN',
+    'MEMBERSHIP_EXISTS'
 ]);
 
 /**
@@ -55,6 +56,55 @@ export const zProjectResponse = z.object({
 });
 
 /**
+ * The kind of principal (`sub_type` in Pistis tokens).
+ */
+export const zSubjectType = z.enum(['user', 'service_account']);
+
+/**
+ * The principal's Pistis `sub`.
+ */
+export const zSubject = z.string().min(1).max(255);
+
+/**
+ * A fixed organization role (see `docs/identity.md`).
+ */
+export const zOrganizationRole = z.enum([
+    'owner',
+    'admin',
+    'member',
+    'viewer'
+]);
+
+/**
+ * One or more roles. Duplicates are ignored; responses list each role
+ * once, in the order owner, admin, member, viewer.
+ *
+ */
+export const zOrganizationRoles = z.array(zOrganizationRole).min(1);
+
+export const zCreateMembershipRequest = z.object({
+    subjectType: zSubjectType,
+    subject: zSubject,
+    roles: zOrganizationRoles,
+    createdBy: z.string().min(1)
+});
+
+export const zUpdateMembershipRequest = z.object({
+    roles: zOrganizationRoles
+});
+
+export const zMembershipResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    subjectType: zSubjectType,
+    subject: z.string(),
+    roles: z.array(zOrganizationRole),
+    createdBy: z.string(),
+    createdAt: zTimestamp,
+    updatedAt: zTimestamp
+});
+
+/**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
 export const zNextCursor = z.string().nullable();
@@ -69,6 +119,10 @@ export const zOrganizationPage = zPageMeta.and(z.object({
 
 export const zProjectPage = zPageMeta.and(z.object({
     items: z.array(zProjectResponse)
+}));
+
+export const zMembershipPage = zPageMeta.and(z.object({
+    items: z.array(zMembershipResponse)
 }));
 
 /**
@@ -114,6 +168,8 @@ export const zDomainProblem = zCommonOpenapiProblem.and(z.object({
 export const zOrganizationId = z.uuid();
 
 export const zProjectId = z.uuid();
+
+export const zMembershipId = z.uuid();
 
 /**
  * Page size.
@@ -238,3 +294,72 @@ export const zArchiveProjectPath = z.object({
  * Archived (or already archived)
  */
 export const zArchiveProjectResponse = zProjectResponse;
+
+export const zListMembershipsPath = z.object({
+    organizationId: z.uuid()
+});
+
+export const zListMembershipsQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListMembershipsResponse = zMembershipPage;
+
+export const zCreateMembershipBody = zCreateMembershipRequest;
+
+export const zCreateMembershipPath = z.object({
+    organizationId: z.uuid()
+});
+
+/**
+ * Created
+ */
+export const zCreateMembershipResponse = zMembershipResponse;
+
+export const zDeleteMembershipPath = z.object({
+    organizationId: z.uuid(),
+    membershipId: z.uuid()
+});
+
+/**
+ * Deleted
+ */
+export const zDeleteMembershipResponse = z.void();
+
+export const zGetMembershipPath = z.object({
+    organizationId: z.uuid(),
+    membershipId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetMembershipResponse = zMembershipResponse;
+
+export const zUpdateMembershipBody = zUpdateMembershipRequest;
+
+export const zUpdateMembershipPath = z.object({
+    organizationId: z.uuid(),
+    membershipId: z.uuid()
+});
+
+/**
+ * Updated
+ */
+export const zUpdateMembershipResponse = zMembershipResponse;
+
+export const zListMembershipsOfSubjectQuery = z.object({
+    subjectType: zSubjectType,
+    subject: zSubject,
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListMembershipsOfSubjectResponse = zMembershipPage;

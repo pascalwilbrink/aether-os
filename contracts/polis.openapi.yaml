@@ -1,9 +1,10 @@
 openapi: 3.1.0
 info:
   title: Polis API
-  version: 0.2.0
+  version: 0.3.0
   description: |
-    Tenancy service for Aether-os: organizations and the projects inside them.
+    Tenancy service for Aether-os: organizations, the projects inside them, and
+    memberships (which principal belongs to which organization, with which roles).
     Other services store organization and project IDs and resolve them here.
 
     Follows `../docs/api.md`: paths under `/v1`, errors as problem details
@@ -16,6 +17,7 @@ info:
 tags:
   - name: organizations
   - name: projects
+  - name: memberships
 
 paths:
   /v1/organizations:
@@ -179,6 +181,111 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
+  /v1/organizations/{organizationId}/memberships:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [memberships]
+      operationId: createMembership
+      description: Adds a principal to the organization with one or more roles.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateMembershipRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MembershipResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [memberships]
+      operationId: listMemberships
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MembershipPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/memberships/{membershipId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/MembershipId'
+    get:
+      tags: [memberships]
+      operationId: getMembership
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MembershipResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [memberships]
+      operationId: updateMembership
+      description: Replaces the membership's roles.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateMembershipRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MembershipResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    delete:
+      tags: [memberships]
+      operationId: deleteMembership
+      description: Removes the principal from the organization.
+      responses:
+        '204': { description: Deleted }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/memberships:
+    get:
+      tags: [memberships]
+      operationId: listMembershipsOfSubject
+      description: |
+        Every organization membership of one principal, across organizations.
+        Pistis uses it to put organization and role claims in tokens.
+      parameters:
+        - name: subjectType
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/SubjectType' }
+        - name: subject
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/Subject' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MembershipPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
 components:
   parameters:
     OrganizationId:
@@ -188,6 +295,11 @@ components:
       schema: { type: string, format: uuid }
     ProjectId:
       name: projectId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    MembershipId:
+      name: membershipId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -212,6 +324,7 @@ components:
         - ORGANIZATION_SLUG_TAKEN
         - ORGANIZATION_SUSPENDED
         - PROJECT_SLUG_TAKEN
+        - MEMBERSHIP_EXISTS
     DomainProblem:
       description: Problem details for a business-rule violation.
       allOf:
@@ -305,6 +418,66 @@ components:
             items:
               type: array
               items: { $ref: '#/components/schemas/ProjectResponse' }
+
+    # ---------- memberships ----------
+    SubjectType:
+      type: string
+      enum: [user, service_account]
+      description: The kind of principal (`sub_type` in Pistis tokens).
+    Subject:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: The principal's Pistis `sub`.
+    OrganizationRole:
+      type: string
+      enum: [owner, admin, member, viewer]
+      description: A fixed organization role (see `docs/identity.md`).
+    OrganizationRoles:
+      type: array
+      minItems: 1
+      items: { $ref: '#/components/schemas/OrganizationRole' }
+      description: |
+        One or more roles. Duplicates are ignored; responses list each role
+        once, in the order owner, admin, member, viewer.
+    CreateMembershipRequest:
+      type: object
+      additionalProperties: false
+      required: [subjectType, subject, roles, createdBy]
+      properties:
+        subjectType: { $ref: '#/components/schemas/SubjectType' }
+        subject: { $ref: '#/components/schemas/Subject' }
+        roles: { $ref: '#/components/schemas/OrganizationRoles' }
+        createdBy: { type: string, minLength: 1 }
+    UpdateMembershipRequest:
+      type: object
+      additionalProperties: false
+      required: [roles]
+      properties:
+        roles: { $ref: '#/components/schemas/OrganizationRoles' }
+    MembershipResponse:
+      type: object
+      required: [id, organizationId, subjectType, subject, roles, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        subjectType: { $ref: '#/components/schemas/SubjectType' }
+        subject: { type: string }
+        roles:
+          type: array
+          items: { $ref: '#/components/schemas/OrganizationRole' }
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    MembershipPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/MembershipResponse' }
 
     # ---------- pagination ----------
     PageMeta:

@@ -5,6 +5,7 @@ import { postgresOptions } from '@aether-os/krepis';
 import { startTestPostgres } from '@aether-os/krepis/testing';
 
 import { OrganizationEntity } from '../libs/organizations/src/organization.entity.js';
+import { MembershipEntity } from '../libs/memberships/src/membership.entity.js';
 import { ProjectEntity } from '../libs/projects/src/project.entity.js';
 import { migrations } from '../src/database/migrations/index.js';
 
@@ -25,7 +26,7 @@ export default async function setup(project: TestProject) {
     postgresOptions({
       url: postgres.url,
       migrations,
-      entities: [OrganizationEntity, ProjectEntity],
+      entities: [OrganizationEntity, ProjectEntity, MembershipEntity],
     }),
   );
   await dataSource.initialize();

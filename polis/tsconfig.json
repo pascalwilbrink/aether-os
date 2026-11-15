@@ -40,6 +40,12 @@
       ],
       "@polis/projects/*": [
         "./libs/projects/src/*"
+      ],
+      "@polis/memberships": [
+        "./libs/memberships/src/index.ts"
+      ],
+      "@polis/memberships/*": [
+        "./libs/memberships/src/*"
       ]
     },
     "rewriteRelativeImportExtensions": true

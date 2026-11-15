@@ -25,6 +25,7 @@ import { createZodDto, ZodSerializerDto } from './index.js';
 // Shaped like the schemas @hey-api/openapi-ts generates from a spec.
 const zCreateWidget = z.object({
   name: z.string().min(1),
+  colour: z.enum(['red', 'blue']),
   size: z.int().gte(1),
   tags: z.array(z.object({ label: z.string() })),
 });
@@ -284,7 +285,12 @@ describe('configureHttpApp', () => {
     const id = '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
 
     it('parses a valid body', async () => {
-      const body = { name: 'w', size: 2, tags: [{ label: 'a' }] };
+      const body = {
+        name: 'w',
+        colour: 'red',
+        size: 2,
+        tags: [{ label: 'a' }],
+      };
       const res = await http().post('/v1/widgets').send(body).expect(201);
 
       expect(res.body).toEqual(body);
@@ -301,14 +307,17 @@ describe('configureHttpApp', () => {
         expect.arrayContaining([
           expect.objectContaining({ pointer: '/name', code: 'REQUIRED' }),
           expect.objectContaining({ pointer: '/size', code: 'INVALID' }),
+          // Zod reports a missing enum value as invalid_value, not invalid_type.
+          expect.objectContaining({ pointer: '/colour', code: 'REQUIRED' }),
         ]),
       );
-      expect(res.body.errors).toHaveLength(2);
+      expect(res.body.errors).toHaveLength(3);
 
       const unknown = await http()
         .post('/v1/widgets')
         .send({
           name: 'w',
+          colour: 'blue',
           size: 1,
           tags: [{ label: 'a', colour: 'red' }],
           extra: 1,
