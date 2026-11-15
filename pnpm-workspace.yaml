@@ -17,3 +17,7 @@ ignoredBuiltDependencies:
 # copies automatically whenever Krepis is rebuilt.
 syncInjectedDepsAfterScripts:
   - build
+
+# Keep injected dependencies (Krepis) as real copies even when pnpm could
+# symlink them, so their peer dependencies always resolve from each consumer.
+dedupeInjectedDeps: false

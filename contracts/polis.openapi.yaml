@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Polis API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Tenancy service for Aether-os: organizations and the projects inside them.
     Other services store organization and project IDs and resolve them here.
@@ -9,7 +9,9 @@ info:
     Follows `../docs/api.md`: paths under `/v1`, errors as problem details
     (`Problem`, `application/problem+json`; business-rule violations are 409
     with a `DomainErrorCode`), and lists paginated with `limit` / `cursor` →
-    `items` / `nextCursor`.
+    `items` / `nextCursor`. IDs are UUIDs; a path parameter that isn't one is
+    `400`. Actions are idempotent: suspending a suspended organization, or
+    archiving an archived project, returns the unchanged resource.
 
 tags:
   - name: organizations
@@ -76,6 +78,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /v1/organizations/{organizationId}/suspend:
@@ -86,12 +89,12 @@ paths:
       operationId: suspendOrganization
       responses:
         '200':
-          description: Suspended
+          description: Suspended (or already suspended)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
 
   /v1/organizations/{organizationId}/activate:
     parameters:
@@ -101,12 +104,12 @@ paths:
       operationId: activateOrganization
       responses:
         '200':
-          description: Active
+          description: Active (or already active)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/OrganizationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
 
   /v1/organizations/{organizationId}/projects:
     parameters:
@@ -156,6 +159,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ProjectResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
   /v1/organizations/{organizationId}/projects/{projectId}/archive:
@@ -166,7 +170,12 @@ paths:
       tags: [projects]
       operationId: archiveProject
       responses:
-        '204': { description: Archived }
+        '200':
+          description: Archived (or already archived)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
@@ -176,12 +185,12 @@ components:
       name: organizationId
       in: path
       required: true
-      schema: { type: string }
+      schema: { type: string, format: uuid }
     ProjectId:
       name: projectId
       in: path
       required: true
-      schema: { type: string }
+      schema: { type: string, format: uuid }
     Limit: { $ref: './common.openapi.yaml#/components/parameters/Limit' }
     Cursor: { $ref: './common.openapi.yaml#/components/parameters/Cursor' }
 
@@ -200,10 +209,8 @@ components:
     DomainErrorCode:
       type: string
       enum:
-        - ORGANIZATION_ALREADY_SUSPENDED
         - ORGANIZATION_SLUG_TAKEN
         - ORGANIZATION_SUSPENDED
-        - PROJECT_ARCHIVED
         - PROJECT_SLUG_TAKEN
     DomainProblem:
       description: Problem details for a business-rule violation.
@@ -244,7 +251,7 @@ components:
       type: object
       required: [id, name, slug, status, createdBy, createdAt, updatedAt]
       properties:
-        id: { type: string }
+        id: { type: string, format: uuid }
         name: { type: string }
         slug: { type: string }
         status: { $ref: '#/components/schemas/OrganizationStatus' }
@@ -280,8 +287,8 @@ components:
       type: object
       required: [id, organizationId, name, slug, description, status, createdBy, createdAt, updatedAt]
       properties:
-        id: { type: string }
-        organizationId: { type: string }
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
         name: { type: string }
         slug: { type: string }
         description: { type: string }

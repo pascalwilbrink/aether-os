@@ -6,59 +6,73 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Polis is the tenancy service of Aether-os (see `../CLAUDE.md`). It owns **organizations** (the tenant root; `active` or `suspended`) the **projects** inside them (`active` or `archived`, slug unique per organization), and **memberships** (planned: which user belongs to which organization, with what role; Pistis reads them to put organization and role claims in its tokens). The other services store organization and project IDs and resolve them here. Authentication (users, tokens, API keys) belongs to Pistis, which is not built yet; until it exists, `createdBy` is a plain request field.
 
-Polis was split out of Hephaestus and shares its stack and conventions: NestJS 12 (ESM, TypeScript 6), TypeORM over better-sqlite3, pnpm.
+Polis is the reference implementation of `../docs/engineering.md`: NestJS 12 (ESM, TypeScript 6), controller → service → TypeORM repository with mappers, Zod DTOs generated from the spec, `typeorm-transactional`, Postgres with migrations, and tests against Postgres in containers. New services copy it.
 
 ## Commands
 
 ```bash
 pnpm install                   # from the workspace root (../)
-pnpm start:dev                 # watch mode, port $PORT (default 3001)
+cp .env.example .env           # once; then `docker compose up -d` in ../ for Postgres
+pnpm start:dev                 # build, run migrations, then watch mode on $PORT (default 3001)
 pnpm build
 pnpm lint                      # oxlint --type-aware; no-floating-promises is an error
 pnpm format                    # prettier (single quotes, trailing commas)
-pnpm generate:api              # regenerate API types from @aether-os/contracts (../contracts/)polis.openapi.yaml
+pnpm generate:api              # regenerate libs/core/src/api/generated from ../contracts/polis.openapi.yaml
 
-pnpm test                      # unit tests: **/*.spec.ts (vitest)
-pnpm test:e2e                  # e2e tests: test/*.e2e-spec.ts, in-memory DB
-pnpm test libs/projects/src/application/service/project.service.spec.ts   # single file
-pnpm test -t "suspends"        # filter by test name
+pnpm migration:run             # apply pending migrations (on dist/: build first)
+pnpm migration:show
+pnpm build && pnpm migration:generate src/database/migrations/<Name>   # then review it and add it to migrations/index.ts
+
+pnpm test                      # unit tests (libs/**/*.spec.ts): transitions, mappers, config; no database
+pnpm test:e2e                  # integration (libs/**/*.int-spec.ts) and e2e (test/*.e2e-spec.ts) against Postgres; needs Docker
+pnpm test libs/projects/src/project-transitions.spec.ts   # single file
+pnpm test:e2e -t "archives"    # filter by test name
 ```
 
 Shared infrastructure (Postgres, RabbitMQ, OpenBao, OPA, OTel, Jaeger, Langfuse) runs from `../docker-compose.yml`; see `../CLAUDE.md`.
 
+## Configuration
+
+Environment variables, validated at startup with the Zod schema in `libs/core/src/config/env.ts` (`polisConfigModule()`, through Krepis's `validateEnv`): `DATABASE_URL` (required, Postgres), `PORT` (3001), `NODE_ENV`. Locally they come from `.env` (gitignored; `.env.example` has the defaults for `docker compose`).
+
 ## Database
 
-- SQLite file at `data/polis.sqlite` (git-ignored; override with `DATABASE_PATH`; the e2e config sets `:memory:`).
-- `synchronize: true` outside `NODE_ENV=production`: the schema is generated from entities and there are **no migrations** yet.
-- Service specs are integration-style: they build a `Test.createTestingModule` with an in-memory `TypeOrmModule.forRoot` plus the feature module, rather than mocking repositories.
+- **Postgres**, Polis's own database (`polis` in `../docker-compose.yml`). Connection in `libs/core/src/database/database.module.ts`, using Krepis's `postgresOptions` (`snake_case` names, `synchronize` off) and `createTransactionalDataSource`.
+- **Migrations only:** `src/database/migrations/` (registered in `migrations/index.ts`, oldest first), run by `pnpm migration:run` as a separate step, never at startup. The TypeORM CLI uses `src/database/data-source.ts`, compiled to `dist/`; list new entities there too. Generate migrations from the entities, review them, and keep them compatible with the previous release (expand, then contract); there are no down migrations.
+- **Column conventions:** `uuid` IDs, `timestamptz`, `text`, enums as `text` with a check constraint (`ck_<table>_<column>`), unique constraints `uq_…` including `organization_id` where scoped, and an index matching each keyset pagination (`ix_…`).
+- **Tests** run against Postgres 17.5 (the compose version) in a container started once per `test:e2e` run (`test/global-setup.ts`, via `@aether-os/krepis/testing`). The setup applies the migrations and fails if the entities differ from the migrated schema, so a missing migration fails the tests. Files run one at a time and every test starts from emptied tables (`test/database.ts`).
 
 ## Architecture
 
-`src/` is only the app shell: `main.ts` calls Krepis's `configureHttpApp(app)` (the `/v1` prefix, the strict validation pipe and the problem details filter), and every e2e test calls it on the app it creates, before `init()`. Code lives in Nest libraries under `libs/`, registered in `nest-cli.json` and aliased in `tsconfig.json` as `@polis/<name>`; update both when adding a library.
+`src/` is the app shell: `main.ts` calls Krepis's `initializeTransactions()` before Nest boots and `configureHttpApp(app)` (the `/v1` prefix, the Zod validation pipe, the response serializer and the problem details filter); `app.module.ts` imports the config, database and feature modules. Code lives in Nest libraries under `libs/`, registered in `nest-cli.json` and aliased in `tsconfig.json` as `@polis/<name>`; update both when adding a library.
 
-Dependency graph: `core` ← `organizations` ← `projects`. Cross-module access goes through the exported **service** (e.g. `OrganizationService.findActiveById`), never another module's repositories.
+Dependency graph: `core` ← `organizations` ← `projects`. A library's `index.ts` exports its module, its service and its errors, never entities, mappers or repositories.
 
-**Target** (agreed, see `../docs/engineering.md`): controller → service → TypeORM repository, with an injected mapper per resource (DTO ↔ entity) and no separate domain layer or repository ports. The current code still uses the layering below; don't extend it, convert a library when you work on it.
+### A feature library
 
-Each feature lib currently uses this layering:
+```
+libs/projects/src/
+  projects.module.ts        TypeOrmModule.forFeature([ProjectEntity]), controller, service, mapper
+  projects.controller.ts    routes only: @Param/@Query/@Body DTOs, @ZodSerializerDto, one service call
+  projects.service.ts       rules, @Transactional(), tenancy checks; returns response DTOs
+  project.entity.ts         TypeORM entity (no logic)
+  project.mapper.ts         DTO → entity (UUIDv7 generated here), entity → response
+  project-transitions.ts    the lifecycle as a pure table, tested exhaustively
+  project.errors.ts         DomainError subclasses (→ 409)
+  dto/                      one line each: class X extends createZodDto(zX) {}
+  index.ts
+```
 
-- `domain/`: aggregates with a private constructor, `static create()` and `static reconstitute()`; state in a private `props` object; transitions throw `DomainError` subclasses. Repository **ports** are abstract classes in `domain/repository/`, used directly as DI tokens.
-- `application/service/`: use cases. Reads call `organizations.findById` (404 if missing); writes call `organizations.findActiveById` (`OrganizationSuspendedError` if suspended). Missing resources throw `NotFoundException`.
-- `infrastructure/persistence/`: TypeORM `entity/`, `mapper/` (`toEntity` / `toDomain`, casting to branded IDs) and `TypeOrm*Repository` implementing the port, bound via `{ provide: XRepository, useClass: TypeOrmXRepository }`.
-- `presentation/http/`: controllers and class-validator DTOs (`XResponse.fromDomain`); IDs come from `randomUUID()`. Target: DTOs generated as Zod schemas from the spec, `createZodDto` classes and a `ZodValidationPipe` (see `../docs/engineering.md`); don't add new class-validator DTOs.
-- `index.ts`: the lib's public surface.
-
-`libs/core` conventions (most of `@polis/core` is re-exported from the shared `@aether-os/krepis` package in `../krepis`; only `DatabaseModule` and the generated API types live in `libs/core`. Change shared code in Krepis and run `pnpm build` there; the copy here is refreshed automatically):
-
-- **Branded IDs** (`OrganizationId`, `ProjectId`) come from Krepis.
-- **Errors**: extend `DomainError(message, CODE)`; Krepis's `ProblemDetailsFilter` turns them into **HTTP 409** problem details with that `code` (and every other error into problem details too, see `../docs/api.md`). Add new codes to the spec's `DomainErrorCode` enum too.
-- **Transactions**: `TransactionManager.run(work)` uses `AsyncLocalStorage`, and nested calls join the outer transaction. Repositories resolve their TypeORM `Repository` per call via `TypeOrmTransactionManager.getRepository(Entity)` (a getter, not a field).
-- **Unique constraints**: catch with `isUniqueViolation(error)` in the repository and rethrow as a domain error (slug taken).
-- **Pagination**: cursor (keyset) based: `@Query() PaginationQuery` (`limit` 1–100, default 50; opaque `cursor`) → `findPage(repository, { where, sortBy, direction }, page)` in the repository → `Page<T>` (`items`, `nextCursor`) → `PageResponse.fromPage(page, mapFn)`.
+- **DTOs** are `createZodDto` classes over the schemas generated from the spec (`@polis/core` re-exports them as `zX`, and the types as `ApiTypes`). Requests are validated by Krepis's `ZodValidationPipe`: unknown fields are rejected, query strings are coerced, and path IDs must be UUIDs (`400 VALIDATION_FAILED` with `errors`). Responses go through `@ZodSerializerDto`, which strips anything not in the spec. Don't add class-validator DTOs; class-validator and class-transformer stay installed only because Krepis still needs them for Hephaestus.
+- **Services** inject their own `Repository<Entity>` (`@InjectRepository`), their mapper and other services (never another module's repository); at most 7 dependencies. Every write is `@Transactional()`; nested calls join the outer transaction. Entities never leave a service: it returns response DTOs.
+- **Tenancy:** reads of an organization's resources call `OrganizationsService.assertExists` (404); writes call `assertAcceptsWrites` (404, or `ORGANIZATION_SUSPENDED`), which takes a shared row lock so the organization can't be suspended halfway through the write. Project lookups always filter by `organizationId`, so another organization's project is a 404.
+- **Actions are idempotent** (`../docs/api.md`): suspending a suspended organization or archiving an archived project returns the unchanged resource with `200`.
+- **Errors:** extend `DomainError(message, CODE)` in `<resource>.errors.ts`; Krepis's `ProblemDetailsFilter` turns them into `409` problem details with that `code`. Add new codes to the spec's `DomainErrorCode` enum too. Unique constraints are caught with `isUniqueViolation(error)` in the service and rethrown as a domain error (slug taken).
+- **Pagination:** list DTOs carry `limit` / `cursor`; services call Krepis's `findPage(repository, { where, sortBy, direction }, page)` and `mapPage(…, mapper.toResponse)`, returning `{ items, nextCursor }`.
 
 ### API contract
 
-Spec-first: the HTTP API is defined in `../contracts/polis.openapi.yaml`. `pnpm generate:api` reads it from the `@aether-os/contracts` workspace package and writes `libs/core/src/api/generated/polis-api.ts` (committed, never hand-edited). Every DTO declares `implements ApiSchema<'SchemaName'>` from `@polis/core`, so the build fails when a DTO drifts from the spec. This doesn't catch extra DTO fields the spec lacks, and the class-validator decorators must be kept in line with the spec's constraints by hand. To change an endpoint: edit the spec, regenerate, then update the DTO and controller.
+Spec-first: `../contracts/polis.openapi.yaml`. `pnpm generate:api` runs `@hey-api/openapi-ts` (`openapi-ts.config.ts`: TypeScript types and Zod schemas) into `libs/core/src/api/generated/` (committed, formatted, never hand-edited). To change an endpoint: edit the spec, regenerate, then update the DTO classes, mapper and controller. CI fails if the generated files are out of date.
 
 ### ESM
 
