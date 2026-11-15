@@ -3,6 +3,7 @@ packages:
   - krepis
   - polis
   - hephaestus
+  - pistis
   - iris
 
 # Native builds allowed during install.

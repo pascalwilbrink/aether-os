@@ -1,0 +1,339 @@
+openapi: 3.1.0
+info:
+  title: Pistis API
+  version: 0.1.0
+  description: |
+    Authentication for Aether-os (see `../docs/identity.md`). Pistis owns
+    **users** and the **external identities** linked to them: a user signs in
+    through any linked provider (Google, GitHub, an organization's Entra
+    tenant, …) and is always the same Pistis user, identified by its `id`
+    (the `sub` of the tokens Pistis will issue). Identities are linked by
+    `(provider, subject)`, the provider's own stable identifier, and never by
+    email address.
+
+    Follows `../docs/api.md`: paths under `/v1`, errors as problem details,
+    cursor pagination, UUIDs.
+
+tags:
+  - name: users
+  - name: user-providers
+
+paths:
+  /v1/users:
+    post:
+      tags: [users]
+      operationId: createUser
+      description: |
+        Creates a user with a first linked identity, so the user can sign in
+        from the start. Users who sign in through a provider for the first
+        time are created by the sign-in itself.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateUserRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [users]
+      operationId: listUsers
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /v1/users/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [users]
+      operationId: getUser
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [users]
+      operationId: updateUser
+      description: Replaces the user's profile (display name and contact email).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateUserRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/users/{userId}/disable:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    post:
+      tags: [users]
+      operationId: disableUser
+      description: Blocks sign-in through every linked identity. Idempotent.
+      responses:
+        '200':
+          description: Disabled (or already disabled)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/users/{userId}/enable:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    post:
+      tags: [users]
+      operationId: enableUser
+      description: Allows sign-in again. Idempotent.
+      responses:
+        '200':
+          description: Active (or already active)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/users/{userId}/providers:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    post:
+      tags: [user-providers]
+      operationId: linkUserProvider
+      description: |
+        Links another external identity to the user, so either signs in as
+        the same user. An identity belongs to at most one user
+        (`IDENTITY_ALREADY_LINKED`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LinkUserProviderRequest' }
+      responses:
+        '201':
+          description: Linked
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProviderResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [user-providers]
+      operationId: listUserProviders
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProviderPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/users/{userId}/providers/{userProviderId}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/UserProviderId'
+    delete:
+      tags: [user-providers]
+      operationId: unlinkUserProvider
+      description: |
+        Unlinks an identity. The last one can't be unlinked
+        (`USER_LAST_PROVIDER`): a user always has a way to sign in.
+      responses:
+        '204': { description: Unlinked }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+components:
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    UserProviderId:
+      name: userProviderId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Limit: { $ref: './common.openapi.yaml#/components/parameters/Limit' }
+    Cursor: { $ref: './common.openapi.yaml#/components/parameters/Cursor' }
+
+  responses:
+    ValidationError: { $ref: './common.openapi.yaml#/components/responses/BadRequest' }
+    NotFound: { $ref: './common.openapi.yaml#/components/responses/NotFound' }
+    DomainError:
+      description: A business rule forbids this (409, with a `DomainErrorCode`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/DomainProblem' }
+
+  schemas:
+    # ---------- errors ----------
+    Problem: { $ref: './common.openapi.yaml#/components/schemas/Problem' }
+    DomainErrorCode:
+      type: string
+      enum:
+        - IDENTITY_ALREADY_LINKED
+        - USER_LAST_PROVIDER
+    DomainProblem:
+      description: Problem details for a business-rule violation.
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          required: [code]
+          properties:
+            code: { $ref: '#/components/schemas/DomainErrorCode' }
+
+    # ---------- shared ----------
+    Timestamp:
+      type: string
+      format: date-time
+    Email:
+      type: string
+      format: email
+      maxLength: 320
+      description: |
+        Contact information only. Never used to find or link a user: anyone
+        controlling an upstream account with the same address would take
+        over the user (`docs/identity.md`).
+
+    # ---------- users ----------
+    UserStatus:
+      type: string
+      enum: [active, disabled]
+    CreateUserRequest:
+      type: object
+      additionalProperties: false
+      required: [displayName, email, provider]
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 200 }
+        email:
+          oneOf:
+            - $ref: '#/components/schemas/Email'
+            - type: 'null'
+        provider: { $ref: '#/components/schemas/LinkUserProviderRequest' }
+    UpdateUserRequest:
+      type: object
+      additionalProperties: false
+      required: [displayName, email]
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 200 }
+        email:
+          oneOf:
+            - $ref: '#/components/schemas/Email'
+            - type: 'null'
+    UserResponse:
+      type: object
+      required: [id, displayName, email, status, createdAt, updatedAt, lastSignInAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The user's Pistis `sub`.
+        displayName: { type: string }
+        email: { type: [string, 'null'] }
+        status: { $ref: '#/components/schemas/UserStatus' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        lastSignInAt:
+          type: [string, 'null']
+          format: date-time
+    UserPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/UserResponse' }
+
+    # ---------- linked identities ----------
+    Provider:
+      type: string
+      pattern: '^[a-z0-9][a-z0-9:._-]{0,62}$'
+      description: |
+        The identity provider, as configured in Pistis: `google`, `github`,
+        `entra:<tenant id>`, … Lowercase letters, digits and `:._-`.
+    ProviderSubject:
+      type: string
+      minLength: 1
+      maxLength: 255
+      description: |
+        The provider's stable identifier for the account (an OIDC `sub`, a
+        GitHub user ID, an Entra object ID), never an email address or a
+        username that can change.
+    LinkUserProviderRequest:
+      type: object
+      additionalProperties: false
+      required: [provider, subject, email, emailVerified]
+      properties:
+        provider: { $ref: '#/components/schemas/Provider' }
+        subject: { $ref: '#/components/schemas/ProviderSubject' }
+        email:
+          oneOf:
+            - $ref: '#/components/schemas/Email'
+            - type: 'null'
+        emailVerified:
+          type: boolean
+          description: Whether the provider says it verified the email.
+    UserProviderResponse:
+      type: object
+      required: [id, userId, provider, subject, email, emailVerified, createdAt, lastSignInAt]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        provider: { type: string }
+        subject: { type: string }
+        email: { type: [string, 'null'] }
+        emailVerified: { type: boolean }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        lastSignInAt:
+          type: [string, 'null']
+          format: date-time
+    UserProviderPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/UserProviderResponse' }
+
+    # ---------- pagination ----------
+    PageMeta:
+      type: object
+      required: [nextCursor]
+      properties:
+        nextCursor: { $ref: './common.openapi.yaml#/components/schemas/NextCursor' }

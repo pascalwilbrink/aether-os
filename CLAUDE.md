@@ -8,7 +8,7 @@ Aether-os is a platform for building, running and supporting AI agents. This fol
 
 | Component | Owns | Location | Status |
 |---|---|---|---|
-| **Pistis** | Authentication: an OIDC provider that federates external identity providers (e.g. Entra ID, Auth0); user identity, service accounts, API keys, and the tokens other services verify | not created yet | Planned |
+| **Pistis** | Authentication: an OIDC provider that federates external identity providers (e.g. Entra ID, Auth0); user identity, service accounts, API keys, and the tokens other services verify | `pistis/` | Active: users and linked identities; tokens next |
 | **Polis** | Tenancy: organizations, projects, and memberships (which user belongs to which organization, with what role) | `polis/` | Active |
 | **Agora** | Agent management: agent definitions and their immutable versions | not created yet | Planned |
 | **Themis** | Policies: versioned Rego policy sets per organization/project, served to OPA as bundles ([APS](https://agentpolicyspecification.github.io)) | not created yet | Planned |
@@ -110,7 +110,7 @@ Organizations and projects live in Polis only: Hephaestus keeps their status fro
 
 ### Workspace
 
-The root `pnpm-workspace.yaml` lists the packages: `contracts` (`@aether-os/contracts`), `krepis` (`@aether-os/krepis`), `polis`, `hephaestus` and `iris`. There is one lockfile, at the root; always run `pnpm install` from the root. Add new services to `pnpm-workspace.yaml`.
+The root `pnpm-workspace.yaml` lists the packages: `contracts` (`@aether-os/contracts`), `krepis` (`@aether-os/krepis`), `polis`, `hephaestus`, `pistis` and `iris`. There is one lockfile, at the root; always run `pnpm install` from the root. Add new services to `pnpm-workspace.yaml`.
 
 ```bash
 pnpm install               # whole workspace
@@ -120,7 +120,7 @@ pnpm --filter polis test   # one package (or run pnpm inside its directory)
 pnpm format:check          # prettier, as CI runs it (`pnpm format` in a package fixes it)
 ```
 
-`test:e2e` needs Docker (Krepis, Polis, Hephaestus): Testcontainers starts `postgres:17.5-alpine` and `rabbitmq:4.1-management` per run. Where Docker Hub can't be reached for Testcontainers' Ryuk image, run with `TESTCONTAINERS_RYUK_DISABLED=true`.
+`test:e2e` needs Docker (Krepis, Polis, Hephaestus, Pistis): Testcontainers starts `postgres:17.5-alpine` and `rabbitmq:4.1-management` per run. Where Docker Hub can't be reached for Testcontainers' Ryuk image, run with `TESTCONTAINERS_RYUK_DISABLED=true`.
 
 **CI** (`.github/workflows/ci.yml`, on pushes to `main` and on pull requests) runs, in order: `pnpm install --frozen-lockfile`, `pnpm generate:api` (fails if the generated files differ from what's committed), `format:check`, `lint`, `build`, `test` and `test:e2e`. Each step only covers the packages changed since the base commit (the pull request's merge base, or the previous `main` commit) plus the packages that depend on them, so a Krepis change also checks Polis and Hephaestus, a `contracts` change checks every consumer, and changes only to `docs/` or `infra/` check nothing. Changes to the lockfile, `pnpm-workspace.yaml`, the root `package.json` or `.github/` check everything (see `.github/scripts/affected-filter.sh`). Run the same locally before pushing.
 
@@ -139,7 +139,7 @@ docker compose down -v     # stop and wipe all data
 
 | What | Where |
 |---|---|
-| Iris / Polis / Hephaestus | `localhost:3000` / `3001` / `3002` (each app's default `PORT`) |
+| Iris / Polis / Hephaestus / Pistis | `localhost:3000` / `3001` / `3002` / `3003` (each app's default `PORT`) |
 | Postgres | `localhost:5432`, user `aether` / `aether`, one database per service (`infra/postgres/init/`) |
 | RabbitMQ | AMQP `localhost:5672`, UI `localhost:15672`, `aether` / `aether` |
 | OpenBao | `localhost:8200`, root token `dev-root-token` (dev mode: in-memory, wiped on restart) |
@@ -150,4 +150,4 @@ docker compose down -v     # stop and wipe all data
 | Mailpit | SMTP `localhost:1025` (any credentials), UI `localhost:8025`: catches all local email; production uses Resend or SES |
 | Grafana | `localhost:3300` (no login locally): logs from Loki, linked to traces in Jaeger |
 
-All credentials are fixed local-only values. MinIO in the compose file is only Langfuse's storage, not a stand-in for Loculus. Polis and Hephaestus run on their own Postgres databases with migrations (`cd polis && cp .env.example .env && pnpm start:dev`, likewise in `hephaestus`); there's no SQLite left.
+All credentials are fixed local-only values. MinIO in the compose file is only Langfuse's storage, not a stand-in for Loculus. Polis, Hephaestus and Pistis run on their own Postgres databases with migrations (`cd polis && cp .env.example .env && pnpm start:dev`, likewise in `hephaestus`); there's no SQLite left.
