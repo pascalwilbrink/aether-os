@@ -20,7 +20,7 @@ import type { DomainEvent } from './domain-event.js';
 import { DomainEvents } from './domain-events.js';
 import { EventsModule } from './events.module.js';
 import { runWithTraceContext } from '../telemetry/trace-context.js';
-import { OnEvent } from './index.js';
+import { OnDomainEvent } from './on-domain-event.js';
 import { MessagePublisher } from './message-publisher.js';
 import { OutboxRelay } from './outbox-relay.js';
 import { OutboxMessageEntity } from './outbox-message.entity.js';
@@ -67,7 +67,7 @@ class ThingsService {
     }
   }
 
-  @OnEvent('test.thing.created')
+  @OnDomainEvent('test.thing.created')
   onCreated(event: DomainEvent): void {
     this.seen.push(event);
   }
@@ -98,8 +98,11 @@ describe('Outbox (Postgres + RabbitMQ)', () => {
         EventsModule.forRoot({
           service: 'test',
           publish: ['thing.created'],
-          relay: {
-            useFactory: () => ({ url: inject('rabbitmqUrl'), intervalMs: 0 }),
+          rabbitmq: {
+            useFactory: () => ({
+              url: inject('rabbitmqUrl'),
+              relayIntervalMs: 0,
+            }),
           },
         }),
       ],

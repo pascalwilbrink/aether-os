@@ -54,6 +54,7 @@ describe('Projects (e2e)', () => {
       createdBy: 'user-1',
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
+      version: 1,
     });
 
     await createProject('other');

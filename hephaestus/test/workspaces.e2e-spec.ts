@@ -5,26 +5,24 @@ import type { App } from 'supertest/types.js';
 import { WorkspacesService } from '@hephaestus/workspaces';
 
 import { createApp, MISSING_ID } from './app.js';
+import {
+  organizationEvent,
+  projectArchived,
+  type FakePolis,
+} from './fake-polis.js';
 
 describe('Workspaces (e2e)', () => {
   let app: INestApplication<App>;
+  let polis: FakePolis;
   let orgId: string;
   let projectId: string;
   let base: string;
 
   beforeEach(async () => {
-    app = await createApp();
-    const org = await http()
-      .post('/v1/organizations')
-      .send({ name: 'Acme', slug: 'acme', createdBy: 'user-1' })
-      .expect(201);
-    orgId = org.body.id;
+    ({ app, polis } = await createApp());
+    orgId = polis.organization();
     base = `/v1/organizations/${orgId}/workspaces`;
-    const project = await http()
-      .post(`/v1/organizations/${orgId}/projects`)
-      .send({ name: 'App', slug: 'app', description: '', createdBy: 'user-1' })
-      .expect(201);
-    projectId = project.body.id;
+    projectId = polis.project(orgId);
   });
 
   afterEach(async () => {
@@ -133,13 +131,11 @@ describe('Workspaces (e2e)', () => {
   });
 
   it('requires an active project and organization', async () => {
-    await http()
-      .post(`/v1/organizations/${orgId}/projects/${projectId}/archive`)
-      .expect(200);
+    await projectArchived(app, orgId, projectId, 2);
     const archived = await http().post(base).send(body()).expect(409);
     expect(archived.body.code).toBe('PROJECT_ARCHIVED');
 
-    await http().post(`/v1/organizations/${orgId}/suspend`).expect(200);
+    await organizationEvent(app, orgId, 'organization.suspended', 2);
     const suspended = await http().post(base).send(body()).expect(409);
     expect(suspended.body.code).toBe('ORGANIZATION_SUSPENDED');
   });

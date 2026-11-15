@@ -114,7 +114,12 @@ export class ProblemDetailsFilter implements ExceptionFilter {
       return {
         status,
         code: codeForStatus(status),
-        detail: status >= 500 ? INTERNAL_DETAIL : messageOf(exception),
+        // 503s are expected and their messages written to be shown (e.g. a
+        // dependency that can't be reached); other 5xx details stay hidden.
+        detail:
+          status >= 500 && status !== HttpStatus.SERVICE_UNAVAILABLE
+            ? INTERNAL_DETAIL
+            : messageOf(exception),
       };
     }
     // Errors from Express middleware (e.g. a malformed JSON body) carry a

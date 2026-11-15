@@ -1,4 +1,5 @@
 import { Initial1794746266946 } from './1794746266946-Initial.js';
+import { Tenancy1794755705357 } from './1794755705357-Tenancy.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -6,4 +7,4 @@ import { Initial1794746266946 } from './1794746266946-Initial.js';
  * review it, and add it here. Migrations must stay compatible with the
  * previous release (expand, then contract): there are no down migrations.
  */
-export const migrations = [Initial1794746266946];
+export const migrations = [Initial1794746266946, Tenancy1794755705357];

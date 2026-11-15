@@ -1,34 +1,51 @@
 export const EVENTS_OPTIONS = Symbol('EVENTS_OPTIONS');
-export const RELAY_OPTIONS = Symbol('RELAY_OPTIONS');
+export const RABBITMQ_OPTIONS = Symbol('RABBITMQ_OPTIONS');
 
 export interface EventsOptions {
-  /** The producing service, e.g. `polis`: local events are `<service>.<eventType>`, published to `<service>.events`. */
+  /** This service, e.g. `polis`: its local events are `<service>.<eventType>`, published to `<service>.events`. */
   service: string;
   /**
-   * Event types that go to RabbitMQ (the service's AsyncAPI spec lists them).
-   * Others stay in-process.
+   * Event types this service publishes to RabbitMQ (its AsyncAPI spec lists
+   * them). Others stay in-process.
    */
   publish: readonly string[];
+  /**
+   * Events this service consumes, per producing service:
+   * `{ polis: ['organization.suspended', …] }`. Each producer gets one
+   * durable queue, `<service>.<producer>-events`, bound to those routing
+   * keys; every event is deduplicated through the `inbox` table and emitted
+   * locally as `<producer>.<eventType>` (handle it with `@OnDomainEvent`).
+   */
+  subscribe?: Readonly<Record<string, readonly string[]>>;
 }
 
-export interface RelayOptions {
+export interface RabbitMqOptions {
   /** AMQP URL of RabbitMQ. */
   url: string;
-  /** How often the relay looks for unpublished events; 0 disables the timer (tests call `relayBatch`). */
-  intervalMs?: number;
-  /** Events per batch. */
-  batchSize?: number;
-  /** How long published events stay in the outbox before they're deleted. */
-  retentionMs?: number;
+  /** How often the relay publishes waiting outbox rows; 0 disables the timer (tests call `relayBatch`). */
+  relayIntervalMs?: number;
+  /** Outbox rows per relay batch. */
+  relayBatchSize?: number;
+  /** How long published outbox rows are kept. */
+  outboxRetentionMs?: number;
+  /** Unacknowledged messages a consumer holds at once. */
+  prefetch?: number;
+  /** Deliveries of a failing message before it goes to the dead-letter queue. */
+  maxAttempts?: number;
+  /** Delay before the first retry; doubles with each attempt. */
+  retryDelayMs?: number;
 }
 
 export interface EventsModuleOptions extends EventsOptions {
   /**
-   * Relay to RabbitMQ, configured from the service's settings. Leave out to
-   * only store events (they're published once a relay runs).
+   * RabbitMQ, configured from the service's settings: the outbox relay and,
+   * with `subscribe`, the consumers. Leave out to only store and handle
+   * events in-process (tests).
    */
-  relay?: {
+  rabbitmq?: {
     inject?: (string | symbol | (abstract new (...args: never[]) => unknown))[];
-    useFactory: (...args: never[]) => RelayOptions | Promise<RelayOptions>;
+    useFactory: (
+      ...args: never[]
+    ) => RabbitMqOptions | Promise<RabbitMqOptions>;
   };
 }

@@ -99,3 +99,10 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+    Unavailable:
+      description: |
+        `UNAVAILABLE`: a service this request depends on can't be reached
+        right now. Safe to retry.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }

@@ -1,8 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 
-import { OrganizationsService } from '@hephaestus/organizations';
-
+import { organizationEvent, type FakePolis } from '../../../test/fake-polis.js';
 import { createTestingModule } from '../../../test/testing-module.js';
 import { AgentVersionsService } from './agent-versions.service.js';
 import { AgentsModule } from './agents.module.js';
@@ -27,21 +26,14 @@ describe('AgentsService and AgentVersionsService (Postgres)', () => {
   let moduleRef: TestingModule;
   let agents: AgentsService;
   let versions: AgentVersionsService;
-  let organizations: OrganizationsService;
+  let polis: FakePolis;
   let orgId: string;
 
   beforeEach(async () => {
-    moduleRef = await createTestingModule(AgentsModule);
+    ({ moduleRef, polis } = await createTestingModule(AgentsModule));
     agents = moduleRef.get(AgentsService);
     versions = moduleRef.get(AgentVersionsService);
-    organizations = moduleRef.get(OrganizationsService);
-    orgId = (
-      await organizations.create({
-        name: 'Acme',
-        slug: 'acme',
-        createdBy: 'user-1',
-      })
-    ).id;
+    orgId = polis.organization();
   });
 
   afterEach(async () => {
@@ -57,11 +49,7 @@ describe('AgentsService and AgentVersionsService (Postgres)', () => {
 
   it('creates agents, scoped to their organization', async () => {
     const agent = await createAgent();
-    const other = await organizations.create({
-      name: 'Globex',
-      slug: 'globex',
-      createdBy: 'user-1',
-    });
+    const other = { id: polis.organization() };
 
     await expect(agents.findById(orgId, agent.id)).resolves.toEqual(agent);
     await expect(agents.findById(other.id, agent.id)).rejects.toBeInstanceOf(
@@ -95,7 +83,9 @@ describe('AgentsService and AgentVersionsService (Postgres)', () => {
       ),
     );
 
-    expect(created.map((v) => v.version).sort()).toEqual([1, 2, 3, 4, 5]);
+    expect(created.map((v) => v.version).sort((a, b) => a - b)).toEqual([
+      1, 2, 3, 4, 5,
+    ]);
     expect(created.every((v) => v.status === 'draft')).toBe(true);
     expect(created[0].tools).toEqual(versionBody.tools);
   });
@@ -171,7 +161,7 @@ describe('AgentsService and AgentVersionsService (Postgres)', () => {
   it('blocks writes, but not reads, while the organization is suspended', async () => {
     const agent = await createAgent();
     const version = await versions.create(orgId, agent.id, versionBody);
-    await organizations.suspend(orgId);
+    await organizationEvent(moduleRef, orgId, 'organization.suspended', 2);
 
     for (const write of [
       () => createAgent(),

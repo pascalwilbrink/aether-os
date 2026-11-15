@@ -22,6 +22,14 @@ export type Slug = string;
 
 export type Timestamp = string;
 
+/**
+ * Increases with every change; the same number as the `aggregateVersion`
+ * of the resource's events, so a consumer can tell whether what it
+ * fetched is newer than an event it receives.
+ *
+ */
+export type Version = number;
+
 export type OrganizationStatus = 'active' | 'suspended';
 
 export type CreateOrganizationRequest = {
@@ -41,6 +49,7 @@ export type OrganizationResponse = {
     createdBy: string;
     createdAt: Timestamp;
     updatedAt: Timestamp;
+    version: Version;
 };
 
 export type OrganizationPage = PageMeta & {
@@ -69,6 +78,7 @@ export type ProjectResponse = {
     createdBy: string;
     createdAt: Timestamp;
     updatedAt: Timestamp;
+    version: Version;
 };
 
 export type ProjectPage = PageMeta & {

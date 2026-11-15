@@ -1,189 +1,31 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
+
+    Organizations and projects belong to Polis: Hephaestus keeps a copy of
+    their status from Polis's events, so a write in a suspended organization
+    or for an archived project is rejected (409) here too. An organization or
+    project Hephaestus hasn't seen yet is looked up in Polis; if Polis can't be
+    reached then, the request fails with `503 UNAVAILABLE`.
 
     Follows `../docs/api.md`: paths under `/v1`, errors as problem details
     (`Problem`, `application/problem+json`; business-rule violations are 409
     with a `DomainErrorCode`), and lists paginated with `limit` / `cursor` →
     `items` / `nextCursor`. IDs are UUIDs; a path parameter that isn't one is
     `400`. Actions are idempotent where that's natural (archiving an archived
-    agent or project, suspending a suspended organization, publishing the
-    published version); workspace transitions stay strict (`409`).
+    agent, publishing the published version); workspace transitions stay
+    strict (`409`).
 
 tags:
-  - name: organizations
-  - name: projects
   - name: agents
   - name: agent-versions
   - name: workspaces
 
 paths:
-  /v1/organizations:
-    post:
-      tags: [organizations]
-      operationId: createOrganization
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/CreateOrganizationRequest' }
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/OrganizationResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '409': { $ref: '#/components/responses/DomainError' }
-    get:
-      tags: [organizations]
-      operationId: listOrganizations
-      parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Cursor'
-      responses:
-        '200':
-          description: Newest first
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/OrganizationPage' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-
-  /v1/organizations/by-slug/{slug}:
-    get:
-      tags: [organizations]
-      operationId: getOrganizationBySlug
-      parameters:
-        - name: slug
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/OrganizationResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-
-  /v1/organizations/{organizationId}:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-    get:
-      tags: [organizations]
-      operationId: getOrganization
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/OrganizationResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-
-  /v1/organizations/{organizationId}/suspend:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-    post:
-      tags: [organizations]
-      operationId: suspendOrganization
-      responses:
-        '200':
-          description: Suspended (or already suspended)
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/OrganizationResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-
-  /v1/organizations/{organizationId}/activate:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-    post:
-      tags: [organizations]
-      operationId: activateOrganization
-      responses:
-        '200':
-          description: Active (or already active)
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/OrganizationResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-
-  /v1/organizations/{organizationId}/projects:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-    post:
-      tags: [projects]
-      operationId: createProject
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/CreateProjectRequest' }
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ProjectResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-    get:
-      tags: [projects]
-      operationId: listProjects
-      parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Cursor'
-      responses:
-        '200':
-          description: Newest first
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ProjectPage' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-
-  /v1/organizations/{organizationId}/projects/{projectId}:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-      - $ref: '#/components/parameters/ProjectId'
-    get:
-      tags: [projects]
-      operationId: getProject
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ProjectResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-
-  /v1/organizations/{organizationId}/projects/{projectId}/archive:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-      - $ref: '#/components/parameters/ProjectId'
-    post:
-      tags: [projects]
-      operationId: archiveProject
-      responses:
-        '200':
-          description: Archived (or already archived)
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ProjectResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-
   /v1/organizations/{organizationId}/agents:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
@@ -204,6 +46,7 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
     get:
       tags: [agents]
       operationId: listAgents
@@ -218,6 +61,7 @@ paths:
               schema: { $ref: '#/components/schemas/AgentPage' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
 
   /v1/organizations/{organizationId}/agents/{agentId}:
     parameters:
@@ -234,6 +78,7 @@ paths:
               schema: { $ref: '#/components/schemas/AgentResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
 
   /v1/organizations/{organizationId}/agents/{agentId}/archive:
     parameters:
@@ -251,6 +96,7 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
 
   /v1/organizations/{organizationId}/agents/{agentId}/versions:
     parameters:
@@ -274,6 +120,7 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
     get:
       tags: [agent-versions]
       operationId: listAgentVersions
@@ -288,6 +135,7 @@ paths:
               schema: { $ref: '#/components/schemas/AgentVersionPage' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
 
   /v1/organizations/{organizationId}/agents/{agentId}/versions/{versionId}:
     parameters:
@@ -305,6 +153,7 @@ paths:
               schema: { $ref: '#/components/schemas/AgentVersionResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
 
   /v1/organizations/{organizationId}/agents/{agentId}/versions/{versionId}/publish:
     parameters:
@@ -327,6 +176,7 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
 
   /v1/organizations/{organizationId}/workspaces:
     parameters:
@@ -348,6 +198,7 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
     get:
       tags: [workspaces]
       operationId: listWorkspaces
@@ -362,6 +213,7 @@ paths:
               schema: { $ref: '#/components/schemas/WorkspacePage' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
 
   /v1/organizations/{organizationId}/workspaces/{workspaceId}:
     parameters:
@@ -378,6 +230,7 @@ paths:
               schema: { $ref: '#/components/schemas/WorkspaceResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
 
   /v1/organizations/{organizationId}/workspaces/{workspaceId}/acquire:
     parameters:
@@ -391,6 +244,7 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
 
   /v1/organizations/{organizationId}/workspaces/{workspaceId}/release:
     parameters:
@@ -404,6 +258,7 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
 
   /v1/organizations/{organizationId}/workspaces/{workspaceId}/suspend:
     parameters:
@@ -417,6 +272,7 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
 
   /v1/organizations/{organizationId}/workspaces/{workspaceId}/resume:
     parameters:
@@ -430,6 +286,7 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
 
   /v1/organizations/{organizationId}/workspaces/{workspaceId}/destroy:
     parameters:
@@ -444,16 +301,12 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
 
 components:
   parameters:
     OrganizationId:
       name: organizationId
-      in: path
-      required: true
-      schema: { type: string, format: uuid }
-    ProjectId:
-      name: projectId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -478,6 +331,7 @@ components:
   responses:
     ValidationError: { $ref: './common.openapi.yaml#/components/responses/BadRequest' }
     NotFound: { $ref: './common.openapi.yaml#/components/responses/NotFound' }
+    Unavailable: { $ref: './common.openapi.yaml#/components/responses/Unavailable' }
     DomainError:
       description: A business rule forbids this (409, with a `DomainErrorCode`).
       content:
@@ -498,10 +352,8 @@ components:
         - AGENT_ARCHIVED
         - AGENT_VERSION_CONFLICT
         - AGENT_VERSION_INVALID_TRANSITION
-        - ORGANIZATION_SLUG_TAKEN
         - ORGANIZATION_SUSPENDED
         - PROJECT_ARCHIVED
-        - PROJECT_SLUG_TAKEN
         - WORKSPACE_INVALID_EXPIRY
         - WORKSPACE_INVALID_TRANSITION
     DomainProblem:
@@ -514,89 +366,9 @@ components:
             code: { $ref: '#/components/schemas/DomainErrorCode' }
 
     # ---------- shared ----------
-    Slug:
-      type: string
-      minLength: 3
-      maxLength: 63
-      pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
-      description: Lowercase letters, digits and single hyphens.
     Timestamp:
       type: string
       format: date-time
-
-    # ---------- organizations ----------
-    OrganizationStatus:
-      type: string
-      enum: [active, suspended]
-    CreateOrganizationRequest:
-      type: object
-      additionalProperties: false
-      required: [name, slug, createdBy]
-      properties:
-        name: { type: string, minLength: 1, maxLength: 200 }
-        slug: { $ref: '#/components/schemas/Slug' }
-        createdBy:
-          type: string
-          minLength: 1
-          description: Temporary until authentication exists.
-    OrganizationResponse:
-      type: object
-      required: [id, name, slug, status, createdBy, createdAt, updatedAt]
-      properties:
-        id: { type: string, format: uuid }
-        name: { type: string }
-        slug: { type: string }
-        status: { $ref: '#/components/schemas/OrganizationStatus' }
-        createdBy: { type: string }
-        createdAt: { $ref: '#/components/schemas/Timestamp' }
-        updatedAt: { $ref: '#/components/schemas/Timestamp' }
-    OrganizationPage:
-      allOf:
-        - $ref: '#/components/schemas/PageMeta'
-        - type: object
-          required: [items]
-          properties:
-            items:
-              type: array
-              items: { $ref: '#/components/schemas/OrganizationResponse' }
-
-    # ---------- projects ----------
-    ProjectStatus:
-      type: string
-      enum: [active, archived]
-    CreateProjectRequest:
-      type: object
-      additionalProperties: false
-      required: [name, slug, description, createdBy]
-      properties:
-        name: { type: string, minLength: 1, maxLength: 200 }
-        slug:
-          $ref: '#/components/schemas/Slug'
-          description: Unique within the organization.
-        description: { type: string, maxLength: 2000 }
-        createdBy: { type: string, minLength: 1 }
-    ProjectResponse:
-      type: object
-      required: [id, organizationId, name, slug, description, status, createdBy, createdAt, updatedAt]
-      properties:
-        id: { type: string, format: uuid }
-        organizationId: { type: string, format: uuid }
-        name: { type: string }
-        slug: { type: string }
-        description: { type: string }
-        status: { $ref: '#/components/schemas/ProjectStatus' }
-        createdBy: { type: string }
-        createdAt: { $ref: '#/components/schemas/Timestamp' }
-        updatedAt: { $ref: '#/components/schemas/Timestamp' }
-    ProjectPage:
-      allOf:
-        - $ref: '#/components/schemas/PageMeta'
-        - type: object
-          required: [items]
-          properties:
-            items:
-              type: array
-              items: { $ref: '#/components/schemas/ProjectResponse' }
 
     # ---------- agents ----------
     AgentStatus:

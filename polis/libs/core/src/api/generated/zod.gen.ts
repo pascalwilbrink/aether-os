@@ -16,6 +16,14 @@ export const zSlug = z.string().min(3).max(63).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$
 
 export const zTimestamp = z.iso.datetime();
 
+/**
+ * Increases with every change; the same number as the `aggregateVersion`
+ * of the resource's events, so a consumer can tell whether what it
+ * fetched is newer than an event it receives.
+ *
+ */
+export const zVersion = z.int().gte(1);
+
 export const zOrganizationStatus = z.enum(['active', 'suspended']);
 
 export const zCreateOrganizationRequest = z.object({
@@ -31,7 +39,8 @@ export const zOrganizationResponse = z.object({
     status: zOrganizationStatus,
     createdBy: z.string(),
     createdAt: zTimestamp,
-    updatedAt: zTimestamp
+    updatedAt: zTimestamp,
+    version: zVersion
 });
 
 export const zProjectStatus = z.enum(['active', 'archived']);
@@ -52,7 +61,8 @@ export const zProjectResponse = z.object({
     status: zProjectStatus,
     createdBy: z.string(),
     createdAt: zTimestamp,
-    updatedAt: zTimestamp
+    updatedAt: zTimestamp,
+    version: zVersion
 });
 
 /**

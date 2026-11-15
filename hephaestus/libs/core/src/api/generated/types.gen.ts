@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ORGANIZATION_SLUG_TAKEN' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'PROJECT_SLUG_TAKEN' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
+export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
 
 /**
  * Problem details for a business-rule violation.
@@ -15,65 +15,7 @@ export type DomainProblem = CommonOpenapiProblem & {
     code: DomainErrorCode;
 };
 
-/**
- * Lowercase letters, digits and single hyphens.
- */
-export type Slug = string;
-
 export type Timestamp = string;
-
-export type OrganizationStatus = 'active' | 'suspended';
-
-export type CreateOrganizationRequest = {
-    name: string;
-    slug: Slug;
-    /**
-     * Temporary until authentication exists.
-     */
-    createdBy: string;
-};
-
-export type OrganizationResponse = {
-    id: string;
-    name: string;
-    slug: string;
-    status: OrganizationStatus;
-    createdBy: string;
-    createdAt: Timestamp;
-    updatedAt: Timestamp;
-};
-
-export type OrganizationPage = PageMeta & {
-    items: Array<OrganizationResponse>;
-};
-
-export type ProjectStatus = 'active' | 'archived';
-
-export type CreateProjectRequest = {
-    name: string;
-    /**
-     * Unique within the organization.
-     */
-    slug: Slug;
-    description: string;
-    createdBy: string;
-};
-
-export type ProjectResponse = {
-    id: string;
-    organizationId: string;
-    name: string;
-    slug: string;
-    description: string;
-    status: ProjectStatus;
-    createdBy: string;
-    createdAt: Timestamp;
-    updatedAt: Timestamp;
-};
-
-export type ProjectPage = PageMeta & {
-    items: Array<ProjectResponse>;
-};
 
 export type AgentStatus = 'active' | 'archived';
 
@@ -299,8 +241,6 @@ export type ProblemFieldError = {
 
 export type OrganizationId = string;
 
-export type ProjectId = string;
-
 export type AgentId = string;
 
 export type VersionId = string;
@@ -332,362 +272,6 @@ export type CommonOpenapiCursor = string;
  * Page size.
  */
 export type CommonOpenapiLimit = number;
-
-export type ListOrganizationsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Page size.
-         */
-        limit?: number;
-        /**
-         * Opaque cursor from the previous page's `nextCursor`; leave it out for
-         * the first page. A cursor only works with the filters it was made with
-         * (otherwise `400 INVALID_CURSOR`).
-         *
-         */
-        cursor?: string;
-    };
-    url: '/v1/organizations';
-};
-
-export type ListOrganizationsErrors = {
-    /**
-     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-     * `INVALID_CURSOR`.
-     *
-     */
-    400: CommonOpenapiProblem;
-};
-
-export type ListOrganizationsError = ListOrganizationsErrors[keyof ListOrganizationsErrors];
-
-export type ListOrganizationsResponses = {
-    /**
-     * Newest first
-     */
-    200: OrganizationPage;
-};
-
-export type ListOrganizationsResponse = ListOrganizationsResponses[keyof ListOrganizationsResponses];
-
-export type CreateOrganizationData = {
-    body: CreateOrganizationRequest;
-    path?: never;
-    query?: never;
-    url: '/v1/organizations';
-};
-
-export type CreateOrganizationErrors = {
-    /**
-     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-     * `INVALID_CURSOR`.
-     *
-     */
-    400: CommonOpenapiProblem;
-    /**
-     * A business rule forbids this (409, with a `DomainErrorCode`).
-     */
-    409: DomainProblem;
-};
-
-export type CreateOrganizationError = CreateOrganizationErrors[keyof CreateOrganizationErrors];
-
-export type CreateOrganizationResponses = {
-    /**
-     * Created
-     */
-    201: OrganizationResponse;
-};
-
-export type CreateOrganizationResponse = CreateOrganizationResponses[keyof CreateOrganizationResponses];
-
-export type GetOrganizationBySlugData = {
-    body?: never;
-    path: {
-        slug: string;
-    };
-    query?: never;
-    url: '/v1/organizations/by-slug/{slug}';
-};
-
-export type GetOrganizationBySlugErrors = {
-    /**
-     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-     * `INVALID_CURSOR`.
-     *
-     */
-    400: CommonOpenapiProblem;
-    /**
-     * `NOT_FOUND`: the resource doesn't exist.
-     */
-    404: CommonOpenapiProblem;
-};
-
-export type GetOrganizationBySlugError = GetOrganizationBySlugErrors[keyof GetOrganizationBySlugErrors];
-
-export type GetOrganizationBySlugResponses = {
-    /**
-     * OK
-     */
-    200: OrganizationResponse;
-};
-
-export type GetOrganizationBySlugResponse = GetOrganizationBySlugResponses[keyof GetOrganizationBySlugResponses];
-
-export type GetOrganizationData = {
-    body?: never;
-    path: {
-        organizationId: string;
-    };
-    query?: never;
-    url: '/v1/organizations/{organizationId}';
-};
-
-export type GetOrganizationErrors = {
-    /**
-     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-     * `INVALID_CURSOR`.
-     *
-     */
-    400: CommonOpenapiProblem;
-    /**
-     * `NOT_FOUND`: the resource doesn't exist.
-     */
-    404: CommonOpenapiProblem;
-};
-
-export type GetOrganizationError = GetOrganizationErrors[keyof GetOrganizationErrors];
-
-export type GetOrganizationResponses = {
-    /**
-     * OK
-     */
-    200: OrganizationResponse;
-};
-
-export type GetOrganizationResponse = GetOrganizationResponses[keyof GetOrganizationResponses];
-
-export type SuspendOrganizationData = {
-    body?: never;
-    path: {
-        organizationId: string;
-    };
-    query?: never;
-    url: '/v1/organizations/{organizationId}/suspend';
-};
-
-export type SuspendOrganizationErrors = {
-    /**
-     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-     * `INVALID_CURSOR`.
-     *
-     */
-    400: CommonOpenapiProblem;
-    /**
-     * `NOT_FOUND`: the resource doesn't exist.
-     */
-    404: CommonOpenapiProblem;
-};
-
-export type SuspendOrganizationError = SuspendOrganizationErrors[keyof SuspendOrganizationErrors];
-
-export type SuspendOrganizationResponses = {
-    /**
-     * Suspended (or already suspended)
-     */
-    200: OrganizationResponse;
-};
-
-export type SuspendOrganizationResponse = SuspendOrganizationResponses[keyof SuspendOrganizationResponses];
-
-export type ActivateOrganizationData = {
-    body?: never;
-    path: {
-        organizationId: string;
-    };
-    query?: never;
-    url: '/v1/organizations/{organizationId}/activate';
-};
-
-export type ActivateOrganizationErrors = {
-    /**
-     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-     * `INVALID_CURSOR`.
-     *
-     */
-    400: CommonOpenapiProblem;
-    /**
-     * `NOT_FOUND`: the resource doesn't exist.
-     */
-    404: CommonOpenapiProblem;
-};
-
-export type ActivateOrganizationError = ActivateOrganizationErrors[keyof ActivateOrganizationErrors];
-
-export type ActivateOrganizationResponses = {
-    /**
-     * Active (or already active)
-     */
-    200: OrganizationResponse;
-};
-
-export type ActivateOrganizationResponse = ActivateOrganizationResponses[keyof ActivateOrganizationResponses];
-
-export type ListProjectsData = {
-    body?: never;
-    path: {
-        organizationId: string;
-    };
-    query?: {
-        /**
-         * Page size.
-         */
-        limit?: number;
-        /**
-         * Opaque cursor from the previous page's `nextCursor`; leave it out for
-         * the first page. A cursor only works with the filters it was made with
-         * (otherwise `400 INVALID_CURSOR`).
-         *
-         */
-        cursor?: string;
-    };
-    url: '/v1/organizations/{organizationId}/projects';
-};
-
-export type ListProjectsErrors = {
-    /**
-     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-     * `INVALID_CURSOR`.
-     *
-     */
-    400: CommonOpenapiProblem;
-    /**
-     * `NOT_FOUND`: the resource doesn't exist.
-     */
-    404: CommonOpenapiProblem;
-};
-
-export type ListProjectsError = ListProjectsErrors[keyof ListProjectsErrors];
-
-export type ListProjectsResponses = {
-    /**
-     * Newest first
-     */
-    200: ProjectPage;
-};
-
-export type ListProjectsResponse = ListProjectsResponses[keyof ListProjectsResponses];
-
-export type CreateProjectData = {
-    body: CreateProjectRequest;
-    path: {
-        organizationId: string;
-    };
-    query?: never;
-    url: '/v1/organizations/{organizationId}/projects';
-};
-
-export type CreateProjectErrors = {
-    /**
-     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-     * `INVALID_CURSOR`.
-     *
-     */
-    400: CommonOpenapiProblem;
-    /**
-     * `NOT_FOUND`: the resource doesn't exist.
-     */
-    404: CommonOpenapiProblem;
-    /**
-     * A business rule forbids this (409, with a `DomainErrorCode`).
-     */
-    409: DomainProblem;
-};
-
-export type CreateProjectError = CreateProjectErrors[keyof CreateProjectErrors];
-
-export type CreateProjectResponses = {
-    /**
-     * Created
-     */
-    201: ProjectResponse;
-};
-
-export type CreateProjectResponse = CreateProjectResponses[keyof CreateProjectResponses];
-
-export type GetProjectData = {
-    body?: never;
-    path: {
-        organizationId: string;
-        projectId: string;
-    };
-    query?: never;
-    url: '/v1/organizations/{organizationId}/projects/{projectId}';
-};
-
-export type GetProjectErrors = {
-    /**
-     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-     * `INVALID_CURSOR`.
-     *
-     */
-    400: CommonOpenapiProblem;
-    /**
-     * `NOT_FOUND`: the resource doesn't exist.
-     */
-    404: CommonOpenapiProblem;
-};
-
-export type GetProjectError = GetProjectErrors[keyof GetProjectErrors];
-
-export type GetProjectResponses = {
-    /**
-     * OK
-     */
-    200: ProjectResponse;
-};
-
-export type GetProjectResponse = GetProjectResponses[keyof GetProjectResponses];
-
-export type ArchiveProjectData = {
-    body?: never;
-    path: {
-        organizationId: string;
-        projectId: string;
-    };
-    query?: never;
-    url: '/v1/organizations/{organizationId}/projects/{projectId}/archive';
-};
-
-export type ArchiveProjectErrors = {
-    /**
-     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-     * `INVALID_CURSOR`.
-     *
-     */
-    400: CommonOpenapiProblem;
-    /**
-     * `NOT_FOUND`: the resource doesn't exist.
-     */
-    404: CommonOpenapiProblem;
-    /**
-     * A business rule forbids this (409, with a `DomainErrorCode`).
-     */
-    409: DomainProblem;
-};
-
-export type ArchiveProjectError = ArchiveProjectErrors[keyof ArchiveProjectErrors];
-
-export type ArchiveProjectResponses = {
-    /**
-     * Archived (or already archived)
-     */
-    200: ProjectResponse;
-};
-
-export type ArchiveProjectResponse = ArchiveProjectResponses[keyof ArchiveProjectResponses];
 
 export type ListAgentsData = {
     body?: never;
@@ -721,6 +305,12 @@ export type ListAgentsErrors = {
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type ListAgentsError = ListAgentsErrors[keyof ListAgentsErrors];
@@ -758,6 +348,12 @@ export type CreateAgentErrors = {
      * A business rule forbids this (409, with a `DomainErrorCode`).
      */
     409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type CreateAgentError = CreateAgentErrors[keyof CreateAgentErrors];
@@ -792,6 +388,12 @@ export type GetAgentErrors = {
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type GetAgentError = GetAgentErrors[keyof GetAgentErrors];
@@ -830,6 +432,12 @@ export type ArchiveAgentErrors = {
      * A business rule forbids this (409, with a `DomainErrorCode`).
      */
     409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type ArchiveAgentError = ArchiveAgentErrors[keyof ArchiveAgentErrors];
@@ -876,6 +484,12 @@ export type ListAgentVersionsErrors = {
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type ListAgentVersionsError = ListAgentVersionsErrors[keyof ListAgentVersionsErrors];
@@ -914,6 +528,12 @@ export type CreateAgentVersionErrors = {
      * A business rule forbids this (409, with a `DomainErrorCode`).
      */
     409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type CreateAgentVersionError = CreateAgentVersionErrors[keyof CreateAgentVersionErrors];
@@ -949,6 +569,12 @@ export type GetAgentVersionErrors = {
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type GetAgentVersionError = GetAgentVersionErrors[keyof GetAgentVersionErrors];
@@ -988,6 +614,12 @@ export type PublishAgentVersionErrors = {
      * A business rule forbids this (409, with a `DomainErrorCode`).
      */
     409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type PublishAgentVersionError = PublishAgentVersionErrors[keyof PublishAgentVersionErrors];
@@ -1033,6 +665,12 @@ export type ListWorkspacesErrors = {
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type ListWorkspacesError = ListWorkspacesErrors[keyof ListWorkspacesErrors];
@@ -1070,6 +708,12 @@ export type CreateWorkspaceErrors = {
      * A business rule forbids this (409, with a `DomainErrorCode`).
      */
     409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type CreateWorkspaceError = CreateWorkspaceErrors[keyof CreateWorkspaceErrors];
@@ -1104,6 +748,12 @@ export type GetWorkspaceErrors = {
      * `NOT_FOUND`: the resource doesn't exist.
      */
     404: CommonOpenapiProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type GetWorkspaceError = GetWorkspaceErrors[keyof GetWorkspaceErrors];
@@ -1142,6 +792,12 @@ export type AcquireWorkspaceErrors = {
      * A business rule forbids this (409, with a `DomainErrorCode`).
      */
     409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type AcquireWorkspaceError = AcquireWorkspaceErrors[keyof AcquireWorkspaceErrors];
@@ -1180,6 +836,12 @@ export type ReleaseWorkspaceErrors = {
      * A business rule forbids this (409, with a `DomainErrorCode`).
      */
     409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type ReleaseWorkspaceError = ReleaseWorkspaceErrors[keyof ReleaseWorkspaceErrors];
@@ -1218,6 +880,12 @@ export type SuspendWorkspaceErrors = {
      * A business rule forbids this (409, with a `DomainErrorCode`).
      */
     409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type SuspendWorkspaceError = SuspendWorkspaceErrors[keyof SuspendWorkspaceErrors];
@@ -1256,6 +924,12 @@ export type ResumeWorkspaceErrors = {
      * A business rule forbids this (409, with a `DomainErrorCode`).
      */
     409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type ResumeWorkspaceError = ResumeWorkspaceErrors[keyof ResumeWorkspaceErrors];
@@ -1294,6 +968,12 @@ export type DestroyWorkspaceErrors = {
      * A business rule forbids this (409, with a `DomainErrorCode`).
      */
     409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
 };
 
 export type DestroyWorkspaceError = DestroyWorkspaceErrors[keyof DestroyWorkspaceErrors];

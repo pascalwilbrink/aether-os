@@ -1,10 +1,12 @@
 export * from './domain-event.js';
 export * from './domain-events.js';
+export * from './event-consumer.js';
+export * from './event-envelope.js';
+export * from './event-inbox.js';
 export * from './events.module.js';
 export * from './events.options.js';
+export * from './inbox-message.entity.js';
 export * from './message-publisher.js';
+export * from './on-domain-event.js';
 export * from './outbox-message.entity.js';
 export * from './outbox-relay.js';
-
-// Local event handlers: `@OnEvent('<service>.<eventType>')`.
-export { OnEvent } from '@nestjs/event-emitter';

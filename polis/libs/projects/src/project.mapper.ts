@@ -38,6 +38,7 @@ export class ProjectMapper {
       createdBy: entity.createdBy,
       createdAt: entity.createdAt.toISOString(),
       updatedAt: entity.updatedAt.toISOString(),
+      version: entity.version,
     };
   }
 }

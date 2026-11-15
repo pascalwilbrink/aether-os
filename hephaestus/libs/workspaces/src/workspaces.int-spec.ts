@@ -1,9 +1,11 @@
 import { NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 
-import { OrganizationsService } from '@hephaestus/organizations';
-import { ProjectsService } from '@hephaestus/projects';
-
+import {
+  organizationEvent,
+  projectArchived,
+  type FakePolis,
+} from '../../../test/fake-polis.js';
 import { createTestingModule } from '../../../test/testing-module.js';
 import { WorkspacesModule } from './workspaces.module.js';
 import { WorkspacesService } from './workspaces.service.js';
@@ -15,31 +17,15 @@ const reference = { provider: 'docker', resourceId: 'container-1' };
 describe('WorkspacesService (Postgres)', () => {
   let moduleRef: TestingModule;
   let workspaces: WorkspacesService;
-  let organizations: OrganizationsService;
-  let projects: ProjectsService;
+  let polis: FakePolis;
   let orgId: string;
   let projectId: string;
 
   beforeEach(async () => {
-    moduleRef = await createTestingModule(WorkspacesModule);
+    ({ moduleRef, polis } = await createTestingModule(WorkspacesModule));
     workspaces = moduleRef.get(WorkspacesService);
-    organizations = moduleRef.get(OrganizationsService);
-    projects = moduleRef.get(ProjectsService);
-    orgId = (
-      await organizations.create({
-        name: 'Acme',
-        slug: 'acme',
-        createdBy: 'user-1',
-      })
-    ).id;
-    projectId = (
-      await projects.create(orgId, {
-        name: 'App',
-        slug: 'app',
-        description: '',
-        createdBy: 'user-1',
-      })
-    ).id;
+    orgId = polis.organization();
+    projectId = polis.project(orgId);
   });
 
   afterEach(async () => {
@@ -117,7 +103,7 @@ describe('WorkspacesService (Postgres)', () => {
       NotFoundException,
     );
 
-    await projects.archive(orgId, projectId);
+    await projectArchived(moduleRef, orgId, projectId, 2);
     await expect(create()).rejects.toMatchObject({ code: 'PROJECT_ARCHIVED' });
   });
 
@@ -125,7 +111,7 @@ describe('WorkspacesService (Postgres)', () => {
     const { id } = await create();
     await workspaces.startProvisioning(orgId, id);
     await workspaces.markReady(orgId, id, reference);
-    await organizations.suspend(orgId);
+    await organizationEvent(moduleRef, orgId, 'organization.suspended', 2);
 
     await expect(create()).rejects.toMatchObject({
       code: 'ORGANIZATION_SUSPENDED',
@@ -142,11 +128,7 @@ describe('WorkspacesService (Postgres)', () => {
   it('lists workspaces of the organization only', async () => {
     await create();
     await create();
-    const other = await organizations.create({
-      name: 'Globex',
-      slug: 'globex',
-      createdBy: 'user-1',
-    });
+    const other = { id: polis.organization() };
 
     await expect(workspaces.list(orgId, { limit: 10 })).resolves.toMatchObject({
       items: [expect.anything(), expect.anything()],

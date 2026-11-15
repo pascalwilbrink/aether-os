@@ -46,7 +46,7 @@ Rules:
 
 ### Polis (`polis.events`)
 
-**Published** since Polis's outbox landed; the contract is `../contracts/polis.asyncapi.yaml`, which is the source for these events from now on (membership payloads also carry `membershipId`). Not built yet: `organization.deleted` and `project.deleted` (Polis has no deletes), and project memberships.
+**Published** since Polis's outbox landed, and **consumed by Hephaestus** (`hephaestus.polis-events`: the organization and project events, for its copy of their status); the contract is `../contracts/polis.asyncapi.yaml`, which is the source for these events from now on (membership payloads also carry `membershipId`). Not built yet: `organization.deleted` and `project.deleted` (Polis has no deletes), and project memberships.
 
 | Event | Payload | Consumers |
 |---|---|---|

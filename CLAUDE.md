@@ -101,11 +101,10 @@ Services communicate asynchronously over **RabbitMQ**: for example Polis announc
 
 The code doesn't match the model yet:
 
-- Hephaestus still contains its own `organizations` and `projects` libs (ported from Polis, in the target structure), and `agents` and `workspaces` call `OrganizationsService` / `ProjectsService` in-process. These are to be replaced by Polis: its events (a local copy of organization and project status) and its API.
 - Hephaestus still contains `libs/agents` (agents and versions); that belongs in Agora once Agora exists.
 - Hephaestus has no tasks module yet; the `ExecutionId` type and the workspace's `executionId` field anticipate it.
 
-Until the move happens, don't add new organization or project features to Hephaestus; add them to Polis.
+Organizations and projects live in Polis only: Hephaestus keeps their status from Polis's events (`hephaestus/libs/tenancy`). Add organization and project features to Polis.
 
 ## Working across components
 

@@ -155,7 +155,7 @@ export class CreateProjectRequest extends createZodDto(zCreateProjectRequest) {}
 
 ## Events in code
 
-Status: the **outbound** side is built (Krepis `EventsModule`: `DomainEvents.emit`, the outbox and the relay, with the trace context in AMQP headers; Polis publishes, with payload types generated from its AsyncAPI spec). The inbound side (consuming queues, the inbox, retries and dead-lettering) comes with the first consumer.
+Status: built in Krepis's `EventsModule`, both ways: outbound (`DomainEvents.emit`, the outbox, the relay, the trace context in AMQP headers) and inbound (per-producer queues, the inbox, retries with backoff, dead-lettering, the trace context restored). Polis publishes; Hephaestus consumes Polis's organization and project events. Handlers use Krepis's `@OnDomainEvent`, which lets errors through.
 
 Services only know **local events** (`@nestjs/event-emitter`). RabbitMQ sits behind a messaging module in Krepis that bridges local events to and from the bus, so no service code imports or depends on RabbitMQ, and the transport could be replaced in one place.
 

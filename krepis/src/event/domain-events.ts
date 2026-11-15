@@ -21,7 +21,8 @@ import { OutboxMessageEntity } from './outbox-message.entity.js';
  *    it and published as AMQP headers.
  * 2. The event is emitted locally as `<service>.<eventType>` and awaited, so
  *    local handlers that only touch this service's database run in the same
- *    transaction (and roll it back if they fail).
+ *    transaction (and roll it back if they fail; handle them with
+ *    `@OnDomainEvent`, which lets errors through).
  *
  * Calling it outside a transaction is an error.
  */

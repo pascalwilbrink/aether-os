@@ -1,19 +1,27 @@
 import { DataSource } from 'typeorm';
 import type { TestProject } from 'vitest/node';
 
-import { postgresOptions } from '@aether-os/krepis';
-import { startTestPostgres } from '@aether-os/krepis/testing';
+import {
+  InboxMessageEntity,
+  OutboxMessageEntity,
+  postgresOptions,
+} from '@aether-os/krepis';
+import {
+  startTestPostgres,
+  startTestRabbitMq,
+} from '@aether-os/krepis/testing';
 
 import { AgentVersionEntity } from '../libs/agents/src/agent-version.entity.js';
 import { AgentEntity } from '../libs/agents/src/agent.entity.js';
-import { OrganizationEntity } from '../libs/organizations/src/organization.entity.js';
-import { ProjectEntity } from '../libs/projects/src/project.entity.js';
+import { OrganizationStateEntity } from '../libs/tenancy/src/organization-state.entity.js';
+import { ProjectStateEntity } from '../libs/tenancy/src/project-state.entity.js';
 import { WorkspaceEntity } from '../libs/workspaces/src/workspace.entity.js';
 import { migrations } from '../src/database/migrations/index.js';
 
 declare module 'vitest' {
   export interface ProvidedContext {
     databaseUrl: string;
+    rabbitmqUrl: string;
   }
 }
 
@@ -23,14 +31,19 @@ declare module 'vitest' {
  * it, i.e. a migration is missing.
  */
 export default async function setup(project: TestProject) {
-  const postgres = await startTestPostgres();
+  const [postgres, rabbitmq] = await Promise.all([
+    startTestPostgres(),
+    startTestRabbitMq(),
+  ]);
   const dataSource = new DataSource(
     postgresOptions({
       url: postgres.url,
       migrations,
       entities: [
-        OrganizationEntity,
-        ProjectEntity,
+        OrganizationStateEntity,
+        ProjectStateEntity,
+        InboxMessageEntity,
+        OutboxMessageEntity,
         AgentEntity,
         AgentVersionEntity,
         WorkspaceEntity,
@@ -43,7 +56,7 @@ export default async function setup(project: TestProject) {
   const pending = await dataSource.driver.createSchemaBuilder().log();
   await dataSource.destroy();
   if (pending.upQueries.length > 0) {
-    await postgres.stop();
+    await Promise.all([postgres.stop(), rabbitmq.stop()]);
     throw new Error(
       'The entities differ from the migrated schema; generate a migration:\n' +
         pending.upQueries.map((query) => `  ${query.query}`).join('\n'),
@@ -51,8 +64,9 @@ export default async function setup(project: TestProject) {
   }
 
   project.provide('databaseUrl', postgres.url);
+  project.provide('rabbitmqUrl', rabbitmq.url);
 
   return async () => {
-    await postgres.stop();
+    await Promise.all([postgres.stop(), rabbitmq.stop()]);
   };
 }

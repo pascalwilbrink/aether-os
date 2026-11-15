@@ -25,15 +25,6 @@
         "tsConfigPath": "libs/agents/tsconfig.lib.json"
       }
     },
-    "organizations": {
-      "type": "library",
-      "root": "libs/organizations",
-      "entryFile": "index",
-      "sourceRoot": "libs/organizations/src",
-      "compilerOptions": {
-        "tsConfigPath": "libs/organizations/tsconfig.lib.json"
-      }
-    },
     "workspaces": {
       "type": "library",
       "root": "libs/workspaces",
@@ -43,13 +34,13 @@
         "tsConfigPath": "libs/workspaces/tsconfig.lib.json"
       }
     },
-    "projects": {
+    "tenancy": {
       "type": "library",
-      "root": "libs/projects",
+      "root": "libs/tenancy",
       "entryFile": "index",
-      "sourceRoot": "libs/projects/src",
+      "sourceRoot": "libs/tenancy/src",
       "compilerOptions": {
-        "tsConfigPath": "libs/projects/tsconfig.lib.json"
+        "tsConfigPath": "libs/tenancy/tsconfig.lib.json"
       }
     }
   }

@@ -8,9 +8,9 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 
 | Spec | Served by | Consumed by |
 |---|---|---|
-| `polis.openapi.yaml` | Polis | (Hephaestus, Agora, Kairos, Iris, once wired) |
+| `polis.openapi.yaml` | Polis | Hephaestus (generated HTTP client); later Agora, Kairos, Iris |
 | `hephaestus.openapi.yaml` | Hephaestus | Iris |
-| `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Pistis, every service (once they consume) |
+| `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Hephaestus (organization and project events); later Pistis and others |
 
 ## Event types (AsyncAPI)
 

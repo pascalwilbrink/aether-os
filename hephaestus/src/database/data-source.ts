@@ -2,12 +2,16 @@ import 'reflect-metadata';
 
 import { DataSource } from 'typeorm';
 
-import { postgresOptions } from '@aether-os/krepis';
+import {
+  InboxMessageEntity,
+  OutboxMessageEntity,
+  postgresOptions,
+} from '@aether-os/krepis';
 
 import { AgentVersionEntity } from '../../libs/agents/src/agent-version.entity.js';
 import { AgentEntity } from '../../libs/agents/src/agent.entity.js';
-import { OrganizationEntity } from '../../libs/organizations/src/organization.entity.js';
-import { ProjectEntity } from '../../libs/projects/src/project.entity.js';
+import { OrganizationStateEntity } from '../../libs/tenancy/src/organization-state.entity.js';
+import { ProjectStateEntity } from '../../libs/tenancy/src/project-state.entity.js';
 import { WorkspaceEntity } from '../../libs/workspaces/src/workspace.entity.js';
 import { migrations } from './migrations/index.js';
 
@@ -32,8 +36,10 @@ export default new DataSource(
     url,
     migrations,
     entities: [
-      OrganizationEntity,
-      ProjectEntity,
+      OrganizationStateEntity,
+      ProjectStateEntity,
+      InboxMessageEntity,
+      OutboxMessageEntity,
       AgentEntity,
       AgentVersionEntity,
       WorkspaceEntity,
