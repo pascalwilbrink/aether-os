@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 
+import { outboxEvents } from '../../../test/outbox.js';
 import { createTestingModule } from '../../../test/testing-module.js';
 import { OrganizationsModule } from './organizations.module.js';
 import { OrganizationsService } from './organizations.service.js';
@@ -80,5 +81,35 @@ describe('OrganizationsService (Postgres)', () => {
       'one',
     ]);
     expect(second.nextCursor).toBeNull();
+  });
+
+  it('stores an event for every change, and none for repeated actions', async () => {
+    const { id } = await create();
+    await service.suspend(id);
+    await service.suspend(id);
+    await service.activate(id);
+    await service.activate(id);
+
+    const events = await outboxEvents(moduleRef);
+    expect(
+      events.map((e) => [e.eventType, e.aggregateVersion, e.organizationId]),
+    ).toEqual([
+      ['organization.created', 1, id],
+      ['organization.suspended', 2, id],
+      ['organization.reactivated', 3, id],
+    ]);
+    expect(events[0].payload).toEqual({ organizationId: id, slug: 'acme' });
+    expect(events[1].payload).toEqual({ organizationId: id, reason: null });
+  });
+
+  it('stores no event when creating fails', async () => {
+    await create();
+    await expect(create()).rejects.toMatchObject({
+      code: 'ORGANIZATION_SLUG_TAKEN',
+    });
+
+    expect((await outboxEvents(moduleRef)).map((e) => e.eventType)).toEqual([
+      'organization.created',
+    ]);
   });
 });

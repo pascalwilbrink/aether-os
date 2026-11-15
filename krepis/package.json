@@ -30,9 +30,13 @@
     "prepare": "pnpm build"
   },
   "peerDependencies": {
+    "@golevelup/nestjs-rabbitmq": "^9.1.0",
     "@nestjs/common": "^12.0.0",
     "@nestjs/core": "^12.0.0",
+    "@nestjs/event-emitter": "^12.0.0",
+    "@nestjs/typeorm": "^12.0.0",
     "@testcontainers/postgresql": "^12.2.0",
+    "@testcontainers/rabbitmq": "^12.2.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.0",
     "nestjs-zod": "^5.6.0",
@@ -41,14 +45,20 @@
     "zod": "^4.6.0"
   },
   "devDependencies": {
+    "@golevelup/nestjs-rabbitmq": "^9.1.2",
     "@nestjs/common": "^12.5.0",
     "@nestjs/core": "^12.5.0",
+    "@nestjs/event-emitter": "^12.0.3",
     "@nestjs/platform-express": "^12.5.0",
     "@nestjs/testing": "^12.5.0",
+    "@nestjs/typeorm": "^12.0.3",
     "@testcontainers/postgresql": "^12.2.1",
+    "@testcontainers/rabbitmq": "^12.2.1",
+    "@types/amqplib": "^0.10.8",
     "@types/express": "^5.0.6",
     "@types/node": "^24.19.2",
     "@types/supertest": "^7.2.1",
+    "amqplib": "^0.10.9",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "nestjs-zod": "^5.6.0",
@@ -68,6 +78,12 @@
   "peerDependenciesMeta": {
     "@testcontainers/postgresql": {
       "optional": true
+    },
+    "@testcontainers/rabbitmq": {
+      "optional": true
     }
+  },
+  "dependencies": {
+    "uuid": "^14.0.3"
   }
 }

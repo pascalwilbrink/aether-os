@@ -24,6 +24,7 @@ export class MembershipMapper {
       createdBy: dto.createdBy,
       createdAt: now,
       updatedAt: now,
+      version: 1,
     } satisfies MembershipEntity);
   }
 
@@ -35,6 +36,7 @@ export class MembershipMapper {
   ): MembershipEntity {
     entity.roles = normalizeRoles(dto.roles);
     entity.updatedAt = now;
+    entity.version += 1;
 
     return entity;
   }

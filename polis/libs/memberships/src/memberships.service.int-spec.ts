@@ -3,6 +3,7 @@ import type { TestingModule } from '@nestjs/testing';
 
 import { OrganizationsService } from '@polis/organizations';
 
+import { outboxEvents } from '../../../test/outbox.js';
 import { createTestingModule } from '../../../test/testing-module.js';
 import { MembershipsModule } from './memberships.module.js';
 import { MembershipsService } from './memberships.service.js';
@@ -139,5 +140,43 @@ describe('MembershipsService (Postgres)', () => {
     await expect(memberships.findById(orgId, membership.id)).resolves.toEqual(
       membership,
     );
+  });
+
+  it('stores granted, role-changed and revoked events', async () => {
+    const membership = await add(orgId, 'user-1', ['member']);
+    await memberships.update(orgId, membership.id, { roles: ['member'] });
+    await memberships.update(orgId, membership.id, {
+      roles: ['admin', 'member'],
+    });
+    await memberships.delete(orgId, membership.id);
+
+    const base = {
+      membershipId: membership.id,
+      principal: { sub: 'user-1', sub_type: 'user' },
+      scope: { type: 'organization', organizationId: orgId },
+    };
+    const events = (await outboxEvents(moduleRef)).filter((e) =>
+      e.eventType.startsWith('membership.'),
+    );
+    expect(
+      events.map((e) => [e.eventType, e.aggregateVersion, e.payload]),
+    ).toEqual([
+      ['membership.granted', 1, { ...base, roles: ['member'] }],
+      [
+        'membership.role-changed',
+        2,
+        { ...base, from: ['member'], to: ['admin', 'member'] },
+      ],
+      ['membership.revoked', 3, base],
+    ]);
+    expect(events.every((e) => e.organizationId === orgId)).toBe(true);
+  });
+
+  it('keeps the version when PUT changes nothing', async () => {
+    const membership = await add(orgId, 'user-1', ['member', 'viewer']);
+
+    await expect(
+      memberships.update(orgId, membership.id, { roles: ['viewer', 'member'] }),
+    ).resolves.toEqual(membership);
   });
 });

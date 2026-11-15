@@ -6,6 +6,7 @@ import {
   findPage,
   isUniqueViolation,
   mapPage,
+  PolisEvents,
   Transactional,
   type Page,
   type PageRequest,
@@ -30,6 +31,7 @@ export class ProjectsService {
     private readonly projects: Repository<ProjectEntity>,
     private readonly mapper: ProjectMapper,
     private readonly organizations: OrganizationsService,
+    private readonly events: PolisEvents,
   ) {}
 
   @Transactional()
@@ -48,6 +50,14 @@ export class ProjectsService {
       }
       throw error;
     }
+    await this.events.emit({
+      eventType: 'project.created',
+      aggregateId: entity.id,
+      aggregateVersion: entity.version,
+      organizationId,
+      projectId: entity.id,
+      payload: { projectId: entity.id },
+    });
 
     return this.mapper.toResponse(entity);
   }
@@ -88,7 +98,16 @@ export class ProjectsService {
     if (next !== entity.status) {
       entity.status = next;
       entity.updatedAt = new Date();
+      entity.version += 1;
       await this.projects.save(entity);
+      await this.events.emit({
+        eventType: 'project.archived',
+        aggregateId: entity.id,
+        aggregateVersion: entity.version,
+        organizationId,
+        projectId: entity.id,
+        payload: { projectId: entity.id },
+      });
     }
 
     return this.mapper.toResponse(entity);

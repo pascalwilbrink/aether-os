@@ -23,6 +23,7 @@ export class ProjectMapper {
       createdBy: dto.createdBy,
       createdAt: now,
       updatedAt: now,
+      version: 1,
     } satisfies ProjectEntity);
   }
 

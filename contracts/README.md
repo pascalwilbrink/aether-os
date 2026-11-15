@@ -10,6 +10,7 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 |---|---|---|
 | `polis.openapi.yaml` | Polis | (Hephaestus, Agora, Kairos, Iris, once wired) |
 | `hephaestus.openapi.yaml` | Hephaestus | Iris |
+| `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Pistis, every service (once they consume) |
 
 ## Regenerating
 

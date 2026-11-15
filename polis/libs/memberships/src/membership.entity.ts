@@ -52,4 +52,8 @@ export class MembershipEntity {
 
   @Column({ type: 'timestamptz' })
   updatedAt: Date;
+
+  /** Incremented on every change; the `aggregateVersion` of its events. */
+  @Column({ type: 'integer', default: 1 })
+  version: number;
 }
