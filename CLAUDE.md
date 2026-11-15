@@ -20,7 +20,7 @@ Aether-os is a platform for building, running and supporting AI agents. This fol
 | **Krepis** | `@aether-os/krepis`: shared foundation library for the NestJS services (errors, events, transactions, pagination, HTTP helpers, shared IDs) | `krepis/` | Active |
 | **OpenBao** | Secrets and credentials (LLM provider keys, repository tokens, tool and integration credentials) | infrastructure | Planned |
 | **RabbitMQ** | Event bus between services | infrastructure | Planned |
-| **OpenTelemetry + Jaeger + Langfuse** | Observability: OTLP from every service; service traces in Jaeger, LLM traces in Langfuse | infrastructure | Planned |
+| **OpenTelemetry + Jaeger + Langfuse + Loki** | Observability: OTLP from every service; service traces in Jaeger, LLM traces in Langfuse, logs in Loki, browsed in Grafana | infrastructure | Planned |
 | **Seshat** | MCP server for RAG and long-term memory | not in this folder | Separate service |
 | **Kriterion** | Eval framework for measuring agent quality | not in this folder | Separate |
 | **Iris** | Web frontend for operating Aether-os (Next.js) | `iris/` | Blank scaffold |
@@ -41,6 +41,8 @@ The names come from Greek, Egyptian and Roman antiquity: Pistis is trust and goo
 10. **Kerykes** tells people when something needs them (a draft to review, a failed or paused task), in Iris, by email, or in Slack / Teams through Proxenos.
 11. **Iris** is the UI over all services.
 
+Code rule: every service is structured **controller → service → TypeORM repository**, with an injected mapper per resource converting DTO ↔ entity; services inject other services, never other repositories, and a class injects at most 7 dependencies; events are local events bridged to RabbitMQ by Krepis; transactions with `typeorm-transactional`, types, Zod DTOs and HTTP clients all generated from the specs with `@hey-api/openapi-ts`, and external systems behind injected interfaces. See `docs/engineering.md`.
+
 API rule: every HTTP API uses only `GET`, `POST`, `PUT` and `DELETE` (never `PATCH`; state changes are `POST` actions), is versioned in the path starting with `/v1`, identifies everything by UUID, returns errors as RFC 9457 problem details, and paginates with cursors. See `docs/api.md`.
 
 Design rule: a task must record the concrete `agentVersionId` it runs (and through it the policy set version), resolved when the task is created (not "latest"), so runs are reproducible and evaluable per version. Agent versions and automations reference secrets by OpenBao path, never by value. Likewise, persist Loculus object keys, never signed URLs: URLs expire, so request a fresh one when a file is needed.
@@ -59,7 +61,8 @@ The task lifecycle (states, executions, timeouts, cancellation, retries, concurr
 
 | Document | Covers | Status |
 |---|---|---|
-| `docs/api.md` | HTTP API conventions: only `GET`/`POST`/`PUT`/`DELETE` (never `PATCH`), `/v1` path versioning, UUIDs, problem details, cursor pagination | Agreed |
+| `docs/api.md` | HTTP API conventions: only `GET`/`POST`/`PUT`/`DELETE` (never `PATCH`), `/v1` path versioning, UUIDs, problem details, cursor pagination, payload conventions | Agreed |
+| `docs/engineering.md` | NestJS libraries to use, service structure (controller → service → repository, mappers), transactions, Zod DTOs and generated clients, events in code, databases and migrations, calls between services, configuration, logging (Winston → Loki), testing (Testcontainers) | Agreed |
 | `docs/identity.md` | Principals, tokens, roles, permissions, enforcement | Agreed |
 | `docs/tasks.md` | Tasks, subtasks, artifacts, templates, verification, documents, task lifecycle | Agreed, lifecycle proposed |
 | `docs/git.md` | GitHub App, repository access, one shared branch per task tree, webhooks, untrusted input | Agreed |
@@ -76,6 +79,7 @@ The envelope and the full catalogue are in `docs/events.md`.
 Services communicate asynchronously over **RabbitMQ**: for example Polis announcing suspended organizations and revoked memberships, Kairos triggers creating Hephaestus tasks, task status updates for Iris, and Kriterion reacting to finished tasks.
 
 - Each service publishes its domain events to its own topic exchange (e.g. `polis.events`) with routing keys like `organization.suspended`. Each consuming service binds its own durable queue to the keys it cares about.
+- **Service code never depends on RabbitMQ.** Services emit and handle local events (`@nestjs/event-emitter`); a messaging module in Krepis writes published ones to the outbox and turns incoming messages into local events (see `docs/engineering.md`).
 - Publish through a transactional outbox: write the event in the same database transaction as the state change, and have a relay publish it. This keeps an event from being lost, or from being sent for a change that was rolled back.
 - Consumers must be idempotent, because delivery is at-least-once. Deduplicate on `eventId` (see `DomainEvent` in `core`).
 - Starting a task in Hephaestus is supported two ways, both going through the same application service:
@@ -117,7 +121,7 @@ pnpm --filter polis test   # one package (or run pnpm inside its directory)
 ```
 
 - **Packages stay publishable.** The workspace is set up so moving to a package registry later is cheap: packages depend on each other with `workspace:*` (which `pnpm publish` rewrites to real versions), import only from each other's published entry points (never another package's `src/`, no TypeScript path aliases across packages), and `contracts` is consumed as a package (`node_modules/@aether-os/contracts/...`) rather than by relative path.
-- **Contracts:** `contracts/` holds the API specs (`polis.openapi.yaml`, `hephaestus.openapi.yaml`), one per service. Each spec is the source of truth for that service's HTTP API: edit it first, then run `pnpm generate:api` (root, or in the service and each consumer; currently Iris consumes Hephaestus) and commit the regenerated files. See `contracts/README.md`.
+- **Contracts:** `contracts/` holds the API specs (`polis.openapi.yaml`, `hephaestus.openapi.yaml`), one per service. Each spec is the source of truth for that service's HTTP API, including its validation: services generate Zod schemas from it and validate with `nestjs-zod`'s `ZodValidationPipe` (target; see `docs/engineering.md`). Edit the spec first, then run `pnpm generate:api` (root, or in the service and each consumer; currently Iris consumes Hephaestus) and commit the regenerated files. See `contracts/README.md`.
 - **Krepis:** shared NestJS code goes in `krepis/`, never copied between services. Consumers depend on it with `workspace:*` plus `dependenciesMeta.injected`, so pnpm copies it into each consumer and its peer dependencies (Nest, TypeORM, class-validator) resolve to the consumer's own copies. `syncInjectedDepsAfterScripts` refreshes those copies whenever Krepis's `build` script runs. See `krepis/CLAUDE.md`.
 
 ## Local development
@@ -125,7 +129,7 @@ pnpm --filter polis test   # one package (or run pnpm inside its directory)
 `docker-compose.yml` at this root runs the shared infrastructure; the app services run outside it with `pnpm` from their own directories.
 
 ```bash
-docker compose up -d       # Postgres, RabbitMQ, OpenBao, OPA, OTel Collector, Jaeger, Langfuse, Mailpit
+docker compose up -d       # Postgres, RabbitMQ, OpenBao, OPA, OTel Collector, Jaeger, Langfuse, Loki, Grafana, Mailpit
 docker compose down -v     # stop and wipe all data
 ```
 
@@ -136,9 +140,10 @@ docker compose down -v     # stop and wipe all data
 | RabbitMQ | AMQP `localhost:5672`, UI `localhost:15672`, `aether` / `aether` |
 | OpenBao | `localhost:8200`, root token `dev-root-token` (dev mode: in-memory, wiped on restart) |
 | OPA | `localhost:8181` |
-| OTLP | `localhost:4317` (gRPC), `localhost:4318` (HTTP) → Collector (`infra/otel-collector/config.yaml`) → Jaeger and Langfuse |
+| OTLP | `localhost:4317` (gRPC), `localhost:4318` (HTTP) → Collector (`infra/otel-collector/config.yaml`) → traces to Jaeger and Langfuse, logs to Loki |
 | Jaeger UI | `localhost:16686` |
 | Langfuse UI | `localhost:3100`, login `dev@aether-os.local` / `aether-dev`, API keys `pk-lf-local` / `sk-lf-local` |
 | Mailpit | SMTP `localhost:1025` (any credentials), UI `localhost:8025`: catches all local email; production uses Resend or SES |
+| Grafana | `localhost:3300` (no login locally): logs from Loki, linked to traces in Jaeger |
 
 All credentials are fixed local-only values. MinIO in the compose file is only Langfuse's storage, not a stand-in for Loculus. The services still use SQLite; the per-service Postgres databases are ready for the move to Postgres with migrations.

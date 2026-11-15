@@ -12,7 +12,7 @@
 #   OpenBao       8200                     OPA        8181
 #   OTel (OTLP)   4317 (gRPC), 4318 (HTTP) Jaeger UI  16686
 #   Langfuse UI   3100                     MinIO      9090 (S3), 9091 (console)
-#   Mailpit       1025 (SMTP), 8025 (UI)
+#   Mailpit       1025 (SMTP), 8025 (UI)   Grafana    3300 (Loki logs + Jaeger traces)
 # App services run outside compose: Iris 3000, Polis 3001, Hephaestus 3002.
 
 name: aether-os
@@ -68,11 +68,29 @@ services:
     volumes:
       - ./infra/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
     ports: ['4317:4317', '4318:4318']
-    depends_on: [jaeger]
+    depends_on: [jaeger, loki]
 
   jaeger:
     image: jaegertracing/jaeger:2.5.0
     ports: ['16686:16686']
+
+  # Log storage; receives OTLP logs from the Collector. Queried through Grafana.
+  loki:
+    image: grafana/loki:3.5.0
+    command: ['-config.file=/etc/loki/local-config.yaml']
+    volumes:
+      - loki-data:/loki
+
+  grafana:
+    image: grafana/grafana:12.0.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: 'true'
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports: ['3300:3000']
+    depends_on: [loki, jaeger]
 
   langfuse-web:
     image: langfuse/langfuse:3
@@ -177,6 +195,7 @@ services:
     ports: ['1025:1025', '8025:8025']
 
 volumes:
+  loki-data:
   postgres-data:
   rabbitmq-data:
   clickhouse-data:

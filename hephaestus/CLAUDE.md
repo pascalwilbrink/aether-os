@@ -45,12 +45,14 @@ Module dependency graph: `core` ← `organizations` ← `projects` ← `workspac
 
 ### Per-module layering (DDD / hexagonal)
 
+**Target** (agreed, see `../docs/engineering.md`): controller → service → TypeORM repository, with an injected mapper per resource (DTO ↔ entity) and no separate domain layer or repository ports; external systems (Mastra, sandboxes) stay behind injected interfaces. The current code still uses the layering below; don't extend it.
+
 Each feature lib follows the same structure — copy an existing module (e.g. `libs/agents`) when adding one:
 
 - `domain/` — aggregate classes with a private constructor, `static create()` (new, sets defaults/status) and `static reconstitute()` (from persistence). State lives in a private `props` object; getters return copies (`structuredClone`) of nested data. State transitions are methods that throw `DomainError` subclasses on invalid transitions. Repository **ports** are abstract classes in `domain/repository/` (used directly as Nest DI tokens).
 - `application/service/` — use-case services. Convention: reads call `organizations.findById` (404 if missing); writes call `organizations.findActiveById` (throws `OrganizationSuspendedError` if suspended). Missing resources throw Nest `NotFoundException`.
 - `infrastructure/persistence/` — TypeORM `entity/`, `mapper/` (`toEntity` / `toDomain`, casting raw strings back to branded IDs), and `repository/TypeOrm*Repository` implementing the port. Bound in the module via `{ provide: XRepository, useClass: TypeOrmXRepository }`.
-- `presentation/http/` — controllers and class-validator request/response DTOs (`XResponse.fromDomain`). Controllers generate IDs with `randomUUID()`. Routes are nested under `organizations/:organizationId/...`.
+- `presentation/http/` — (target: Zod-generated DTOs with `createZodDto` and a `ZodValidationPipe`, see `../docs/engineering.md`) controllers and class-validator request/response DTOs (`XResponse.fromDomain`). Controllers generate IDs with `randomUUID()`. Routes are nested under `organizations/:organizationId/...`.
 - `index.ts` — public surface of the lib; export anything other libs need.
 
 ### Core conventions (`libs/core` and Krepis)

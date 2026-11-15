@@ -1,5 +1,5 @@
 # Services send OTLP here (localhost:4317 gRPC / 4318 HTTP).
-# All traces go to Jaeger (service view) and Langfuse (LLM view).
+# All traces go to Jaeger (service view) and Langfuse (LLM view); logs go to Loki.
 receivers:
   otlp:
     protocols:
@@ -13,6 +13,8 @@ exporters:
   otlp/jaeger:
     endpoint: jaeger:4317
     tls: { insecure: true }
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
   otlphttp/langfuse:
     endpoint: http://langfuse-web:3000/api/public/otel
     headers:
@@ -25,3 +27,7 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [otlp/jaeger, otlphttp/langfuse]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/loki]

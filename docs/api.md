@@ -14,6 +14,19 @@ Status: the decisions below are agreed; sections marked **Proposal** are not agr
 | Errors | **Problem details** (RFC 9457, `application/problem+json`), with our own stable `code`. |
 | Pagination | **Cursor-based**: `limit` and an opaque `cursor`; no offsets. |
 
+## Payloads
+
+| Topic | Convention |
+|---|---|
+| Field names | `camelCase`. References to other resources are `<thing>Id` (`projectId`), never embedded objects by default. |
+| Timestamps | ISO 8601 in UTC with `Z` and millisecond precision: `2026-11-15T09:30:00.000Z`. Named `<event>At` (`createdAt`, `approvedAt`). Dates without time: `YYYY-MM-DD`. |
+| Durations | Integers with the unit in the name: `timeoutSeconds`, `retentionDays`. No ISO 8601 durations. |
+| Enums | Lowercase `snake_case` strings (`awaiting_review`, `changes_requested`). The spec says per enum whether it's open (clients must accept unknown values) or closed. |
+| Unset values | **Responses always contain every field**; unset is `null`, never left out. Lists are `[]`, never `null`. Requests follow `PUT`'s rule: every editable field present, `null` to clear. |
+| Money | **Decimal strings**, never floats: `"costUsd": "12.345600"` (6 decimals). Stored as `numeric(18,6)` in Postgres and computed with a decimal library. |
+| Booleans | Plain `true` / `false`; never nullable (a third state is an enum). |
+| Size | Request bodies up to 1 MB by default; larger content goes to Loculus through a signed URL. |
+
 ## Methods
 
 | Method | Use | Success |
@@ -95,7 +108,7 @@ Status codes:
 
 Rules:
 
-- **One implementation, in Krepis:** an exception filter turns `DomainError`, validation errors (via the `ValidationPipe`'s exception factory), Nest's HTTP exceptions and unknown errors into problem details, so no service formats errors itself.
+- **One implementation, in Krepis:** an exception filter turns `DomainError`, validation errors (Zod issues from the `ZodValidationPipe`, see `engineering.md`), Nest's HTTP exceptions and unknown errors into problem details, so no service formats errors itself.
 - **One schema, in `contracts/`:** a shared `Problem` schema that every spec references for its error responses, and each spec lists the `code`s an operation can return.
 - **Codes are contracts:** adding a code is a compatible change; renaming or removing one is breaking.
 - **`detail` is safe to show** but is not translated and not stable; Iris shows its own message per `code` where it has one.

@@ -12,6 +12,7 @@ Status: agreed conventions and envelope, documentation only. Sections marked **P
 | Commands | Requests to a specific service: `task.create`. Sent to `<service>.commands`, a direct exchange owned by the receiver; routing key is the command name. The outcome comes back as events, never as a reply. |
 | Queues | Each consumer owns a durable queue per purpose (`<consumer>.<producer>-events`, e.g. `hephaestus.polis-events`), bound to the routing keys it needs. |
 | Delivery | At least once. Producers use the transactional outbox; consumers deduplicate on `eventId`. |
+| In code | Services only emit and handle **local events**; Krepis's messaging module bridges them to and from RabbitMQ (see `engineering.md`, Events in code). |
 | Ordering | Not guaranteed. Per aggregate, `aggregateVersion` increases; a consumer ignores an event older than the version it already applied. |
 | Failures | A message that keeps failing is retried with backoff (delayed retry queues), then parked in the queue's dead-letter queue for inspection. It never blocks the queue. |
 | Trace context | `traceparent` (and `tracestate`) in AMQP headers, copied on publish and restored on consume. |

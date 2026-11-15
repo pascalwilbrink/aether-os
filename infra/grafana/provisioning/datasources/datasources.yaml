@@ -1,0 +1,27 @@
+# Local-only Grafana datasources: logs from Loki, traces from Jaeger, linked both ways.
+apiVersion: 1
+datasources:
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: true
+    jsonData:
+      derivedFields:
+        # Turns the trace ID on a log line into a link to the trace in Jaeger.
+        - name: traceId
+          datasourceUid: jaeger
+          matcherType: label
+          matcherRegex: trace_id
+          url: '$${__value.raw}'
+  - name: Jaeger
+    uid: jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    jsonData:
+      tracesToLogsV2:
+        # From a span, show the logs of the same trace.
+        datasourceUid: loki
+        filterByTraceID: true

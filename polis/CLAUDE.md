@@ -38,12 +38,14 @@ Shared infrastructure (Postgres, RabbitMQ, OpenBao, OPA, OTel, Jaeger, Langfuse)
 
 Dependency graph: `core` ← `organizations` ← `projects`. Cross-module access goes through the exported **service** (e.g. `OrganizationService.findActiveById`), never another module's repositories.
 
-Each feature lib uses the same layering:
+**Target** (agreed, see `../docs/engineering.md`): controller → service → TypeORM repository, with an injected mapper per resource (DTO ↔ entity) and no separate domain layer or repository ports. The current code still uses the layering below; don't extend it, convert a library when you work on it.
+
+Each feature lib currently uses this layering:
 
 - `domain/`: aggregates with a private constructor, `static create()` and `static reconstitute()`; state in a private `props` object; transitions throw `DomainError` subclasses. Repository **ports** are abstract classes in `domain/repository/`, used directly as DI tokens.
 - `application/service/`: use cases. Reads call `organizations.findById` (404 if missing); writes call `organizations.findActiveById` (`OrganizationSuspendedError` if suspended). Missing resources throw `NotFoundException`.
 - `infrastructure/persistence/`: TypeORM `entity/`, `mapper/` (`toEntity` / `toDomain`, casting to branded IDs) and `TypeOrm*Repository` implementing the port, bound via `{ provide: XRepository, useClass: TypeOrmXRepository }`.
-- `presentation/http/`: controllers and class-validator DTOs (`XResponse.fromDomain`); IDs come from `randomUUID()`.
+- `presentation/http/`: controllers and class-validator DTOs (`XResponse.fromDomain`); IDs come from `randomUUID()`. Target: DTOs generated as Zod schemas from the spec, `createZodDto` classes and a `ZodValidationPipe` (see `../docs/engineering.md`); don't add new class-validator DTOs.
 - `index.ts`: the lib's public surface.
 
 `libs/core` conventions (most of `@polis/core` is re-exported from the shared `@aether-os/krepis` package in `../krepis`; only `DatabaseModule` and the generated API types live in `libs/core`. Change shared code in Krepis and run `pnpm build` there; the copy here is refreshed automatically):
