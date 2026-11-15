@@ -11,6 +11,7 @@ import {
   type PolisDirectoryOptions,
 } from './http-polis-directory.js';
 import { InteractionsController } from './interactions.controller.js';
+import { JwksController } from './jwks.controller.js';
 import { OidcPayloadEntity } from './oidc-payload.entity.js';
 import { OidcProviderService } from './oidc-provider.service.js';
 import { PolisDirectory } from './polis-directory.js';
@@ -24,7 +25,7 @@ import { UpstreamSignInService } from './upstream/upstream-sign-in.service.js';
 
 @Module({
   imports: [TypeOrmModule.forFeature([OidcPayloadEntity]), UsersModule],
-  controllers: [InteractionsController],
+  controllers: [InteractionsController, JwksController],
   providers: [
     OidcProviderService,
     UpstreamSignInService,

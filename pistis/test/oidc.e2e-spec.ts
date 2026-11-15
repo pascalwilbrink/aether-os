@@ -145,6 +145,27 @@ describe('Signing in and issuing tokens (e2e)', () => {
       .get('/oidc/jwks')
       .expect(200);
     expect((jwks.body as JSONWebKeySet).keys[0]).not.toHaveProperty('d');
+
+    // The same public keys at the conventional path, without a token.
+    const wellKnown = await request(app.getHttpServer())
+      .get('/.well-known/jwks.json')
+      .expect(200)
+      .expect('cache-control', 'public, max-age=300');
+    const kids = (set: JSONWebKeySet) => set.keys.map((key) => key.kid);
+    expect(kids(wellKnown.body as JSONWebKeySet)).toEqual(
+      kids(jwks.body as JSONWebKeySet),
+    );
+    for (const key of (wellKnown.body as JSONWebKeySet).keys) {
+      expect(key).not.toHaveProperty('d');
+    }
+    // And a token verifies against it.
+    const { callback, verifier } = await authorize({});
+    const token = await exchange(callback!.searchParams.get('code')!, verifier);
+    await jwtVerify(
+      (token.body as { access_token: string }).access_token,
+      createLocalJWKSet(wellKnown.body as JSONWebKeySet),
+      { issuer: ISSUER, audience: 'aether-os' },
+    );
   });
 
   it('signs in with a password and issues an organization token with roles from Polis', async () => {
