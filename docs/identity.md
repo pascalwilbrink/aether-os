@@ -2,7 +2,7 @@
 
 How Aether-os decides **who** is acting and **what** they may do. Pistis (authentication), Polis (memberships and roles), Krepis (enforcement in every service) and OpenBao (secret access) implement this together.
 
-Status: agreed design, being built. Pistis (`../pistis`) has users and their linked identities (`user_providers`: `(provider, subject)` → user, never by email), its own `password` provider, sign-in through any configured external OpenID Connect provider (`PISTIS_UPSTREAM_PROVIDERS`), user tokens (authorization code with PKCE; an organization is chosen with the resource indicator `urn:aether-os:org:<id>`, and `org_roles` come from Polis at every issue and refresh), and platform service tokens (client credentials). Krepis enforces authentication, tenancy and permissions (`AuthModule`, below), and Polis, Hephaestus and Pistis's own API require tokens. Not yet: project memberships (so `project_roles` is empty), service accounts, token exchange and task tokens, and reacting to Polis's revocation events.
+Status: agreed design, being built. Pistis (`../pistis`) has users and their linked identities (`user_providers`: `(provider, subject)` → user, never by email), its own `password` provider, sign-in through any configured external OpenID Connect provider (`PISTIS_UPSTREAM_PROVIDERS`), user tokens (authorization code with PKCE; an organization is chosen with the resource indicator `urn:aether-os:org:<id>`, and `org_roles` come from Polis at every issue and refresh), and platform service tokens (client credentials). Krepis enforces authentication, tenancy and permissions (`AuthModule`, below), and Polis, Hephaestus and Pistis's own API require tokens. Polis has project memberships, and Pistis puts them in tokens as `project_roles`. Not yet: service accounts, token exchange and task tokens, and reacting to Polis's revocation events.
 
 ## Decisions
 
@@ -94,7 +94,7 @@ Rules:
   | `member` | `approver` |
   | `viewer` | `viewer` |
 
-- **Polis enforces the cap** when a project role is granted, and when an organization role is lowered it lowers or removes project grants that now exceed it.
+- **Polis enforces the cap** when a project role is granted, and when an organization role is lowered it lowers grants that now exceed it; when the organization membership is removed, its project grants go too. Polis also refuses `approver` for service accounts.
 - **Krepis applies the cap again when evaluating** (effective project role = the lower of the grant and the cap, or `admin` for organization `owner`/`admin`), so a stale or inconsistent token can't escalate.
 
 Consequence: everything that needs project `admin` (managing automations, project policies and secrets, project members) is done by organization admins. **Approving tasks is not tied to admin:** anyone with `task:approve` can approve, which project `admin`s and `approver`s have, so organization members can be made approvers per project.

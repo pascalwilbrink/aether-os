@@ -22,7 +22,7 @@ import { OrganizationsService } from '@polis/organizations';
 import type { CreateMembershipRequest } from './dto/create-membership.request.js';
 import type { MembershipResponse } from './dto/membership.response.js';
 import type { UpdateMembershipRequest } from './dto/update-membership.request.js';
-import type { SubjectType } from './membership-roles.js';
+import type { OrganizationRole, SubjectType } from './membership-roles.js';
 import { MembershipEntity } from './membership.entity.js';
 import { MembershipExistsError } from './membership.errors.js';
 import { MembershipMapper } from './membership.mapper.js';
@@ -184,6 +184,20 @@ export class MembershipsService {
       organizationId,
       payload: base,
     });
+  }
+
+  /** A principal's roles in an organization, or null if not a member. */
+  async rolesOf(
+    organizationId: string,
+    subjectType: SubjectType,
+    subject: string,
+  ): Promise<OrganizationRole[] | null> {
+    const entity = await this.memberships.findOneBy({
+      organizationId,
+      subjectType,
+      subject,
+    });
+    return entity?.roles ?? null;
   }
 
   /** Owners are managed by owners only (docs/identity.md, Roles). */

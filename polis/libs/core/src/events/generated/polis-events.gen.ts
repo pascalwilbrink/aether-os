@@ -98,6 +98,66 @@ export interface OrganizationSuspended {
 }
 
 /**
+ * Payload of `project-membership.granted`.
+ */
+export interface ProjectMembershipGranted {
+  membershipId: string;
+  principal: {
+    /**
+     * The principal's Pistis `sub`.
+     */
+    sub: string;
+    sub_type: 'user' | 'service_account';
+  };
+  scope: {
+    type: 'project';
+    organizationId: string;
+    projectId: string;
+  };
+  role: 'approver' | 'editor' | 'viewer';
+}
+
+/**
+ * Payload of `project-membership.revoked`.
+ */
+export interface ProjectMembershipRevoked {
+  membershipId: string;
+  principal: {
+    /**
+     * The principal's Pistis `sub`.
+     */
+    sub: string;
+    sub_type: 'user' | 'service_account';
+  };
+  scope: {
+    type: 'project';
+    organizationId: string;
+    projectId: string;
+  };
+}
+
+/**
+ * Payload of `project-membership.role-changed`.
+ */
+export interface ProjectMembershipRoleChanged {
+  membershipId: string;
+  principal: {
+    /**
+     * The principal's Pistis `sub`.
+     */
+    sub: string;
+    sub_type: 'user' | 'service_account';
+  };
+  scope: {
+    type: 'project';
+    organizationId: string;
+    projectId: string;
+  };
+  from: 'approver' | 'editor' | 'viewer';
+  to: 'approver' | 'editor' | 'viewer';
+}
+
+/**
  * Payload of `project.archived`.
  */
 export interface ProjectArchived {
@@ -119,6 +179,9 @@ export interface PolisEventPayloads {
   'organization.created': OrganizationCreated;
   'organization.reactivated': OrganizationReactivated;
   'organization.suspended': OrganizationSuspended;
+  'project-membership.granted': ProjectMembershipGranted;
+  'project-membership.revoked': ProjectMembershipRevoked;
+  'project-membership.role-changed': ProjectMembershipRoleChanged;
   'project.archived': ProjectArchived;
   'project.created': ProjectCreated;
 }
@@ -133,6 +196,9 @@ export const POLIS_EVENT_TYPES = [
   'organization.created',
   'organization.reactivated',
   'organization.suspended',
+  'project-membership.granted',
+  'project-membership.revoked',
+  'project-membership.role-changed',
   'project.archived',
   'project.created',
 ] as const satisfies readonly PolisEventType[];

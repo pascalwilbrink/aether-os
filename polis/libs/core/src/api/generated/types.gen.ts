@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'ORGANIZATION_SLUG_TAKEN' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_SLUG_TAKEN' | 'MEMBERSHIP_EXISTS';
+export type DomainErrorCode = 'ORGANIZATION_SLUG_TAKEN' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_SLUG_TAKEN' | 'MEMBERSHIP_EXISTS' | 'PROJECT_ARCHIVED' | 'PROJECT_MEMBERSHIP_EXISTS' | 'PROJECT_MEMBER_NOT_IN_ORGANIZATION' | 'PROJECT_ROLE_EXCEEDS_CAP';
 
 /**
  * Problem details for a business-rule violation.
@@ -125,6 +125,40 @@ export type MembershipResponse = {
 
 export type MembershipPage = PageMeta & {
     items: Array<MembershipResponse>;
+};
+
+/**
+ * A project role that can be granted (`docs/identity.md`). Project
+ * `admin` is never granted: organization owners and admins have it in
+ * every project.
+ *
+ */
+export type ProjectRole = 'approver' | 'editor' | 'viewer';
+
+export type CreateProjectMembershipRequest = {
+    subjectType: SubjectType;
+    subject: Subject;
+    role: ProjectRole;
+};
+
+export type UpdateProjectMembershipRequest = {
+    role: ProjectRole;
+};
+
+export type ProjectMembershipResponse = {
+    id: string;
+    organizationId: string;
+    projectId: string;
+    subjectType: SubjectType;
+    subject: string;
+    role: ProjectRole;
+    createdBy: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+};
+
+export type ProjectMembershipPage = PageMeta & {
+    items: Array<ProjectMembershipResponse>;
 };
 
 export type PageMeta = {
@@ -1019,3 +1053,320 @@ export type ListMembershipsOfSubjectResponses = {
 };
 
 export type ListMembershipsOfSubjectResponse = ListMembershipsOfSubjectResponses[keyof ListMembershipsOfSubjectResponses];
+
+export type ListProjectMembershipsData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+    };
+    query?: {
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/memberships';
+};
+
+export type ListProjectMembershipsErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListProjectMembershipsError = ListProjectMembershipsErrors[keyof ListProjectMembershipsErrors];
+
+export type ListProjectMembershipsResponses = {
+    /**
+     * Newest first
+     */
+    200: ProjectMembershipPage;
+};
+
+export type ListProjectMembershipsResponse = ListProjectMembershipsResponses[keyof ListProjectMembershipsResponses];
+
+export type CreateProjectMembershipData = {
+    body: CreateProjectMembershipRequest;
+    path: {
+        organizationId: string;
+        projectId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/memberships';
+};
+
+export type CreateProjectMembershipErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type CreateProjectMembershipError = CreateProjectMembershipErrors[keyof CreateProjectMembershipErrors];
+
+export type CreateProjectMembershipResponses = {
+    /**
+     * Created
+     */
+    201: ProjectMembershipResponse;
+};
+
+export type CreateProjectMembershipResponse = CreateProjectMembershipResponses[keyof CreateProjectMembershipResponses];
+
+export type DeleteProjectMembershipData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+        membershipId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/memberships/{membershipId}';
+};
+
+export type DeleteProjectMembershipErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type DeleteProjectMembershipError = DeleteProjectMembershipErrors[keyof DeleteProjectMembershipErrors];
+
+export type DeleteProjectMembershipResponses = {
+    /**
+     * Deleted
+     */
+    204: void;
+};
+
+export type DeleteProjectMembershipResponse = DeleteProjectMembershipResponses[keyof DeleteProjectMembershipResponses];
+
+export type GetProjectMembershipData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+        membershipId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/memberships/{membershipId}';
+};
+
+export type GetProjectMembershipErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type GetProjectMembershipError = GetProjectMembershipErrors[keyof GetProjectMembershipErrors];
+
+export type GetProjectMembershipResponses = {
+    /**
+     * OK
+     */
+    200: ProjectMembershipResponse;
+};
+
+export type GetProjectMembershipResponse = GetProjectMembershipResponses[keyof GetProjectMembershipResponses];
+
+export type UpdateProjectMembershipData = {
+    body: UpdateProjectMembershipRequest;
+    path: {
+        organizationId: string;
+        projectId: string;
+        membershipId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/memberships/{membershipId}';
+};
+
+export type UpdateProjectMembershipErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type UpdateProjectMembershipError = UpdateProjectMembershipErrors[keyof UpdateProjectMembershipErrors];
+
+export type UpdateProjectMembershipResponses = {
+    /**
+     * Updated
+     */
+    200: ProjectMembershipResponse;
+};
+
+export type UpdateProjectMembershipResponse = UpdateProjectMembershipResponses[keyof UpdateProjectMembershipResponses];
+
+export type ListProjectMembershipsOfSubjectData = {
+    body?: never;
+    path?: never;
+    query: {
+        organizationId: string;
+        subjectType: SubjectType;
+        subject: Subject;
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/project-memberships';
+};
+
+export type ListProjectMembershipsOfSubjectErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+};
+
+export type ListProjectMembershipsOfSubjectError = ListProjectMembershipsOfSubjectErrors[keyof ListProjectMembershipsOfSubjectErrors];
+
+export type ListProjectMembershipsOfSubjectResponses = {
+    /**
+     * Newest first
+     */
+    200: ProjectMembershipPage;
+};
+
+export type ListProjectMembershipsOfSubjectResponse = ListProjectMembershipsOfSubjectResponses[keyof ListProjectMembershipsOfSubjectResponses];

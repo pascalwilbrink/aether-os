@@ -1,10 +1,11 @@
 openapi: 3.1.0
 info:
   title: Polis API
-  version: 0.5.0
+  version: 0.6.0
   description: |
-    Tenancy service for Aether-os: organizations, the projects inside them, and
-    memberships (which principal belongs to which organization, with which roles).
+    Tenancy service for Aether-os: organizations, the projects inside them,
+    memberships (which principal belongs to which organization, with which
+    roles) and project memberships (a member's role in one project).
     Other services store organization and project IDs and resolve them here.
 
     Follows `../docs/api.md`: paths under `/v1`, errors as problem details
@@ -28,6 +29,7 @@ tags:
   - name: organizations
   - name: projects
   - name: memberships
+  - name: project-memberships
 
 paths:
   /v1/organizations:
@@ -344,6 +346,140 @@ paths:
               schema: { $ref: '#/components/schemas/MembershipPage' }
         '400': { $ref: '#/components/responses/ValidationError' }
 
+  /v1/organizations/{organizationId}/projects/{projectId}/memberships:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      tags: [project-memberships]
+      operationId: createProjectMembership
+      x-permission: '`project-member:manage` in that project'
+      description: |
+        Grants a member of the organization one role in the project. The
+        role can't exceed what the organization role allows (`member` →
+        `approver`, `viewer` → `viewer`; `PROJECT_ROLE_EXCEEDS_CAP`), and a
+        service account is never an `approver`. The principal must be a
+        member of the organization (`PROJECT_MEMBER_NOT_IN_ORGANIZATION`);
+        the project must be active (`PROJECT_ARCHIVED`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateProjectMembershipRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectMembershipResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [project-memberships]
+      operationId: listProjectMemberships
+      x-permission: '`project:read` in that project'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectMembershipPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/memberships/{membershipId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/MembershipId'
+    get:
+      tags: [project-memberships]
+      operationId: getProjectMembership
+      x-permission: '`project:read` in that project'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectMembershipResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [project-memberships]
+      operationId: updateProjectMembership
+      x-permission: '`project-member:manage` in that project'
+      description: Replaces the role (same cap as granting).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateProjectMembershipRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectMembershipResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    delete:
+      tags: [project-memberships]
+      operationId: deleteProjectMembership
+      x-permission: '`project-member:manage` in that project'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '204': { description: Deleted }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/project-memberships:
+    get:
+      tags: [project-memberships]
+      operationId: listProjectMembershipsOfSubject
+      x-permission: "the caller's own (`subject` = the token's `sub`), or `platform:read`"
+      description: |
+        One principal's project roles in one organization. Pistis uses it to
+        put `project_roles` in tokens.
+      parameters:
+        - name: organizationId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: subjectType
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/SubjectType' }
+        - name: subject
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/Subject' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectMembershipPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
 components:
   parameters:
     OrganizationId:
@@ -391,6 +527,10 @@ components:
         - ORGANIZATION_SUSPENDED
         - PROJECT_SLUG_TAKEN
         - MEMBERSHIP_EXISTS
+        - PROJECT_ARCHIVED
+        - PROJECT_MEMBERSHIP_EXISTS
+        - PROJECT_MEMBER_NOT_IN_ORGANIZATION
+        - PROJECT_ROLE_EXCEEDS_CAP
     DomainProblem:
       description: Problem details for a business-rule violation.
       allOf:
@@ -547,6 +687,50 @@ components:
             items:
               type: array
               items: { $ref: '#/components/schemas/MembershipResponse' }
+
+    ProjectRole:
+      type: string
+      enum: [approver, editor, viewer]
+      description: |
+        A project role that can be granted (`docs/identity.md`). Project
+        `admin` is never granted: organization owners and admins have it in
+        every project.
+    CreateProjectMembershipRequest:
+      type: object
+      additionalProperties: false
+      required: [subjectType, subject, role]
+      properties:
+        subjectType: { $ref: '#/components/schemas/SubjectType' }
+        subject: { $ref: '#/components/schemas/Subject' }
+        role: { $ref: '#/components/schemas/ProjectRole' }
+    UpdateProjectMembershipRequest:
+      type: object
+      additionalProperties: false
+      required: [role]
+      properties:
+        role: { $ref: '#/components/schemas/ProjectRole' }
+    ProjectMembershipResponse:
+      type: object
+      required: [id, organizationId, projectId, subjectType, subject, role, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        subjectType: { $ref: '#/components/schemas/SubjectType' }
+        subject: { type: string }
+        role: { $ref: '#/components/schemas/ProjectRole' }
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    ProjectMembershipPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/ProjectMembershipResponse' }
 
     # ---------- pagination ----------
     PageMeta:

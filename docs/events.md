@@ -46,7 +46,7 @@ Rules:
 
 ### Polis (`polis.events`)
 
-**Published** since Polis's outbox landed, and **consumed by Hephaestus** (`hephaestus.polis-events`: the organization and project events, for its copy of their status); the contract is `../contracts/polis.asyncapi.yaml`, which is the source for these events from now on (membership payloads also carry `membershipId`). Not built yet: `organization.deleted` and `project.deleted` (Polis has no deletes), and project memberships.
+**Published** since Polis's outbox landed, and **consumed by Hephaestus** (`hephaestus.polis-events`: the organization and project events, for its copy of their status); the contract is `../contracts/polis.asyncapi.yaml`, which is the source for these events from now on (membership payloads also carry `membershipId`). Not built yet: `organization.deleted` and `project.deleted` (Polis has no deletes). Project memberships are published as their own events (below), not as `membership.*` with a project scope.
 
 | Event | Payload | Consumers |
 |---|---|---|
@@ -57,6 +57,9 @@ Rules:
 | `membership.granted` | `principal`, `scope` (organization or project), `roles` | Pistis, Iris, Kerykes |
 | `membership.role-changed` | `principal`, `scope`, `from`, `to` (role lists) | Pistis, every service (drop cached permissions; Kerykes updates its recipient copy) |
 | `membership.revoked` | `principal`, `scope` | Pistis, every service |
+| `project-membership.granted` | `membershipId`, `principal`, `scope` (`project`: organization and project), `role` | Pistis, Iris, Kerykes |
+| `project-membership.role-changed` | `membershipId`, `principal`, `scope`, `from`, `to` (one role each); also when a lowered organization role capped the grant | every service (drop cached permissions) |
+| `project-membership.revoked` | `membershipId`, `principal`, `scope`; also when the organization membership went | every service |
 
 ### Agora (`agora.events`)
 

@@ -6,7 +6,11 @@ export const zDomainErrorCode = z.enum([
     'ORGANIZATION_SLUG_TAKEN',
     'ORGANIZATION_SUSPENDED',
     'PROJECT_SLUG_TAKEN',
-    'MEMBERSHIP_EXISTS'
+    'MEMBERSHIP_EXISTS',
+    'PROJECT_ARCHIVED',
+    'PROJECT_MEMBERSHIP_EXISTS',
+    'PROJECT_MEMBER_NOT_IN_ORGANIZATION',
+    'PROJECT_ROLE_EXCEEDS_CAP'
 ]);
 
 /**
@@ -112,6 +116,40 @@ export const zMembershipResponse = z.object({
 });
 
 /**
+ * A project role that can be granted (`docs/identity.md`). Project
+ * `admin` is never granted: organization owners and admins have it in
+ * every project.
+ *
+ */
+export const zProjectRole = z.enum([
+    'approver',
+    'editor',
+    'viewer'
+]);
+
+export const zCreateProjectMembershipRequest = z.object({
+    subjectType: zSubjectType,
+    subject: zSubject,
+    role: zProjectRole
+});
+
+export const zUpdateProjectMembershipRequest = z.object({
+    role: zProjectRole
+});
+
+export const zProjectMembershipResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    subjectType: zSubjectType,
+    subject: z.string(),
+    role: zProjectRole,
+    createdBy: z.string(),
+    createdAt: zTimestamp,
+    updatedAt: zTimestamp
+});
+
+/**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
 export const zNextCursor = z.string().nullable();
@@ -130,6 +168,10 @@ export const zProjectPage = zPageMeta.and(z.object({
 
 export const zMembershipPage = zPageMeta.and(z.object({
     items: z.array(zMembershipResponse)
+}));
+
+export const zProjectMembershipPage = zPageMeta.and(z.object({
+    items: z.array(zProjectMembershipResponse)
 }));
 
 /**
@@ -370,3 +412,78 @@ export const zListMembershipsOfSubjectQuery = z.object({
  * Newest first
  */
 export const zListMembershipsOfSubjectResponse = zMembershipPage;
+
+export const zListProjectMembershipsPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid()
+});
+
+export const zListProjectMembershipsQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListProjectMembershipsResponse = zProjectMembershipPage;
+
+export const zCreateProjectMembershipBody = zCreateProjectMembershipRequest;
+
+export const zCreateProjectMembershipPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid()
+});
+
+/**
+ * Created
+ */
+export const zCreateProjectMembershipResponse = zProjectMembershipResponse;
+
+export const zDeleteProjectMembershipPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    membershipId: z.uuid()
+});
+
+/**
+ * Deleted
+ */
+export const zDeleteProjectMembershipResponse = z.void();
+
+export const zGetProjectMembershipPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    membershipId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetProjectMembershipResponse = zProjectMembershipResponse;
+
+export const zUpdateProjectMembershipBody = zUpdateProjectMembershipRequest;
+
+export const zUpdateProjectMembershipPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    membershipId: z.uuid()
+});
+
+/**
+ * Updated
+ */
+export const zUpdateProjectMembershipResponse = zProjectMembershipResponse;
+
+export const zListProjectMembershipsOfSubjectQuery = z.object({
+    organizationId: z.uuid(),
+    subjectType: zSubjectType,
+    subject: zSubject,
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListProjectMembershipsOfSubjectResponse = zProjectMembershipPage;
