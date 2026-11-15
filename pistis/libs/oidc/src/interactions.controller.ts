@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Post, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  Res,
+  UseFilters,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import type { InteractionResults } from 'oidc-provider';
 
@@ -9,10 +18,15 @@ import {
 } from '@pistis/users';
 
 import { SignInForm } from './dto/sign-in.form.js';
+import { InteractionErrorFilter } from './interaction-error.filter.js';
 import { OidcProviderService } from './oidc-provider.service.js';
-import { signInPage } from './pages.js';
+import { errorPage, signInPage } from './pages.js';
 import { PolisDirectory } from './polis-directory.js';
 import { organizationOf, requestedResources } from './resources.js';
+import {
+  UpstreamSignInError,
+  UpstreamSignInService,
+} from './upstream/upstream-sign-in.service.js';
 
 const OIDC_SCOPES = ['openid', 'offline_access', 'profile', 'email'];
 
@@ -20,17 +34,22 @@ const OIDC_SCOPES = ['openid', 'offline_access', 'profile', 'email'];
  * Sign-in and consent for oidc-provider's interactions, outside `/v1`
  * (docs/api.md: OIDC endpoints are fixed by the standard).
  *
- * - `login`: the sign-in page; a login and password (`AccountsService`).
+ * - `login`: the sign-in page: a login and password (`AccountsService`), or
+ *   an external OpenID Connect provider (`UpstreamSignInService`), which
+ *   comes back to `callback/:provider` and finishes on the interaction's
+ *   own URL.
  * - `consent`: no page. Pistis grants the requested scopes, and an
  *   organization resource only to a member of an active organization;
  *   anything else ends the request with `access_denied`.
  */
 @Controller('interaction')
+@UseFilters(InteractionErrorFilter)
 export class InteractionsController {
   constructor(
     private readonly oidc: OidcProviderService,
     private readonly accounts: AccountsService,
     private readonly directory: PolisDirectory,
+    private readonly upstream: UpstreamSignInService,
   ) {}
 
   @Get(':uid')
@@ -41,7 +60,7 @@ export class InteractionsController {
   ): Promise<void> {
     const details = await this.oidc.provider.interactionDetails(req, res);
     if (details.prompt.name === 'login') {
-      res.type('html').send(signInPage(uid));
+      res.type('html').send(this.signInPage(uid));
       return;
     }
     await this.consent(req, res);
@@ -77,7 +96,7 @@ export class InteractionsController {
           .status(401)
           .type('html')
           .send(
-            signInPage(uid, {
+            this.signInPage(uid, {
               error:
                 error instanceof UserDisabledError
                   ? 'This account is disabled.'
@@ -89,6 +108,100 @@ export class InteractionsController {
       }
       throw error;
     }
+  }
+
+  /** The fixed redirect URI for every sign-in with `provider`. */
+  @Get('callback/:provider')
+  async upstreamCallback(
+    @Param('provider') provider: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const query = new URL(req.originalUrl, 'http://pistis').searchParams;
+    const uid = await this.upstream.interactionOf(
+      provider,
+      query.get('state') ?? undefined,
+    );
+    if (!uid) {
+      res
+        .status(400)
+        .type('html')
+        .send(errorPage('This sign-in has expired. Please start again.'));
+      return;
+    }
+    // On to the interaction's own URL, where its cookie is sent.
+    res.redirect(
+      303,
+      `/interaction/${encodeURIComponent(uid)}/upstream/${encodeURIComponent(provider)}/callback?${query}`,
+    );
+  }
+
+  @Get(':uid/upstream/:provider')
+  async startUpstream(
+    @Param('uid') uid: string,
+    @Param('provider') provider: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    await this.oidc.provider.interactionDetails(req, res);
+    try {
+      res.redirect(303, (await this.upstream.start(uid, provider)).href);
+    } catch (error) {
+      this.signInFailed(uid, error, res);
+    }
+  }
+
+  @Get(':uid/upstream/:provider/callback')
+  async finishUpstream(
+    @Param('uid') uid: string,
+    @Param('provider') provider: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    // Throws unless this browser holds interaction `uid`.
+    await this.oidc.provider.interactionDetails(req, res);
+    try {
+      const identity = await this.upstream.complete(
+        uid,
+        provider,
+        new URL(req.originalUrl, 'http://pistis').searchParams,
+      );
+      const { user } = await this.accounts.resolveSignIn(identity);
+      await this.oidc.provider.interactionFinished(
+        req,
+        res,
+        { login: { accountId: user.id } },
+        { mergeWithLastSubmission: false },
+      );
+    } catch (error) {
+      this.signInFailed(uid, error, res);
+    }
+  }
+
+  private signInPage(
+    uid: string,
+    options: { error?: string; login?: string } = {},
+  ): string {
+    return signInPage(uid, { ...options, providers: this.upstream.list() });
+  }
+
+  /** Back to the sign-in page with what went wrong; anything unexpected rethrows. */
+  private signInFailed(uid: string, error: unknown, res: Response): void {
+    if (error instanceof UpstreamSignInError) {
+      res
+        .status(400)
+        .type('html')
+        .send(this.signInPage(uid, { error: error.message }));
+      return;
+    }
+    if (error instanceof UserDisabledError) {
+      res
+        .status(401)
+        .type('html')
+        .send(this.signInPage(uid, { error: 'This account is disabled.' }));
+      return;
+    }
+    throw error;
   }
 
   private async consent(req: Request, res: Response): Promise<void> {

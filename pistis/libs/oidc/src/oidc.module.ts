@@ -14,12 +14,14 @@ import { InteractionsController } from './interactions.controller.js';
 import { OidcPayloadEntity } from './oidc-payload.entity.js';
 import { OidcProviderService } from './oidc-provider.service.js';
 import { PolisDirectory } from './polis-directory.js';
+import { UpstreamSignInService } from './upstream/upstream-sign-in.service.js';
 
 @Module({
   imports: [TypeOrmModule.forFeature([OidcPayloadEntity]), UsersModule],
   controllers: [InteractionsController],
   providers: [
     OidcProviderService,
+    UpstreamSignInService,
     {
       provide: POLIS_DIRECTORY_OPTIONS,
       inject: [ConfigService],

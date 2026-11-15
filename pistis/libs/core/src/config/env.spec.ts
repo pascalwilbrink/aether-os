@@ -59,4 +59,60 @@ describe('zEnv', () => {
       zEnv.safeParse({ ...base, ACCESS_TOKEN_TTL_SECONDS: '3600' }).success,
     ).toBe(false);
   });
+
+  it('parses upstream providers', () => {
+    const env = zEnv.parse({
+      ...base,
+      PISTIS_UPSTREAM_PROVIDERS: JSON.stringify([
+        {
+          id: 'entra:contoso',
+          name: 'Contoso',
+          issuer: 'https://login.example.com/v2.0',
+          clientId: 'c1',
+        },
+      ]),
+    });
+    expect(env.PISTIS_UPSTREAM_PROVIDERS).toEqual([
+      {
+        id: 'entra:contoso',
+        name: 'Contoso',
+        issuer: 'https://login.example.com/v2.0',
+        clientId: 'c1',
+        scopes: 'openid email profile',
+      },
+    ]);
+    expect(zEnv.parse(base).PISTIS_UPSTREAM_PROVIDERS).toEqual([]);
+  });
+
+  it('rejects reserved, duplicate and (in production) insecure providers', () => {
+    const provider = {
+      id: 'google',
+      name: 'Google',
+      issuer: 'http://idp.local',
+      clientId: 'c',
+    };
+    const parse = (providers: object[], env: object = {}) =>
+      zEnv.safeParse({
+        ...base,
+        ...env,
+        PISTIS_UPSTREAM_PROVIDERS: JSON.stringify(providers),
+      }).success;
+
+    expect(parse([provider])).toBe(true);
+    expect(parse([{ ...provider, id: 'password' }])).toBe(false);
+    expect(parse([{ ...provider, id: 'Google' }])).toBe(false);
+    expect(parse([provider, provider])).toBe(false);
+    expect(
+      zEnv
+        .safeParse({
+          ...base,
+          NODE_ENV: 'production',
+          PISTIS_SIGNING_KEYS: JSON.stringify({ keys: [{ kty: 'EC' }] }),
+          PISTIS_COOKIE_KEYS: 'a'.repeat(32),
+          PISTIS_CLIENTS: '[]',
+          PISTIS_UPSTREAM_PROVIDERS: JSON.stringify([provider]),
+        })
+        .error?.issues.map((issue) => issue.path.join('.')),
+    ).toEqual(['PISTIS_UPSTREAM_PROVIDERS.0.issuer']);
+  });
 });
