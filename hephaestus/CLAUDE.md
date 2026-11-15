@@ -39,7 +39,7 @@ Lint enforces `typescript/no-floating-promises` as an error.
 
 ### Monorepo layout
 
-`src/` is just the app shell (`AppModule` wires a global `ValidationPipe` with `whitelist`/`forbidNonWhitelisted`/`transform`, and the global `DomainErrorFilter`). All real code lives in Nest libraries under `libs/`, registered in `nest-cli.json` and aliased in `tsconfig.json` as `@hephaestus/<name>`. When adding a library, update both files (vitest resolves aliases via `resolve.tsconfigPaths`).
+`src/` is just the app shell: `main.ts` calls Krepis's `configureHttpApp(app)` (the `/v1` prefix, the strict validation pipe and the problem details filter), and every e2e test calls it on the app it creates, before `init()`. All real code lives in Nest libraries under `libs/`, registered in `nest-cli.json` and aliased in `tsconfig.json` as `@hephaestus/<name>`. When adding a library, update both files (vitest resolves aliases via `resolve.tsconfigPaths`).
 
 Module dependency graph: `core` ← `organizations` ← `projects` ← `workspaces`; `agents` depends on `organizations`. Cross-module access goes through the other module's exported **service** (e.g. `OrganizationService.findActiveById`), never its repositories.
 
@@ -61,10 +61,10 @@ Most of `@hephaestus/core` is re-exported from the shared `@aether-os/krepis` pa
 
 
 - **Branded IDs**: `OrganizationId` and `ProjectId` come from Krepis; Hephaestus-only IDs are in `core/src/id/id.ts`.
-- **Errors**: extend `DomainError(message, CODE)`. `DomainErrorFilter` maps every `DomainError` to **HTTP 409** with `{ statusCode, error: code, message }`.
+- **Errors**: extend `DomainError(message, CODE)`. Krepis's `ProblemDetailsFilter` turns every error into problem details (`application/problem+json`, see `../docs/api.md`): a `DomainError` becomes **HTTP 409** with its `code`, validation failures `400 VALIDATION_FAILED` with `errors`, `NotFoundException` `404 NOT_FOUND`. Add new codes to the spec's `DomainErrorCode` enum too.
 - **Transactions**: `TransactionManager.run(work)` uses `AsyncLocalStorage`; nested calls join the outer transaction. TypeORM repositories must resolve their `Repository` per call via `TypeOrmTransactionManager.getRepository(Entity)` (a getter, not a field) so they participate in the active transaction. Modules import `TransactionModule` and still register entities with `TypeOrmModule.forFeature` (for `autoLoadEntities`).
 - **Unique constraints**: catch with `isUniqueViolation(error)` in the repository and rethrow as a domain error (see agent version numbering, which retries on conflict up to 5 times).
-- **Pagination**: controllers take `@Query() PaginationQuery` (`limit` 1–100, default 50; `offset`), repositories return `Page<T>`, controllers respond with `PageResponse.fromPage(page, mapFn)`.
+- **Pagination**: cursor (keyset) based. Controllers take `@Query() PaginationQuery` (`limit` 1–100, default 50; opaque `cursor`), repositories return `Page<T>` (`items`, `nextCursor`) from Krepis's `findPage(repository, { where, sortBy, direction }, page)`, and controllers respond with `PageResponse.fromPage(page, mapFn)`. `where` holds the tenant filters; a cursor only works with the filters and sort it was made with (`400 INVALID_CURSOR` otherwise).
 
 ### API contract
 

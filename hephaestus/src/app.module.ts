@@ -1,6 +1,5 @@
-import { Module, ValidationPipe } from '@nestjs/common';
-import { APP_FILTER, APP_PIPE } from '@nestjs/core';
-import { DatabaseModule, DomainErrorFilter } from '@hephaestus/core';
+import { Module } from '@nestjs/common';
+import { DatabaseModule } from '@hephaestus/core';
 import { AgentsModule } from '@hephaestus/agents';
 import { OrganizationsModule } from '@hephaestus/organizations';
 import { ProjectsModule } from '@hephaestus/projects';
@@ -17,17 +16,7 @@ import { AppService } from './app.service.js';
     WorkspacesModule,
   ],
   controllers: [AppController],
-  providers: [
-    AppService,
-    {
-      provide: APP_PIPE,
-      useValue: new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-      }),
-    },
-    { provide: APP_FILTER, useClass: DomainErrorFilter },
-  ],
+  // Validation, the /v1 prefix and problem details: configureHttpApp (main.ts).
+  providers: [AppService],
 })
 export class AppModule {}

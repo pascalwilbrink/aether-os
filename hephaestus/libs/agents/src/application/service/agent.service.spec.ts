@@ -109,9 +109,9 @@ describe('AgentService (sqlite)', () => {
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
 
-    await expect(
-      service.list(unknown, { limit: 10, offset: 0 }),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.list(unknown, { limit: 10 })).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('blocks writes but allows reads for a suspended organization', async () => {
@@ -141,8 +141,8 @@ describe('AgentService (sqlite)', () => {
       status: 'active',
     });
     await expect(
-      service.listVersions(orgId, agentId, { limit: 10, offset: 0 }),
-    ).resolves.toMatchObject({ total: 1 });
+      service.listVersions(orgId, agentId, { limit: 10 }),
+    ).resolves.toMatchObject({ items: [expect.anything()], nextCursor: null });
     await expect(
       service.findVersionById(orgId, agentId, v1.id),
     ).resolves.toMatchObject({ status: 'draft' });
@@ -227,12 +227,16 @@ describe('AgentService (sqlite)', () => {
       createdBy: 'user-1',
     });
 
-    const first = await service.list(orgId, { limit: 2, offset: 0 });
-    const second = await service.list(orgId, { limit: 2, offset: 2 });
+    const first = await service.list(orgId, { limit: 2 });
+    const second = await service.list(orgId, {
+      limit: 2,
+      cursor: first.nextCursor,
+    });
 
-    expect(first.total).toBe(3);
     expect(first.items).toHaveLength(2);
+    expect(first.nextCursor).not.toBeNull();
     expect(second.items).toHaveLength(1);
+    expect(second.nextCursor).toBeNull();
 
     const ids = [...first.items, ...second.items].map((a) => a.id).sort();
     expect(ids).toEqual(['agent-1', 'agent-2', 'agent-3']);
@@ -245,18 +249,16 @@ describe('AgentService (sqlite)', () => {
 
     const page = await service.listVersions(orgId, agentId, {
       limit: 2,
-      offset: 0,
     });
 
-    expect(page.total).toBe(3);
     expect(page.items.map((v) => v.version)).toEqual([3, 2]);
+    expect(page.nextCursor).not.toBeNull();
   });
 
   it('404s when listing versions of an unknown agent', async () => {
     await expect(
       service.listVersions(orgId, 'missing' as AgentId, {
         limit: 10,
-        offset: 0,
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });

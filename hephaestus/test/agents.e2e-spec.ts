@@ -3,6 +3,8 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
+import { configureHttpApp } from '@hephaestus/core';
+
 import { AppModule } from '../src/app.module.js';
 
 const versionBody = {
@@ -29,11 +31,11 @@ describe('Agents (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleRef.createNestApplication();
+    app = configureHttpApp(moduleRef.createNestApplication());
     await app.init();
 
     orgId = await createOrganization('org-one');
-    base = `/organizations/${orgId}/agents`;
+    base = `/v1/organizations/${orgId}/agents`;
   });
 
   afterEach(async () => {
@@ -42,7 +44,7 @@ describe('Agents (e2e)', () => {
 
   async function createOrganization(slug: string): Promise<string> {
     const res = await request(app.getHttpServer())
-      .post('/organizations')
+      .post('/v1/organizations')
       .send({ name: slug, slug, createdBy: 'user-1' })
       .expect(201);
 
@@ -84,7 +86,7 @@ describe('Agents (e2e)', () => {
     const otherOrgId = await createOrganization('org-two');
 
     await request(app.getHttpServer())
-      .get(`/organizations/${otherOrgId}/agents/${id}`)
+      .get(`/v1/organizations/${otherOrgId}/agents/${id}`)
       .expect(404);
   });
 
@@ -139,19 +141,55 @@ describe('Agents (e2e)', () => {
     await createAgent();
 
     const res = await request(app.getHttpServer())
-      .get(`${base}?limit=2&offset=1`)
+      .get(`${base}?limit=2`)
       .expect(200);
 
-    expect(res.body).toMatchObject({ total: 3, limit: 2, offset: 1 });
     expect(res.body.items).toHaveLength(2);
     expect(res.body.items[0]).toHaveProperty('name', 'Helper');
+    expect(typeof res.body.nextCursor).toBe('string');
+
+    const rest = await request(app.getHttpServer())
+      .get(base)
+      .query({ limit: 2, cursor: res.body.nextCursor })
+      .expect(200);
+    expect(rest.body.items).toHaveLength(1);
+    expect(rest.body.nextCursor).toBeNull();
+
+    const ids = [...res.body.items, ...rest.body.items].map(
+      (agent: { id: string }) => agent.id,
+    );
+    expect(new Set(ids).size).toBe(3);
 
     const defaults = await request(app.getHttpServer()).get(base).expect(200);
-    expect(defaults.body).toMatchObject({ total: 3, limit: 50, offset: 0 });
+    expect(defaults.body).toMatchObject({ nextCursor: null });
+    expect(defaults.body.items).toHaveLength(3);
 
     await request(app.getHttpServer()).get(`${base}?limit=0`).expect(400);
     await request(app.getHttpServer()).get(`${base}?limit=101`).expect(400);
-    await request(app.getHttpServer()).get(`${base}?offset=-1`).expect(400);
+    await request(app.getHttpServer()).get(`${base}?offset=1`).expect(400);
+  });
+
+  it('rejects cursors that are malformed or from another list', async () => {
+    await createAgent();
+    await createAgent();
+    const first = await request(app.getHttpServer())
+      .get(`${base}?limit=1`)
+      .expect(200);
+
+    const malformed = await request(app.getHttpServer())
+      .get(`${base}?cursor=garbage`)
+      .expect(400);
+    expect(malformed.body).toMatchObject({
+      code: 'INVALID_CURSOR',
+      instance: base,
+    });
+
+    const otherOrg = await createOrganization('org-two');
+    const foreign = await request(app.getHttpServer())
+      .get(`/v1/organizations/${otherOrg}/agents`)
+      .query({ cursor: first.body.nextCursor })
+      .expect(400);
+    expect(foreign.body.code).toBe('INVALID_CURSOR');
   });
 
   it('lists and fetches versions', async () => {
@@ -170,7 +208,7 @@ describe('Agents (e2e)', () => {
       .get(`${base}/${id}/versions`)
       .expect(200);
 
-    expect(list.body.total).toBe(2);
+    expect(list.body.nextCursor).toBeNull();
     expect(list.body.items.map((v: { version: number }) => v.version)).toEqual([
       2, 1,
     ]);
@@ -225,11 +263,11 @@ describe('Agents (e2e)', () => {
 
   it('404s for an unknown organization', async () => {
     await request(app.getHttpServer())
-      .post('/organizations/unknown/agents')
+      .post('/v1/organizations/unknown/agents')
       .send({ name: 'Helper', description: '', createdBy: 'user-1' })
       .expect(404);
     await request(app.getHttpServer())
-      .get('/organizations/unknown/agents')
+      .get('/v1/organizations/unknown/agents')
       .expect(404);
   });
 
@@ -241,7 +279,9 @@ describe('Agents (e2e)', () => {
       .send(versionBody)
       .expect(201);
 
-    await request(server).post(`/organizations/${orgId}/suspend`).expect(200);
+    await request(server)
+      .post(`/v1/organizations/${orgId}/suspend`)
+      .expect(200);
 
     for (const call of [
       request(server)
@@ -252,14 +292,16 @@ describe('Agents (e2e)', () => {
       request(server).post(`${base}/${id}/archive`),
     ]) {
       const res = await call.expect(409);
-      expect(res.body.error).toBe('ORGANIZATION_SUSPENDED');
+      expect(res.body.code).toBe('ORGANIZATION_SUSPENDED');
     }
 
     // Reads still work.
     await request(server).get(`${base}/${id}`).expect(200);
     await request(server).get(`${base}/${id}/versions`).expect(200);
 
-    await request(server).post(`/organizations/${orgId}/activate`).expect(200);
+    await request(server)
+      .post(`/v1/organizations/${orgId}/activate`)
+      .expect(200);
     await request(server)
       .post(`${base}/${id}/versions/${version.body.id}/publish`)
       .expect(200);
@@ -280,7 +322,7 @@ describe('Agents (e2e)', () => {
     const republish = await request(app.getHttpServer())
       .post(`${base}/${id}/versions/${created.body.id}/publish`)
       .expect(409);
-    expect(republish.body.error).toBe('AGENT_VERSION_INVALID_TRANSITION');
+    expect(republish.body.code).toBe('AGENT_VERSION_INVALID_TRANSITION');
 
     await request(app.getHttpServer())
       .post(`${base}/${id}/archive`)
@@ -290,6 +332,6 @@ describe('Agents (e2e)', () => {
       .post(`${base}/${id}/versions`)
       .send(versionBody)
       .expect(409);
-    expect(afterArchive.body.error).toBe('AGENT_ARCHIVED');
+    expect(afterArchive.body.code).toBe('AGENT_ARCHIVED');
   });
 });

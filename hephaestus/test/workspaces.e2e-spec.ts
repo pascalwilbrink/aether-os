@@ -6,6 +6,8 @@ import type { App } from 'supertest/types.js';
 import type { OrganizationId, WorkspaceId } from '@hephaestus/core';
 import { WorkspaceService } from '@hephaestus/workspaces';
 
+import { configureHttpApp } from '@hephaestus/core';
+
 import { AppModule } from '../src/app.module.js';
 
 let projectId: string;
@@ -42,18 +44,18 @@ describe('Workspaces (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleRef.createNestApplication();
+    app = configureHttpApp(moduleRef.createNestApplication());
     await app.init();
 
     const org = await request(app.getHttpServer())
-      .post('/organizations')
+      .post('/v1/organizations')
       .send({ name: 'Acme', slug: 'acme', createdBy: 'user-1' })
       .expect(201);
     orgId = org.body.id;
-    base = `/organizations/${orgId}/workspaces`;
+    base = `/v1/organizations/${orgId}/workspaces`;
 
     const project = await request(app.getHttpServer())
-      .post(`/organizations/${orgId}/projects`)
+      .post(`/v1/organizations/${orgId}/projects`)
       .send({ name: 'App', slug: 'app', description: '', createdBy: 'user-1' })
       .expect(201);
     projectId = project.body.id;
@@ -99,7 +101,8 @@ describe('Workspaces (e2e)', () => {
     expect(res.body).not.toHaveProperty('props');
 
     const list = await request(app.getHttpServer()).get(base).expect(200);
-    expect(list.body).toMatchObject({ total: 1, limit: 50, offset: 0 });
+    expect(list.body).toMatchObject({ nextCursor: null });
+    expect(list.body.items).toHaveLength(1);
 
     await request(app.getHttpServer()).get(`${base}/unknown`).expect(404);
   });
@@ -138,7 +141,7 @@ describe('Workspaces (e2e)', () => {
         workspaceBody({ expiresAt: new Date(Date.now() - 1000).toISOString() }),
       )
       .expect(409);
-    expect(past.body.error).toBe('WORKSPACE_INVALID_EXPIRY');
+    expect(past.body.code).toBe('WORKSPACE_INVALID_EXPIRY');
   });
 
   it('drives user actions over HTTP', async () => {
@@ -149,7 +152,7 @@ describe('Workspaces (e2e)', () => {
     const early = await request(server)
       .post(`${base}/${id}/acquire`)
       .expect(409);
-    expect(early.body.error).toBe('WORKSPACE_INVALID_TRANSITION');
+    expect(early.body.code).toBe('WORKSPACE_INVALID_TRANSITION');
 
     await provision(id);
 
@@ -182,14 +185,14 @@ describe('Workspaces (e2e)', () => {
       .expect(404);
 
     await request(app.getHttpServer())
-      .post(`/organizations/${orgId}/projects/${projectId}/archive`)
+      .post(`/v1/organizations/${orgId}/projects/${projectId}/archive`)
       .expect(204);
 
     const archived = await request(app.getHttpServer())
       .post(base)
       .send(workspaceBody())
       .expect(409);
-    expect(archived.body.error).toBe('PROJECT_ARCHIVED');
+    expect(archived.body.code).toBe('PROJECT_ARCHIVED');
   });
 
   it('applies organization rules', async () => {
@@ -197,22 +200,26 @@ describe('Workspaces (e2e)', () => {
     await provision(id);
     const server = app.getHttpServer();
 
-    await request(server).post(`/organizations/${orgId}/suspend`).expect(200);
+    await request(server)
+      .post(`/v1/organizations/${orgId}/suspend`)
+      .expect(200);
 
     const create = await request(server)
       .post(base)
       .send(workspaceBody())
       .expect(409);
-    expect(create.body.error).toBe('ORGANIZATION_SUSPENDED');
+    expect(create.body.code).toBe('ORGANIZATION_SUSPENDED');
 
     const acquire = await request(server)
       .post(`${base}/${id}/acquire`)
       .expect(409);
-    expect(acquire.body.error).toBe('ORGANIZATION_SUSPENDED');
+    expect(acquire.body.code).toBe('ORGANIZATION_SUSPENDED');
 
     await request(server).get(`${base}/${id}`).expect(200);
     await request(server).post(`${base}/${id}/destroy`).expect(200);
 
-    await request(server).get('/organizations/unknown/workspaces').expect(404);
+    await request(server)
+      .get('/v1/organizations/unknown/workspaces')
+      .expect(404);
   });
 });
