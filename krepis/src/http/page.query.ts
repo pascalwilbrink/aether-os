@@ -1,12 +1,20 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 import type { PageRequest } from '../pagination/page.js';
 
 export const DEFAULT_PAGE_LIMIT = 50;
 export const MAX_PAGE_LIMIT = 100;
 
-/** `?limit=&offset=` query parameters, validated and defaulted. */
+/** `?limit=&cursor=` query parameters, validated and defaulted. */
 export class PaginationQuery implements PageRequest {
   @IsOptional()
   @Type(() => Number)
@@ -15,9 +23,10 @@ export class PaginationQuery implements PageRequest {
   @Max(MAX_PAGE_LIMIT)
   limit: number = DEFAULT_PAGE_LIMIT;
 
+  /** Opaque; from the previous page's `nextCursor`. */
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  offset: number = 0;
+  @IsString()
+  @MinLength(1)
+  @MaxLength(1024)
+  cursor?: string;
 }

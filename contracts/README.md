@@ -4,6 +4,8 @@ API contracts shared between Aether-os components, published in the workspace as
 
 Every spec follows `../docs/api.md`: only `GET`, `POST`, `PUT` and `DELETE` (never `PATCH`), paths under `/v1`, IDs as `type: string, format: uuid`, errors as the shared `Problem` schema (RFC 9457), and lists with `limit` / `cursor` → `items` / `nextCursor`.
 
+Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `NextCursor`, the `BadRequest` and `NotFound` responses) live in `common.openapi.yaml`; service specs reference them with `$ref: './common.openapi.yaml#/components/...'`, and the generator bundles them into each consumer's types.
+
 | Spec | Served by | Consumed by |
 |---|---|---|
 | `polis.openapi.yaml` | Polis | (Hephaestus, Agora, Kairos, Iris, once wired) |

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
+import { configureHttpApp } from '@polis/core';
 import { AppModule } from './../src/app.module.js';
 
 describe('AppController (e2e)', () => {
@@ -12,13 +13,13 @@ describe('AppController (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    app = configureHttpApp(moduleFixture.createNestApplication());
     await app.init();
   });
 
-  it('/ (GET)', () => {
+  it('/v1 (GET)', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/v1')
       .expect(200)
       .expect('Hello World!');
   });

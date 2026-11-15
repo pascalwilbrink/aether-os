@@ -18,4 +18,7 @@ export type Project = ApiSchema<"ProjectResponse">;
 export type Agent = ApiSchema<"AgentResponse">;
 export type AgentVersion = ApiSchema<"AgentVersionResponse">;
 export type Workspace = ApiSchema<"WorkspaceResponse">;
-export type DomainErrorResponse = ApiSchema<"DomainErrorResponse">;
+/** Problem details (RFC 9457): every error response. */
+export type Problem = ApiSchema<"Problem">;
+/** Problem details for a business-rule violation, with a typed `code`. */
+export type DomainProblem = ApiSchema<"DomainProblem">;

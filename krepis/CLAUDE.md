@@ -7,10 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 `@aether-os/krepis` is the shared foundation for the Aether-os NestJS services (see `../CLAUDE.md`); a *krepis* is the stepped platform a Greek temple stands on. It holds what every service needs and nothing service-specific:
 
 - `id/`: the `Brand` helper and platform-wide IDs (`OrganizationId`, `ProjectId`). Service-specific IDs stay in the service.
-- `error/`: `DomainError(message, code)`, and `http/DomainErrorFilter`, which maps it to HTTP 409 `{ statusCode, error: code, message }`.
+- `error/`: `DomainError(message, code)`; services extend it for business-rule violations (→ 409).
 - `event/`: the `DomainEvent` shape (`eventId`, `aggregateId`, `aggregateVersion`, `eventType`, `occurredAt`, `payload`). Agreed, not built yet: it gains `schemaVersion`, `organizationId`, `projectId` and `actor`, and is also the message envelope on RabbitMQ (see `../docs/events.md`).
 - `database/`: `TransactionManager` / `TypeOrmTransactionManager` (AsyncLocalStorage; nested calls join the outer transaction), `TransactionModule`, and `isUniqueViolation` (SQLite and Postgres). Target: `typeorm-transactional` replaces `TransactionManager` (see `../docs/engineering.md`).
-- `pagination/` and `http/`: `Page`, `PageRequest`, `mapPage`, `PaginationQuery` (limit 1–100, default 50) and `PageResponse`.
+- `pagination/`: cursor pagination (`../docs/api.md`): `PageRequest` (`limit`, `cursor`), `Page` (`items`, `nextCursor`), `mapPage`, and opaque cursors (`encodeCursor` / `decodeCursor`: base64url JSON with the last item's sort key and ID, bound to a hash of the query's sort and filters; `InvalidCursorError` otherwise).
+- `database/findPage`: keyset pagination over a TypeORM `Repository` (`(sortBy, id) < (key, id)`, tie-broken by ID in the same direction, `limit + 1` rows to detect a next page).
+- `http/`: `configureHttpApp(app)` (the `/v1` prefix, except `health`; `ProblemValidationPipe`; `ProblemDetailsFilter`), which every service calls in `main.ts` and in its e2e tests. `ProblemDetailsFilter` turns `DomainError` (409), `ValidationProblemException` (400 `VALIDATION_FAILED` with `errors`), `InvalidCursorError` (400), Nest `HttpException`s and unknown errors (500, logged, no internals) into RFC 9457 problem details with `code`, `traceId` (from `traceparent`) and `errors`. `ProblemValidationPipe` is class-validator, strict, and reports a JSON Pointer per body field or the parameter name; a future Zod pipe throws the same `ValidationProblemException`. Also `PaginationQuery` and `PageResponse`.
 
 The cross-cutting pieces planned in `../CLAUDE.md` belong here as they're built: the RabbitMQ outbox and idempotent consumers, OpenTelemetry setup (including trace context over RabbitMQ), Pistis token verification, and the OpenBao client.
 
@@ -24,6 +26,7 @@ pnpm build     # tsc -> dist/ (ESM + .d.ts); also runs on install via `prepare`
 pnpm dev       # tsc --watch
 pnpm lint
 pnpm format
+pnpm test      # vitest: src/**/*.spec.ts (the HTTP conventions run against a real Nest app)
 ```
 
 ## How services consume it

@@ -246,7 +246,7 @@ describe('WorkspaceService (sqlite)', () => {
     );
 
     await expect(
-      service.list('missing' as OrganizationId, { limit: 10, offset: 0 }),
+      service.list('missing' as OrganizationId, { limit: 10 }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -256,9 +256,9 @@ describe('WorkspaceService (sqlite)', () => {
       workspaceInput('ws-3' as WorkspaceId, otherOrgId, otherProjectId),
     );
 
-    const page = await service.list(orgId, { limit: 10, offset: 0 });
+    const page = await service.list(orgId, { limit: 10 });
 
-    expect(page.total).toBe(2);
+    expect(page.nextCursor).toBeNull();
     expect(page.items.map((w) => w.id).sort()).toEqual(['ws-1', 'ws-2']);
   });
 });
