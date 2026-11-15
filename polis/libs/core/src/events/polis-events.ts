@@ -1,42 +1,16 @@
-import type { ApiTypes } from '../api/index.js';
-
 /**
- * The events Polis publishes to `polis.events` (routing key = event type),
- * as described in ../contracts/polis.asyncapi.yaml. Local handlers listen to
- * `polis.<eventType>`. Payloads are thin: IDs and states.
+ * The events Polis publishes to `polis.events` (routing key = event type).
+ * Types are generated from ../contracts/polis.asyncapi.yaml into
+ * ./generated (`pnpm generate:api`); change the spec, not these types.
+ * Local handlers listen to `polis.<eventType>`.
  */
-export interface PolisEventPayloads {
-  'organization.created': { organizationId: string; slug: string };
-  'organization.suspended': { organizationId: string; reason: string | null };
-  'organization.reactivated': { organizationId: string; reason: string | null };
-  'project.created': { projectId: string };
-  'project.archived': { projectId: string };
-  'membership.granted': MembershipEventBase & {
-    roles: ApiTypes.OrganizationRole[];
-  };
-  'membership.role-changed': MembershipEventBase & {
-    from: ApiTypes.OrganizationRole[];
-    to: ApiTypes.OrganizationRole[];
-  };
-  'membership.revoked': MembershipEventBase;
-}
+export * from './generated/polis-events.gen.js';
 
-export interface MembershipEventBase {
-  membershipId: string;
-  principal: { sub: string; sub_type: ApiTypes.SubjectType };
-  scope: { type: 'organization'; organizationId: string };
-}
+import type { PolisEventPayloads } from './generated/polis-events.gen.js';
+import { POLIS_EVENT_TYPES } from './generated/polis-events.gen.js';
 
-export type PolisEventType = keyof PolisEventPayloads;
+/** What every membership event carries. */
+export type MembershipEventBase = PolisEventPayloads['membership.revoked'];
 
-/** Every Polis event goes to RabbitMQ. */
-export const POLIS_PUBLISHED_EVENTS: readonly PolisEventType[] = [
-  'organization.created',
-  'organization.suspended',
-  'organization.reactivated',
-  'project.created',
-  'project.archived',
-  'membership.granted',
-  'membership.role-changed',
-  'membership.revoked',
-];
+/** Every Polis event in the spec goes to RabbitMQ. */
+export const POLIS_PUBLISHED_EVENTS: readonly string[] = POLIS_EVENT_TYPES;

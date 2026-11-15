@@ -2,6 +2,8 @@ import type { INestApplication } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ZodSerializerInterceptor } from 'nestjs-zod';
 
+import { runWithTraceContext } from '../telemetry/trace-context.js';
+
 import { ProblemDetailsFilter } from './problem-details.filter.js';
 import { ProblemValidationPipe } from './problem-validation.pipe.js';
 import { ZodValidationPipe } from './zod-validation.pipe.js';
@@ -16,8 +18,10 @@ export const UNVERSIONED_PATHS = ['health'];
  * Applies the platform's HTTP conventions to a Nest app: the `/v1` prefix,
  * strict validation (Zod DTOs through `ZodValidationPipe`, class-validator
  * DTOs through `ProblemValidationPipe`), responses checked and stripped
- * against their schema where a handler declares `@ZodSerializerDto`, and
- * problem details for every error. Call it once in `main.ts` and on every app
+ * against their schema where a handler declares `@ZodSerializerDto`,
+ * problem details for every error, and the request's trace context
+ * (`traceparent`) kept for the request, so events emitted while handling it
+ * carry it on. Call it once in `main.ts` and on every app
  * an e2e test creates, before `init()`.
  *
  * Unknown paths under the prefix get `404 NOT_FOUND` problem details; Nest
@@ -26,6 +30,13 @@ export const UNVERSIONED_PATHS = ['health'];
  */
 export function configureHttpApp(app: INestApplication): INestApplication {
   app.setGlobalPrefix(API_VERSION_PREFIX, { exclude: UNVERSIONED_PATHS });
+  app.use(
+    (
+      request: { headers: Record<string, string | string[] | undefined> },
+      _response: unknown,
+      next: () => void,
+    ) => runWithTraceContext(request.headers, next),
+  );
   app.useGlobalPipes(new ZodValidationPipe(), new ProblemValidationPipe());
   app.useGlobalInterceptors(new ZodSerializerInterceptor(app.get(Reflector)));
   app.useGlobalFilters(new ProblemDetailsFilter());

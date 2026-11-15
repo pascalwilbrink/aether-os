@@ -61,6 +61,25 @@ describe('Events (e2e)', () => {
     expect(waiting).toBe(0);
   });
 
+  it("carries the request's trace context to the message", async () => {
+    const traceparent =
+      '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+    await request(app.getHttpServer())
+      .post('/v1/organizations')
+      .set('traceparent', traceparent)
+      .set('tracestate', 'vendor=x')
+      .send({ name: 'Acme', slug: 'acme', createdBy: 'user-1' })
+      .expect(201);
+
+    await app.get(OutboxRelay).relayBatch();
+
+    const message = await nextMessage();
+    expect(message.properties.headers).toMatchObject({
+      traceparent,
+      tracestate: 'vendor=x',
+    });
+  });
+
   async function nextMessage(): Promise<amqp.GetMessage> {
     for (let i = 0; i < 50; i++) {
       const message = await channel.get(queue, { noAck: true });

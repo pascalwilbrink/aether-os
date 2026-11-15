@@ -24,7 +24,7 @@
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
-    "generate:api": "openapi-ts --no-log-file && prettier --log-level warn --write libs/core/src/api/generated"
+    "generate:api": "openapi-ts --no-log-file && aether-asyncapi-types node_modules/@aether-os/contracts/polis.asyncapi.yaml libs/core/src/events/generated/polis-events.gen.ts --name Polis && prettier --log-level warn --write libs/core/src/api/generated libs/core/src/events/generated"
   },
   "dependencies": {
     "@aether-os/krepis": "workspace:*",
@@ -35,6 +35,7 @@
     "@nestjs/event-emitter": "^12.0.3",
     "@nestjs/platform-express": "^12.0.1",
     "@nestjs/typeorm": "^12.0.3",
+    "@opentelemetry/api": "^1.10.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "nestjs-zod": "^5.6.0",

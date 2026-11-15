@@ -25,7 +25,7 @@ export class OutboxMessageEntity {
   @Column({ type: 'jsonb' })
   message: Record<string, unknown>;
 
-  /** AMQP headers, e.g. `traceparent` once services run OpenTelemetry. */
+  /** AMQP headers: the trace context (`traceparent`, `tracestate`) at emit time. */
   @Column({ type: 'jsonb' })
   headers: Record<string, string>;
 
