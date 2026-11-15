@@ -10,6 +10,7 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 |---|---|---|
 | `polis.openapi.yaml` | Polis | Hephaestus (generated HTTP client); later Agora, Kairos, Iris |
 | `hephaestus.openapi.yaml` | Hephaestus | Iris |
+| `pistis.openapi.yaml` | Pistis | (operators and Iris, once wired) |
 | `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Hephaestus (organization and project events); later Pistis and others |
 
 ## Event types (AsyncAPI)
@@ -28,6 +29,7 @@ Polis runs it in `pnpm generate:api`; a consumer of another service's events run
 pnpm generate:api                        # from the workspace root: every consumer
 pnpm --filter hephaestus generate:api    # -> libs/core/src/api/generated/ (types and Zod)
 pnpm --filter iris generate:api          # -> lib/api/generated/hephaestus-api.ts
+pnpm --filter pistis generate:api        # -> libs/core/src/api/generated/ (types and Zod)
 pnpm --filter polis generate:api         # -> libs/core/src/api/generated/ and libs/core/src/events/generated/
 ```
 
