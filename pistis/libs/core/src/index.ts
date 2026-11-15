@@ -3,5 +3,6 @@
 export * from '@aether-os/krepis';
 
 export * from './api/index.js';
+export * from './clients/index.js';
 export * from './config/index.js';
 export * from './database/index.js';

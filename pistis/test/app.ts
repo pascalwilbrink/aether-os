@@ -2,17 +2,26 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { App } from 'supertest/types.js';
 
-import { configureHttpApp } from '@pistis/core';
+import { configurePistisApp, PolisDirectory } from '@pistis/oidc';
 
 import { AppModule } from '../src/app.module.js';
 import { resetDatabase } from './database.js';
+import { FakePolisDirectory } from './fake-polis-directory.js';
 
-/** The whole Pistis app, configured as in main.ts, on an empty database. */
-export async function createApp(): Promise<INestApplication<App>> {
+/**
+ * The whole Pistis app, configured as in main.ts, on an empty database, with
+ * Polis replaced by `polis` (memberships and organizations set by the test).
+ */
+export async function createApp(
+  polis = new FakePolisDirectory(),
+): Promise<INestApplication<App>> {
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
-  }).compile();
-  const app = configureHttpApp(
+  })
+    .overrideProvider(PolisDirectory)
+    .useValue(polis)
+    .compile();
+  const app = configurePistisApp(
     moduleRef.createNestApplication({ logger: false }),
   );
   await app.init();

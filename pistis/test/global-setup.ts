@@ -4,6 +4,8 @@ import type { TestProject } from 'vitest/node';
 import { postgresOptions } from '@aether-os/krepis';
 import { startTestPostgres } from '@aether-os/krepis/testing';
 
+import { OidcPayloadEntity } from '../libs/oidc/src/oidc-payload.entity.js';
+import { PasswordCredentialEntity } from '../libs/users/src/password-credential.entity.js';
 import { UserProviderEntity } from '../libs/users/src/user-provider.entity.js';
 import { UserEntity } from '../libs/users/src/user.entity.js';
 import { migrations } from '../src/database/migrations/index.js';
@@ -25,7 +27,12 @@ export default async function setup(project: TestProject) {
     postgresOptions({
       url: postgres.url,
       migrations,
-      entities: [UserEntity, UserProviderEntity],
+      entities: [
+        UserEntity,
+        UserProviderEntity,
+        PasswordCredentialEntity,
+        OidcPayloadEntity,
+      ],
     }),
   );
   await dataSource.initialize();

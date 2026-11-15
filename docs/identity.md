@@ -2,7 +2,7 @@
 
 How Aether-os decides **who** is acting and **what** they may do. Pistis (authentication), Polis (memberships and roles), Krepis (enforcement in every service) and OpenBao (secret access) implement this together.
 
-Status: agreed design, being built. Pistis (`../pistis`) has users and their linked external identities (`user_providers`: `(provider, subject)` → user, never by email); token issuing, verification in Krepis and permissions are next. Polis has organization memberships with fixed roles.
+Status: agreed design, being built. Pistis (`../pistis`) has users and their linked identities (`user_providers`: `(provider, subject)` → user, never by email), its own `password` provider, and issues user tokens (authorization code with PKCE; an organization is chosen with the resource indicator `urn:aether-os:org:<id>`, and `org_roles` come from Polis at every issue and refresh). Next: signing in through external OIDC providers, then verification and permissions in Krepis. Polis has organization memberships with fixed roles.
 
 ## Decisions
 

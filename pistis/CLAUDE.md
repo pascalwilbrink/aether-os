@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Pistis is the authentication service of Aether-os (see `../CLAUDE.md` and `../docs/identity.md`): an OpenID Connect provider that federates external identity providers and is the **only** token issuer. Other services trust Pistis tokens, never an upstream provider's.
 
-Built so far: **users** and their **linked identities** (`user_providers`). Planned next: token issuing with `oidc-provider` (signing keys, JWKS, organization-scoped tokens with roles from Polis's memberships), then verification and `@RequirePermission` in Krepis. Service accounts, platform services and token exchange come after.
+Built so far: **users** and their **linked identities** (`user_providers`), Pistis's own **password** provider, and **token issuing** with `oidc-provider` (authorization code with PKCE, organization-scoped JWT access tokens with roles from Polis's memberships). Planned next: signing in through external OIDC providers (a generic, configurable upstream), then verification and `@RequirePermission` in Krepis. Service accounts, platform services and token exchange come after.
 
 It follows `../docs/engineering.md` like Polis: NestJS 12 (ESM, TypeScript 6), controller → service → TypeORM repository with mappers, Zod DTOs generated from the spec, `typeorm-transactional`, Postgres with migrations, tests against Postgres in containers.
 
@@ -19,18 +19,23 @@ pnpm start:dev                 # build, run migrations, then watch mode on $PORT
 pnpm build
 pnpm lint
 pnpm format
-pnpm generate:api              # regenerate libs/core/src/api/generated from ../contracts/pistis.openapi.yaml
+pnpm generate:api              # regenerate libs/core/src/api/generated (Pistis's spec) and libs/core/src/clients/polis/generated (Polis client)
 
 pnpm migration:run             # apply pending migrations (on dist/: build first)
 pnpm build && pnpm migration:generate src/database/migrations/<Name>   # then review it and add it to migrations/index.ts
 
-pnpm test                      # unit tests (libs/**/*.spec.ts): transitions, mappers, config
+pnpm test                      # unit tests (libs/**/*.spec.ts): transitions, mappers, config, hashing, resources
 pnpm test:e2e                  # integration (libs/**/*.int-spec.ts) and e2e (test/*.e2e-spec.ts) against Postgres; needs Docker
 ```
 
 ## Configuration
 
-Environment variables, validated at startup with the Zod schema in `libs/core/src/config/env.ts` (`pistisConfigModule()`): `DATABASE_URL` (required, Postgres), `PORT` (3003), `NODE_ENV`. Locally from `.env` (`.env.example` has the `docker compose` defaults).
+Environment variables, validated at startup with the Zod schema in `libs/core/src/config/env.ts` (`pistisConfigModule()`). Locally from `.env` (`.env.example` has the `docker compose` defaults).
+
+- `DATABASE_URL` (required, Postgres), `POLIS_URL` (required, Polis's API), `PORT` (3003), `NODE_ENV`.
+- `PISTIS_ISSUER` (`http://localhost:3003/oidc`): the issuer, i.e. where `/oidc` is reachable from outside.
+- `PISTIS_SIGNING_KEYS`: the private signing keys as a JWKS (JSON); the first one signs. `PISTIS_COOKIE_KEYS`: comma-separated keys for oidc-provider's signed cookies (≥ 32 characters each; the first signs). `PISTIS_CLIENTS`: the OIDC clients (JSON array of oidc-provider client metadata). All three are **required in production**; elsewhere Pistis generates an ES256 key per start (tokens don't survive a restart), uses a fixed cookie key, and registers Iris as the public client `iris` (redirect `http://localhost:3000/auth/callback`).
+- `ACCESS_TOKEN_TTL_SECONDS` (600; 300–900), `PASSWORD_SCRYPT_COST` (17; scrypt `N = 2^cost`, 14–20).
 
 ## Users and identities
 
@@ -48,4 +53,20 @@ The HTTP API (`../contracts/pistis.openapi.yaml`) has no authentication yet, lik
 
 ## Architecture
 
-Same layout as Polis (`../polis/CLAUDE.md`): `src/` is the app shell (`initializeTransactions()`, `configureHttpApp`), code lives in Nest libraries under `libs/` (`core`, `users`), registered in `nest-cli.json` and aliased as `@pistis/<name>`. Database conventions, migrations (`src/database/`), and tests (`test/global-setup.ts` applies the migrations and fails on a missing one) work the same way.
+Same layout as Polis (`../polis/CLAUDE.md`): `src/` is the app shell (`initializeTransactions()`, `configureHttpApp`), code lives in Nest libraries under `libs/` (`core`, `users`, `oidc`; `core` ← `users` ← `oidc`), registered in `nest-cli.json` and aliased as `@pistis/<name>`. Database conventions, migrations (`src/database/`), and tests (`test/global-setup.ts` applies the migrations and fails on a missing one) work the same way.
+
+## Passwords
+
+The `password` provider is Pistis's own: a user's password identity is a `user_providers` row with `provider = 'password'` and `subject` = the login (trimmed and lowercased, unique like any identity), and the hash lives in `password_credentials` (one per identity, deleted with it). `PasswordsService` sets one up (`POST /v1/users/{userId}/password`, `PASSWORD_ALREADY_SET` if the user has one), changes it (`PUT`, 404 without one) and verifies a login and password. `UserProvidersService.link` refuses `password` (`PASSWORD_PROVIDER_RESERVED`): it only comes with a password. `POST /v1/users` takes exactly one of `provider` and `password` as the first identity.
+
+- **Hashing** (`PasswordHasher`): scrypt from `node:crypto`, `N = 2^PASSWORD_SCRYPT_COST`, r 8, p 1, 16-byte salt, NFKC-normalized input, stored as `scrypt$cost$r$p$salt$hash` so the cost can be raised later (old hashes still verify). Compared with `timingSafeEqual`; an unknown login hashes a dummy password, so response times don't reveal which logins exist.
+- `AccountsService.signInWithPassword` is what the sign-in page calls: `INVALID_CREDENTIALS` without saying which part was wrong, `USER_DISABLED` for a disabled user.
+
+## Tokens (`libs/oidc`)
+
+`OidcProviderService` builds the `oidc-provider` instance; `configurePistisApp(app)` (in `main.ts` and `test/app.ts`) applies Krepis's HTTP conventions and mounts it at `/oidc` (discovery at `/oidc/.well-known/openid-configuration`, keys at `/oidc/jwks`, `/oidc/auth`, `/oidc/token`, revocation, RP-initiated logout). Its state (sessions, grants, codes, refresh tokens, interactions) is in Postgres, `oidc_payloads` (`postgresOidcAdapter`), pruned hourly.
+
+- **Flow:** authorization code with PKCE (required, `S256`) for every client; `offline_access` (with `prompt=consent`) gives a refresh token, rotated on use. Sign-in is Pistis's own page, `GET /interaction/:uid` (outside `/v1`, plain server-rendered HTML in `pages.ts`), posting to `/interaction/:uid/login`. Consent has no page: `InteractionsController` grants the requested OpenID scopes and resources itself, after checking the resources below; otherwise the client gets `access_denied`.
+- **Resources (RFC 8707) choose the organization** (`resources.ts`): `resource=urn:aether-os` (the default) gives a token without an organization; `resource=urn:aether-os:org:<organizationId>` one for that organization. Either way the access token is a JWT with `aud: aether-os` and scope `api`, signed with the first key.
+- **Claims** (`extraTokenClaims`): `sub` (the user's ID), `sub_type: user`, and for an organization `org_id`, `org_roles` and `project_roles` (`{}` until project memberships exist). Roles come from Polis at **every** issue, refreshes included (`PolisDirectory`, `HttpPolisDirectory` over the generated Polis client): no membership any more or a suspended organization is `invalid_grant`, and a disabled or deleted user gets no tokens (`findAccount`). Polis unreachable means no token, never a token without the check.
+- **Tests** replace `PolisDirectory` with `test/fake-polis-directory.ts` (`createApp(polis)`); `test/oidc.e2e-spec.ts` runs the whole flow as Iris would and verifies the token against `/oidc/jwks`.

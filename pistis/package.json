@@ -18,13 +18,13 @@
     "migration:run": "typeorm migration:run -d dist/src/database/data-source.js",
     "migration:show": "typeorm migration:show -d dist/src/database/data-source.js",
     "migration:generate": "typeorm migration:generate -p -d dist/src/database/data-source.js",
-    "lint": "oxlint --type-aware src/ libs/ test/",
+    "lint": "oxlint --type-aware --ignore-pattern \"libs/core/src/clients/*/generated/**\" src/ libs/ test/",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
-    "generate:api": "openapi-ts --no-log-file && prettier --log-level warn --write libs/core/src/api/generated"
+    "generate:api": "openapi-ts --no-log-file && prettier --log-level warn --write libs/core/src/api/generated libs/core/src/clients/polis/generated"
   },
   "dependencies": {
     "@aether-os/krepis": "workspace:*",
@@ -36,7 +36,9 @@
     "@nestjs/platform-express": "^12.0.1",
     "@nestjs/typeorm": "^12.0.3",
     "@opentelemetry/api": "^1.10.0",
+    "jose": "^6.2.17",
     "nestjs-zod": "^5.6.0",
+    "oidc-provider": "^9.15.0",
     "pg": "^8.23.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
@@ -56,6 +58,7 @@
     "@testcontainers/rabbitmq": "^12.2.1",
     "@types/express": "^5.0.0",
     "@types/node": "^24.0.0",
+    "@types/oidc-provider": "^9.13.1",
     "@types/pg": "^8.23.1",
     "@types/supertest": "^7.0.0",
     "@vitest/coverage-v8": "^4.1.2",

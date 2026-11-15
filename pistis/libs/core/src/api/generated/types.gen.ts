@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'IDENTITY_ALREADY_LINKED' | 'USER_LAST_PROVIDER';
+export type DomainErrorCode = 'IDENTITY_ALREADY_LINKED' | 'USER_LAST_PROVIDER' | 'PASSWORD_ALREADY_SET' | 'PASSWORD_PROVIDER_RESERVED';
 
 /**
  * Problem details for a business-rule violation.
@@ -27,10 +27,14 @@ export type Email = string;
 
 export type UserStatus = 'active' | 'disabled';
 
+/**
+ * Exactly one of `provider` and `password`.
+ */
 export type CreateUserRequest = {
     displayName: string;
     email: Email | null;
-    provider: LinkUserProviderRequest;
+    provider?: LinkUserProviderRequest;
+    password?: PasswordIdentityRequest;
 };
 
 export type UpdateUserRequest = {
@@ -78,6 +82,27 @@ export type LinkUserProviderRequest = {
      * Whether the provider says it verified the email.
      */
     emailVerified: boolean;
+};
+
+/**
+ * What the user types to sign in with a password, usually their email
+ * address. Stored lowercase and trimmed; unique across users.
+ *
+ */
+export type Login = string;
+
+/**
+ * Stored only as a scrypt hash.
+ */
+export type Password = string;
+
+export type PasswordIdentityRequest = {
+    login: Login;
+    password: Password;
+};
+
+export type ChangePasswordRequest = {
+    password: Password;
 };
 
 export type UserProviderResponse = {
@@ -396,6 +421,76 @@ export type EnableUserResponses = {
 };
 
 export type EnableUserResponse = EnableUserResponses[keyof EnableUserResponses];
+
+export type SetUpPasswordData = {
+    body: PasswordIdentityRequest;
+    path: {
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/users/{userId}/password';
+};
+
+export type SetUpPasswordErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type SetUpPasswordError = SetUpPasswordErrors[keyof SetUpPasswordErrors];
+
+export type SetUpPasswordResponses = {
+    /**
+     * Created
+     */
+    201: UserProviderResponse;
+};
+
+export type SetUpPasswordResponse = SetUpPasswordResponses[keyof SetUpPasswordResponses];
+
+export type ChangePasswordData = {
+    body: ChangePasswordRequest;
+    path: {
+        userId: string;
+    };
+    query?: never;
+    url: '/v1/users/{userId}/password';
+};
+
+export type ChangePasswordErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ChangePasswordError = ChangePasswordErrors[keyof ChangePasswordErrors];
+
+export type ChangePasswordResponses = {
+    /**
+     * Changed
+     */
+    204: void;
+};
+
+export type ChangePasswordResponse = ChangePasswordResponses[keyof ChangePasswordResponses];
 
 export type ListUserProvidersData = {
     body?: never;

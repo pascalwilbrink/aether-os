@@ -4,6 +4,8 @@ import { DataSource } from 'typeorm';
 
 import { postgresOptions } from '@aether-os/krepis';
 
+import { OidcPayloadEntity } from '../../libs/oidc/src/oidc-payload.entity.js';
+import { PasswordCredentialEntity } from '../../libs/users/src/password-credential.entity.js';
 import { UserProviderEntity } from '../../libs/users/src/user-provider.entity.js';
 import { UserEntity } from '../../libs/users/src/user.entity.js';
 import { migrations } from './migrations/index.js';
@@ -28,6 +30,11 @@ export default new DataSource(
   postgresOptions({
     url,
     migrations,
-    entities: [UserEntity, UserProviderEntity],
+    entities: [
+      UserEntity,
+      UserProviderEntity,
+      PasswordCredentialEntity,
+      OidcPayloadEntity,
+    ],
   }),
 );
