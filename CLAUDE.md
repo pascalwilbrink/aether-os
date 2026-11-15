@@ -118,7 +118,10 @@ pnpm install               # whole workspace
 pnpm build                 # every package, in dependency order (Krepis first)
 pnpm lint | test | test:e2e | generate:api    # across all packages
 pnpm --filter polis test   # one package (or run pnpm inside its directory)
+pnpm format:check          # prettier, as CI runs it (`pnpm format` in a package fixes it)
 ```
+
+**CI** (`.github/workflows/ci.yml`, on pushes to `main` and on pull requests) runs, in order: `pnpm install --frozen-lockfile`, `pnpm generate:api` (fails if the generated files differ from what's committed), `format:check`, `lint`, `build`, `test` and `test:e2e`. Run the same locally before pushing.
 
 - **Packages stay publishable.** The workspace is set up so moving to a package registry later is cheap: packages depend on each other with `workspace:*` (which `pnpm publish` rewrites to real versions), import only from each other's published entry points (never another package's `src/`, no TypeScript path aliases across packages), and `contracts` is consumed as a package (`node_modules/@aether-os/contracts/...`) rather than by relative path.
 - **Contracts:** `contracts/` holds the API specs (`polis.openapi.yaml`, `hephaestus.openapi.yaml`), one per service. Each spec is the source of truth for that service's HTTP API, including its validation: services generate Zod schemas from it and validate with `nestjs-zod`'s `ZodValidationPipe` (target; see `docs/engineering.md`). Edit the spec first, then run `pnpm generate:api` (root, or in the service and each consumer; currently Iris consumes Hephaestus) and commit the regenerated files. See `contracts/README.md`.

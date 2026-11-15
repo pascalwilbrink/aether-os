@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Build, lint and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Version comes from "packageManager" in the root package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Also builds Krepis (its `prepare` script) and syncs it into consumers.
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generated API types are up to date
+        run: |
+          pnpm generate:api
+          if ! git diff --exit-code; then
+            echo "::error::Generated API files differ from contracts/. Run 'pnpm generate:api' and commit the result."
+            exit 1
+          fi
+
+      - name: Format
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build
+        run: pnpm build
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: E2E tests
+        run: pnpm test:e2e
