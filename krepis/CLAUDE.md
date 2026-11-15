@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `id/`: the `Brand` helper and platform-wide IDs (`OrganizationId`, `ProjectId`). Service-specific IDs stay in the service.
 - `error/`: `DomainError(message, code)`, and `http/DomainErrorFilter`, which maps it to HTTP 409 `{ statusCode, error: code, message }`.
-- `event/`: the `DomainEvent` shape (`eventId`, `aggregateId`, `aggregateVersion`, `eventType`, `occurredAt`, `payload`).
+- `event/`: the `DomainEvent` shape (`eventId`, `aggregateId`, `aggregateVersion`, `eventType`, `occurredAt`, `payload`). Agreed, not built yet: it gains `schemaVersion`, `organizationId`, `projectId` and `actor`, and is also the message envelope on RabbitMQ (see `../docs/events.md`).
 - `database/`: `TransactionManager` / `TypeOrmTransactionManager` (AsyncLocalStorage; nested calls join the outer transaction), `TransactionModule`, and `isUniqueViolation` (SQLite and Postgres).
 - `pagination/` and `http/`: `Page`, `PageRequest`, `mapPage`, `PaginationQuery` (limit 1–100, default 50) and `PageResponse`.
 

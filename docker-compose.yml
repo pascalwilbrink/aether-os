@@ -12,6 +12,7 @@
 #   OpenBao       8200                     OPA        8181
 #   OTel (OTLP)   4317 (gRPC), 4318 (HTTP) Jaeger UI  16686
 #   Langfuse UI   3100                     MinIO      9090 (S3), 9091 (console)
+#   Mailpit       1025 (SMTP), 8025 (UI)
 # App services run outside compose: Iris 3000, Polis 3001, Hephaestus 3002.
 
 name: aether-os
@@ -165,6 +166,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # Catches every email sent locally (Kerykes); nothing leaves the machine.
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports: ['1025:1025', '8025:8025']
 
 volumes:
   postgres-data:

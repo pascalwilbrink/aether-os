@@ -337,6 +337,107 @@ Proposal: requirements are parsed from a fixed spec format (a Markdown conventio
 
 Later: when a spec changes after implementation, re-plan only the affected requirements, or at least flag which tasks and artifacts are out of date.
 
+## Task lifecycle (Proposal)
+
+### States
+
+| State | Meaning | Holds a sandbox | Counts against concurrency |
+|---|---|:-:|:-:|
+| `blocked` | Waiting for its `dependsOn` tasks to succeed | | |
+| `queued` | Ready to start, waiting for a concurrency slot or budget | | |
+| `provisioning` | Pinning is done; Hephaestus obtains the task token, secrets, repository access and the sandbox | ✓ | ✓ |
+| `running` | The agent is working (including revisions after failed checks or request changes) | ✓ | ✓ |
+| `verifying` | Criterion checks are running (see Verification) | ✓ | ✓ |
+| `awaiting_review` | Drafts are waiting for someone with `task:approve` | | |
+| `waiting` | A planning task waiting for its subtasks | | |
+| `paused` | A budget ran out (see `models.md`); state is saved, resumes to `queued` when the budget is raised or renewed | | |
+| `delivering` | Approved or approval-free artifacts are being delivered (PR opened, comment posted) | | ✓ |
+| `succeeded` | Terminal. Every artifact is `final`; there is a primary artifact | | |
+| `failed` | Terminal. With a `failureReason`; artifacts are `partial` | | |
+| `cancelled` | Terminal. Stopped by a person, the parent, or an automation rule; artifacts are `partial` | | |
+
+Everything is resolved and pinned when the task is created (agent version, template version, document versions, repository commit), so a task in any state can be retried or resumed with exactly the same inputs.
+
+```
+            created
+               │
+   ┌───────────┴─────────┐
+blocked ──(deps done)──▶ queued ──▶ provisioning ──▶ running ──▶ verifying ──┬─(drafts)──▶ awaiting_review
+                                                       ▲   ▲                 │                 │
+                                                       │   └──(check failed)─┤     (request changes: back to running)
+                                                       │                     │                 │ (approved)
+                                    (plan approved) waiting ◀──(task_plan)───┤                 ▼
+                                         │                                   └─(no drafts)─▶ delivering ──▶ succeeded
+                                         └──(all subtasks succeeded)───────────────────────────▶ delivering
+      provisioning | running | verifying ──(budget ran out)──▶ paused ──(budget raised)──▶ queued
+      any non-terminal state ──▶ failed | cancelled
+```
+
+`failureReason` is one of `agent_failed` (the agent gave up), `verification_failed` (still failing after the round limit), `rejected` (a draft was rejected and the task can't continue), `timeout`, `budget_exceeded` (paused longer than the project's `pausedTimeoutDays`), `infrastructure` (retries exhausted) or `subtask_failed`.
+
+### Executions
+
+A task runs as one or more **executions** (the `ExecutionId` already in Hephaestus): one attempt in one sandbox. A retry is a new execution of the **same task**, so dependents, plans and artifacts keep pointing at the same task ID. Each execution records its sandbox, its start and end, its usage and cost, and why it ended.
+
+### Sandboxes across long waits
+
+Review can take days, so a task gives up its sandbox whenever it waits (`awaiting_review`, `waiting`, `blocked`, `queued`, `paused`):
+
+- Work in progress is saved outside the sandbox first: the branch is pushed (see `git.md`), files go to Loculus, and the agent's conversation and workflow state are stored by Mastra's storage in Hephaestus's database.
+- A resume (request changes, a subtask failing back to the parent) provisions a fresh sandbox from that saved state.
+- A sandbox is never resumed after its credentials expired; resuming always starts with a fresh task token.
+
+### Timeouts
+
+| Timeout | Default (proposal) | Set by | On expiry |
+|---|---|---|---|
+| Provisioning | 10 minutes | Platform | Infrastructure failure: retried |
+| Heartbeat | 2 minutes without a heartbeat from the execution | Platform | Infrastructure failure: retried |
+| Run (per execution, wall clock) | 60 minutes | Template or automation, capped by a project maximum | Fails with `timeout` |
+| Single check | 15 minutes | The criterion | The criterion fails |
+| Review | None | Optional project setting `reviewTimeoutDays` | Drafts become `rejected`, task fails with `timeout` |
+| Whole task tree | None | Optional on the top-level task | Cancels the tree, `timeout` |
+
+The run timeout covers only time spent running, not time waiting in the states without a sandbox.
+
+### Cancellation
+
+- Needs `task:cancel`; cancelling a task cancels everything under it, including `blocked` and `queued` subtasks.
+- A running execution gets a stop signal and a grace period (30 seconds) to save its state, then the sandbox is destroyed.
+- Drafts become `partial`; nothing that wasn't delivered will be.
+- **Delivery isn't undone.** An artifact already delivered stays delivered (an opened PR stays open). If cancellation arrives while delivering, the delivery in progress finishes first.
+- Automations can cancel too: a `concurrencyKey` with `cancel-previous` (below) cancels the older task.
+- Cancelling is idempotent, and `cancelled` is terminal: to try again, create a new task.
+
+### Retries
+
+| Failure | Retried by | How |
+|---|---|---|
+| Infrastructure (sandbox crash, missed heartbeat, OPA, Kriterion or provider unreachable, provider 429/5xx) | Hephaestus, automatically | New execution, exponential backoff, at most 3 attempts per task (project setting) |
+| Failed checks | The agent, within the task | Revision rounds, at most 3 (template setting), then `verification_failed` |
+| Agent failure in a subtask | The parent's agent | See Subtask failure |
+| Any terminal `failed` task | A person with `task:create`, or the parent | New execution of the same task, with the same pinned inputs; unblocks its dependents |
+
+- **Delivery is idempotent.** Retrying a delivery first checks whether it already happened (e.g. an open PR for the task's branch already exists) and adopts it instead of creating a second one.
+- Model calls retry within an execution (with backoff) before the execution itself is failed as `infrastructure`.
+
+### Concurrency
+
+Limits on tasks in a counting state (see the table above), checked when a task leaves `queued`:
+
+| Limit | Set by |
+|---|---|
+| Per organization | Platform (plan or quota) |
+| Per project | Project setting, at most the organization's |
+| Per automation | Automation setting |
+
+- **Fair queueing:** Hephaestus starts queued tasks round-robin across organizations, then FIFO within one, so one busy tenant can't starve others. Subtasks of a tree that's already running go before new top-level tasks, so started work finishes first.
+- **Concurrency keys:** an automation can set a `concurrencyKey` (e.g. `{{repository}}#{{issue.number}}`) with a policy for a second trigger while a task with the same key is active: `queue` (default), `cancel-previous`, or `skip`. That stops a busy issue from starting five tasks.
+
+### Events
+
+Every state change is published as `task.status-changed` (from, to, reason), plus specific events for the moments consumers care about (see `events.md`).
+
 ## Open questions
 
-None at the moment. Next: the task lifecycle itself (the full list of states, including the verification phase, timeouts, cancellation, retry policy, concurrency limits).
+None at the moment.

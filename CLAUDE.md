@@ -13,6 +13,8 @@ Aether-os is a platform for building, running and supporting AI agents. This fol
 | **Agora** | Agent management: agent definitions and their immutable versions | not created yet | Planned |
 | **Themis** | Policies: versioned Rego policy sets per organization/project, served to OPA as bundles ([APS](https://agentpolicyspecification.github.io)) | not created yet | Planned |
 | **Kairos** | Automations: a trigger (e.g. an incoming GitHub issue) bound to an agent | not created yet | Planned |
+| **Proxenos** | Connections to external systems: the GitHub App and its installations, repository ↔ project links, provider tokens, verified webhooks turned into events; later Slack, Jira and others | not created yet | Planned |
+| **Kerykes** | Notifications: turns events that need people (reviews waiting, failures, paused work, budgets) into in-app, email and Slack / Teams messages (chat via Proxenos), with per-user preferences | not created yet | Planned |
 | **Hephaestus** | Task management and execution: runs tasks with an agent, in sandboxed workspaces | `hephaestus/` | Active, being reshaped |
 | **Loculus** | Object storage: S3-compatible, issues signed URLs | not in this folder | Separate service |
 | **Krepis** | `@aether-os/krepis`: shared foundation library for the NestJS services (errors, events, transactions, pagination, HTTP helpers, shared IDs) | `krepis/` | Active |
@@ -23,7 +25,7 @@ Aether-os is a platform for building, running and supporting AI agents. This fol
 | **Kriterion** | Eval framework for measuring agent quality | not in this folder | Separate |
 | **Iris** | Web frontend for operating Aether-os (Next.js) | `iris/` | Blank scaffold |
 
-The names come from Greek, Egyptian and Roman antiquity: Pistis is trust and good faith; the polis is the city-state and the agora its gathering place; Kairos is the god of the opportune moment; Themis the goddess of law and order; Hephaestus the smith who does the work; Seshat the goddess of writing and record-keeping; *kritērion* is "a standard for judging"; Iris the messenger between gods and mortals; a *loculus* (Latin) is a small compartment or niche; the *krepis* is the stepped platform a Greek temple stands on.
+The names come from Greek, Egyptian and Roman antiquity: Pistis is trust and good faith; the polis is the city-state and the agora its gathering place; Kairos is the god of the opportune moment; Themis the goddess of law and order; Hephaestus the smith who does the work; Seshat the goddess of writing and record-keeping; *kritērion* is "a standard for judging"; Iris the messenger between gods and mortals; a *proxenos* was the citizen who represented a foreign city and looked after its visitors; the *kērykes* were the heralds who carried announcements; a *loculus* (Latin) is a small compartment or niche; the *krepis* is the stepped platform a Greek temple stands on.
 
 ## How the pieces fit
 
@@ -31,12 +33,13 @@ The names come from Greek, Egyptian and Roman antiquity: Pistis is trust and goo
 2. **Polis** is the tenant root and owns memberships. Every other service stores `organizationId` / `projectId` and resolves them in Polis; writes are rejected while an organization is suspended. Because token claims can be stale until the token expires, Polis should publish changes such as an organization being suspended or a membership being revoked, so services can react before then.
 3. In **Agora** you define an agent and its versions (instructions, model, tools, skills, capabilities, runtime config). A version moves draft → published → deprecated, and only one version per agent is published at a time.
 4. In **Themis** you write policies (Rego) and group them into versioned policy sets, scoped to an organization or project. An agent version references a policy set version.
-5. In **Kairos** you create an automation that binds a trigger to an agent.
+5. In **Kairos** you create an automation that binds a trigger to an agent. Triggers from external systems arrive through **Proxenos**, which owns the connections (e.g. the GitHub App), verifies webhooks and publishes them as events; it also mints the short-lived repository tokens Hephaestus uses (see `docs/git.md`).
 6. When a trigger fires, a task is created in **Hephaestus**, which runs it with the agent, provisioning a workspace when the runtime needs a sandbox. Hephaestus uses **[Mastra](https://mastra.ai)** as its agent runtime and sandbox layer: it turns the pinned agent version into a Mastra `Agent` (instructions, model, tools, skills) running against a Mastra workspace whose sandbox is the task's workspace (`@mastra/docker` locally, a microVM-backed provider such as Docker Cloud Sandboxes, E2B or Daytona in production). Hephaestus stays the source of truth for task and workspace state; Mastra sits behind ports in Hephaestus's domain layer (a runtime port and a `SandboxProvisioner` port) so it can be upgraded or swapped in one place. Sandboxes must be hardened: drop all capabilities, read-only root filesystem, PID limit, non-root user, egress only through an allowlisting proxy for `restricted` network access, and secrets delivered as short-lived files rather than container environment variables. Hephaestus enforces policy with the [Agent Policy Specification](https://agentpolicyspecification.github.io) TypeScript SDK (which has a Mastra integration): every LLM input, tool call and output goes through an `ApsEngine` backed by an OPA server (sidecar) that pulls its bundles from Themis. Evaluation fails closed (`on_error: "deny"`): if OPA is unreachable, the agent stops. APS is a draft spec with pre-release SDKs, so keep it behind a thin layer in Hephaestus.
 7. Secrets live in **OpenBao** (the open-source Vault fork), never in service databases, agent configuration or the agent's context. Store them per organization and project (e.g. `orgs/{organizationId}/projects/{projectId}/...`) and reference them by path. Hephaestus fetches what a task needs when the task starts and injects it into the runtime or sandbox. Prefer short-lived, dynamically issued credentials where the backend supports it.
 8. Files (task inputs and outputs, artifacts, uploads) live in **Loculus**. Services ask Loculus for signed URLs and pass those on rather than proxying file bytes or holding storage credentials themselves; clients such as Iris or a sandbox upload and download directly with the URL.
 9. While running, agents use **Seshat** over MCP for retrieval and memory. **Kriterion** evaluates results per agent version.
-10. **Iris** is the UI over all services.
+10. **Kerykes** tells people when something needs them (a draft to review, a failed or paused task), in Iris, by email, or in Slack / Teams through Proxenos.
+11. **Iris** is the UI over all services.
 
 Design rule: a task must record the concrete `agentVersionId` it runs (and through it the policy set version), resolved when the task is created (not "latest"), so runs are reproducible and evaluable per version. Agent versions and automations reference secrets by OpenBao path, never by value. Likewise, persist Loculus object keys, never signed URLs: URLs expire, so request a fresh one when a file is needed.
 
@@ -48,7 +51,24 @@ The agreed design is in `docs/identity.md`; read it before touching authenticati
 
 The task model is being designed in `docs/tasks.md` (documentation only for now). Agreed so far: work is modelled as **tasks and subtasks** (a subtask is a task with a parent), with `dependsOn` between tasks in the same tree; a `task_plan` artifact creates subtasks of the task that produced it; every successful task outcome is an **artifact** (text, a pull request, a file, a `task_plan` that creates new tasks and subtasks, …), with exactly one primary artifact per successful task; failed tasks can leave `partial` artifacts; artifacts that need approval start as `draft` and are only delivered once approved (reviewers approve, reject, or request changes, which yields a revised draft); tasks can be created from versioned **task templates** (organization-wide or per project; project templates can extend but not weaken organization ones) that carry a definition of done (acceptance criteria), and **verification is always part of the task**: Hephaestus checks every criterion before the task can succeed (`judge` checks through Kriterion's evaluators), and failures go back to the agent; long-lived specs are documents, kept in the project's Git repository or, without one, in Loculus, with Hephaestus and Seshat both able to hold such documents by referencing the Loculus object; retention and "delete artifacts with the task" are project-level settings.
 
+The task lifecycle (states, executions, timeouts, cancellation, retries, concurrency) is proposed in the same document.
+
+## Design documents
+
+| Document | Covers | Status |
+|---|---|---|
+| `docs/identity.md` | Principals, tokens, roles, permissions, enforcement | Agreed |
+| `docs/tasks.md` | Tasks, subtasks, artifacts, templates, verification, documents, task lifecycle | Agreed, lifecycle proposed |
+| `docs/git.md` | GitHub App, repository access, one shared branch per task tree, webhooks, untrusted input | Agreed |
+| `docs/models.md` | Model gateway (inside Hephaestus), provider keys (BYOK and platform), metering, budgets (tasks pause at the limit) | Agreed |
+| `docs/events.md` | Event envelope (new fields on Krepis's `DomainEvent`), conventions, catalogue of events and commands | Agreed; the catalogue grows with the services |
+| `docs/notifications.md` | Kerykes: notification types, recipients, preferences, channels (email via Resend or SES), content rules, answering reviews from Slack / Teams | Agreed |
+
+These are documentation only for now; read the relevant one before implementing anything in its area.
+
 ## Events
+
+The envelope and the full catalogue are in `docs/events.md`.
 
 Services communicate asynchronously over **RabbitMQ**: for example Polis announcing suspended organizations and revoked memberships, Kairos triggers creating Hephaestus tasks, task status updates for Iris, and Kriterion reacting to finished tasks.
 
@@ -102,7 +122,7 @@ pnpm --filter polis test   # one package (or run pnpm inside its directory)
 `docker-compose.yml` at this root runs the shared infrastructure; the app services run outside it with `pnpm` from their own directories.
 
 ```bash
-docker compose up -d       # Postgres, RabbitMQ, OpenBao, OPA, OTel Collector, Jaeger, Langfuse
+docker compose up -d       # Postgres, RabbitMQ, OpenBao, OPA, OTel Collector, Jaeger, Langfuse, Mailpit
 docker compose down -v     # stop and wipe all data
 ```
 
@@ -116,5 +136,6 @@ docker compose down -v     # stop and wipe all data
 | OTLP | `localhost:4317` (gRPC), `localhost:4318` (HTTP) → Collector (`infra/otel-collector/config.yaml`) → Jaeger and Langfuse |
 | Jaeger UI | `localhost:16686` |
 | Langfuse UI | `localhost:3100`, login `dev@aether-os.local` / `aether-dev`, API keys `pk-lf-local` / `sk-lf-local` |
+| Mailpit | SMTP `localhost:1025` (any credentials), UI `localhost:8025`: catches all local email; production uses Resend or SES |
 
 All credentials are fixed local-only values. MinIO in the compose file is only Langfuse's storage, not a stand-in for Loculus. The services still use SQLite; the per-service Postgres databases are ready for the move to Postgres with migrations.
