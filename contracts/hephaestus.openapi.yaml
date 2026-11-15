@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -20,6 +20,14 @@ info:
     agent, publishing the published version); workspace transitions stay
     strict (`409`).
 
+    Every operation needs a Pistis access token for the organization
+    (`Authorization: Bearer`); `x-permission` names what it requires
+    (`../docs/identity.md`). Another organization's `{organizationId}`, and a
+    project the caller can't read, are 404. `createdBy` is the caller's `sub`.
+
+security:
+  - pistis: []
+
 tags:
   - name: agents
   - name: agent-versions
@@ -32,12 +40,15 @@ paths:
     post:
       tags: [agents]
       operationId: createAgent
+      x-permission: '`agent:write`'
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/CreateAgentRequest' }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '201':
           description: Created
           content:
@@ -50,10 +61,13 @@ paths:
     get:
       tags: [agents]
       operationId: listAgents
+      x-permission: '`agent:read`'
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Newest first
           content:
@@ -70,7 +84,10 @@ paths:
     get:
       tags: [agents]
       operationId: getAgent
+      x-permission: '`agent:read`'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: OK
           content:
@@ -87,7 +104,10 @@ paths:
     post:
       tags: [agents]
       operationId: archiveAgent
+      x-permission: '`agent:write`'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Archived (or already archived)
           content:
@@ -105,6 +125,7 @@ paths:
     post:
       tags: [agent-versions]
       operationId: createAgentVersion
+      x-permission: '`agent:write`'
       description: Creates a draft version; the version number is assigned by the server.
       requestBody:
         required: true
@@ -112,6 +133,8 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/CreateAgentVersionRequest' }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '201':
           description: Created
           content:
@@ -124,10 +147,13 @@ paths:
     get:
       tags: [agent-versions]
       operationId: listAgentVersions
+      x-permission: '`agent:read`'
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Highest version first
           content:
@@ -145,7 +171,10 @@ paths:
     get:
       tags: [agent-versions]
       operationId: getAgentVersion
+      x-permission: '`agent:read`'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: OK
           content:
@@ -163,11 +192,14 @@ paths:
     post:
       tags: [agent-versions]
       operationId: publishAgentVersion
+      x-permission: '`agent:publish`'
       description: |
         Publishes a draft and deprecates the previously published version.
         Publishing the version that's already published returns it unchanged;
         a deprecated version can't be published again (409).
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Published
           content:
@@ -184,12 +216,15 @@ paths:
     post:
       tags: [workspaces]
       operationId: createWorkspace
+      x-permission: '`workspace:manage` in the body''s project'
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/CreateWorkspaceRequest' }
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '201':
           description: Created
           content:
@@ -202,10 +237,13 @@ paths:
     get:
       tags: [workspaces]
       operationId: listWorkspaces
+      x-permission: '`workspace:read`; lists only workspaces in projects the caller can read'
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Newest first
           content:
@@ -222,7 +260,10 @@ paths:
     get:
       tags: [workspaces]
       operationId: getWorkspace
+      x-permission: '`workspace:read` in the workspace''s project'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: OK
           content:
@@ -239,7 +280,10 @@ paths:
     post:
       tags: [workspaces]
       operationId: acquireWorkspace
+      x-permission: '`workspace:manage` in the workspace''s project'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200': { $ref: '#/components/responses/WorkspaceTransition' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -253,7 +297,10 @@ paths:
     post:
       tags: [workspaces]
       operationId: releaseWorkspace
+      x-permission: '`workspace:manage` in the workspace''s project'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200': { $ref: '#/components/responses/WorkspaceTransition' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -267,7 +314,10 @@ paths:
     post:
       tags: [workspaces]
       operationId: suspendWorkspace
+      x-permission: '`workspace:manage` in the workspace''s project'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200': { $ref: '#/components/responses/WorkspaceTransition' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -281,7 +331,10 @@ paths:
     post:
       tags: [workspaces]
       operationId: resumeWorkspace
+      x-permission: '`workspace:manage` in the workspace''s project'
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200': { $ref: '#/components/responses/WorkspaceTransition' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -295,8 +348,11 @@ paths:
     post:
       tags: [workspaces]
       operationId: destroyWorkspace
+      x-permission: '`workspace:manage` in the workspace''s project'
       description: Starts teardown (status `stopping`); the provisioner completes it.
       responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '200': { $ref: '#/components/responses/WorkspaceTransition' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -328,7 +384,15 @@ components:
     Limit: { $ref: './common.openapi.yaml#/components/parameters/Limit' }
     Cursor: { $ref: './common.openapi.yaml#/components/parameters/Cursor' }
 
+  securitySchemes:
+    pistis:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A Pistis access token (`../docs/identity.md`).
   responses:
+    Unauthorized: { $ref: './common.openapi.yaml#/components/responses/Unauthorized' }
+    Forbidden: { $ref: './common.openapi.yaml#/components/responses/Forbidden' }
     ValidationError: { $ref: './common.openapi.yaml#/components/responses/BadRequest' }
     NotFound: { $ref: './common.openapi.yaml#/components/responses/NotFound' }
     Unavailable: { $ref: './common.openapi.yaml#/components/responses/Unavailable' }
@@ -377,11 +441,10 @@ components:
     CreateAgentRequest:
       type: object
       additionalProperties: false
-      required: [name, description, createdBy]
+      required: [name, description]
       properties:
         name: { type: string, minLength: 1, maxLength: 200 }
         description: { type: string, maxLength: 2000 }
-        createdBy: { type: string, minLength: 1 }
     AgentResponse:
       type: object
       required: [id, organizationId, name, description, status, latestVersionId, createdBy, createdAt, updatedAt]
@@ -453,7 +516,7 @@ components:
     CreateAgentVersionRequest:
       type: object
       additionalProperties: false
-      required: [instructions, model, capabilities, tools, skills, runtime, createdBy]
+      required: [instructions, model, capabilities, tools, skills, runtime]
       properties:
         instructions: { type: string, minLength: 1 }
         model: { $ref: '#/components/schemas/AgentModelConfiguration' }
@@ -467,7 +530,6 @@ components:
           type: array
           items: { $ref: '#/components/schemas/AgentSkillConfiguration' }
         runtime: { $ref: '#/components/schemas/AgentRuntimeConfiguration' }
-        createdBy: { type: string, minLength: 1 }
     AgentVersionResponse:
       type: object
       required: [id, agentId, organizationId, version, status, instructions, model, capabilities, tools, skills, runtime, createdBy, createdAt, publishedAt]

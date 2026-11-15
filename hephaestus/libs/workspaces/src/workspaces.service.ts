@@ -3,12 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
 import {
+  AccessControl,
+  type ApiTypes,
   findPage,
   mapPage,
-  Transactional,
-  type ApiTypes,
   type Page,
   type PageRequest,
+  Transactional,
 } from '@hephaestus/core';
 import { OrganizationsService, ProjectsService } from '@hephaestus/tenancy';
 
@@ -46,6 +47,7 @@ export class WorkspacesService {
     private readonly mapper: WorkspaceMapper,
     private readonly organizations: OrganizationsService,
     private readonly projects: ProjectsService,
+    private readonly access: AccessControl,
   ) {}
 
   @Transactional()
@@ -53,6 +55,7 @@ export class WorkspacesService {
     organizationId: string,
     dto: CreateWorkspaceRequest,
   ): Promise<WorkspaceResponse> {
+    this.access.assertProjectPermission(dto.projectId, 'workspace:manage');
     await this.projects.assertAcceptsWrites(organizationId, dto.projectId);
 
     const now = new Date();
@@ -74,9 +77,21 @@ export class WorkspacesService {
   ): Promise<Page<WorkspaceResponse>> {
     await this.organizations.assertExists(organizationId);
 
+    // Only workspaces in projects the caller may read.
+    const readable = this.access.readableProjects();
+    if (readable !== 'all' && readable.length === 0) {
+      return { items: [], nextCursor: null };
+    }
     const entities = await findPage(
       this.workspaces,
-      { where: { organizationId }, sortBy: 'createdAt', direction: 'DESC' },
+      {
+        where:
+          readable === 'all'
+            ? { organizationId }
+            : { organizationId, projectId: readable },
+        sortBy: 'createdAt',
+        direction: 'DESC',
+      },
       page,
     );
 
@@ -89,7 +104,9 @@ export class WorkspacesService {
   ): Promise<WorkspaceResponse> {
     await this.organizations.assertExists(organizationId);
 
-    return this.mapper.toResponse(await this.load(organizationId, workspaceId));
+    const entity = await this.load(organizationId, workspaceId);
+    this.access.assertProjectPermission(entity.projectId, 'workspace:read');
+    return this.mapper.toResponse(entity);
   }
 
   // --- User actions ---
@@ -183,6 +200,10 @@ export class WorkspacesService {
     }
 
     const entity = await this.load(organizationId, workspaceId, true);
+    // User actions need the permission; provisioner callbacks have no caller.
+    if (check !== 'none') {
+      this.access.assertProjectPermission(entity.projectId, 'workspace:manage');
+    }
     const next = nextWorkspaceStatus(entity.status, action);
     if (!next) {
       throw new InvalidWorkspaceTransitionError(

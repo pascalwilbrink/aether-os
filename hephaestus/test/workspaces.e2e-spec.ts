@@ -1,10 +1,10 @@
 import type { INestApplication } from '@nestjs/common';
-import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
 import { WorkspacesService } from '@hephaestus/workspaces';
 
 import { createApp, MISSING_ID } from './app.js';
+import { asMember, type Client } from './auth.js';
 import {
   organizationEvent,
   projectArchived,
@@ -17,19 +17,22 @@ describe('Workspaces (e2e)', () => {
   let orgId: string;
   let projectId: string;
   let base: string;
+  let owner: Client;
 
   beforeEach(async () => {
     ({ app, polis } = await createApp());
     orgId = polis.organization();
     base = `/v1/organizations/${orgId}/workspaces`;
     projectId = polis.project(orgId);
+    owner = await asMember(app, orgId, ['owner']);
   });
 
   afterEach(async () => {
     await app.close();
   });
 
-  const http = () => request(app.getHttpServer());
+  // The organization's owner: project admin everywhere.
+  const http = () => owner;
 
   const body = (overrides: Record<string, unknown> = {}) => ({
     projectId,
@@ -138,5 +141,30 @@ describe('Workspaces (e2e)', () => {
     await organizationEvent(app, orgId, 'organization.suspended', 2);
     const suspended = await http().post(base).send(body()).expect(409);
     expect(suspended.body.code).toBe('ORGANIZATION_SUSPENDED');
+  });
+
+  it("needs a role in the workspace's project", async () => {
+    const created = await http().post(base).send(body()).expect(201);
+    const url = `${base}/${created.body.id}`;
+
+    // A member without a project role sees no workspaces.
+    const outsider = await asMember(app, orgId, ['member']);
+    await outsider.get(base).expect(200, { items: [], nextCursor: null });
+    await outsider.get(url).expect(404);
+    await outsider.post(base).send(body()).expect(404);
+
+    // Viewers read; editors run work.
+    const viewer = await asMember(app, orgId, ['member'], {
+      [projectId]: 'viewer',
+    });
+    await viewer.get(url).expect(200);
+    const visible = await viewer.get(base).expect(200);
+    expect(visible.body.items).toHaveLength(1);
+    await viewer.post(`${url}/acquire`).expect(403);
+
+    const editor = await asMember(app, orgId, ['member'], {
+      [projectId]: 'editor',
+    });
+    await editor.post(base).send(body()).expect(201);
   });
 });

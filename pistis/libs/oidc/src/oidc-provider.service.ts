@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   Logger,
   type OnModuleDestroy,
@@ -13,7 +14,18 @@ import Provider, {
 } from 'oidc-provider';
 import type { Repository } from 'typeorm';
 
-import type { Env } from '@pistis/core';
+import { PLATFORM_PERMISSIONS, type Env } from '@pistis/core';
+
+const platformPermissionsOf = (client: {
+  [key: string]: unknown;
+}): string[] => {
+  const permissions = client['platform_permissions'];
+  return Array.isArray(permissions)
+    ? permissions.filter((permission): permission is string =>
+        (PLATFORM_PERMISSIONS as readonly unknown[]).includes(permission),
+      )
+    : [];
+};
 import { UsersService } from '@pistis/users';
 
 import { OidcPayloadEntity } from './oidc-payload.entity.js';
@@ -29,7 +41,8 @@ import {
   organizationOf,
   PLATFORM_RESOURCE,
 } from './resources.js';
-import { signingAlgorithm, signingKeys } from './signing-keys.js';
+import { signingAlgorithm } from './signing-keys.js';
+import { SIGNING_KEYS, type SigningKeys } from './token-signer.js';
 
 /** Where oidc-provider's endpoints are mounted (the issuer's path). */
 export const OIDC_PATH = '/oidc';
@@ -62,6 +75,7 @@ export class OidcProviderService implements OnModuleInit, OnModuleDestroy {
     private readonly payloads: Repository<OidcPayloadEntity>,
     private readonly users: UsersService,
     private readonly directory: PolisDirectory,
+    @Inject(SIGNING_KEYS) private readonly jwks: SigningKeys,
   ) {}
 
   get provider(): Provider {
@@ -72,22 +86,17 @@ export class OidcProviderService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit(): Promise<void> {
-    const jwks = await signingKeys(
-      this.config.get('PISTIS_SIGNING_KEYS', { infer: true }),
-    );
+    const jwks = this.jwks;
     const production =
       this.config.get('NODE_ENV', { infer: true }) === 'production';
-    if (!this.config.get('PISTIS_SIGNING_KEYS', { infer: true })) {
-      this.logger.warn(
-        'No PISTIS_SIGNING_KEYS: signing with a key generated for this run only',
-      );
-    }
 
     const configuration: Configuration = {
       adapter: postgresOidcAdapter(this.payloads),
       clients: this.config.get('PISTIS_CLIENTS', {
         infer: true,
       }) as Configuration['clients'],
+      // Which platform permissions a platform service may ask for.
+      extraClientMetadata: { properties: ['platform_permissions'] },
       clientDefaults: { id_token_signed_response_alg: signingAlgorithm(jwks) },
       jwks,
       cookies: {
@@ -117,17 +126,25 @@ export class OidcProviderService implements OnModuleInit, OnModuleDestroy {
       features: {
         devInteractions: { enabled: false },
         revocation: { enabled: true },
+        // Platform services' own tokens (Hephaestus, operator tooling).
+        clientCredentials: { enabled: true },
         rpInitiatedLogout: { enabled: true },
         resourceIndicators: {
           enabled: true,
           defaultResource: () => PLATFORM_RESOURCE,
           useGrantedResource: () => true,
-          getResourceServerInfo: (_ctx, resource) => {
+          getResourceServerInfo: (_ctx, resource, client) => {
             if (organizationOf(resource) === undefined) {
               throw new errors.InvalidTarget(`unknown resource ${resource}`);
             }
             return {
-              scope: API_SCOPE,
+              // Platform permissions only on the platform resource, and only
+              // those the client was given (`platform_permissions`): users'
+              // grants and other clients get `api`.
+              scope:
+                resource === PLATFORM_RESOURCE
+                  ? [API_SCOPE, ...platformPermissionsOf(client)].join(' ')
+                  : API_SCOPE,
               audience: AUDIENCE,
               accessTokenFormat: 'jwt',
               accessTokenTTL: this.config.get('ACCESS_TOKEN_TTL_SECONDS', {
@@ -197,6 +214,9 @@ export class OidcProviderService implements OnModuleInit, OnModuleDestroy {
     _ctx: KoaContextWithOIDC,
     token: Parameters<NonNullable<Configuration['extraTokenClaims']>>[1],
   ): Promise<Record<string, unknown> | undefined> {
+    if (token.kind === 'ClientCredentials') {
+      return { sub_type: 'service' };
+    }
     if (token.kind !== 'AccessToken') {
       return undefined;
     }

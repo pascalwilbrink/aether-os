@@ -2,7 +2,11 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import type { Env } from '@hephaestus/core';
+import {
+  ClientCredentialsServiceTokens,
+  ServiceTokens,
+  type Env,
+} from '@hephaestus/core';
 
 import {
   HttpPolisClient,
@@ -33,6 +37,18 @@ import { ProjectsService } from './projects.service.js';
       useFactory: (config: ConfigService<Env, true>): PolisClientOptions => ({
         baseUrl: config.get('POLIS_URL', { infer: true }),
       }),
+    },
+    {
+      // Hephaestus's own token from Pistis, for Polis's platform reads.
+      provide: ServiceTokens,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) =>
+        new ClientCredentialsServiceTokens({
+          issuer: config.get('PISTIS_ISSUER', { infer: true }),
+          clientId: config.get('PISTIS_CLIENT_ID', { infer: true }),
+          clientSecret: config.get('PISTIS_CLIENT_SECRET', { infer: true }),
+          scope: 'platform:read',
+        }),
     },
     { provide: PolisClient, useClass: HttpPolisClient },
   ],

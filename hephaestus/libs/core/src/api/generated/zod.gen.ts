@@ -18,8 +18,7 @@ export const zAgentStatus = z.enum(['active', 'archived']);
 
 export const zCreateAgentRequest = z.object({
     name: z.string().min(1).max(200),
-    description: z.string().max(2000),
-    createdBy: z.string().min(1)
+    description: z.string().max(2000)
 });
 
 export const zAgentResponse = z.object({
@@ -73,8 +72,7 @@ export const zCreateAgentVersionRequest = z.object({
     capabilities: z.array(z.string()),
     tools: z.array(zAgentToolConfiguration),
     skills: z.array(zAgentSkillConfiguration),
-    runtime: zAgentRuntimeConfiguration,
-    createdBy: z.string().min(1)
+    runtime: zAgentRuntimeConfiguration
 });
 
 export const zAgentVersionResponse = z.object({

@@ -189,6 +189,9 @@ importers:
 
   krepis:
     dependencies:
+      jose:
+        specifier: ^6.2.17
+        version: 6.2.17
       uuid:
         specifier: ^14.0.3
         version: 14.0.3

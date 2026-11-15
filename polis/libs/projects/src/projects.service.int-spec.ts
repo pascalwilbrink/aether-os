@@ -1,5 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
+
+import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
 import { DataSource } from 'typeorm';
 
 import { OrganizationsService } from '@polis/organizations';
@@ -9,6 +11,7 @@ import { createTestingModule } from '../../../test/testing-module.js';
 import { ProjectsModule } from './projects.module.js';
 import { ProjectsService } from './projects.service.js';
 
+const caller = testPrincipal({ sub: 'user-1' });
 const missing = '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
 
 describe('ProjectsService (Postgres)', () => {
@@ -19,13 +22,12 @@ describe('ProjectsService (Postgres)', () => {
 
   beforeEach(async () => {
     moduleRef = await createTestingModule(ProjectsModule);
-    projects = moduleRef.get(ProjectsService);
-    organizations = moduleRef.get(OrganizationsService);
+    projects = actingAs(moduleRef.get(ProjectsService), caller);
+    organizations = actingAs(moduleRef.get(OrganizationsService), caller);
     orgId = (
       await organizations.create({
         name: 'Acme',
         slug: 'acme',
-        createdBy: 'user-1',
       })
     ).id;
   });
@@ -39,7 +41,6 @@ describe('ProjectsService (Postgres)', () => {
       name: 'App',
       slug,
       description: 'The main app',
-      createdBy: 'user-1',
     });
 
   it('creates and finds a project, scoped to its organization', async () => {
@@ -47,7 +48,6 @@ describe('ProjectsService (Postgres)', () => {
     const other = await organizations.create({
       name: 'Globex',
       slug: 'globex',
-      createdBy: 'user-1',
     });
 
     await expect(projects.findById(orgId, project.id)).resolves.toEqual(
@@ -67,7 +67,6 @@ describe('ProjectsService (Postgres)', () => {
     const other = await organizations.create({
       name: 'Globex',
       slug: 'globex',
-      createdBy: 'user-1',
     });
 
     await expect(create()).rejects.toMatchObject({

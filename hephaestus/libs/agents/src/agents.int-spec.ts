@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 
+import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
 import { organizationEvent, type FakePolis } from '../../../test/fake-polis.js';
 import { createTestingModule } from '../../../test/testing-module.js';
 import { AgentVersionsService } from './agent-versions.service.js';
@@ -19,8 +20,15 @@ const versionBody = {
     executionMode: 'standard' as const,
     sandboxRequired: false,
   },
-  createdBy: 'user-1',
 };
+
+const caller = testPrincipal({
+  sub: 'user-1',
+  subType: 'user',
+  organizationId: '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b',
+  organizationRoles: ['owner'],
+  scopes: [],
+});
 
 describe('AgentsService and AgentVersionsService (Postgres)', () => {
   let moduleRef: TestingModule;
@@ -31,8 +39,8 @@ describe('AgentsService and AgentVersionsService (Postgres)', () => {
 
   beforeEach(async () => {
     ({ moduleRef, polis } = await createTestingModule(AgentsModule));
-    agents = moduleRef.get(AgentsService);
-    versions = moduleRef.get(AgentVersionsService);
+    agents = actingAs(moduleRef.get(AgentsService), caller);
+    versions = actingAs(moduleRef.get(AgentVersionsService), caller);
     orgId = polis.organization();
   });
 
@@ -44,7 +52,6 @@ describe('AgentsService and AgentVersionsService (Postgres)', () => {
     agents.create(organizationId, {
       name: 'Helper',
       description: 'Helps',
-      createdBy: 'user-1',
     });
 
   it('creates agents, scoped to their organization', async () => {

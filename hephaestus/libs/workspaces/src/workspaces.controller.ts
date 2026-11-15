@@ -9,7 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { ZodSerializerDto } from '@hephaestus/core';
+import { RequirePermission, ZodSerializerDto } from '@hephaestus/core';
 
 import { CreateWorkspaceRequest } from './dto/create-workspace.request.js';
 import { ListWorkspacesQuery } from './dto/list-workspaces.query.js';
@@ -20,6 +20,9 @@ import { WorkspacesParams } from './dto/workspaces.params.js';
 import { WorkspacesService } from './workspaces.service.js';
 
 @Controller('organizations/:organizationId/workspaces')
+// The organization's members; the project permission (workspace:read /
+// workspace:manage) is checked in WorkspacesService once the project is known.
+@RequirePermission('org:read')
 export class WorkspacesController {
   constructor(private readonly workspaces: WorkspacesService) {}
 

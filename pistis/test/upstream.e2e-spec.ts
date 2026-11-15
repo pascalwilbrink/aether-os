@@ -5,7 +5,7 @@ import { decodeJwt } from 'jose';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
-import { createApp } from './app.js';
+import { createApp, operatorAgent } from './app.js';
 import { upstream } from './fake-upstream.js';
 
 const REDIRECT_URI = 'http://localhost:3000/auth/callback';
@@ -106,12 +106,18 @@ describe('Signing in with an external OpenID Connect provider (e2e)', () => {
   it('creates a user on the first sign-in and signs them in again later', async () => {
     const userId = await signIn();
 
-    const user = await http().get(`/v1/users/${userId}`).expect(200);
+    const user = await (
+      await operatorAgent(app)
+    )
+      .get(`/v1/users/${userId}`)
+      .expect(200);
     expect(user.body).toMatchObject({
       displayName: 'Ada Lovelace',
       email: 'ada@example.com',
     });
-    const identities = await http()
+    const identities = await (
+      await operatorAgent(app)
+    )
       .get(`/v1/users/${userId}/providers`)
       .expect(200);
     expect(identities.body.items).toEqual([
@@ -126,7 +132,9 @@ describe('Signing in with an external OpenID Connect provider (e2e)', () => {
   });
 
   it('never matches an existing user by email', async () => {
-    const existing = await http()
+    const existing = await (
+      await operatorAgent(app)
+    )
       .post('/v1/users')
       .send({
         displayName: 'Ada',
@@ -143,7 +151,9 @@ describe('Signing in with an external OpenID Connect provider (e2e)', () => {
   });
 
   it('signs in a user who linked the upstream identity', async () => {
-    const existing = await http()
+    const existing = await (
+      await operatorAgent(app)
+    )
       .post('/v1/users')
       .send({
         displayName: 'Ada',
@@ -220,7 +230,11 @@ describe('Signing in with an external OpenID Connect provider (e2e)', () => {
 
   it('refuses disabled users', async () => {
     const userId = await signIn();
-    await http().post(`/v1/users/${userId}/disable`).expect(200);
+    await (
+      await operatorAgent(app)
+    )
+      .post(`/v1/users/${userId}/disable`)
+      .expect(200);
 
     const { agent, interaction } = await begin();
     const { res } = await follow(agent, await viaUpstream(agent, interaction));

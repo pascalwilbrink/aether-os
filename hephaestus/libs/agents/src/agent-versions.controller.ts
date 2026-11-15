@@ -9,7 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { ZodSerializerDto } from '@hephaestus/core';
+import { RequirePermission, ZodSerializerDto } from '@hephaestus/core';
 
 import { AgentVersionsService } from './agent-versions.service.js';
 import { AgentParams } from './dto/agent.params.js';
@@ -24,6 +24,7 @@ export class AgentVersionsController {
   constructor(private readonly versions: AgentVersionsService) {}
 
   @Post()
+  @RequirePermission('agent:write')
   @ZodSerializerDto(AgentVersionResponse)
   create(
     @Param() { organizationId, agentId }: AgentParams,
@@ -33,6 +34,7 @@ export class AgentVersionsController {
   }
 
   @Get()
+  @RequirePermission('agent:read')
   @ZodSerializerDto(AgentVersionPage)
   list(
     @Param() { organizationId, agentId }: AgentParams,
@@ -42,6 +44,7 @@ export class AgentVersionsController {
   }
 
   @Get(':versionId')
+  @RequirePermission('agent:read')
   @ZodSerializerDto(AgentVersionResponse)
   findById(
     @Param() { organizationId, agentId, versionId }: AgentVersionParams,
@@ -50,6 +53,7 @@ export class AgentVersionsController {
   }
 
   @Post(':versionId/publish')
+  @RequirePermission('agent:publish')
   @HttpCode(HttpStatus.OK)
   @ZodSerializerDto(AgentVersionResponse)
   publish(@Param() { organizationId, agentId, versionId }: AgentVersionParams) {

@@ -9,12 +9,13 @@ import {
   MembershipsController,
   SubjectMembershipsController,
 } from './memberships.controller.js';
+import { FoundersService } from './founders.service.js';
 import { MembershipsService } from './memberships.service.js';
 
 @Module({
   imports: [TypeOrmModule.forFeature([MembershipEntity]), OrganizationsModule],
   controllers: [MembershipsController, SubjectMembershipsController],
-  providers: [MembershipsService, MembershipMapper],
+  providers: [MembershipsService, MembershipMapper, FoundersService],
   exports: [MembershipsService],
 })
 export class MembershipsModule {}

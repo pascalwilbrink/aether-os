@@ -11,7 +11,12 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { ZodSerializerDto } from '@polis/core';
+import {
+  Authenticated,
+  PlatformAccess,
+  RequirePermission,
+  ZodSerializerDto,
+} from '@polis/core';
 
 import { CreateMembershipRequest } from './dto/create-membership.request.js';
 import { ListMembershipsOfSubjectQuery } from './dto/list-memberships-of-subject.query.js';
@@ -28,6 +33,7 @@ export class MembershipsController {
   constructor(private readonly memberships: MembershipsService) {}
 
   @Post()
+  @RequirePermission('member:manage')
   @ZodSerializerDto(MembershipResponse)
   create(
     @Param() { organizationId }: MembershipsParams,
@@ -37,6 +43,7 @@ export class MembershipsController {
   }
 
   @Get()
+  @RequirePermission('member:read')
   @ZodSerializerDto(MembershipPage)
   list(
     @Param() { organizationId }: MembershipsParams,
@@ -46,12 +53,14 @@ export class MembershipsController {
   }
 
   @Get(':membershipId')
+  @RequirePermission('member:read')
   @ZodSerializerDto(MembershipResponse)
   findById(@Param() { organizationId, membershipId }: MembershipParams) {
     return this.memberships.findById(organizationId, membershipId);
   }
 
   @Put(':membershipId')
+  @RequirePermission('member:manage')
   @ZodSerializerDto(MembershipResponse)
   update(
     @Param() { organizationId, membershipId }: MembershipParams,
@@ -61,6 +70,7 @@ export class MembershipsController {
   }
 
   @Delete(':membershipId')
+  @RequirePermission('member:manage')
   @HttpCode(HttpStatus.NO_CONTENT)
   delete(@Param() { organizationId, membershipId }: MembershipParams) {
     return this.memberships.delete(organizationId, membershipId);
@@ -73,6 +83,8 @@ export class SubjectMembershipsController {
   constructor(private readonly memberships: MembershipsService) {}
 
   @Get()
+  @Authenticated()
+  @PlatformAccess('platform:read')
   @ZodSerializerDto(MembershipPage)
   list(
     @Query() { subjectType, subject, ...page }: ListMembershipsOfSubjectQuery,

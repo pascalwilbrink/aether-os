@@ -3,6 +3,7 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
 import { createApp, MISSING_ID } from './app.js';
+import { asMember, type Client } from './auth.js';
 import { organizationEvent, type FakePolis } from './fake-polis.js';
 
 const versionBody = {
@@ -16,7 +17,6 @@ const versionBody = {
     executionMode: 'standard',
     sandboxRequired: false,
   },
-  createdBy: 'user-1',
 };
 
 describe('Agents (e2e)', () => {
@@ -24,23 +24,25 @@ describe('Agents (e2e)', () => {
   let polis: FakePolis;
   let orgId: string;
   let base: string;
+  let owner: Client;
 
   beforeEach(async () => {
     ({ app, polis } = await createApp());
     orgId = polis.organization();
     base = `/v1/organizations/${orgId}/agents`;
+    owner = await asMember(app, orgId, ['owner']);
   });
 
   afterEach(async () => {
     await app.close();
   });
 
-  const http = () => request(app.getHttpServer());
+  const http = () => owner;
 
   async function createAgent(): Promise<string> {
     const res = await http()
       .post(base)
-      .send({ name: 'Helper', description: 'Helps', createdBy: 'user-1' })
+      .send({ name: 'Helper', description: 'Helps' })
       .expect(201);
     return res.body.id;
   }
@@ -78,10 +80,7 @@ describe('Agents (e2e)', () => {
   });
 
   it('validates agent and version bodies', async () => {
-    await http()
-      .post(base)
-      .send({ name: '', description: '', createdBy: 'u' })
-      .expect(400);
+    await http().post(base).send({ name: '', description: '' }).expect(400);
     const id = await createAgent();
 
     const res = await http()
@@ -140,11 +139,40 @@ describe('Agents (e2e)', () => {
 
     const res = await http()
       .post(base)
-      .send({ name: 'X', description: '', createdBy: 'user-1' })
+      .send({ name: 'X', description: '' })
       .expect(409);
     expect(res.body.code).toBe('ORGANIZATION_SUSPENDED');
     await http().post(`${base}/${id}/versions`).send(versionBody).expect(409);
     await http().get(`${base}/${id}`).expect(200);
     await http().get(`/v1/organizations/${MISSING_ID}/agents`).expect(404);
+  });
+
+  it('needs a token, and the right role for each step', async () => {
+    await request(app.getHttpServer()).get(base).expect(401);
+    const id = await createAgent();
+    const versions = `${base}/${id}/versions`;
+
+    const viewer = await asMember(app, orgId, ['viewer']);
+    await viewer.get(`${base}/${id}`).expect(200);
+    await viewer.post(base).send({ name: 'X', description: '' }).expect(403);
+
+    // Members build agents, admins publish them.
+    const member = await asMember(app, orgId, ['member'], {}, 'user-2');
+    const draft = await member.post(versions).send(versionBody).expect(201);
+    expect(draft.body.createdBy).toBe('user-2');
+    await member.post(`${versions}/${draft.body.id}/publish`).expect(403);
+    await (
+      await asMember(app, orgId, ['admin'])
+    )
+      .post(`${versions}/${draft.body.id}/publish`)
+      .expect(200);
+
+    // Another organization's agents don't exist for this token.
+    const other = polis.organization();
+    await (
+      await asMember(app, other, ['owner'])
+    )
+      .get(`${base}/${id}`)
+      .expect(404);
   });
 });

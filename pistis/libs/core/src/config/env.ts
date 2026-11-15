@@ -23,6 +23,10 @@ const zClient = z
     grant_types: z.array(
       z.enum(['authorization_code', 'refresh_token', 'client_credentials']),
     ),
+    /** Platform services only: the platform permissions they may ask for. */
+    platform_permissions: z
+      .array(z.enum(['platform:read', 'platform:manage']))
+      .optional(),
     token_endpoint_auth_method: z.enum([
       'none',
       'client_secret_basic',
@@ -63,6 +67,16 @@ const DEV_CLIENTS = [
     post_logout_redirect_uris: ['http://localhost:3000/'],
     grant_types: ['authorization_code', 'refresh_token'],
     token_endpoint_auth_method: 'none',
+  },
+  // Hephaestus's own token (client credentials), to read from Polis.
+  {
+    client_id: 'hephaestus',
+    client_secret: 'hephaestus-dev-secret',
+    redirect_uris: [],
+    response_types: [],
+    grant_types: ['client_credentials'],
+    token_endpoint_auth_method: 'client_secret_basic',
+    platform_permissions: ['platform:read'],
   },
 ];
 

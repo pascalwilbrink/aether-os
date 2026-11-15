@@ -2,6 +2,7 @@ import type { DynamicModule, Type } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 
 import {
+  AuthModule,
   DatabaseModule,
   EventsModule,
   POLIS_PUBLISHED_EVENTS,
@@ -10,6 +11,7 @@ import {
 } from '@polis/core';
 
 import { resetDatabase } from './database.js';
+import { tokens } from './tokens.js';
 
 /** A Nest context with Polis's real configuration and database, emptied. */
 export async function createTestingModule(
@@ -25,6 +27,8 @@ export async function createTestingModule(
         publish: POLIS_PUBLISHED_EVENTS,
       }),
       PolisEventsModule,
+      // AccessControl; tests act as a principal with actingAs().
+      AuthModule.forRoot({ issuer: tokens.issuer, jwks: tokens.jwks }),
       ...modules,
     ],
   }).compile();

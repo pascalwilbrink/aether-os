@@ -25,4 +25,22 @@ process.env.PISTIS_UPSTREAM_PROVIDERS = JSON.stringify([
     clientSecret: FakeUpstream.CLIENT_SECRET,
   },
 ]);
+// Iris, and Hephaestus as a platform service (client credentials).
+process.env.PISTIS_CLIENTS = JSON.stringify([
+  {
+    client_id: 'iris',
+    redirect_uris: ['http://localhost:3000/auth/callback'],
+    grant_types: ['authorization_code', 'refresh_token'],
+    token_endpoint_auth_method: 'none',
+  },
+  {
+    client_id: 'hephaestus',
+    client_secret: 'hephaestus-test-secret',
+    grant_types: ['client_credentials'],
+    redirect_uris: [],
+    response_types: [],
+    token_endpoint_auth_method: 'client_secret_basic',
+    platform_permissions: ['platform:read'],
+  },
+]);
 initializeTransactions();

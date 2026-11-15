@@ -1,6 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { createPolisHttpClient, PolisApi } from '@hephaestus/core';
+import {
+  createPolisHttpClient,
+  PolisApi,
+  ServiceTokens,
+} from '@hephaestus/core';
 
 import {
   PolisClient,
@@ -25,13 +29,19 @@ export interface PolisClientOptions {
 export class HttpPolisClient extends PolisClient {
   private readonly client: ReturnType<typeof createPolisHttpClient>;
 
-  constructor(@Inject(POLIS_CLIENT_OPTIONS) options: PolisClientOptions) {
+  constructor(
+    @Inject(POLIS_CLIENT_OPTIONS) options: PolisClientOptions,
+    tokens: ServiceTokens,
+  ) {
     super();
     const timeoutMs = options.timeoutMs ?? 5000;
     this.client = createPolisHttpClient({
       baseUrl: options.baseUrl,
       fetch: (input, init) =>
         fetch(input, { ...init, signal: AbortSignal.timeout(timeoutMs) }),
+      // Hephaestus's own token from Pistis (client credentials,
+      // platform:read): these are platform-level reads.
+      auth: () => tokens.token(),
     });
   }
 

@@ -10,7 +10,9 @@ import {
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
-import { createApp } from './app.js';
+import { TokenVerifier } from '@pistis/core';
+
+import { createApp, operatorAgent } from './app.js';
 import { FakePolisDirectory } from './fake-polis-directory.js';
 
 const ISSUER = 'http://127.0.0.1/oidc';
@@ -31,7 +33,9 @@ describe('Signing in and issuing tokens (e2e)', () => {
   beforeEach(async () => {
     polis = new FakePolisDirectory().addOrganization(ORG);
     app = await createApp(polis);
-    const res = await request(app.getHttpServer())
+    const res = await (
+      await operatorAgent(app)
+    )
       .post('/v1/users')
       .send({
         displayName: 'Ada',
@@ -169,6 +173,15 @@ describe('Signing in and issuing tokens (e2e)', () => {
       org_roles: ['admin', 'member'],
       project_roles: {},
     });
+    // What every service's AuthGuard does with it (Krepis).
+    await expect(
+      app.get(TokenVerifier).verify(body.access_token),
+    ).resolves.toMatchObject({
+      sub: userId,
+      subType: 'user',
+      organizationId: ORG,
+      organizationRoles: ['admin', 'member'],
+    });
     expect(decodeJwt(body.id_token)).toMatchObject({
       sub: userId,
       aud: 'iris',
@@ -229,7 +242,9 @@ describe('Signing in and issuing tokens (e2e)', () => {
     const { callback, verifier } = await authorize({
       resource: `urn:aether-os:org:${ORG}`,
     });
-    await request(app.getHttpServer())
+    await (
+      await operatorAgent(app)
+    )
       .post(`/v1/users/${userId}/disable`)
       .expect(200);
 
@@ -251,5 +266,32 @@ describe('Signing in and issuing tokens (e2e)', () => {
     expect(new URL(res.headers.location).searchParams.get('error')).toBe(
       'invalid_request',
     );
+  });
+
+  it('issues platform services their own tokens with client credentials', async () => {
+    const token = (scope: string) =>
+      request(app.getHttpServer())
+        .post('/oidc/token')
+        .auth('hephaestus', 'hephaestus-test-secret')
+        .type('form')
+        .send({ grant_type: 'client_credentials', scope });
+
+    const res = await token('platform:read').expect(200);
+    const claims = await verify(
+      (res.body as { access_token: string }).access_token,
+    );
+    expect(claims).toMatchObject({
+      sub: 'hephaestus',
+      sub_type: 'service',
+      scope: 'platform:read',
+    });
+    expect(claims).not.toHaveProperty('org_id');
+
+    // Only the platform permissions the client was given: others are dropped.
+    const more = await token('platform:read platform:manage');
+    const granted = await verify(
+      (more.body as { access_token: string }).access_token,
+    );
+    expect(granted.scope).toBe('platform:read');
   });
 });

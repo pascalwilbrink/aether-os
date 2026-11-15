@@ -164,7 +164,7 @@ components:
             - $ref: '#/components/schemas/Uuid'
             - type: 'null'
         actor:
-          description: Null until requests are authenticated (Pistis).
+          description: The caller whose request caused the event (from its Pistis token); null for system work.
           oneOf:
             - type: 'null'
             - type: object

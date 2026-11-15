@@ -12,6 +12,7 @@ export class AgentVersionMapper {
     dto: CreateAgentVersionRequest,
     agent: { organizationId: string; agentId: string },
     version: number,
+    createdBy: string,
     now: Date,
   ): AgentVersionEntity {
     return Object.assign(new AgentVersionEntity(), {
@@ -26,7 +27,7 @@ export class AgentVersionMapper {
       tools: dto.tools,
       skills: dto.skills,
       runtime: dto.runtime,
-      createdBy: dto.createdBy,
+      createdBy,
       createdAt: now,
       publishedAt: null,
     } satisfies AgentVersionEntity);

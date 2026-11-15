@@ -10,6 +10,7 @@ import {
   Transactional,
   type Page,
   type PageRequest,
+  AccessControl,
 } from '@polis/core';
 import { OrganizationsService } from '@polis/organizations';
 
@@ -32,6 +33,7 @@ export class ProjectsService {
     private readonly mapper: ProjectMapper,
     private readonly organizations: OrganizationsService,
     private readonly events: PolisEvents,
+    private readonly access: AccessControl,
   ) {}
 
   @Transactional()
@@ -41,7 +43,12 @@ export class ProjectsService {
   ): Promise<ProjectResponse> {
     await this.organizations.assertAcceptsWrites(organizationId);
 
-    const entity = this.mapper.toEntity(dto, organizationId, new Date());
+    const entity = this.mapper.toEntity(
+      dto,
+      organizationId,
+      this.access.principal().sub,
+      new Date(),
+    );
     try {
       await this.projects.insert(entity);
     } catch (error) {
@@ -68,9 +75,22 @@ export class ProjectsService {
   ): Promise<Page<ProjectResponse>> {
     await this.organizations.assertExists(organizationId);
 
+    // Only the projects the caller may read (docs/identity.md: no access
+    // by default; organization owners and admins see all).
+    const readable = this.access.readableProjects();
+    if (readable !== 'all' && readable.length === 0) {
+      return { items: [], nextCursor: null };
+    }
     const entities = await findPage(
       this.projects,
-      { where: { organizationId }, sortBy: 'createdAt', direction: 'DESC' },
+      {
+        where:
+          readable === 'all'
+            ? { organizationId }
+            : { organizationId, id: readable },
+        sortBy: 'createdAt',
+        direction: 'DESC',
+      },
       page,
     );
 

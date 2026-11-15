@@ -1,5 +1,6 @@
 import {
   Equal,
+  In,
   LessThan,
   MoreThan,
   type FindOptionsOrder,
@@ -19,8 +20,14 @@ import type { Page, PageRequest } from '../pagination/page.js';
 type Column<E> = keyof E & string;
 
 export interface FindPageOptions<E extends ObjectLiteral> {
-  /** Equality filters (tenant columns and the like); every page applies them. */
-  where: Partial<Record<Column<E>, string | number | boolean | null>>;
+  /**
+   * Filters every page applies: a value means equality (tenant columns and
+   * the like), an array means one of them (`IN`, e.g. the projects a caller
+   * may read).
+   */
+  where: Partial<
+    Record<Column<E>, string | number | boolean | null | readonly string[]>
+  >;
   /** The sort column. Together with `idColumn` it must identify a row. */
   sortBy: Column<E>;
   direction: 'ASC' | 'DESC';
@@ -42,7 +49,12 @@ export async function findPage<E extends ObjectLiteral>(
 ): Promise<Page<E>> {
   const { sortBy, direction } = options;
   const idColumn = options.idColumn ?? ('id' as Column<E>);
-  const filters = options.where as FindOptionsWhere<E>;
+  const filters = Object.fromEntries(
+    Object.entries(options.where).map(([column, value]) => [
+      column,
+      Array.isArray(value) ? In(value as string[]) : value,
+    ]),
+  ) as FindOptionsWhere<E>;
   const binding = cursorBinding({
     sort: sortBy,
     direction,

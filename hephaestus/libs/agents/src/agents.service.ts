@@ -3,11 +3,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
 import {
+  AccessControl,
   findPage,
   mapPage,
-  Transactional,
   type Page,
   type PageRequest,
+  Transactional,
 } from '@hephaestus/core';
 import { OrganizationsService } from '@hephaestus/tenancy';
 
@@ -29,6 +30,7 @@ export class AgentsService {
     private readonly agents: Repository<AgentEntity>,
     private readonly mapper: AgentMapper,
     private readonly organizations: OrganizationsService,
+    private readonly access: AccessControl,
   ) {}
 
   @Transactional()
@@ -38,7 +40,12 @@ export class AgentsService {
   ): Promise<AgentResponse> {
     await this.organizations.assertAcceptsWrites(organizationId);
 
-    const entity = this.mapper.toEntity(dto, organizationId, new Date());
+    const entity = this.mapper.toEntity(
+      dto,
+      organizationId,
+      this.access.principal().sub,
+      new Date(),
+    );
     await this.agents.insert(entity);
 
     return this.mapper.toResponse(entity);

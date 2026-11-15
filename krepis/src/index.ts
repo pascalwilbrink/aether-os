@@ -1,3 +1,4 @@
+export * from './auth/index.js';
 export * from './id/index.js';
 export * from './event/index.js';
 export * from './error/index.js';

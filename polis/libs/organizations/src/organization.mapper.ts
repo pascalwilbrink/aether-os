@@ -8,13 +8,17 @@ import { OrganizationEntity } from './organization.entity.js';
 @Injectable()
 export class OrganizationMapper {
   /** A new, active organization; its ID (UUIDv7) is generated here. */
-  toEntity(dto: CreateOrganizationRequest, now: Date): OrganizationEntity {
+  toEntity(
+    dto: CreateOrganizationRequest,
+    createdBy: string,
+    now: Date,
+  ): OrganizationEntity {
     return Object.assign(new OrganizationEntity(), {
       id: uuidv7(),
       name: dto.name,
       slug: dto.slug,
       status: 'active',
-      createdBy: dto.createdBy,
+      createdBy,
       createdAt: now,
       updatedAt: now,
       version: 1,

@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import type { Env } from '@pistis/core';
+import { ServiceTokens, type Env } from '@pistis/core';
 import { UsersModule } from '@pistis/users';
 
 import {
@@ -14,6 +14,12 @@ import { InteractionsController } from './interactions.controller.js';
 import { OidcPayloadEntity } from './oidc-payload.entity.js';
 import { OidcProviderService } from './oidc-provider.service.js';
 import { PolisDirectory } from './polis-directory.js';
+import { signingKeys } from './signing-keys.js';
+import {
+  PistisServiceTokens,
+  SIGNING_KEYS,
+  TokenSigner,
+} from './token-signer.js';
 import { UpstreamSignInService } from './upstream/upstream-sign-in.service.js';
 
 @Module({
@@ -22,6 +28,15 @@ import { UpstreamSignInService } from './upstream/upstream-sign-in.service.js';
   providers: [
     OidcProviderService,
     UpstreamSignInService,
+    {
+      provide: SIGNING_KEYS,
+      inject: [ConfigService],
+      // Outside production without PISTIS_SIGNING_KEYS: one key per start.
+      useFactory: (config: ConfigService<Env, true>) =>
+        signingKeys(config.get('PISTIS_SIGNING_KEYS', { infer: true })),
+    },
+    TokenSigner,
+    { provide: ServiceTokens, useClass: PistisServiceTokens },
     {
       provide: POLIS_DIRECTORY_OPTIONS,
       inject: [ConfigService],
@@ -33,6 +48,6 @@ import { UpstreamSignInService } from './upstream/upstream-sign-in.service.js';
     },
     { provide: PolisDirectory, useClass: HttpPolisDirectory },
   ],
-  exports: [OidcProviderService],
+  exports: [OidcProviderService, SIGNING_KEYS, TokenSigner],
 })
 export class OidcModule {}

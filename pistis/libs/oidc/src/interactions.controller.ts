@@ -17,6 +17,8 @@ import {
   UserDisabledError,
 } from '@pistis/users';
 
+import { Public } from '@pistis/core';
+
 import { SignInForm } from './dto/sign-in.form.js';
 import { InteractionErrorFilter } from './interaction-error.filter.js';
 import { OidcProviderService } from './oidc-provider.service.js';
@@ -44,6 +46,8 @@ const OIDC_SCOPES = ['openid', 'offline_access', 'profile', 'email'];
  */
 @Controller('interaction')
 @UseFilters(InteractionErrorFilter)
+// The sign-in pages: no token yet, by definition.
+@Public()
 export class InteractionsController {
   constructor(
     private readonly oidc: OidcProviderService,

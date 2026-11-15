@@ -3,12 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
 import {
+  AccessControl,
   findPage,
   isUniqueViolation,
   mapPage,
-  Transactional,
   type Page,
   type PageRequest,
+  Transactional,
 } from '@hephaestus/core';
 
 import { nextAgentVersionStatus } from './agent-transitions.js';
@@ -34,6 +35,7 @@ export class AgentVersionsService {
     private readonly versions: Repository<AgentVersionEntity>,
     private readonly mapper: AgentVersionMapper,
     private readonly agents: AgentsService,
+    private readonly access: AccessControl,
   ) {}
 
   @Transactional()
@@ -49,6 +51,7 @@ export class AgentVersionsService {
       dto,
       { organizationId, agentId },
       (current ?? 0) + 1,
+      this.access.principal().sub,
       new Date(),
     );
     try {

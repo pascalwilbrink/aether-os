@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
@@ -10,6 +14,7 @@ import {
   Transactional,
   type Page,
   type PageRequest,
+  AccessControl,
 } from '@polis/core';
 
 import type { CreateOrganizationRequest } from './dto/create-organization.request.js';
@@ -33,11 +38,24 @@ export class OrganizationsService {
     private readonly organizations: Repository<OrganizationEntity>,
     private readonly mapper: OrganizationMapper,
     private readonly events: PolisEvents,
+    private readonly access: AccessControl,
   ) {}
 
   @Transactional()
   async create(dto: CreateOrganizationRequest): Promise<OrganizationResponse> {
-    const entity = this.mapper.toEntity(dto, new Date());
+    const caller = this.access.principal();
+    // People found organizations (and become their owner, see
+    // FoundersService); platform services need platform:manage.
+    if (
+      caller.subType === 'service_account' ||
+      (caller.subType === 'service' &&
+        !this.access.hasPlatformPermission('platform:manage'))
+    ) {
+      throw new ForbiddenException(
+        'Only people and platform operators create organizations',
+      );
+    }
+    const entity = this.mapper.toEntity(dto, caller.sub, new Date());
     try {
       await this.organizations.insert(entity);
     } catch (error) {
@@ -71,9 +89,15 @@ export class OrganizationsService {
     return this.mapper.toResponse(await this.load(id));
   }
 
+  /** Only the caller's own organization, or any for platform readers. */
   async findBySlug(slug: string): Promise<OrganizationResponse> {
     const entity = await this.organizations.findOneBy({ slug });
-    if (!entity) {
+    const caller = this.access.principal();
+    if (
+      !entity ||
+      (entity.id !== caller.organizationId &&
+        !this.access.hasPlatformPermission('platform:read'))
+    ) {
       throw new NotFoundException(`Organization "${slug}" not found`);
     }
 

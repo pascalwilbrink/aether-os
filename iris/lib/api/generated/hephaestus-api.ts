@@ -306,7 +306,6 @@ export interface components {
         CreateAgentRequest: {
             name: string;
             description: string;
-            createdBy: string;
         };
         AgentResponse: {
             /** Format: uuid */
@@ -362,7 +361,6 @@ export interface components {
             tools: components["schemas"]["AgentToolConfiguration"][];
             skills: components["schemas"]["AgentSkillConfiguration"][];
             runtime: components["schemas"]["AgentRuntimeConfiguration"];
-            createdBy: string;
         };
         AgentVersionResponse: {
             /** Format: uuid */
@@ -469,6 +467,31 @@ export interface components {
         };
     };
     responses: {
+        /**
+         * @description `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+         *     access token (signature, issuer, audience, expiry).
+         */
+        Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description `FORBIDDEN`: the token is valid but lacks the permission
+         *     (`x-permission` on the operation). Another organization's resources
+         *     are 404, not 403.
+         */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         ValidationError: {
             headers: {
                 [name: string]: unknown;
@@ -577,6 +600,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             503: components["responses"]["Unavailable"];
         };
@@ -606,6 +631,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
             503: components["responses"]["Unavailable"];
@@ -633,6 +660,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             503: components["responses"]["Unavailable"];
         };
@@ -659,6 +688,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
             503: components["responses"]["Unavailable"];
@@ -695,6 +726,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             503: components["responses"]["Unavailable"];
         };
@@ -725,6 +758,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
             503: components["responses"]["Unavailable"];
@@ -753,6 +788,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             503: components["responses"]["Unavailable"];
         };
@@ -780,6 +817,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
             503: components["responses"]["Unavailable"];
@@ -815,6 +854,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             503: components["responses"]["Unavailable"];
         };
@@ -844,6 +885,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
             503: components["responses"]["Unavailable"];
@@ -871,6 +914,8 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             503: components["responses"]["Unavailable"];
         };
@@ -889,6 +934,8 @@ export interface operations {
         responses: {
             200: components["responses"]["WorkspaceTransition"];
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
             503: components["responses"]["Unavailable"];
@@ -908,6 +955,8 @@ export interface operations {
         responses: {
             200: components["responses"]["WorkspaceTransition"];
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
             503: components["responses"]["Unavailable"];
@@ -927,6 +976,8 @@ export interface operations {
         responses: {
             200: components["responses"]["WorkspaceTransition"];
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
             503: components["responses"]["Unavailable"];
@@ -946,6 +997,8 @@ export interface operations {
         responses: {
             200: components["responses"]["WorkspaceTransition"];
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
             503: components["responses"]["Unavailable"];
@@ -965,6 +1018,8 @@ export interface operations {
         responses: {
             200: components["responses"]["WorkspaceTransition"];
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
             503: components["responses"]["Unavailable"];

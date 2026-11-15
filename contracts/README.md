@@ -13,6 +13,10 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 | `pistis.openapi.yaml` | Pistis | (operators and Iris, once wired) |
 | `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Hephaestus (organization and project events); later Pistis and others |
 
+## Authentication in the specs
+
+Every service spec declares the `pistis` bearer scheme (a Pistis access token) as its global `security`, `401` / `403` responses on every operation (`Unauthorized` / `Forbidden` in `common.openapi.yaml`), and an `x-permission` per operation naming what it requires (`../docs/identity.md`). The services enforce it with Krepis's `AuthModule`; keep `x-permission` and the route's decorator in step. Generated clients send a token when given `auth` (e.g. `auth: () => tokens.token()` with a `ServiceTokens`).
+
 ## Event types (AsyncAPI)
 
 `*.asyncapi.yaml` describe the events a service publishes. Give each message a `name` (the event type) and an envelope whose `payload` refers to a named schema. The package's `aether-asyncapi-types` command (`bin/asyncapi-types.mjs`) validates a spec with the official AsyncAPI parser and generates, with `json-schema-to-typescript`, an interface per event payload (`organization.created` → `OrganizationCreated`), the `<Service>EventPayloads` map, the `<Service>EventType` union and `<SERVICE>_EVENT_TYPES`:

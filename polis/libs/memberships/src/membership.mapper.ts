@@ -13,6 +13,7 @@ export class MembershipMapper {
   toEntity(
     dto: CreateMembershipRequest,
     organizationId: string,
+    createdBy: string,
     now: Date,
   ): MembershipEntity {
     return Object.assign(new MembershipEntity(), {
@@ -21,7 +22,7 @@ export class MembershipMapper {
       subjectType: dto.subjectType,
       subject: dto.subject,
       roles: normalizeRoles(dto.roles),
-      createdBy: dto.createdBy,
+      createdBy,
       createdAt: now,
       updatedAt: now,
       version: 1,

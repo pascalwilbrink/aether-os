@@ -11,6 +11,7 @@ export class ProjectMapper {
   toEntity(
     dto: CreateProjectRequest,
     organizationId: string,
+    createdBy: string,
     now: Date,
   ): ProjectEntity {
     return Object.assign(new ProjectEntity(), {
@@ -20,7 +21,7 @@ export class ProjectMapper {
       slug: dto.slug,
       description: dto.description,
       status: 'active',
-      createdBy: dto.createdBy,
+      createdBy,
       createdAt: now,
       updatedAt: now,
       version: 1,

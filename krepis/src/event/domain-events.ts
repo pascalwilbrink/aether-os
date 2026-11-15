@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { currentActor } from '../auth/request-context.js';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
@@ -49,7 +50,8 @@ export class DomainEvents {
       occurredAt: new Date(),
       organizationId: null,
       projectId: null,
-      actor: null,
+      // The request's principal (AuthModule), if any.
+      actor: currentActor(),
       ...input,
     };
 

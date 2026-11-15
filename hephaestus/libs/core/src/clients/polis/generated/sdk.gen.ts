@@ -88,7 +88,11 @@ export const listOrganizations = <ThrowOnError extends boolean = false>(
     ListOrganizationsResponses,
     ListOrganizationsErrors,
     ThrowOnError
-  >({ url: '/v1/organizations', ...options });
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations',
+    ...options,
+  });
 
 export const createOrganization = <ThrowOnError extends boolean = false>(
   options: Options<CreateOrganizationData, ThrowOnError>,
@@ -102,6 +106,7 @@ export const createOrganization = <ThrowOnError extends boolean = false>(
     CreateOrganizationErrors,
     ThrowOnError
   >({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations',
     ...options,
     headers: {
@@ -121,7 +126,11 @@ export const getOrganizationBySlug = <ThrowOnError extends boolean = false>(
     GetOrganizationBySlugResponses,
     GetOrganizationBySlugErrors,
     ThrowOnError
-  >({ url: '/v1/organizations/by-slug/{slug}', ...options });
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/by-slug/{slug}',
+    ...options,
+  });
 
 export const getOrganization = <ThrowOnError extends boolean = false>(
   options: Options<GetOrganizationData, ThrowOnError>,
@@ -134,7 +143,11 @@ export const getOrganization = <ThrowOnError extends boolean = false>(
     GetOrganizationResponses,
     GetOrganizationErrors,
     ThrowOnError
-  >({ url: '/v1/organizations/{organizationId}', ...options });
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}',
+    ...options,
+  });
 
 export const suspendOrganization = <ThrowOnError extends boolean = false>(
   options: Options<SuspendOrganizationData, ThrowOnError>,
@@ -147,7 +160,11 @@ export const suspendOrganization = <ThrowOnError extends boolean = false>(
     SuspendOrganizationResponses,
     SuspendOrganizationErrors,
     ThrowOnError
-  >({ url: '/v1/organizations/{organizationId}/suspend', ...options });
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/suspend',
+    ...options,
+  });
 
 export const activateOrganization = <ThrowOnError extends boolean = false>(
   options: Options<ActivateOrganizationData, ThrowOnError>,
@@ -160,7 +177,11 @@ export const activateOrganization = <ThrowOnError extends boolean = false>(
     ActivateOrganizationResponses,
     ActivateOrganizationErrors,
     ThrowOnError
-  >({ url: '/v1/organizations/{organizationId}/activate', ...options });
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/activate',
+    ...options,
+  });
 
 export const listProjects = <ThrowOnError extends boolean = false>(
   options: Options<ListProjectsData, ThrowOnError>,
@@ -169,7 +190,11 @@ export const listProjects = <ThrowOnError extends boolean = false>(
     ListProjectsResponses,
     ListProjectsErrors,
     ThrowOnError
-  >({ url: '/v1/organizations/{organizationId}/projects', ...options });
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects',
+    ...options,
+  });
 
 export const createProject = <ThrowOnError extends boolean = false>(
   options: Options<CreateProjectData, ThrowOnError>,
@@ -179,6 +204,7 @@ export const createProject = <ThrowOnError extends boolean = false>(
     CreateProjectErrors,
     ThrowOnError
   >({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/projects',
     ...options,
     headers: {
@@ -195,6 +221,7 @@ export const getProject = <ThrowOnError extends boolean = false>(
     GetProjectErrors,
     ThrowOnError
   >({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/projects/{projectId}',
     ...options,
   });
@@ -207,6 +234,7 @@ export const archiveProject = <ThrowOnError extends boolean = false>(
     ArchiveProjectErrors,
     ThrowOnError
   >({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/projects/{projectId}/archive',
     ...options,
   });
@@ -222,7 +250,11 @@ export const listMemberships = <ThrowOnError extends boolean = false>(
     ListMembershipsResponses,
     ListMembershipsErrors,
     ThrowOnError
-  >({ url: '/v1/organizations/{organizationId}/memberships', ...options });
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/memberships',
+    ...options,
+  });
 
 /**
  * Adds a principal to the organization with one or more roles.
@@ -239,6 +271,7 @@ export const createMembership = <ThrowOnError extends boolean = false>(
     CreateMembershipErrors,
     ThrowOnError
   >({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/memberships',
     ...options,
     headers: {
@@ -262,6 +295,7 @@ export const deleteMembership = <ThrowOnError extends boolean = false>(
     DeleteMembershipErrors,
     ThrowOnError
   >({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/memberships/{membershipId}',
     ...options,
   });
@@ -274,6 +308,7 @@ export const getMembership = <ThrowOnError extends boolean = false>(
     GetMembershipErrors,
     ThrowOnError
   >({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/memberships/{membershipId}',
     ...options,
   });
@@ -293,6 +328,7 @@ export const updateMembership = <ThrowOnError extends boolean = false>(
     UpdateMembershipErrors,
     ThrowOnError
   >({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/memberships/{membershipId}',
     ...options,
     headers: {
@@ -317,4 +353,8 @@ export const listMembershipsOfSubject = <ThrowOnError extends boolean = false>(
     ListMembershipsOfSubjectResponses,
     ListMembershipsOfSubjectErrors,
     ThrowOnError
-  >({ url: '/v1/memberships', ...options });
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/memberships',
+    ...options,
+  });

@@ -25,7 +25,7 @@ export interface DomainEvent<TPayload = unknown> {
   readonly organizationId: string | null;
   /** Set when the aggregate is project-scoped. */
   readonly projectId: string | null;
-  /** Null until callers are authenticated (Pistis). */
+  /** The request's principal (`AuthModule`); null for system work (events, jobs). */
   readonly actor: EventActor | null;
   /** Thin: IDs and states, never secrets or content. */
   readonly payload: TPayload;
