@@ -29,7 +29,7 @@ const platformPermissionsOf = (client: {
 import { UsersService } from '@pistis/users';
 
 import { OidcPayloadEntity } from './oidc-payload.entity.js';
-import { errorPage } from './pages.js';
+import { errorPage, signedOutPage, signOutPage } from './pages.js';
 import { PolisDirectory } from './polis-directory.js';
 import {
   postgresOidcAdapter,
@@ -128,7 +128,17 @@ export class OidcProviderService implements OnModuleInit, OnModuleDestroy {
         revocation: { enabled: true },
         // Platform services' own tokens (Hephaestus, operator tooling).
         clientCredentials: { enabled: true },
-        rpInitiatedLogout: { enabled: true },
+        rpInitiatedLogout: {
+          enabled: true,
+          logoutSource: (ctx, form) => {
+            ctx.type = 'html';
+            ctx.body = signOutPage(form);
+          },
+          postLogoutSuccessSource: (ctx) => {
+            ctx.type = 'html';
+            ctx.body = signedOutPage();
+          },
+        },
         resourceIndicators: {
           enabled: true,
           defaultResource: () => PLATFORM_RESOURCE,

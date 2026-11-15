@@ -356,8 +356,11 @@ export const updateMembership = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Every organization membership of one principal, across organizations.
- * Pistis uses it to put organization and role claims in tokens.
+ * Every organization membership of one principal, across organizations,
+ * with each organization's name and slug. Pistis uses it to put
+ * organization and role claims in tokens; Iris to let a person choose an
+ * organization (they can't read organizations before they have a token
+ * for one).
  *
  */
 export const listMembershipsOfSubject = <ThrowOnError extends boolean = false>(

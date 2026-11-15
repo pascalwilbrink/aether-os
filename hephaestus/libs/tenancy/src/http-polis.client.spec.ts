@@ -9,8 +9,13 @@ import { PolisUnavailableError } from './tenancy.errors.js';
 const ORG = '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
 
 class FixedTokens extends ServiceTokens {
-  constructor(private readonly value: string | Error) {
+  invalidated = 0;
+  constructor(private value: string | Error) {
     super();
+  }
+  override invalidate(): void {
+    this.invalidated++;
+    this.value = 'fresh-token';
   }
   token(): Promise<string> {
     return this.value instanceof Error
@@ -27,6 +32,11 @@ describe('HttpPolisClient', () => {
   beforeAll(async () => {
     server = createServer((req, res) => {
       seen = req.headers;
+      if (req.headers.authorization === 'Bearer stale-token') {
+        res.writeHead(401, { 'content-type': 'application/problem+json' });
+        res.end('{}');
+        return;
+      }
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(
         JSON.stringify({
@@ -74,5 +84,16 @@ describe('HttpPolisClient', () => {
     await expect(client.getOrganization(ORG)).rejects.toBeInstanceOf(
       PolisUnavailableError,
     );
+  });
+
+  it('gets a fresh token once when Polis refuses the cached one', async () => {
+    const tokens = new FixedTokens('stale-token');
+    const client = new HttpPolisClient({ baseUrl }, tokens);
+
+    await expect(client.getOrganization(ORG)).resolves.toMatchObject({
+      id: ORG,
+    });
+    expect(tokens.invalidated).toBe(1);
+    expect(seen?.authorization).toBe('Bearer fresh-token');
   });
 });

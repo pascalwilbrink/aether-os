@@ -142,6 +142,11 @@ describe('Memberships (e2e)', () => {
       [globex.body.id, ['owner']],
       [orgId, ['member']],
     ]);
+    // With each organization's name and slug, to choose one.
+    expect(res.body.items[0].organization).toEqual({
+      name: 'globex',
+      slug: 'globex',
+    });
 
     const missing = await http()
       .get('/v1/memberships')

@@ -7,14 +7,19 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "generate:api": "openapi-typescript node_modules/@aether-os/contracts/hephaestus.openapi.yaml -o lib/api/generated/hephaestus-api.ts"
+    "generate:api": "openapi-typescript node_modules/@aether-os/contracts/hephaestus.openapi.yaml -o lib/api/generated/hephaestus-api.ts && openapi-typescript node_modules/@aether-os/contracts/polis.openapi.yaml -o lib/api/generated/polis-api.ts",
+    "test": "vitest run"
   },
   "dependencies": {
+    "jose": "^6.2.17",
     "next": "16.4.6",
+    "openid-client": "^6.9.0",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@aether-os/contracts": "workspace:*",
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -24,6 +29,6 @@
     "openapi-typescript": "^7.13.0",
     "tailwindcss": "4.3.3",
     "typescript": "^5",
-    "@aether-os/contracts": "workspace:*"
+    "vitest": "^4.1.12"
   }
 }

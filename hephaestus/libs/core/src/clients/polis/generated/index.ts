@@ -155,6 +155,8 @@ export type {
   ProjectStatus,
   Slug,
   Subject,
+  SubjectMembershipPage,
+  SubjectMembershipResponse,
   SubjectType,
   SuspendOrganizationData,
   SuspendOrganizationError,

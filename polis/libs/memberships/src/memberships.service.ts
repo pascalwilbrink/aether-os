@@ -8,6 +8,7 @@ import type { Repository } from 'typeorm';
 
 import {
   AccessControl,
+  type ApiTypes,
   findPage,
   isUniqueViolation,
   mapPage,
@@ -21,6 +22,7 @@ import { OrganizationsService } from '@polis/organizations';
 
 import type { CreateMembershipRequest } from './dto/create-membership.request.js';
 import type { MembershipResponse } from './dto/membership.response.js';
+import type { SubjectMembershipResponse } from './dto/subject-membership.response.js';
 import type { UpdateMembershipRequest } from './dto/update-membership.request.js';
 import type { OrganizationRole, SubjectType } from './membership-roles.js';
 import { MembershipEntity } from './membership.entity.js';
@@ -115,17 +117,30 @@ export class MembershipsService {
    * token claims, `platform:read`), or the principal itself (to choose an
    * organization).
    */
-  listOfSubject(
+  async listOfSubject(
     subjectType: SubjectType,
     subject: string,
     page: PageRequest,
-  ): Promise<Page<MembershipResponse>> {
+  ): Promise<Page<SubjectMembershipResponse>> {
     const caller = this.access.principal();
     const own = caller.subType === subjectType && caller.sub === subject;
     if (!own && !this.access.hasPlatformPermission('platform:read')) {
       throw new ForbiddenException('Only your own memberships');
     }
-    return this.page({ subjectType, subject }, page);
+    const memberships = await this.page({ subjectType, subject }, page);
+    const organizations = await this.organizations.summaries(
+      memberships.items.map((item) => item.organizationId),
+    );
+    return {
+      ...memberships,
+      items: memberships.items.map((item: ApiTypes.MembershipResponse) => ({
+        ...item,
+        organization: organizations.get(item.organizationId) ?? {
+          name: '',
+          slug: '',
+        },
+      })),
+    };
   }
 
   async findById(

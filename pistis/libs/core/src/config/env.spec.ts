@@ -20,6 +20,7 @@ describe('zEnv', () => {
     expect(env.PISTIS_CLIENTS.map((client) => client.client_id)).toEqual([
       'iris',
       'hephaestus',
+      'operator',
     ]);
     expect(env.PISTIS_SIGNING_KEYS).toBeUndefined();
   });

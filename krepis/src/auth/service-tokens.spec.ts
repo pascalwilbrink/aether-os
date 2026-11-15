@@ -78,4 +78,18 @@ describe('ClientCredentialsServiceTokens', () => {
       ServiceUnavailableException,
     );
   });
+
+  it('fetches a new token after invalidate()', async () => {
+    const source = new ClientCredentialsServiceTokens({
+      issuer,
+      clientId: 'hephaestus',
+      clientSecret: 'secret-secret-secret',
+      scope: 'platform:read',
+    });
+    const before = requests.length;
+    await source.token();
+    source.invalidate();
+    await source.token();
+    expect(requests.length - before).toBe(2);
+  });
 });

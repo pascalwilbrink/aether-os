@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Polis API
-  version: 0.6.0
+  version: 0.7.0
   description: |
     Tenancy service for Aether-os: organizations, the projects inside them,
     memberships (which principal belongs to which organization, with which
@@ -323,8 +323,11 @@ paths:
       operationId: listMembershipsOfSubject
       x-permission: 'the caller''s own memberships (`subject` = the token''s `sub`), or `platform:read`'
       description: |
-        Every organization membership of one principal, across organizations.
-        Pistis uses it to put organization and role claims in tokens.
+        Every organization membership of one principal, across organizations,
+        with each organization's name and slug. Pistis uses it to put
+        organization and role claims in tokens; Iris to let a person choose an
+        organization (they can't read organizations before they have a token
+        for one).
       parameters:
         - name: subjectType
           in: query
@@ -343,7 +346,7 @@ paths:
           description: Newest first
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/MembershipPage' }
+              schema: { $ref: '#/components/schemas/SubjectMembershipPage' }
         '400': { $ref: '#/components/responses/ValidationError' }
 
   /v1/organizations/{organizationId}/projects/{projectId}/memberships:
@@ -731,6 +734,28 @@ components:
             items:
               type: array
               items: { $ref: '#/components/schemas/ProjectMembershipResponse' }
+
+    SubjectMembershipResponse:
+      allOf:
+        - $ref: '#/components/schemas/MembershipResponse'
+        - type: object
+          required: [organization]
+          properties:
+            organization:
+              type: object
+              required: [name, slug]
+              properties:
+                name: { type: string }
+                slug: { type: string }
+    SubjectMembershipPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/SubjectMembershipResponse' }
 
     # ---------- pagination ----------
     PageMeta:

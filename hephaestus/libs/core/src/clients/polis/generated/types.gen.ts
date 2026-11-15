@@ -169,6 +169,17 @@ export type ProjectMembershipPage = PageMeta & {
   items: Array<ProjectMembershipResponse>;
 };
 
+export type SubjectMembershipResponse = MembershipResponse & {
+  organization: {
+    name: string;
+    slug: string;
+  };
+};
+
+export type SubjectMembershipPage = PageMeta & {
+  items: Array<SubjectMembershipResponse>;
+};
+
 export type PageMeta = {
   nextCursor: NextCursor;
 };
@@ -1083,7 +1094,7 @@ export type ListMembershipsOfSubjectResponses = {
   /**
    * Newest first
    */
-  200: MembershipPage;
+  200: SubjectMembershipPage;
 };
 
 export type ListMembershipsOfSubjectResponse =
