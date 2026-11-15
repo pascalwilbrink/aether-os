@@ -6,6 +6,7 @@ import {
   Get,
   type INestApplication,
   NotFoundException,
+  ServiceUnavailableException,
   Param,
   Post,
   Query,
@@ -97,6 +98,13 @@ class ThingsController {
   @Get('broken')
   broken() {
     throw new Error('SELECT * FROM secrets failed');
+  }
+
+  @Get('unavailable')
+  unavailable() {
+    throw new ServiceUnavailableException(
+      'Polis can not be reached. Try again.',
+    );
   }
 }
 
@@ -197,6 +205,15 @@ describe('configureHttpApp', () => {
       detail: 'An unexpected error occurred.',
     });
     expect(JSON.stringify(res.body)).not.toContain('secrets');
+  });
+
+  it('keeps the message of a 503, which is written to be shown', async () => {
+    const res = await http().get('/v1/things/unavailable').expect(503);
+
+    expect(res.body).toMatchObject({
+      code: 'UNAVAILABLE',
+      detail: 'Polis can not be reached. Try again.',
+    });
   });
 
   it('answers a malformed JSON body with 400 problem details', async () => {

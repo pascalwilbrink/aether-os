@@ -35,23 +35,17 @@
       "@hephaestus/agents/*": [
         "./libs/agents/src/*"
       ],
-      "@hephaestus/organizations": [
-        "./libs/organizations/src/index.ts"
-      ],
-      "@hephaestus/organizations/*": [
-        "./libs/organizations/src/*"
-      ],
       "@hephaestus/workspaces": [
         "./libs/workspaces/src/index.ts"
       ],
       "@hephaestus/workspaces/*": [
         "./libs/workspaces/src/*"
       ],
-      "@hephaestus/projects": [
-        "./libs/projects/src/index.ts"
+      "@hephaestus/tenancy": [
+        "./libs/tenancy/src/index.ts"
       ],
-      "@hephaestus/projects/*": [
-        "./libs/projects/src/*"
+      "@hephaestus/tenancy/*": [
+        "./libs/tenancy/src/*"
       ]
     },
     "rewriteRelativeImportExtensions": true

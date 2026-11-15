@@ -6,59 +6,13 @@ export const zDomainErrorCode = z.enum([
     'AGENT_ARCHIVED',
     'AGENT_VERSION_CONFLICT',
     'AGENT_VERSION_INVALID_TRANSITION',
-    'ORGANIZATION_SLUG_TAKEN',
     'ORGANIZATION_SUSPENDED',
     'PROJECT_ARCHIVED',
-    'PROJECT_SLUG_TAKEN',
     'WORKSPACE_INVALID_EXPIRY',
     'WORKSPACE_INVALID_TRANSITION'
 ]);
 
-/**
- * Lowercase letters, digits and single hyphens.
- */
-export const zSlug = z.string().min(3).max(63).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
-
 export const zTimestamp = z.iso.datetime();
-
-export const zOrganizationStatus = z.enum(['active', 'suspended']);
-
-export const zCreateOrganizationRequest = z.object({
-    name: z.string().min(1).max(200),
-    slug: zSlug,
-    createdBy: z.string().min(1)
-});
-
-export const zOrganizationResponse = z.object({
-    id: z.uuid(),
-    name: z.string(),
-    slug: z.string(),
-    status: zOrganizationStatus,
-    createdBy: z.string(),
-    createdAt: zTimestamp,
-    updatedAt: zTimestamp
-});
-
-export const zProjectStatus = z.enum(['active', 'archived']);
-
-export const zCreateProjectRequest = z.object({
-    name: z.string().min(1).max(200),
-    slug: zSlug,
-    description: z.string().max(2000),
-    createdBy: z.string().min(1)
-});
-
-export const zProjectResponse = z.object({
-    id: z.uuid(),
-    organizationId: z.uuid(),
-    name: z.string(),
-    slug: z.string(),
-    description: z.string(),
-    status: zProjectStatus,
-    createdBy: z.string(),
-    createdAt: zTimestamp,
-    updatedAt: zTimestamp
-});
 
 export const zAgentStatus = z.enum(['active', 'archived']);
 
@@ -220,14 +174,6 @@ export const zPageMeta = z.object({
     nextCursor: zNextCursor
 });
 
-export const zOrganizationPage = zPageMeta.and(z.object({
-    items: z.array(zOrganizationResponse)
-}));
-
-export const zProjectPage = zPageMeta.and(z.object({
-    items: z.array(zProjectResponse)
-}));
-
 export const zAgentPage = zPageMeta.and(z.object({
     items: z.array(zAgentResponse)
 }));
@@ -282,8 +228,6 @@ export const zDomainProblem = zCommonOpenapiProblem.and(z.object({
 
 export const zOrganizationId = z.uuid();
 
-export const zProjectId = z.uuid();
-
 export const zAgentId = z.uuid();
 
 export const zVersionId = z.uuid();
@@ -315,104 +259,6 @@ export const zCommonOpenapiCursor = z.string().min(1).max(1024);
  * Page size.
  */
 export const zCommonOpenapiLimit = z.int().gte(1).lte(100).default(50);
-
-export const zListOrganizationsQuery = z.object({
-    limit: z.int().gte(1).lte(100).optional().default(50),
-    cursor: z.string().min(1).max(1024).optional()
-});
-
-/**
- * Newest first
- */
-export const zListOrganizationsResponse = zOrganizationPage;
-
-export const zCreateOrganizationBody = zCreateOrganizationRequest;
-
-/**
- * Created
- */
-export const zCreateOrganizationResponse = zOrganizationResponse;
-
-export const zGetOrganizationBySlugPath = z.object({
-    slug: z.string()
-});
-
-/**
- * OK
- */
-export const zGetOrganizationBySlugResponse = zOrganizationResponse;
-
-export const zGetOrganizationPath = z.object({
-    organizationId: z.uuid()
-});
-
-/**
- * OK
- */
-export const zGetOrganizationResponse = zOrganizationResponse;
-
-export const zSuspendOrganizationPath = z.object({
-    organizationId: z.uuid()
-});
-
-/**
- * Suspended (or already suspended)
- */
-export const zSuspendOrganizationResponse = zOrganizationResponse;
-
-export const zActivateOrganizationPath = z.object({
-    organizationId: z.uuid()
-});
-
-/**
- * Active (or already active)
- */
-export const zActivateOrganizationResponse = zOrganizationResponse;
-
-export const zListProjectsPath = z.object({
-    organizationId: z.uuid()
-});
-
-export const zListProjectsQuery = z.object({
-    limit: z.int().gte(1).lte(100).optional().default(50),
-    cursor: z.string().min(1).max(1024).optional()
-});
-
-/**
- * Newest first
- */
-export const zListProjectsResponse = zProjectPage;
-
-export const zCreateProjectBody = zCreateProjectRequest;
-
-export const zCreateProjectPath = z.object({
-    organizationId: z.uuid()
-});
-
-/**
- * Created
- */
-export const zCreateProjectResponse = zProjectResponse;
-
-export const zGetProjectPath = z.object({
-    organizationId: z.uuid(),
-    projectId: z.uuid()
-});
-
-/**
- * OK
- */
-export const zGetProjectResponse = zProjectResponse;
-
-export const zArchiveProjectPath = z.object({
-    organizationId: z.uuid(),
-    projectId: z.uuid()
-});
-
-/**
- * Archived (or already archived)
- */
-export const zArchiveProjectResponse = zProjectResponse;
 
 export const zListAgentsPath = z.object({
     organizationId: z.uuid()

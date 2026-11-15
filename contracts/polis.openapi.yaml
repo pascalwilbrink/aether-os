@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Polis API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Tenancy service for Aether-os: organizations, the projects inside them, and
     memberships (which principal belongs to which organization, with which roles).
@@ -344,6 +344,13 @@ components:
     Timestamp:
       type: string
       format: date-time
+    Version:
+      type: integer
+      minimum: 1
+      description: |
+        Increases with every change; the same number as the `aggregateVersion`
+        of the resource's events, so a consumer can tell whether what it
+        fetched is newer than an event it receives.
 
     # ---------- organizations ----------
     OrganizationStatus:
@@ -362,7 +369,7 @@ components:
           description: Temporary until authentication exists.
     OrganizationResponse:
       type: object
-      required: [id, name, slug, status, createdBy, createdAt, updatedAt]
+      required: [id, name, slug, status, createdBy, createdAt, updatedAt, version]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
@@ -371,6 +378,7 @@ components:
         createdBy: { type: string }
         createdAt: { $ref: '#/components/schemas/Timestamp' }
         updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        version: { $ref: '#/components/schemas/Version' }
     OrganizationPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'
@@ -398,7 +406,7 @@ components:
         createdBy: { type: string, minLength: 1 }
     ProjectResponse:
       type: object
-      required: [id, organizationId, name, slug, description, status, createdBy, createdAt, updatedAt]
+      required: [id, organizationId, name, slug, description, status, createdBy, createdAt, updatedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -409,6 +417,7 @@ components:
         createdBy: { type: string }
         createdAt: { $ref: '#/components/schemas/Timestamp' }
         updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        version: { $ref: '#/components/schemas/Version' }
     ProjectPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'

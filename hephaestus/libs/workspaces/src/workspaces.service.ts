@@ -10,8 +10,7 @@ import {
   type Page,
   type PageRequest,
 } from '@hephaestus/core';
-import { OrganizationsService } from '@hephaestus/organizations';
-import { ProjectsService } from '@hephaestus/projects';
+import { OrganizationsService, ProjectsService } from '@hephaestus/tenancy';
 
 import type { CreateWorkspaceRequest } from './dto/create-workspace.request.js';
 import type { WorkspaceResponse } from './dto/workspace.response.js';

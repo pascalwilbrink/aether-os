@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { OrganizationsModule } from '@hephaestus/organizations';
+import { TenancyModule } from '@hephaestus/tenancy';
 
 import { AgentVersionEntity } from './agent-version.entity.js';
 import { AgentVersionMapper } from './agent-version.mapper.js';
@@ -15,7 +15,7 @@ import { AgentsService } from './agents.service.js';
 @Module({
   imports: [
     TypeOrmModule.forFeature([AgentEntity, AgentVersionEntity]),
-    OrganizationsModule,
+    TenancyModule,
   ],
   controllers: [AgentsController, AgentVersionsController],
   providers: [

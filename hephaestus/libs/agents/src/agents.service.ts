@@ -9,7 +9,7 @@ import {
   type Page,
   type PageRequest,
 } from '@hephaestus/core';
-import { OrganizationsService } from '@hephaestus/organizations';
+import { OrganizationsService } from '@hephaestus/tenancy';
 
 import { nextAgentStatus } from './agent-transitions.js';
 import { AgentEntity } from './agent.entity.js';

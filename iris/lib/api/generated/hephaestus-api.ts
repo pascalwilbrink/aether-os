@@ -4,148 +4,6 @@
  */
 
 export interface paths {
-    "/v1/organizations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["listOrganizations"];
-        put?: never;
-        post: operations["createOrganization"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/by-slug/{slug}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["getOrganizationBySlug"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        get: operations["getOrganization"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/suspend": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["suspendOrganization"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/activate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["activateOrganization"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/projects": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        get: operations["listProjects"];
-        put?: never;
-        post: operations["createProject"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/projects/{projectId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                projectId: components["parameters"]["ProjectId"];
-            };
-            cookie?: never;
-        };
-        get: operations["getProject"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/projects/{projectId}/archive": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                projectId: components["parameters"]["ProjectId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["archiveProject"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/organizations/{organizationId}/agents": {
         parameters: {
             query?: never;
@@ -436,61 +294,13 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ORGANIZATION_SLUG_TAKEN" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "PROJECT_SLUG_TAKEN" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
         };
-        /** @description Lowercase letters, digits and single hyphens. */
-        Slug: string;
         /** Format: date-time */
         Timestamp: string;
-        /** @enum {string} */
-        OrganizationStatus: "active" | "suspended";
-        CreateOrganizationRequest: {
-            name: string;
-            slug: components["schemas"]["Slug"];
-            /** @description Temporary until authentication exists. */
-            createdBy: string;
-        };
-        OrganizationResponse: {
-            /** Format: uuid */
-            id: string;
-            name: string;
-            slug: string;
-            status: components["schemas"]["OrganizationStatus"];
-            createdBy: string;
-            createdAt: components["schemas"]["Timestamp"];
-            updatedAt: components["schemas"]["Timestamp"];
-        };
-        OrganizationPage: components["schemas"]["PageMeta"] & {
-            items: components["schemas"]["OrganizationResponse"][];
-        };
-        /** @enum {string} */
-        ProjectStatus: "active" | "archived";
-        CreateProjectRequest: {
-            name: string;
-            /** @description Unique within the organization. */
-            slug: components["schemas"]["Slug"];
-            description: string;
-            createdBy: string;
-        };
-        ProjectResponse: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            organizationId: string;
-            name: string;
-            slug: string;
-            description: string;
-            status: components["schemas"]["ProjectStatus"];
-            createdBy: string;
-            createdAt: components["schemas"]["Timestamp"];
-            updatedAt: components["schemas"]["Timestamp"];
-        };
-        ProjectPage: components["schemas"]["PageMeta"] & {
-            items: components["schemas"]["ProjectResponse"][];
-        };
         /** @enum {string} */
         AgentStatus: "active" | "archived";
         CreateAgentRequest: {
@@ -674,6 +484,18 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /**
+         * @description `UNAVAILABLE`: a service this request depends on can't be reached
+         *     right now. Safe to retry.
+         */
+        Unavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
         /** @description A business rule forbids this (409, with a `DomainErrorCode`). */
         DomainError: {
             headers: {
@@ -707,7 +529,6 @@ export interface components {
     };
     parameters: {
         OrganizationId: string;
-        ProjectId: string;
         AgentId: string;
         VersionId: string;
         WorkspaceId: string;
@@ -726,271 +547,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    listOrganizations: {
-        parameters: {
-            query?: {
-                /** @description Page size. */
-                limit?: components["parameters"]["Limit"];
-                /**
-                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-                 *     the first page. A cursor only works with the filters it was made with
-                 *     (otherwise `400 INVALID_CURSOR`).
-                 */
-                cursor?: components["parameters"]["Cursor"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Newest first */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OrganizationPage"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-        };
-    };
-    createOrganization: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateOrganizationRequest"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OrganizationResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            409: components["responses"]["DomainError"];
-        };
-    };
-    getOrganizationBySlug: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                slug: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OrganizationResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    getOrganization: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OrganizationResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    suspendOrganization: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Suspended (or already suspended) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OrganizationResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    activateOrganization: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Active (or already active) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OrganizationResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    listProjects: {
-        parameters: {
-            query?: {
-                /** @description Page size. */
-                limit?: components["parameters"]["Limit"];
-                /**
-                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-                 *     the first page. A cursor only works with the filters it was made with
-                 *     (otherwise `400 INVALID_CURSOR`).
-                 */
-                cursor?: components["parameters"]["Cursor"];
-            };
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Newest first */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectPage"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    createProject: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateProjectRequest"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
-        };
-    };
-    getProject: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                projectId: components["parameters"]["ProjectId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    archiveProject: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                projectId: components["parameters"]["ProjectId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Archived (or already archived) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
-        };
-    };
     listAgents: {
         parameters: {
             query?: {
@@ -1022,6 +578,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
         };
     };
     createAgent: {
@@ -1051,6 +608,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
     };
     getAgent: {
@@ -1076,6 +634,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
         };
     };
     archiveAgent: {
@@ -1102,6 +661,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
     };
     listAgentVersions: {
@@ -1136,6 +696,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
         };
     };
     createAgentVersion: {
@@ -1166,6 +727,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
     };
     getAgentVersion: {
@@ -1192,6 +754,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
         };
     };
     publishAgentVersion: {
@@ -1219,6 +782,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
     };
     listWorkspaces: {
@@ -1252,6 +816,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
         };
     };
     createWorkspace: {
@@ -1281,6 +846,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
     };
     getWorkspace: {
@@ -1306,6 +872,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
         };
     };
     acquireWorkspace: {
@@ -1324,6 +891,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
     };
     releaseWorkspace: {
@@ -1342,6 +910,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
     };
     suspendWorkspace: {
@@ -1360,6 +929,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
     };
     resumeWorkspace: {
@@ -1378,6 +948,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
     };
     destroyWorkspace: {
@@ -1396,6 +967,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
     };
 }

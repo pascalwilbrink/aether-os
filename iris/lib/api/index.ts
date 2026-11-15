@@ -13,8 +13,6 @@ export type ApiSchema<K extends keyof ApiSchemas> = ApiSchemas[K];
 export type ApiPaths = paths;
 export type ApiOperations = operations;
 
-export type Organization = ApiSchema<"OrganizationResponse">;
-export type Project = ApiSchema<"ProjectResponse">;
 export type Agent = ApiSchema<"AgentResponse">;
 export type AgentVersion = ApiSchema<"AgentVersionResponse">;
 export type Workspace = ApiSchema<"WorkspaceResponse">;

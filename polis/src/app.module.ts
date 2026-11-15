@@ -22,11 +22,13 @@ import { ProjectsModule } from '@polis/projects';
     EventsModule.forRoot({
       service: 'polis',
       publish: POLIS_PUBLISHED_EVENTS,
-      relay: {
+      rabbitmq: {
         inject: [ConfigService],
         useFactory: (config: ConfigService<Env, true>) => ({
           url: config.get('RABBITMQ_URL', { infer: true }),
-          intervalMs: config.get('OUTBOX_RELAY_INTERVAL_MS', { infer: true }),
+          relayIntervalMs: config.get('OUTBOX_RELAY_INTERVAL_MS', {
+            infer: true,
+          }),
         }),
       },
     }),

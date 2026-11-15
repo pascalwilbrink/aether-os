@@ -8,15 +8,11 @@ import {
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, IsNull, LessThan } from 'typeorm';
 
-import { RELAY_OPTIONS, type RelayOptions } from './events.options.js';
+import { RABBITMQ_OPTIONS, type RabbitMqOptions } from './events.options.js';
 import { MessagePublisher } from './message-publisher.js';
 import { OutboxMessageEntity } from './outbox-message.entity.js';
 
-const DEFAULTS = {
-  intervalMs: 1000,
-  batchSize: 100,
-  retentionMs: 7 * 24 * 60 * 60 * 1000,
-};
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Publishes outbox rows in creation order, in batches. Each batch runs in its
@@ -29,16 +25,24 @@ const DEFAULTS = {
 @Injectable()
 export class OutboxRelay implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(OutboxRelay.name);
-  private readonly settings: Required<RelayOptions>;
+  private readonly settings: {
+    intervalMs: number;
+    batchSize: number;
+    retentionMs: number;
+  };
   private timer: NodeJS.Timeout | undefined;
   private running: Promise<unknown> | undefined;
 
   constructor(
-    @Inject(RELAY_OPTIONS) options: RelayOptions,
+    @Inject(RABBITMQ_OPTIONS) options: RabbitMqOptions,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly publisher: MessagePublisher,
   ) {
-    this.settings = { ...DEFAULTS, ...options };
+    this.settings = {
+      intervalMs: options.relayIntervalMs ?? 1000,
+      batchSize: options.relayBatchSize ?? 100,
+      retentionMs: options.outboxRetentionMs ?? 7 * DAY_MS,
+    };
   }
 
   onApplicationBootstrap(): void {

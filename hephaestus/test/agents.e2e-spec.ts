@@ -3,6 +3,7 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
 import { createApp, MISSING_ID } from './app.js';
+import { organizationEvent, type FakePolis } from './fake-polis.js';
 
 const versionBody = {
   instructions: 'Be helpful.',
@@ -20,16 +21,13 @@ const versionBody = {
 
 describe('Agents (e2e)', () => {
   let app: INestApplication<App>;
+  let polis: FakePolis;
   let orgId: string;
   let base: string;
 
   beforeEach(async () => {
-    app = await createApp();
-    const org = await http()
-      .post('/v1/organizations')
-      .send({ name: 'Acme', slug: 'acme', createdBy: 'user-1' })
-      .expect(201);
-    orgId = org.body.id;
+    ({ app, polis } = await createApp());
+    orgId = polis.organization();
     base = `/v1/organizations/${orgId}/agents`;
   });
 
@@ -138,7 +136,7 @@ describe('Agents (e2e)', () => {
 
   it('blocks writes for a suspended organization', async () => {
     const id = await createAgent();
-    await http().post(`/v1/organizations/${orgId}/suspend`).expect(200);
+    await organizationEvent(app, orgId, 'organization.suspended', 2);
 
     const res = await http()
       .post(base)

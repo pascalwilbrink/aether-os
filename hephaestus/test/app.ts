@@ -2,23 +2,35 @@ import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { App } from 'supertest/types.js';
 
-import { configureHttpApp } from '@hephaestus/core';
+import { configureHttpApp, EventConsumer } from '@hephaestus/core';
+import { PolisClient } from '@hephaestus/tenancy';
 
 import { AppModule } from '../src/app.module.js';
 import { resetDatabase } from './database.js';
+import { FakePolis } from './fake-polis.js';
 
-/** The whole Polis app, configured as in main.ts, on an empty database. */
-export async function createApp(): Promise<INestApplication<App>> {
-  const moduleRef = await Test.createTestingModule({
-    imports: [AppModule],
-  }).compile();
+/**
+ * The whole Hephaestus app, configured as in main.ts, on an empty database,
+ * consuming from the run's RabbitMQ, with a fake Polis behind PolisClient.
+ */
+export async function createApp(): Promise<{
+  app: INestApplication<App>;
+  polis: FakePolis;
+}> {
+  const polis = new FakePolis();
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(PolisClient)
+    .useValue(polis)
+    .compile();
   const app = configureHttpApp(
     moduleRef.createNestApplication({ logger: false }),
   );
   await app.init();
+  // Consuming before the test starts (and before it can be shut down).
+  await app.get(EventConsumer).ready();
   await resetDatabase(app);
 
-  return app as INestApplication<App>;
+  return { app: app as INestApplication<App>, polis };
 }
 
 /** A valid UUID that no resource has. */

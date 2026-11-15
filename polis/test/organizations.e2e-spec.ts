@@ -39,6 +39,7 @@ describe('Organizations (e2e)', () => {
       createdBy: 'user-1',
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
+      version: 1,
     });
 
     const bySlug = await http()
@@ -102,7 +103,7 @@ describe('Organizations (e2e)', () => {
     const suspended = await http()
       .post(`/v1/organizations/${org.id}/suspend`)
       .expect(200);
-    expect(suspended.body.status).toBe('suspended');
+    expect(suspended.body).toMatchObject({ status: 'suspended', version: 2 });
 
     const again = await http()
       .post(`/v1/organizations/${org.id}/suspend`)
