@@ -227,6 +227,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/webhook-deliveries/{deliveryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description The stored delivery's ID (an event's `webhookDeliveryId`), not GitHub's. */
+                deliveryId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * @description A webhook delivery GitHub sent for one of the organization's
+         *     installations, with its full payload: what an event left out, such
+         *     as an issue's body or a comment (untrusted: written by whoever
+         *     opened or commented).
+         */
+        get: operations["getWebhookDelivery"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -386,6 +412,22 @@ export interface components {
             committer: {
                 name: string;
                 email: string;
+            };
+        };
+        WebhookDeliveryResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** @description GitHub's `X-GitHub-Delivery`. */
+            deliveryId: string;
+            /** @description GitHub's `X-GitHub-Event` (`issues`, `issue_comment`, …). */
+            event: string;
+            action: string | null;
+            receivedAt: components["schemas"]["Timestamp"];
+            /** @description As GitHub sent it. */
+            payload: {
+                [key: string]: unknown;
             };
         };
         /** @description One invalid input. Exactly one of `pointer` and `parameter` is set. */
@@ -863,6 +905,34 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
             503: components["responses"]["Unavailable"];
+        };
+    };
+    getWebhookDelivery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description The stored delivery's ID (an event's `webhookDeliveryId`), not GitHub's. */
+                deliveryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDeliveryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

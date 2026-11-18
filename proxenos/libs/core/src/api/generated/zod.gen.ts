@@ -100,6 +100,16 @@ export const zRepositoryTokenResponse = z.object({
     })
 });
 
+export const zWebhookDeliveryResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    deliveryId: z.string(),
+    event: z.string(),
+    action: z.string().nullable(),
+    receivedAt: zTimestamp,
+    payload: z.record(z.string(), z.unknown())
+});
+
 /**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
@@ -331,3 +341,13 @@ export const zCreateRepositoryTokenPath = z.object({
  * Created
  */
 export const zCreateRepositoryTokenResponse = zRepositoryTokenResponse;
+
+export const zGetWebhookDeliveryPath = z.object({
+    organizationId: z.uuid(),
+    deliveryId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetWebhookDeliveryResponse = zWebhookDeliveryResponse;

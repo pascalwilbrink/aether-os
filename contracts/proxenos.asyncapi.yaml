@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Proxenos events
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Events Proxenos publishes to the `proxenos.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -13,8 +13,10 @@ info:
     the one already applied for that `aggregateId`.
 
     For now: the GitHub App's installations, the repository links of
-    projects, and pull requests (`../docs/git.md`). Normalized GitHub events
-    for Kairos (`github.issue.opened`, …) come later.
+    projects, pull requests, and issues and their comments on connected
+    repositories (`../docs/git.md`), which Kairos's automations trigger on.
+    Issue events have the webhook delivery as their aggregate: each is
+    published once, and none replaces another.
 
 defaultContentType: application/json
 
@@ -41,6 +43,9 @@ channels:
       repositoryLinked: { $ref: '#/components/messages/repositoryLinked' }
       repositoryUnlinked: { $ref: '#/components/messages/repositoryUnlinked' }
       pullRequestUpdated: { $ref: '#/components/messages/pullRequestUpdated' }
+      githubIssueOpened: { $ref: '#/components/messages/githubIssueOpened' }
+      githubIssueLabeled: { $ref: '#/components/messages/githubIssueLabeled' }
+      githubIssueCommentCreated: { $ref: '#/components/messages/githubIssueCommentCreated' }
 
 operations:
   publishProxenosEvents:
@@ -51,9 +56,42 @@ operations:
       - $ref: '#/channels/proxenosEvents/messages/repositoryLinked'
       - $ref: '#/channels/proxenosEvents/messages/repositoryUnlinked'
       - $ref: '#/channels/proxenosEvents/messages/pullRequestUpdated'
+      - $ref: '#/channels/proxenosEvents/messages/githubIssueOpened'
+      - $ref: '#/channels/proxenosEvents/messages/githubIssueLabeled'
+      - $ref: '#/channels/proxenosEvents/messages/githubIssueCommentCreated'
 
 components:
   messages:
+    githubIssueOpened:
+      name: github.issue.opened
+      summary: Someone opened an issue on a connected repository.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: github.issue.opened }
+              payload: { $ref: '#/components/schemas/GitHubIssueEvent' }
+    githubIssueLabeled:
+      name: github.issue.labeled
+      summary: Someone added a label to an issue (`label`).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: github.issue.labeled }
+              payload: { $ref: '#/components/schemas/GitHubIssueEvent' }
+    githubIssueCommentCreated:
+      name: github.issue-comment.created
+      summary: Someone commented on an issue (`commentId`; `isPullRequest` for a pull request's conversation).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: github.issue-comment.created }
+              payload: { $ref: '#/components/schemas/GitHubIssueEvent' }
     installationChanged:
       name: git.installation-changed
       summary: |
@@ -176,6 +214,52 @@ components:
         headSha: { type: string }
         mergedAt: { type: [string, 'null'], format: date-time }
         fromAetherOs: { type: boolean, description: The app's own bot made the change. }
+    RepositoryPermission:
+      type: string
+      description: |
+        The author's role on the repository, from GitHub (`docs/git.md`,
+        Untrusted input: automations fire for `write` and above by
+        default); `none` for someone without access.
+      enum: [admin, maintain, write, triage, read, none]
+    GitHubIssueEvent:
+      type: object
+      additionalProperties: false
+      required: [webhookDeliveryId, deliveryId, repositoryId, repository, projectIds, number, title, url, isPullRequest, labels, label, commentId, author, authorPermission, fromAetherOs]
+      properties:
+        webhookDeliveryId:
+          description: The stored delivery, whose full payload (the body, the comment) `GET /v1/organizations/{organizationId}/webhook-deliveries/{id}` returns.
+          $ref: '#/components/schemas/Uuid'
+        deliveryId: { type: string, description: "GitHub's `X-GitHub-Delivery`." }
+        repositoryId: { $ref: '#/components/schemas/Uuid' }
+        repository: { type: string, description: '`owner/name`.' }
+        projectIds:
+          type: array
+          description: The projects the repository is linked to (none when it isn't linked yet).
+          items: { $ref: '#/components/schemas/Uuid' }
+        number: { type: integer, minimum: 1 }
+        title: { type: string, description: The issue's title, written by whoever opened it (untrusted). }
+        url: { type: string }
+        isPullRequest: { type: boolean, description: "A pull request's conversation (GitHub sends its comments as issue comments)." }
+        labels:
+          type: array
+          description: The issue's labels after the event.
+          items: { type: string }
+        label: { type: [string, 'null'], description: The label added (`github.issue.labeled`). }
+        commentId: { type: [string, 'null'], description: "GitHub's comment ID (`github.issue-comment.created`)." }
+        author:
+          type: object
+          description: Who did it (opened, labeled or commented), GitHub's `sender`.
+          additionalProperties: false
+          required: [login, type]
+          properties:
+            login: { type: string }
+            type: { type: string, description: '`User`, `Bot` or `Organization`.' }
+        authorPermission:
+          description: Their permission on the repository; null when GitHub couldn't be asked (treat as untrusted).
+          oneOf:
+            - $ref: '#/components/schemas/RepositoryPermission'
+            - type: 'null'
+        fromAetherOs: { type: boolean, description: "The app's own bot did it: automations ignore it unless they opt in (no loops)." }
     GitRepositoryLinked:
       type: object
       additionalProperties: false

@@ -34,6 +34,12 @@ export class FakeGitHub {
   readonly installations = new Map<string, FakeInstallation>();
   /** OAuth code → the installation IDs that person can access. */
   readonly codes = new Map<string, string[]>();
+  /**
+   * Collaborators' roles, by `owner/name:login` (`role_name`); anyone else
+   * isn't a collaborator (404). `unavailable` makes the endpoint fail.
+   */
+  readonly roles = new Map<string, string>();
+  permissionsUnavailable = false;
   /** Every installation token asked for. */
   readonly tokenRequests: {
     installationId: string;
@@ -73,6 +79,8 @@ export class FakeGitHub {
     this.tokenRequests.length = 0;
     this.userTokens.clear();
     this.installationTokens.clear();
+    this.roles.clear();
+    this.permissionsUnavailable = false;
   }
 
   addInstallation(
@@ -139,6 +147,32 @@ export class FakeGitHub {
       return {
         status: 200,
         body: { installations: ids.map((id) => ({ id: Number(id) })) },
+      };
+    }
+    const permission =
+      /^\/repos\/([^/]+)\/([^/]+)\/collaborators\/([^/]+)\/permission$/.exec(
+        path,
+      );
+    if (permission) {
+      if (!this.installationTokens.has(auth.replace(/^Bearer /, ''))) {
+        return { status: 401, body: { message: 'Bad credentials' } };
+      }
+      if (this.permissionsUnavailable) {
+        return { status: 502, body: { message: 'Server Error' } };
+      }
+      const [, owner, name, login] = permission.map(decodeURIComponent);
+      const role = this.roles.get(`${owner}/${name}:${login}`);
+      if (!role) return { status: 404, body: { message: 'Not Found' } };
+      const legacy: Record<string, string> = {
+        admin: 'admin',
+        maintain: 'write',
+        write: 'write',
+        triage: 'read',
+        read: 'read',
+      };
+      return {
+        status: 200,
+        body: { permission: legacy[role], role_name: role, user: { login } },
       };
     }
     if (path === '/installation/repositories') {

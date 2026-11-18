@@ -21,6 +21,9 @@ import type {
   GetRepositoryLinkData,
   GetRepositoryLinkErrors,
   GetRepositoryLinkResponses,
+  GetWebhookDeliveryData,
+  GetWebhookDeliveryErrors,
+  GetWebhookDeliveryResponses,
   GithubSetupData,
   GithubWebhookData,
   GithubWebhookErrors,
@@ -307,4 +310,28 @@ export const createRepositoryToken = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  });
+
+/**
+ * A webhook delivery GitHub sent for one of the organization's
+ * installations, with its full payload: what an event left out, such
+ * as an issue's body or a comment (untrusted: written by whoever
+ * opened or commented).
+ *
+ */
+export const getWebhookDelivery = <ThrowOnError extends boolean = false>(
+  options: Options<GetWebhookDeliveryData, ThrowOnError>,
+): RequestResult<
+  GetWebhookDeliveryResponses,
+  GetWebhookDeliveryErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetWebhookDeliveryResponses,
+    GetWebhookDeliveryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/webhook-deliveries/{deliveryId}',
+    ...options,
   });

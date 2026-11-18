@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Proxenos API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Connections to external systems (see `../docs/git.md`). For now: the
     GitHub App. An organization **connects** the app (installs it on a GitHub
@@ -23,6 +23,7 @@ tags:
   - name: installations
   - name: repositories
   - name: github
+  - name: webhooks
 
 paths:
   /v1/organizations/{organizationId}/github/connect:
@@ -308,6 +309,34 @@ paths:
         '409': { $ref: '#/components/responses/DomainError' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  /v1/organizations/{organizationId}/webhook-deliveries/{deliveryId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - name: deliveryId
+        in: path
+        required: true
+        description: The stored delivery's ID (an event's `webhookDeliveryId`), not GitHub's.
+        schema: { type: string, format: uuid }
+    get:
+      tags: [webhooks]
+      operationId: getWebhookDelivery
+      x-permission: '`org:read`; platform services with `platform:read` (Kairos)'
+      description: |
+        A webhook delivery GitHub sent for one of the organization's
+        installations, with its full payload: what an event left out, such
+        as an issue's body or a comment (untrusted: written by whoever
+        opened or commented).
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WebhookDeliveryResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   parameters:
     OrganizationId:
@@ -538,3 +567,19 @@ components:
           properties:
             name: { type: string }
             email: { type: string }
+
+    # ---------- webhook deliveries ----------
+    WebhookDeliveryResponse:
+      type: object
+      required: [id, organizationId, deliveryId, event, action, receivedAt, payload]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        deliveryId: { type: string, description: "GitHub's `X-GitHub-Delivery`." }
+        event: { type: string, description: "GitHub's `X-GitHub-Event` (`issues`, `issue_comment`, …)." }
+        action: { type: [string, 'null'] }
+        receivedAt: { $ref: '#/components/schemas/Timestamp' }
+        payload:
+          type: object
+          additionalProperties: true
+          description: As GitHub sent it.

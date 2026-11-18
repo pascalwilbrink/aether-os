@@ -76,11 +76,11 @@ Rules:
 
 ### Proxenos (`proxenos.events`)
 
-Proxenos, the integrations service (see `git.md`), turns verified provider webhooks into normalized events. Built so far (`../contracts/proxenos.asyncapi.yaml`): `git.installation-changed`, `git.repository-linked`, `git.repository-unlinked` and `git.pull-request.updated`.
+Proxenos, the integrations service (see `git.md`), turns verified provider webhooks into normalized events. Built so far (`../contracts/proxenos.asyncapi.yaml`): `git.installation-changed`, `git.repository-linked`, `git.repository-unlinked`, `git.pull-request.updated`, and `github.issue.opened`, `github.issue.labeled` and `github.issue-comment.created`.
 
 | Event | Payload | Consumers |
 |---|---|---|
-| `github.issue.opened`, `github.issue.labeled`, `github.issue-comment.created`, … | `repository`, the item's number, `author`, `authorPermission`, `fromAetherOs`, `deliveryId` (the full payload is fetched from Proxenos when needed) | Kairos (triggers) |
+| `github.issue.opened`, `github.issue.labeled`, `github.issue-comment.created` | `webhookDeliveryId` and `deliveryId`, `repositoryId`, `repository`, `projectIds` (its links), the issue's `number`, `title`, `url`, `labels`, `isPullRequest`, the `label` added or `commentId`, `author` (who did it), `authorPermission` (their role on the repository, or null when GitHub couldn't say: untrusted), `fromAetherOs`. The full payload (body, comment) is fetched from Proxenos when needed (`GET …/webhook-deliveries/{webhookDeliveryId}`) | Kairos (triggers) |
 | `git.installation-changed` | `installationId`, `provider`, `externalId`, `account`, `status`, `repositoriesAdded` / `repositoriesRemoved` (`repositoryId`, `fullName`) | Hephaestus, Kairos |
 | `git.repository-linked` | `linkId`, `projectId`, `repositoryId`, `fullName` | Hephaestus, Iris |
 | `git.repository-unlinked` | the same, and `reason` (`unlinked`, or `repository-removed` when the installation lost it) | Hephaestus, Iris |

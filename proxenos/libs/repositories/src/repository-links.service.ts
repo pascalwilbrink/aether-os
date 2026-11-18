@@ -45,6 +45,15 @@ export class RepositoryLinksService {
     private readonly access: AccessControl,
   ) {}
 
+  /** The projects a repository is linked to (no caller: webhooks). */
+  async projectsOf(repositoryId: string): Promise<string[]> {
+    const links = await this.links.find({
+      where: { repositoryId },
+      order: { createdAt: 'ASC' },
+    });
+    return links.map((link) => link.projectId);
+  }
+
   /** Links an available repository of an active installation (`project:manage`). */
   @Transactional()
   async link(

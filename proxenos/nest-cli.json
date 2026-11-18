@@ -51,6 +51,15 @@
       "compilerOptions": {
         "tsConfigPath": "libs/repositories/tsconfig.lib.json"
       }
+    },
+    "webhooks": {
+      "type": "library",
+      "root": "libs/webhooks",
+      "entryFile": "index",
+      "sourceRoot": "libs/webhooks/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/webhooks/tsconfig.lib.json"
+      }
     }
   }
 }
