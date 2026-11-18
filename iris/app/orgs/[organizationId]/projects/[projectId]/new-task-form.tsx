@@ -89,6 +89,19 @@ export function NewTaskForm({
         </label>
       </div>
       <RepositorySelect repositories={repositories} value={state.values?.repositoryLinkId} />
+      <label className="block text-sm">
+        Budget <span className="text-zinc-500">(optional)</span>
+        <input
+          name="budgetUsd"
+          inputMode="decimal"
+          placeholder="No limit"
+          defaultValue={state.values?.budgetUsd}
+          className={`${inputClass} w-40`}
+        />
+        <span className="mt-1 block text-xs text-zinc-500">
+          US dollars for this task and its subtasks&apos; model calls; it pauses when they reach it.
+        </span>
+      </label>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="review" value="all" defaultChecked={state.values?.review === "all"} /> Everything
         it produces needs approval

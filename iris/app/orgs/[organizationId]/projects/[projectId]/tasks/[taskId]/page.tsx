@@ -2,12 +2,15 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { ArtifactContent } from "@/app/components/artifact-view";
+import { BudgetForm, BudgetMeter } from "@/app/components/budget";
 import { StatusBadge } from "@/app/components/status-badge";
-import { getTask, listArtifacts, listExecutions } from "@/lib/api/hephaestus";
+import { getTask, getTaskTreeBudget, listArtifacts, listExecutions } from "@/lib/api/hephaestus";
 import { getProject } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
+import { pausedMessage } from "@/lib/budgets";
 import { artifactsByExecution, failureLabel, formatCost, formatCount, formatTime, taskActions } from "@/lib/tasks";
 
+import { setTaskBudgetAction } from "../../actions";
 import { ReviewForm } from "../../review-form";
 import { TaskActions } from "../../task-actions";
 
@@ -27,11 +30,12 @@ async function TaskView({ params }: Pick<Props, "params">) {
   const projectPath = `/orgs/${organizationId}/projects/${projectId}`;
   const session = await requireOrganization(organizationId, `${projectPath}/tasks/${taskId}`);
   const token = session.accessToken;
-  const [project, task, executions, artifacts] = await Promise.all([
+  const [project, task, executions, artifacts, budget] = await Promise.all([
     getProject(token, organizationId, projectId),
     getTask(token, organizationId, projectId, taskId),
     listExecutions(token, organizationId, projectId, taskId),
     listArtifacts(token, organizationId, projectId, taskId),
+    getTaskTreeBudget(token, organizationId, projectId, taskId),
   ]);
   const actions = taskActions(task);
   const ref = { organizationId, projectId, taskId };
@@ -60,6 +64,23 @@ async function TaskView({ params }: Pick<Props, "params">) {
         </div>
         {task.failureReason ? (
           <p className="text-sm text-red-700 dark:text-red-300">{failureLabel(task.failureReason)}</p>
+        ) : null}
+        {task.status === "paused" && task.pausedFor ? (
+          <p role="status" className="text-sm text-amber-700 dark:text-amber-300">
+            {pausedMessage(task.pausedFor)}{" "}
+            {task.pausedFor === "task_tree" ? (
+              <a href="#budget" className="underline">
+                Raise it
+              </a>
+            ) : (
+              <Link
+                href={task.pausedFor === "project" ? `${projectPath}#budget` : `/orgs/${organizationId}/budget`}
+                className="underline"
+              >
+                See the budget
+              </Link>
+            )}
+          </p>
         ) : null}
         <TaskActions task={ref} cancel={actions.cancel} retry={actions.retry} />
       </div>
@@ -152,6 +173,19 @@ async function TaskView({ params }: Pick<Props, "params">) {
             </div>
           ))
         )}
+      </section>
+
+      <section id="budget" className="space-y-3">
+        <div>
+          <h2 className="font-medium">Budget</h2>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            {task.parentTaskId
+              ? "This task's tree (its top-level task and every subtask) shares one budget."
+              : "This task and its subtasks share one budget for their model calls."}
+          </p>
+        </div>
+        <BudgetMeter budget={budget} />
+        <BudgetForm budget={budget} action={setTaskBudgetAction.bind(null, ref)} />
       </section>
 
       <section className="space-y-2">
