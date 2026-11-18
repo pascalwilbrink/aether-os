@@ -54,6 +54,7 @@ export class MastraAgentRuntime extends AgentRuntime {
     revisions,
     failedChecks,
     repository,
+    conflict,
     signal,
   }: AgentRunInput): Promise<AgentRunResult> {
     const unsupported = [
@@ -95,7 +96,7 @@ export class MastraAgentRuntime extends AgentRuntime {
     const metering: Promise<void>[] = [];
     try {
       const result = await agent.generate(
-        promptFor(task, revisions, failedChecks, repository),
+        promptFor(task, revisions, failedChecks, repository, conflict),
         {
           abortSignal: signal,
           maxSteps: MAX_STEPS,
@@ -164,10 +165,15 @@ export function promptFor(
   revisions: AgentRunInput['revisions'],
   failedChecks: AgentRunInput['failedChecks'] = [],
   repository: AgentRunInput['repository'] = null,
+  conflict: AgentRunInput['conflict'] = null,
 ): string {
-  const prompt = withFailedChecks(
-    withRepository(`# ${task.title}\n\n${task.instructions}`, repository),
-    failedChecks,
+  const prompt = withConflict(
+    withFailedChecks(
+      withRepository(`# ${task.title}\n\n${task.instructions}`, repository),
+      failedChecks,
+    ),
+    conflict,
+    repository,
   );
   if (revisions.length === 0) {
     return prompt;
@@ -225,6 +231,42 @@ function withRepository(
     `The repository ${repository.fullName} is checked out at ${repository.path}, on the branch ${repository.branch} (from ${repository.startedFrom}).`,
     'Make your changes there and commit them with git (`git add`, `git commit`): only commits are kept, and uncommitted changes are lost.',
     "There's no network: don't push, Aether-os takes your commits from here.",
+  ].join('\n');
+}
+
+/**
+ * After the task tree's branch moved under the agent (docs/git.md): a
+ * rebase onto it is in progress in the repository, to finish; then the work
+ * is checked again.
+ */
+function withConflict(
+  prompt: string,
+  conflict: AgentRunInput['conflict'],
+  repository: AgentRunInput['repository'],
+): string {
+  if (!conflict) {
+    return prompt;
+  }
+  const where = repository?.path ?? 'the repository';
+  const resolve =
+    conflict.files.length > 0
+      ? [
+          `Your commits are being rebased onto it in ${where}, and the rebase stopped at conflicts in:`,
+          '',
+          ...conflict.files.map((file) => `- ${file}`),
+          '',
+          'Resolve each conflict (edit the files so both changes fit, then `git add` them) and run `GIT_EDITOR=true git rebase --continue`; repeat until the rebase is done.',
+          "Don't abort the rebase or reset the branch: only your commits on top of it are kept, and an unfinished rebase fails the task.",
+        ]
+      : [`Your commits were rebased onto it in ${where} without conflicts.`];
+  return [
+    prompt,
+    '',
+    '## The branch moved',
+    '',
+    `While you worked, another task in this tree pushed to ${conflict.branch}.`,
+    ...resolve,
+    'Then check that your work still does what the task asks: it is verified again.',
   ].join('\n');
 }
 

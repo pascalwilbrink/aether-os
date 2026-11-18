@@ -75,4 +75,36 @@ describe('promptFor', () => {
       ].join('\n'),
     );
   });
+
+  it('gives a branch conflict to resolve, and says the work is checked again', () => {
+    const repository = {
+      fullName: 'acme/api',
+      path: '/workspace/repo',
+      branch: 'aether/0193',
+      startedFrom: 'main',
+    };
+    const prompt = promptFor(task, [], [], repository, {
+      branch: 'aether/0193',
+      files: ['README.md', 'src/app.ts'],
+    });
+    expect(prompt).toContain(
+      [
+        '## The branch moved',
+        '',
+        'While you worked, another task in this tree pushed to aether/0193.',
+        'Your commits are being rebased onto it in /workspace/repo, and the rebase stopped at conflicts in:',
+        '',
+        '- README.md',
+        '- src/app.ts',
+      ].join('\n'),
+    );
+    expect(prompt).toContain('GIT_EDITOR=true git rebase --continue');
+    expect(prompt).toMatch(/verified again\.$/);
+
+    expect(
+      promptFor(task, [], [], repository, { branch: 'aether/0193', files: [] }),
+    ).toContain(
+      'Your commits were rebased onto it in /workspace/repo without conflicts.',
+    );
+  });
 });

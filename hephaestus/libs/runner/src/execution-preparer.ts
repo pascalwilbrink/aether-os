@@ -6,6 +6,7 @@ import type { TaskResponse } from '@hephaestus/tasks';
 
 import {
   RepositoryCheckouts,
+  type BranchConflictError,
   type Checkout,
   type CollectedCommits,
 } from './repository-checkouts.js';
@@ -101,6 +102,19 @@ export class ExecutionPreparer {
     headSha: string,
   ): Promise<string> {
     return this.repositories.push(checkout, task, token, headSha);
+  }
+
+  /** Gives a branch conflict to the agent, in its sandbox; the conflicted files. */
+  startConflictResolution(
+    checkout: Checkout,
+    sandbox: Sandbox,
+    conflict: BranchConflictError,
+  ): Promise<string[]> {
+    return this.repositories.startConflictResolution(
+      checkout,
+      sandbox,
+      conflict,
+    );
   }
 
   cleanup(checkout: Checkout): Promise<void> {

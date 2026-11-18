@@ -16,6 +16,7 @@ import {
   AgentRuntime,
   type AgentRunInput,
   type AgentRunResult,
+  type BranchConflict,
   type FailedCheck,
 } from './agent-runtime.js';
 import { Deliveries } from './deliveries.js';
@@ -23,7 +24,7 @@ import { ExecutionPreparer } from './execution-preparer.js';
 import { ExecutionReaper, seconds } from './execution-reaper.js';
 import { ExecutionsService } from './executions.service.js';
 import { RunnerFailure } from './runner.errors.js';
-import type { Checkout } from './repository-checkouts.js';
+import { BranchConflictError, type Checkout } from './repository-checkouts.js';
 import { RUNNER_OPTIONS, type RunnerOptions } from './runner.options.js';
 import type { Sandbox } from './sandbox-provisioner.js';
 import { Verifier } from './verifier.js';
@@ -300,9 +301,10 @@ export class TaskRunner
   ): Promise<void> {
     const { executionId } = input;
     let failedChecks: FailedCheck[] = [];
+    let conflict: BranchConflict | null = null;
     for (let round = 1; ; round++) {
       const result: AgentRunResult = await this.untilStopped(
-        this.runtime.run({ ...input, failedChecks }),
+        this.runtime.run({ ...input, failedChecks, conflict }),
         signal,
       );
       if (result.outcome === 'failed') {
@@ -335,15 +337,37 @@ export class TaskRunner
 
       if (failed.length === 0) {
         if (checkout && sandbox) {
-          await this.deliverCommits(
-            task,
-            source,
-            input,
-            checkout,
-            sandbox,
-            result.summary,
-            signal,
-          );
+          try {
+            await this.deliverCommits(
+              task,
+              source,
+              input,
+              checkout,
+              sandbox,
+              result.summary,
+              signal,
+            );
+          } catch (error) {
+            if (!(error instanceof BranchConflictError)) {
+              throw error;
+            }
+            if (round >= this.options.maxVerificationRounds) {
+              // Out of rounds: the next execution starts from the branch's head.
+              throw new RunnerFailure(
+                `The commits still conflict with ${error.branch} after ${round} rounds; the task runs again from its head`,
+                'infrastructure',
+              );
+            }
+            // docs/git.md: the conflict goes back to the agent, and counts as a round.
+            const files = await this.untilStopped(
+              this.preparer.startConflictResolution(checkout, sandbox, error),
+              signal,
+            );
+            await this.executions.returnToAgent(source, 'branch-conflict');
+            conflict = { branch: error.branch, files };
+            failedChecks = [];
+            continue;
+          }
         }
         return this.executions.complete(
           source,
@@ -358,6 +382,7 @@ export class TaskRunner
           `Acceptance criteria still failing after ${round} rounds: ${failed.map((r) => r.key).join(', ')}`,
         );
       }
+      conflict = null;
       failedChecks = failed.map((r) => ({
         key: r.key,
         description: descriptionOf(task.acceptanceCriteria, r.key),
