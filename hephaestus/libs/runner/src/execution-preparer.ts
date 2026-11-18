@@ -93,6 +93,16 @@ export class ExecutionPreparer {
     return this.repositories.collect(checkout, sandbox);
   }
 
+  /** Pushes the commits to the task tree's branch; its new head. */
+  push(
+    checkout: Checkout,
+    task: TaskResponse,
+    token: string,
+    headSha: string,
+  ): Promise<string> {
+    return this.repositories.push(checkout, task, token, headSha);
+  }
+
   cleanup(checkout: Checkout): Promise<void> {
     return this.repositories.cleanup(checkout);
   }

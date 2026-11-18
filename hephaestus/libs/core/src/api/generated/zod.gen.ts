@@ -467,6 +467,25 @@ export const zVerificationArtifact = zArtifactBase.and(z.object({
     results: z.array(zCriterionResult)
 }));
 
+export const zPullRequestArtifact = zArtifactBase.and(z.object({
+    kind: z.literal('pull_request'),
+    linkId: z.uuid(),
+    repository: z.string(),
+    branch: z.string(),
+    baseBranch: z.string(),
+    headSha: z.string(),
+    description: z.string(),
+    pullRequest: z.object({
+        number: z.int().gte(1),
+        url: z.url(),
+        state: z.enum([
+            'open',
+            'merged',
+            'closed'
+        ])
+    }).nullable()
+}));
+
 /**
  * One artifact; `kind` says which (an open set).
  */
@@ -479,7 +498,10 @@ export const zArtifactResponse = z.union([
     }).and(zJsonArtifact),
     z.object({
         kind: z.literal('verification')
-    }).and(zVerificationArtifact)
+    }).and(zVerificationArtifact),
+    z.object({
+        kind: z.literal('pull_request')
+    }).and(zPullRequestArtifact)
 ]);
 
 export const zReviewDecisionRequest = z.object({
@@ -518,7 +540,8 @@ export const zExecutionFailureReason = z.enum([
  * The repository the execution worked in (`docs/git.md`, Inside the
  * sandbox): checked out at `branch` from `baseSha`, and, once the run
  * succeeded, what the agent committed on top (taken out of the sandbox
- * as a bundle). Null for `headSha` and `commits` until then.
+ * as a bundle) and the branch's head once they were pushed (rebased
+ * onto whatever the branch had by then). Null until then.
  *
  */
 export const zExecutionRepository = z.object({
@@ -528,7 +551,8 @@ export const zExecutionRepository = z.object({
     baseSha: z.string(),
     headSha: z.string().nullable(),
     commits: z.int().gte(0).nullable(),
-    uncommittedChanges: z.boolean().nullable()
+    uncommittedChanges: z.boolean().nullable(),
+    pushedSha: z.string().nullable()
 });
 
 /**

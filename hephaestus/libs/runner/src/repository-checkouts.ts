@@ -7,7 +7,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { ApiTypes } from '@hephaestus/core';
 import type { TaskResponse } from '@hephaestus/tasks';
 
-import { GitClient, GitError } from './git-client.js';
+import {
+  GitClient,
+  GitError,
+  PushRejectedError,
+  RebaseConflictError,
+} from './git-client.js';
 import { RepositoryTokens } from './repository-tokens.js';
 import { RunnerFailure } from './runner.errors.js';
 import type { Sandbox } from './sandbox-provisioner.js';
@@ -16,6 +21,8 @@ import type { Sandbox } from './sandbox-provisioner.js';
 export const REPOSITORY_PATH = '/workspace/repo';
 const BUNDLE_IN = '/tmp/aether-in.bundle';
 const BUNDLE_OUT = '/tmp/aether-out.bundle';
+/** Pushes that lose a race to a sibling are tried this often. */
+const PUSH_ATTEMPTS = 3;
 
 /** Who commits in a sandbox (docs/git.md: the Aether-os bot identity). */
 export const COMMITTER = {
@@ -31,6 +38,8 @@ export interface Checkout {
   branch: string;
   /** The branch it started from: the task branch, or the default branch. */
   startedFrom: string;
+  /** The repository's default branch: where pull requests go. */
+  baseBranch: string;
   baseSha: string;
   path: string;
   /** Hephaestus's own clone, where the commits come back to. */
@@ -52,7 +61,7 @@ export type CollectedCommits = Pick<
  * the sandbox's stdin. The agent commits there (as the Aether-os bot, every
  * commit with an `Aether-Task` trailer); afterwards the new commits come
  * out the same way, as a bundle checked against Hephaestus's clone.
- * Pushing them is the next step.
+ * Then they're pushed to the branch (`push`).
  */
 @Injectable()
 export class RepositoryCheckouts {
@@ -159,6 +168,7 @@ export class RepositoryCheckouts {
         fullName: credentials.fullName,
         branch,
         startedFrom,
+        baseBranch: credentials.defaultBranch,
         baseSha,
         path: REPOSITORY_PATH,
         hostDirectory,
@@ -253,6 +263,104 @@ export class RepositoryCheckouts {
       );
     }
     return { headSha, commits, uncommittedChanges };
+  }
+
+  /**
+   * Pushes the collected commits to the task tree's branch (docs/git.md,
+   * Branches and pull requests) with a write token, and returns the
+   * branch's new head. Never forced: if the branch moved since the
+   * checkout (a sibling subtask pushed), the commits are rebased onto it
+   * first, and a push that loses a race is tried again. Commits that change
+   * `.github/workflows` are refused here (GitHub would refuse them too: the
+   * app has no `workflows` permission). A conflict fails the execution as
+   * retryable: the next one starts from the branch's new head.
+   */
+  async push(
+    checkout: Checkout,
+    task: TaskResponse,
+    taskToken: string,
+    headSha: string,
+  ): Promise<string> {
+    if (!checkout.branch.startsWith('aether/')) {
+      throw new Error(
+        `Refusing to push to ${checkout.branch}: only aether/* branches`,
+      );
+    }
+    const workflows = (
+      await this.git.changedPaths(
+        checkout.hostDirectory,
+        checkout.baseSha,
+        headSha,
+      )
+    ).filter((path) => path.startsWith('.github/workflows/'));
+    if (workflows.length > 0) {
+      throw new RunnerFailure(
+        `The commits change CI workflows (${workflows.join(', ')}), which Aether-os never pushes`,
+        'agent_failed',
+      );
+    }
+
+    const credentials = await this.tokens.issue(task, taskToken, 'write');
+    const auth = { token: credentials.token };
+    try {
+      for (let attempt = 1; attempt <= PUSH_ATTEMPTS; attempt++) {
+        const remote = await this.git.remoteHead(
+          credentials.cloneUrl,
+          checkout.branch,
+          auth,
+        );
+        let sha = headSha;
+        if (remote && remote !== checkout.baseSha && remote !== headSha) {
+          await this.git.fetch(
+            checkout.hostDirectory,
+            credentials.cloneUrl,
+            checkout.branch,
+            'refs/aether/remote',
+            auth,
+          );
+          sha = await this.git.rebase(
+            checkout.hostDirectory,
+            'refs/aether/remote',
+            checkout.baseSha,
+            headSha,
+            COMMITTER,
+          );
+        }
+        try {
+          await this.git.push(
+            checkout.hostDirectory,
+            credentials.cloneUrl,
+            sha,
+            checkout.branch,
+            auth,
+          );
+          return sha;
+        } catch (error) {
+          if (!(error instanceof PushRejectedError)) throw error;
+          this.logger.debug(
+            `${checkout.branch} moved while pushing (attempt ${attempt})`,
+          );
+        }
+      }
+    } catch (error) {
+      if (error instanceof RebaseConflictError) {
+        throw new RunnerFailure(
+          `The commits conflict with ${checkout.branch}, which moved since the checkout; the task runs again from its head`,
+          'infrastructure',
+        );
+      }
+      if (error instanceof GitError) {
+        throw new RunnerFailure(
+          `Pushing to ${checkout.branch} failed: ${error.message}`,
+          'infrastructure',
+        );
+      }
+      throw error;
+    }
+    throw new RunnerFailure(
+      `${checkout.branch} kept moving; the commits weren't pushed`,
+      'infrastructure',
+    );
   }
 
   /** Removes Hephaestus's clone. */

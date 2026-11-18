@@ -5,6 +5,28 @@ export interface GitAuth {
   token: string;
 }
 
+/** Who rewritten (rebased) commits are committed by. */
+export interface GitIdentity {
+  name: string;
+  email: string;
+}
+
+/** The remote refused a push that isn't a fast-forward (someone pushed first). */
+export class PushRejectedError extends Error {
+  constructor(branch: string) {
+    super(`The push to ${branch} was rejected: it moved`);
+    this.name = 'PushRejectedError';
+  }
+}
+
+/** A rebase stopped on conflicts (and was aborted). */
+export class RebaseConflictError extends Error {
+  constructor(onto: string) {
+    super(`The commits conflict with ${onto}`);
+    this.name = 'RebaseConflictError';
+  }
+}
+
 export class GitError extends Error {
   constructor(
     readonly args: string[],
@@ -38,6 +60,107 @@ export class GitClient {
       { auth },
     );
     return output.trim().length > 0;
+  }
+
+  /** The commit the remote's branch points at, or null if it has none. */
+  async remoteHead(
+    url: string,
+    branch: string,
+    auth?: GitAuth,
+  ): Promise<string | null> {
+    const output = await this.run(
+      ['ls-remote', '--heads', url, `refs/heads/${branch}`],
+      { auth },
+    );
+    return output.trim().split(/\s+/)[0] || null;
+  }
+
+  /** Fetches the remote's branch into `ref`. */
+  async fetch(
+    directory: string,
+    url: string,
+    branch: string,
+    ref: string,
+    auth?: GitAuth,
+  ): Promise<void> {
+    await this.run(
+      ['fetch', '--quiet', '--no-tags', url, `+refs/heads/${branch}:${ref}`],
+      { cwd: directory, auth },
+    );
+  }
+
+  /** The paths that differ between two commits. */
+  async changedPaths(
+    directory: string,
+    from: string,
+    to: string,
+  ): Promise<string[]> {
+    const output = await this.run(
+      ['diff', '--name-only', '--no-renames', from, to],
+      { cwd: directory },
+    );
+    return output.split('\n').filter(Boolean);
+  }
+
+  /**
+   * Replays `base..head` onto `onto` (detached, in this clone) and returns
+   * the new head; `RebaseConflictError` (aborted, nothing left behind) on
+   * conflicts.
+   */
+  async rebase(
+    directory: string,
+    onto: string,
+    base: string,
+    head: string,
+    committer: GitIdentity,
+  ): Promise<string> {
+    const identity = {
+      'user.name': committer.name,
+      'user.email': committer.email,
+    };
+    await this.run(['checkout', '--quiet', '--detach', head], {
+      cwd: directory,
+    });
+    try {
+      await this.run(['rebase', '--quiet', '--onto', onto, base], {
+        cwd: directory,
+        config: identity,
+      });
+    } catch (error) {
+      if (!(error instanceof GitError)) throw error;
+      await this.run(['rebase', '--abort'], { cwd: directory }).catch(
+        () => undefined,
+      );
+      throw new RebaseConflictError(onto);
+    }
+    return this.revParse(directory, 'HEAD');
+  }
+
+  /**
+   * Pushes `sha` to the remote's branch, never forcing: a branch that moved
+   * meanwhile is `PushRejectedError`.
+   */
+  async push(
+    directory: string,
+    url: string,
+    sha: string,
+    branch: string,
+    auth?: GitAuth,
+  ): Promise<void> {
+    try {
+      await this.run(
+        ['push', '--quiet', '--no-verify', url, `${sha}:refs/heads/${branch}`],
+        { cwd: directory, auth },
+      );
+    } catch (error) {
+      if (
+        error instanceof GitError &&
+        /\b(rejected|non-fast-forward|fetch first)\b/.test(error.stderr)
+      ) {
+        throw new PushRejectedError(branch);
+      }
+      throw error;
+    }
   }
 
   /** A full clone of one branch (bundles need the history). */
@@ -117,7 +240,11 @@ export class GitClient {
 
   private run(
     args: string[],
-    options: { cwd?: string; auth?: GitAuth } = {},
+    options: {
+      cwd?: string;
+      auth?: GitAuth;
+      config?: Record<string, string>;
+    } = {},
   ): Promise<string> {
     const env: NodeJS.ProcessEnv = {
       PATH: process.env.PATH,
@@ -131,14 +258,20 @@ export class GitClient {
       GIT_CONFIG_KEY_1: 'core.fsmonitor',
       GIT_CONFIG_VALUE_1: 'false',
     };
+    const config: Record<string, string> = { ...options.config };
     if (options.auth) {
       const basic = Buffer.from(
         `x-access-token:${options.auth.token}`,
       ).toString('base64');
-      env.GIT_CONFIG_COUNT = '3';
-      env.GIT_CONFIG_KEY_2 = 'http.extraHeader';
-      env.GIT_CONFIG_VALUE_2 = `Authorization: Basic ${basic}`;
+      config['http.extraHeader'] = `Authorization: Basic ${basic}`;
     }
+    let count = 2;
+    for (const [key, value] of Object.entries(config)) {
+      env[`GIT_CONFIG_KEY_${count}`] = key;
+      env[`GIT_CONFIG_VALUE_${count}`] = value;
+      count++;
+    }
+    env.GIT_CONFIG_COUNT = String(count);
     return new Promise((resolve, reject) => {
       execFile(
         'git',

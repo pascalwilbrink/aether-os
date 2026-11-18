@@ -529,6 +529,42 @@ export type VerificationArtifact = ArtifactBase & {
     results: Array<CriterionResult>;
 };
 
+export type PullRequestArtifact = ArtifactBase & {
+    kind: 'pull_request';
+    /**
+     * The repository link (Proxenos).
+     */
+    linkId: string;
+    /**
+     * `owner/name`.
+     */
+    repository: string;
+    /**
+     * `aether/<top-level task ID>`.
+     */
+    branch: string;
+    /**
+     * What the pull request goes into (the default branch).
+     */
+    baseBranch: string;
+    /**
+     * The branch's head when it was pushed.
+     */
+    headSha: string;
+    /**
+     * The pull request's body (Markdown).
+     */
+    description: string;
+    /**
+     * The pull request on GitHub, once delivered; null before.
+     */
+    pullRequest: {
+        number: number;
+        url: string;
+        state: 'open' | 'merged' | 'closed';
+    } | null;
+};
+
 export type CriterionResult = {
     key: string;
     outcome: 'passed' | 'failed' | 'manual';
@@ -547,7 +583,9 @@ export type ArtifactResponse = ({
     kind: 'json';
 } & JsonArtifact) | ({
     kind: 'verification';
-} & VerificationArtifact);
+} & VerificationArtifact) | ({
+    kind: 'pull_request';
+} & PullRequestArtifact);
 
 export type ArtifactReview = {
     decision: 'approved' | 'rejected' | 'changes_requested';
@@ -621,7 +659,8 @@ export type ExecutionResponse = {
  * The repository the execution worked in (`docs/git.md`, Inside the
  * sandbox): checked out at `branch` from `baseSha`, and, once the run
  * succeeded, what the agent committed on top (taken out of the sandbox
- * as a bundle). Null for `headSha` and `commits` until then.
+ * as a bundle) and the branch's head once they were pushed (rebased
+ * onto whatever the branch had by then). Null until then.
  *
  */
 export type ExecutionRepository = {
@@ -650,6 +689,10 @@ export type ExecutionRepository = {
      * Changes left uncommitted in the sandbox; they're not kept.
      */
     uncommittedChanges: boolean | null;
+    /**
+     * The branch's head after the push (differs from `headSha` when the commits were rebased); null when nothing was pushed.
+     */
+    pushedSha: string | null;
 };
 
 /**

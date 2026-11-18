@@ -42,6 +42,27 @@ export function ArtifactContent({ artifact }: { artifact: Artifact }) {
           ))}
         </ul>
       );
+    case "pull_request":
+      return (
+        <div className="space-y-2 text-sm">
+          <p>
+            <span className="font-mono">{artifact.branch}</span> → <span className="font-mono">{artifact.baseBranch}</span>{" "}
+            in {artifact.repository}, at <span className="font-mono">{artifact.headSha.slice(0, 12)}</span>
+          </p>
+          <p className="text-zinc-600 dark:text-zinc-400">
+            {artifact.pullRequest ? (
+              <a href={artifact.pullRequest.url} className="underline">
+                Pull request #{artifact.pullRequest.number} ({artifact.pullRequest.state})
+              </a>
+            ) : (
+              "Pushed; the pull request opens when the task delivers."
+            )}
+          </p>
+          <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md bg-zinc-100 p-3 text-sm dark:bg-zinc-900">
+            {artifact.description}
+          </pre>
+        </div>
+      );
     default:
       return null;
   }

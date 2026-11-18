@@ -1168,6 +1168,39 @@ export interface components {
              */
             kind: "verification";
         };
+        PullRequestArtifact: components["schemas"]["ArtifactBase"] & {
+            /** @constant */
+            kind: "pull_request";
+            /**
+             * Format: uuid
+             * @description The repository link (Proxenos).
+             */
+            linkId: string;
+            /** @description `owner/name`. */
+            repository: string;
+            /** @description `aether/<top-level task ID>`. */
+            branch: string;
+            /** @description What the pull request goes into (the default branch). */
+            baseBranch: string;
+            /** @description The branch's head when it was pushed. */
+            headSha: string;
+            /** @description The pull request's body (Markdown). */
+            description: string;
+            /** @description The pull request on GitHub, once delivered; null before. */
+            pullRequest: {
+                number: number;
+                /** Format: uri */
+                url: string;
+                /** @enum {string} */
+                state: "open" | "merged" | "closed";
+            } | null;
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "pull_request";
+        };
         CriterionResult: {
             key: string;
             /** @enum {string} */
@@ -1176,7 +1209,7 @@ export interface components {
             output: string;
         };
         /** @description One artifact; `kind` says which (an open set). */
-        ArtifactResponse: components["schemas"]["TextArtifact"] | components["schemas"]["JsonArtifact"] | components["schemas"]["VerificationArtifact"];
+        ArtifactResponse: components["schemas"]["TextArtifact"] | components["schemas"]["JsonArtifact"] | components["schemas"]["VerificationArtifact"] | components["schemas"]["PullRequestArtifact"];
         ArtifactReview: {
             /** @enum {string} */
             decision: "approved" | "rejected" | "changes_requested";
@@ -1236,7 +1269,8 @@ export interface components {
          * @description The repository the execution worked in (`docs/git.md`, Inside the
          *     sandbox): checked out at `branch` from `baseSha`, and, once the run
          *     succeeded, what the agent committed on top (taken out of the sandbox
-         *     as a bundle). Null for `headSha` and `commits` until then.
+         *     as a bundle) and the branch's head once they were pushed (rebased
+         *     onto whatever the branch had by then). Null until then.
          */
         ExecutionRepository: {
             /** Format: uuid */
@@ -1253,6 +1287,8 @@ export interface components {
             commits: number | null;
             /** @description Changes left uncommitted in the sandbox; they're not kept. */
             uncommittedChanges: boolean | null;
+            /** @description The branch's head after the push (differs from `headSha` when the commits were rebased); null when nothing was pushed. */
+            pushedSha: string | null;
         };
         /**
          * @description The model calls the execution made through the model gateway, and

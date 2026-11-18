@@ -56,6 +56,21 @@ export interface NewVerification {
   results: ApiTypes.CriterionResult[];
 }
 
+/** Pushed commits, recorded by Hephaestus (never by the agent; docs/git.md). */
+export interface NewPullRequest {
+  kind: 'pull_request';
+  title: string;
+  primary?: boolean;
+  revisionOf?: string;
+  metadata?: Record<string, string>;
+  linkId: string;
+  repository: string;
+  branch: string;
+  baseBranch: string;
+  headSha: string;
+  description: string;
+}
+
 /** Marks the text artifact made from the agent's final answer. */
 const FINAL_ANSWER = 'aether-os.final-answer';
 
@@ -97,12 +112,14 @@ export class ArtifactsService {
   @Transactional()
   async record(
     source: ArtifactSource,
-    input: NewArtifact,
+    input: NewArtifact | NewPullRequest,
   ): Promise<ArtifactResponse> {
     const size =
       input.kind === 'text'
         ? Buffer.byteLength(input.content)
-        : Buffer.byteLength(JSON.stringify(input.content ?? null));
+        : input.kind === 'pull_request'
+          ? Buffer.byteLength(input.description)
+          : Buffer.byteLength(JSON.stringify(input.content ?? null));
     if (size > MAX_CONTENT_BYTES) {
       throw new ArtifactRejectedError(
         `The content is ${size} bytes; at most ${MAX_CONTENT_BYTES} are allowed`,
