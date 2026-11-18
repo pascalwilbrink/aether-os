@@ -90,7 +90,9 @@ paths:
         A delivery is stored once (`X-GitHub-Delivery`; a redelivery is
         acknowledged without being handled again). Installation events
         (`installation`, `installation_repositories`) update installations,
-        their repositories and links, and publish `git.installation-changed`.
+        their repositories and links, and publish `git.installation-changed`;
+        `pull_request` events on connected repositories publish
+        `git.pull-request.updated`.
       parameters:
         - { name: x-github-event, in: header, required: true, schema: { type: string, maxLength: 100 } }
         - { name: x-github-delivery, in: header, required: true, schema: { type: string, maxLength: 100 } }
@@ -511,7 +513,7 @@ components:
         access: { $ref: '#/components/schemas/RepositoryAccess' }
     RepositoryTokenResponse:
       type: object
-      required: [token, expiresAt, access, repository]
+      required: [token, expiresAt, access, repository, committer]
       properties:
         token:
           type: string
@@ -520,8 +522,19 @@ components:
         access: { $ref: '#/components/schemas/RepositoryAccess' }
         repository:
           type: object
-          required: [fullName, cloneUrl, defaultBranch]
+          required: [fullName, cloneUrl, defaultBranch, apiUrl]
           properties:
             fullName: { type: string }
             cloneUrl: { type: string, format: uri }
             defaultBranch: { type: string }
+            apiUrl:
+              type: string
+              format: uri
+              description: GitHub's REST API for this repository's host (github.com's, or a GitHub Enterprise Server's), for pull requests.
+        committer:
+          type: object
+          required: [name, email]
+          description: The GitHub App's bot identity (`<slug>[bot]`), which commits Aether-os makes are made as (docs/git.md).
+          properties:
+            name: { type: string }
+            email: { type: string }

@@ -27,6 +27,9 @@ export const POLIS_SUBSCRIPTIONS = [
   'project.archived',
 ] as const;
 
+/** Proxenos's events Hephaestus handles (docs/git.md). */
+export const PROXENOS_SUBSCRIPTIONS = ['git.pull-request.updated'] as const;
+
 // Validation, the /v1 prefix and problem details: configureHttpApp (main.ts).
 @Module({
   imports: [
@@ -38,7 +41,10 @@ export const POLIS_SUBSCRIPTIONS = [
     EventsModule.forRoot({
       service: 'hephaestus',
       publish: HEPHAESTUS_PUBLISHED_EVENTS,
-      subscribe: { polis: POLIS_SUBSCRIPTIONS },
+      subscribe: {
+        polis: POLIS_SUBSCRIPTIONS,
+        proxenos: PROXENOS_SUBSCRIPTIONS,
+      },
       rabbitmq: {
         inject: [ConfigService],
         useFactory: (config: ConfigService<Env, true>) => ({

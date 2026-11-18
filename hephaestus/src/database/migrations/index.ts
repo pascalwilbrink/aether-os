@@ -10,6 +10,7 @@ import { Verification1795005075662 } from './1795005075662-Verification.js';
 import { TaskTemplates1795006479486 } from './1795006479486-TaskTemplates.js';
 import { Repositories1795025797701 } from './1795025797701-Repositories.js';
 import { PullRequestArtifacts1795030000000 } from './1795030000000-PullRequestArtifacts.js';
+import { Deliveries1795031000000 } from './1795031000000-Deliveries.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -30,4 +31,5 @@ export const migrations = [
   TaskTemplates1795006479486,
   Repositories1795025797701,
   PullRequestArtifacts1795030000000,
+  Deliveries1795031000000,
 ];

@@ -131,6 +131,12 @@ export class ReviewsService {
     await this.tasks.transition(organizationId, taskId, 'deliver', null, {
       reason: 'approved',
     });
+    if (
+      (await this.artifactsService.undeliveredPullRequests(taskId)).length > 0
+    ) {
+      // A pull request to open: the runner delivers it, then succeeds.
+      return;
+    }
     await this.tasks.transition(organizationId, taskId, 'succeed', null, {
       reason: 'nothing-to-deliver',
       outcome: {

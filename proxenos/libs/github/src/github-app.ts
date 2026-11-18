@@ -63,6 +63,13 @@ export abstract class GitHubApp {
     permissions: GitHubPermissions,
   ): Promise<{ token: string; expiresAt: Date }>;
 
+  /**
+   * The app's bot user as a Git identity: `<slug>[bot]` and its noreply
+   * email (`<id>+<slug>[bot]@users.noreply.<host>`), which GitHub shows as
+   * the app.
+   */
+  abstract botIdentity(): Promise<{ name: string; email: string }>;
+
   /** Whether `signature` (`X-Hub-Signature-256`) is the app's for `body`. */
   abstract verifyWebhook(body: Buffer, signature: string): Promise<boolean>;
 }

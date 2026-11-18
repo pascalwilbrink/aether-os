@@ -355,6 +355,40 @@ export class TasksService {
   }
 
   /** A task's status, for the runner (no tenancy check); null if unknown. */
+  /** A task, for the runner (no caller, no access check). */
+  async get(taskId: string): Promise<TaskResponse> {
+    return this.mapper.toResponse(
+      await this.tasks.findOneByOrFail({ id: taskId }),
+    );
+  }
+
+  /** A delivery failed and will be tried again (`delivering` waits until then). */
+  async deliveryRetryAt(taskId: string, at: Date): Promise<void> {
+    await this.tasks.update({ id: taskId }, { nextAttemptAt: at });
+  }
+
+  /**
+   * The tree's branch should go (docs/git.md, Branches and pull requests):
+   * recorded on its top-level task, for the runner to delete.
+   */
+  async requestBranchCleanup(
+    organizationId: string,
+    topLevelTaskId: string,
+  ): Promise<void> {
+    await this.tasks.update(
+      { id: topLevelTaskId, organizationId },
+      { branchCleanupAt: new Date() },
+    );
+  }
+
+  /** The branch is gone (or was never there), or try again at `retryAt`. */
+  async branchCleanupDone(
+    taskId: string,
+    retryAt: Date | null = null,
+  ): Promise<void> {
+    await this.tasks.update({ id: taskId }, { branchCleanupAt: retryAt });
+  }
+
   async statusOf(
     organizationId: string,
     taskId: string,

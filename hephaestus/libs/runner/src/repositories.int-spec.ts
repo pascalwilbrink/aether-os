@@ -10,6 +10,8 @@ import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
 import { AgentsService, AgentVersionsService } from '@hephaestus/agents';
 import { ArtifactsService } from '@hephaestus/artifacts';
 import { TasksService, type TaskResponse } from '@hephaestus/tasks';
+import { EventInbox } from '@hephaestus/core';
+import { v7 as uuidv7 } from 'uuid';
 import { WorkspacesService } from '@hephaestus/workspaces';
 
 import type { FakePolis } from '../../../test/fake-polis.js';
@@ -25,6 +27,11 @@ import {
   RepositoryTokens,
   type RepositoryCredentials,
 } from './repository-tokens.js';
+import {
+  PullRequests,
+  type OpenedPullRequest,
+  type PullRequestRequest,
+} from './pull-requests.js';
 import { RunnerModule } from './runner.module.js';
 import { RUNNER_OPTIONS } from './runner.options.js';
 import { RunnerFailure } from './runner.errors.js';
@@ -74,6 +81,28 @@ class FakeRepositoryTokens extends RepositoryTokens {
       fullName: 'acme/api',
       cloneUrl: `file://${this.origin()}`,
       defaultBranch: 'main',
+      apiUrl: 'https://api.github.test',
+      committer: {
+        name: 'aether-os-test[bot]',
+        email: '4242+aether-os-test[bot]@users.noreply.github.com',
+      },
+    });
+  }
+}
+
+/** GitHub's pull requests, as Hephaestus opens them. */
+class FakePullRequests extends PullRequests {
+  readonly opened: PullRequestRequest[] = [];
+  fail: RunnerFailure[] = [];
+
+  open(request: PullRequestRequest): Promise<OpenedPullRequest> {
+    this.opened.push(request);
+    const failure = this.fail.shift();
+    if (failure) return Promise.reject(failure);
+    return Promise.resolve({
+      number: 41 + this.opened.length,
+      url: `https://github.test/${request.repository}/pull/${41 + this.opened.length}`,
+      state: 'open',
     });
   }
 }
@@ -111,6 +140,7 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
   let polis: FakePolis;
   let runtime: FakeAgentRuntime;
   let repositoryTokens: FakeRepositoryTokens;
+  let pullRequests: FakePullRequests;
   let organizationId: string;
   let projectId: string;
   let tasks: TasksService;
@@ -134,6 +164,7 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
 
     runtime = new FakeAgentRuntime();
     repositoryTokens = new FakeRepositoryTokens(() => origin);
+    pullRequests = new FakePullRequests();
     ({ moduleRef, polis } = await createTestingModuleWith(
       (builder) =>
         builder
@@ -155,7 +186,9 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
           .overrideProvider(TaskTokens)
           .useValue(new FakeTaskTokens())
           .overrideProvider(RepositoryTokens)
-          .useValue(repositoryTokens),
+          .useValue(repositoryTokens)
+          .overrideProvider(PullRequests)
+          .useValue(pullRequests),
       RunnerModule,
     ));
     organizationId = polis.organization();
@@ -278,6 +311,11 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
 
     await runOnce();
 
+    // Done, with a pull request to open: the next round delivers it.
+    await expect(task(created.id)).resolves.toMatchObject({
+      status: 'delivering',
+    });
+    await runOnce();
     await expect(task(created.id)).resolves.toMatchObject({
       status: 'succeeded',
     });
@@ -295,9 +333,9 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
       branch: `aether/${created.topLevelTaskId}`,
       startedFrom: 'main',
     });
-    // Read to check out, write to push, both asked for with the task's own token.
+    // Read to check out, write to push and to deliver, all for the task's own token.
     expect(repositoryTokens.issued).toEqual(
-      ['read', 'write'].map((access) => ({
+      ['read', 'write', 'write'].map((access) => ({
         taskId: created.id,
         taskToken: `task-token-for-${created.id}`,
         access,
@@ -342,8 +380,24 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
       baseBranch: 'main',
       headSha: repository!.pushedSha,
       description: `Added CHANGELOG.md.\n\n---\nAether-Task: ${created.id}`,
-      pullRequest: null,
+      pullRequest: {
+        number: 42,
+        url: 'https://github.test/acme/api/pull/42',
+        state: 'open',
+      },
     });
+    // Opened with a write token, on GitHub's API for the repository.
+    expect(pullRequests.opened).toEqual([
+      {
+        apiUrl: 'https://api.github.test',
+        token: 'ghs_not-needed-for-file-urls',
+        repository: 'acme/api',
+        branch: `aether/${created.topLevelTaskId}`,
+        baseBranch: 'main',
+        title: 'Add a changelog',
+        body: `Added CHANGELOG.md.\n\n---\nAether-Task: ${created.id}`,
+      },
+    ]);
     await expect(task(created.id)).resolves.toMatchObject({
       primaryArtifactId: pullRequest!.id,
     });
@@ -377,7 +431,7 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
     await runOnce();
 
     await expect(task(created.id)).resolves.toMatchObject({
-      status: 'succeeded',
+      status: 'delivering',
     });
     const { repository } = await execution(created.id);
     const branch = `aether/${created.topLevelTaskId}`;
@@ -396,7 +450,9 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
         '--format=%cn <%ce>%n%(trailers:key=Aether-Task,valueonly)',
         branch,
       ),
-    ).toBe(`Aether-os <aether-os@users.noreply.github.com>\n${created.id}`);
+    ).toBe(
+      `aether-os-test[bot] <4242+aether-os-test[bot]@users.noreply.github.com>\n${created.id}`,
+    );
   });
 
   it('runs a conflicting task again from the new head', async () => {
@@ -505,7 +561,7 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
     await runOnce();
 
     expect(commit).toBe(
-      `Aether-os <aether-os@users.noreply.github.com>\nAdd a\n\nAether-Task: ${created.id}`,
+      `aether-os-test[bot] <4242+aether-os-test[bot]@users.noreply.github.com>\nAdd a\n\nAether-Task: ${created.id}`,
     );
     await expect(execution(created.id)).resolves.toMatchObject({
       repository: { commits: 1, uncommittedChanges: false },
@@ -607,5 +663,123 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
     });
     expect((await execution(created.id)).repository).toBeNull();
     expect(repositoryTokens.issued).toEqual([]);
+  });
+
+  /** A task that commits one file, run until it's delivering. */
+  async function committed() {
+    runtime.behaviour = async (input) => {
+      await shell(
+        input,
+        'cd /workspace/repo && echo y > y.txt && git add . && git commit -q -m "Y"',
+      );
+      return { outcome: 'completed', summary: 'Y.' };
+    };
+    const created = await taskFor();
+    await runOnce();
+    await expect(task(created.id)).resolves.toMatchObject({
+      status: 'delivering',
+    });
+    return created;
+  }
+  const branchExists = (name: string) =>
+    git(origin, 'branch', '--list', name) !== '';
+
+  it('retries a delivery that failed, and fails the task when it keeps failing', async () => {
+    const created = await committed();
+    pullRequests.fail = [
+      new RunnerFailure('GitHub could not be reached', 'infrastructure'),
+    ];
+
+    // Tried again after its backoff (none in tests: in the same round).
+    await runOnce();
+    await expect(task(created.id)).resolves.toMatchObject({
+      status: 'succeeded',
+    });
+    expect(pullRequests.opened).toHaveLength(2);
+
+    // Refused access isn't retried: the task fails, and its branch goes.
+    const refused = await committed();
+    expect(branchExists(`aether/${refused.id}`)).toBe(true);
+    pullRequests.fail = [
+      new RunnerFailure(
+        'GitHub refused opening the pull request (403)',
+        'access_denied',
+      ),
+    ];
+    await runOnce();
+    await expect(task(refused.id)).resolves.toMatchObject({
+      status: 'failed',
+      failureReason: 'infrastructure',
+    });
+    await runOnce();
+    expect(branchExists(`aether/${refused.id}`)).toBe(false);
+  });
+
+  it("follows the pull request's state, and deletes the branch once it's merged", async () => {
+    const created = await committed();
+    await runOnce();
+    const branch = `aether/${created.topLevelTaskId}`;
+    const event = (state: 'open' | 'merged' | 'closed', version: number) =>
+      moduleRef.get(EventInbox).receive('proxenos', {
+        eventId: uuidv7(),
+        eventType: 'git.pull-request.updated',
+        schemaVersion: 1,
+        aggregateId: '0193a1b2-c3d4-7e5f-8a9b-0000000077aa',
+        aggregateVersion: version,
+        occurredAt: new Date(),
+        organizationId,
+        projectId: null,
+        actor: null,
+        payload: {
+          repositoryId: '0193a1b2-c3d4-7e5f-8a9b-0000000077bb',
+          repository: 'acme/api',
+          number: 42,
+          url: 'https://github.test/acme/api/pull/42',
+          state,
+          branch,
+          baseBranch: 'main',
+          headSha: 'abc',
+          mergedAt: state === 'merged' ? new Date().toISOString() : null,
+          fromAetherOs: false,
+        },
+      });
+
+    await event('open', 1);
+    await runOnce();
+    expect(branchExists(branch)).toBe(true);
+
+    await event('merged', 2);
+    const pullRequest = (await artifacts(created.id)).find(
+      (a) => a.kind === 'pull_request',
+    );
+    expect(pullRequest).toMatchObject({
+      pullRequest: { number: 42, state: 'merged' },
+    });
+    await runOnce();
+    expect(branchExists(branch)).toBe(false);
+    // The repository's own branches are left alone.
+    expect(git(origin, 'rev-parse', 'main')).toBe(mainSha);
+  });
+
+  it("deletes a cancelled tree's branch", async () => {
+    runtime.behaviour = async (input) => {
+      await shell(
+        input,
+        'cd /workspace/repo && echo z > z.txt && git add . && git commit -q -m "Z"',
+      );
+      return { outcome: 'completed', summary: 'Z.' };
+    };
+    const created = await taskFor({ review: ['pull_request'] });
+    await runOnce();
+    await expect(task(created.id)).resolves.toMatchObject({
+      status: 'awaiting_review',
+    });
+    expect(branchExists(`aether/${created.id}`)).toBe(true);
+
+    await tasks.cancel(organizationId, projectId, created.id);
+    await runOnce();
+
+    expect(branchExists(`aether/${created.id}`)).toBe(false);
+    expect(pullRequests.opened).toEqual([]);
   });
 });

@@ -115,9 +115,25 @@ export class TaskEntity {
   @Column({ type: 'uuid', nullable: true })
   primaryArtifactId: string | null;
 
-  /** A queued task isn't started before this (backoff after a failure). */
+  /**
+   * A queued task isn't started before this (backoff after a failure); a
+   * delivering one isn't delivered before it (a delivery's lease, or its
+   * backoff).
+   */
   @Column({ type: 'timestamptz', nullable: true })
   nextAttemptAt: Date | null;
+
+  /** Tries at delivering (opening pull requests) since it last succeeded. */
+  @Column({ type: 'integer', default: 0 })
+  deliveryAttempts: number;
+
+  /**
+   * A top-level task whose tree's branch should go (docs/git.md: the tree
+   * failed or was cancelled, or its pull request was merged or closed);
+   * not before this time. Null: nothing to clean up.
+   */
+  @Column({ type: 'timestamptz', nullable: true })
+  branchCleanupAt: Date | null;
 
   @Column({ type: 'timestamptz' })
   createdAt: Date;

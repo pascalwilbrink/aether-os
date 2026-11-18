@@ -81,6 +81,17 @@ export class InstallationsService {
     );
   }
 
+  /** The installation with GitHub's ID, if an organization connected it. */
+  async findByExternalId(
+    externalId: string,
+  ): Promise<InstallationResponse | null> {
+    const entity = await this.installations.findOneBy({
+      provider: 'github',
+      externalId,
+    });
+    return entity ? this.mapper.toResponse(entity) : null;
+  }
+
   /** An installation repositories can be used through: `INSTALLATION_NOT_ACTIVE` otherwise. */
   async findActive(
     organizationId: string,

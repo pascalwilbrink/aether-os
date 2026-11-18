@@ -135,6 +135,17 @@ export type RepositoryTokenResponse = {
     fullName: string;
     cloneUrl: string;
     defaultBranch: string;
+    /**
+     * GitHub's REST API for this repository's host (github.com's, or a GitHub Enterprise Server's), for pull requests.
+     */
+    apiUrl: string;
+  };
+  /**
+   * The GitHub App's bot identity (`<slug>[bot]`), which commits Aether-os makes are made as (docs/git.md).
+   */
+  committer: {
+    name: string;
+    email: string;
   };
 };
 

@@ -8,6 +8,6 @@ export async function resetDatabase(
   await app
     .get(DataSource)
     .query(
-      'TRUNCATE installations, repositories, connect_requests, webhook_deliveries, repository_links, outbox',
+      'TRUNCATE installations, repositories, connect_requests, webhook_deliveries, repository_links, pull_requests, outbox',
     );
 }

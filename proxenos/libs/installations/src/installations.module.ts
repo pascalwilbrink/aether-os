@@ -14,6 +14,8 @@ import {
   WebhooksController,
 } from './installations.controller.js';
 import { InstallationsService } from './installations.service.js';
+import { PullRequestEntity } from './pull-request.entity.js';
+import { PullRequestsService } from './pull-requests.service.js';
 import { RepositoriesService } from './repositories.service.js';
 import { RepositoryEntity } from './repository.entity.js';
 import { RepositoryMapper } from './repository.mapper.js';
@@ -27,6 +29,7 @@ import { WebhooksService } from './webhooks.service.js';
       RepositoryEntity,
       ConnectRequestEntity,
       WebhookDeliveryEntity,
+      PullRequestEntity,
     ]),
     GitHubModule,
     TenancyModule,
@@ -39,6 +42,7 @@ import { WebhooksService } from './webhooks.service.js';
     RepositoryMapper,
     ConnectService,
     WebhooksService,
+    PullRequestsService,
   ],
   exports: [
     InstallationsService,

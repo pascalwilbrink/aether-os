@@ -46,6 +46,7 @@ const SECRETS_TTL_MS = 5 * 60_000;
  */
 export class HttpGitHubApp extends GitHubApp {
   private secrets: { value: AppSecrets; readAt: number } | null = null;
+  private bot: { name: string; email: string } | null = null;
 
   constructor(
     private readonly options: GitHubAppOptions,
@@ -179,6 +180,25 @@ export class HttpGitHubApp extends GitHubApp {
       repository_ids: [Number(repositoryId)],
       permissions,
     });
+  }
+
+  async botIdentity(): Promise<{ name: string; email: string }> {
+    if (this.bot) {
+      return this.bot;
+    }
+    const name = `${this.require(this.options.slug)}[bot]`;
+    // A public user: no credentials needed.
+    const response = await this.request(
+      new URL(
+        `users/${encodeURIComponent(name)}`,
+        withSlash(this.options.apiUrl),
+      ),
+      { method: 'GET', headers: { 'x-github-api-version': '2022-11-28' } },
+    );
+    const { id } = (await this.json(response)) as { id: number };
+    const host = new URL(this.options.webUrl).hostname;
+    this.bot = { name, email: `${id}+${name}@users.noreply.${host}` };
+    return this.bot;
   }
 
   async verifyWebhook(body: Buffer, signature: string): Promise<boolean> {

@@ -12,9 +12,9 @@ info:
     `eventId`, and ignore an event whose `aggregateVersion` is not newer than
     the one already applied for that `aggregateId`.
 
-    For now: the GitHub App's installations and the repository links of
-    projects (`../docs/git.md`). Normalized GitHub events for Kairos
-    (`github.issue.opened`, …) and `git.pull-request.updated` come later.
+    For now: the GitHub App's installations, the repository links of
+    projects, and pull requests (`../docs/git.md`). Normalized GitHub events
+    for Kairos (`github.issue.opened`, …) come later.
 
 defaultContentType: application/json
 
@@ -40,6 +40,7 @@ channels:
       installationChanged: { $ref: '#/components/messages/installationChanged' }
       repositoryLinked: { $ref: '#/components/messages/repositoryLinked' }
       repositoryUnlinked: { $ref: '#/components/messages/repositoryUnlinked' }
+      pullRequestUpdated: { $ref: '#/components/messages/pullRequestUpdated' }
 
 operations:
   publishProxenosEvents:
@@ -49,6 +50,7 @@ operations:
       - $ref: '#/channels/proxenosEvents/messages/installationChanged'
       - $ref: '#/channels/proxenosEvents/messages/repositoryLinked'
       - $ref: '#/channels/proxenosEvents/messages/repositoryUnlinked'
+      - $ref: '#/channels/proxenosEvents/messages/pullRequestUpdated'
 
 components:
   messages:
@@ -85,6 +87,21 @@ components:
             properties:
               eventType: { const: git.repository-unlinked }
               payload: { $ref: '#/components/schemas/GitRepositoryUnlinked' }
+
+    pullRequestUpdated:
+      name: git.pull-request.updated
+      summary: |
+        A pull request on a connected repository was opened, changed,
+        closed or merged (GitHub's `pull_request` webhook). `aggregateId`
+        is Proxenos's record of the pull request; its `aggregateVersion`
+        grows with every update.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: git.pull-request.updated }
+              payload: { $ref: '#/components/schemas/GitPullRequestUpdated' }
 
   schemas:
     Uuid:
@@ -144,6 +161,21 @@ components:
         repositoriesRemoved:
           type: array
           items: { $ref: '#/components/schemas/RepositoryRef' }
+    GitPullRequestUpdated:
+      type: object
+      additionalProperties: false
+      required: [repositoryId, repository, number, url, state, branch, baseBranch, headSha, mergedAt, fromAetherOs]
+      properties:
+        repositoryId: { $ref: '#/components/schemas/Uuid' }
+        repository: { type: string, description: '`owner/name`.' }
+        number: { type: integer, minimum: 1 }
+        url: { type: string }
+        state: { type: string, enum: [open, closed, merged] }
+        branch: { type: string, description: The head branch (`aether/<top-level task ID>` for Aether-os's). }
+        baseBranch: { type: string }
+        headSha: { type: string }
+        mergedAt: { type: [string, 'null'], format: date-time }
+        fromAetherOs: { type: boolean, description: The app's own bot made the change. }
     GitRepositoryLinked:
       type: object
       additionalProperties: false

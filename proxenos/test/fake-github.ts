@@ -124,6 +124,15 @@ export class FakeGitHub {
       return { status: 400, body: { message: 'API version' } };
     }
 
+    if (
+      path === '/users/aether-os-test%5Bbot%5D' ||
+      path === '/users/aether-os-test[bot]'
+    ) {
+      return {
+        status: 200,
+        body: { id: 4242, login: 'aether-os-test[bot]', type: 'Bot' },
+      };
+    }
     if (path === '/user/installations') {
       const ids = this.userTokens.get(auth.replace(/^Bearer /, ''));
       if (!ids) return { status: 401, body: { message: 'Bad credentials' } };

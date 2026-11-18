@@ -119,4 +119,53 @@ export class TaskQueue {
     }
     return null;
   }
+
+  /**
+   * The next `delivering` task whose delivery is due, leased to the caller
+   * for `leaseMs` (another runner won't take it meanwhile), with how many
+   * times delivery has been tried, this one included.
+   */
+  @Transactional()
+  async claimDelivery(
+    leaseMs: number,
+  ): Promise<{ task: TaskResponse; attempt: number } | null> {
+    // An UPDATE … RETURNING answers [rows, affected] on Postgres.
+    const [[row]] = (await this.tasks.query(
+      `UPDATE tasks
+          SET next_attempt_at = now() + make_interval(secs => $1::double precision / 1000),
+              delivery_attempts = delivery_attempts + 1
+        WHERE id = (SELECT id FROM tasks
+                     WHERE status = 'delivering'
+                       AND (next_attempt_at IS NULL OR next_attempt_at <= now())
+                     ORDER BY updated_at, id
+                     LIMIT 1
+                     FOR UPDATE SKIP LOCKED)
+       RETURNING id, delivery_attempts`,
+      [leaseMs],
+    )) as [{ id: string; delivery_attempts: number }[], number];
+    if (!row) {
+      return null;
+    }
+    return {
+      task: await this.tasksService.get(row.id),
+      attempt: row.delivery_attempts,
+    };
+  }
+
+  /** The next top-level task whose branch should go, leased for `leaseMs`. */
+  @Transactional()
+  async claimBranchCleanup(leaseMs: number): Promise<TaskResponse | null> {
+    const [[row]] = (await this.tasks.query(
+      `UPDATE tasks
+          SET branch_cleanup_at = now() + make_interval(secs => $1::double precision / 1000)
+        WHERE id = (SELECT id FROM tasks
+                     WHERE branch_cleanup_at <= now()
+                     ORDER BY branch_cleanup_at, id
+                     LIMIT 1
+                     FOR UPDATE SKIP LOCKED)
+       RETURNING id`,
+      [leaseMs],
+    )) as [{ id: string }[], number];
+    return row ? this.tasksService.get(row.id) : null;
+  }
 }

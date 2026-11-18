@@ -82,6 +82,18 @@ export class RepositoriesService {
     return repository;
   }
 
+  /** The installation's repository with GitHub's ID, if it covers it. */
+  async findByExternalId(
+    installationId: string,
+    externalId: string,
+  ): Promise<RepositoryResponse | null> {
+    const entity = await this.repositories.findOneBy({
+      installationId,
+      externalId,
+    });
+    return entity ? this.mapper.toResponse(entity) : null;
+  }
+
   async findByIds(
     organizationId: string,
     repositoryIds: string[],
