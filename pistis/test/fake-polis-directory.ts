@@ -60,6 +60,19 @@ export class FakePolisDirectory implements PolisDirectory {
     );
   }
 
+  /** Newest first, in one page (no cursor). */
+  userMembers(
+    organizationId: string,
+    page: { limit: number },
+  ): Promise<{ subjects: string[]; nextCursor: string | null }> {
+    const subjects = [...this.memberships.keys()]
+      .filter((key) => key.endsWith(`/${organizationId}`))
+      .map((key) => key.slice(0, -organizationId.length - 1))
+      .reverse()
+      .slice(0, page.limit);
+    return Promise.resolve({ subjects, nextCursor: null });
+  }
+
   organizationStatus(
     organizationId: string,
   ): Promise<'active' | 'suspended' | null> {

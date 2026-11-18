@@ -360,6 +360,7 @@ export const zListMembershipsPath = z.object({
 });
 
 export const zListMembershipsQuery = z.object({
+    subjectType: zSubjectType.optional(),
     limit: z.int().gte(1).lte(100).optional().default(50),
     cursor: z.string().min(1).max(1024).optional()
 });

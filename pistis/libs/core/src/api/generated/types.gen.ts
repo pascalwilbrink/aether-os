@@ -55,6 +55,23 @@ export type UserResponse = {
     lastSignInAt: string | null;
 };
 
+/**
+ * A member's profile, as other members see it.
+ */
+export type OrganizationUserResponse = {
+    /**
+     * The user's Pistis `sub` (a membership's `subject`).
+     */
+    id: string;
+    displayName: string;
+    email: string | null;
+    status: UserStatus;
+};
+
+export type OrganizationUserPage = PageMeta & {
+    items: Array<OrganizationUserResponse>;
+};
+
 export type UserPage = PageMeta & {
     items: Array<UserResponse>;
 };
@@ -821,6 +838,70 @@ export type UnlinkUserProviderResponses = {
 };
 
 export type UnlinkUserProviderResponse = UnlinkUserProviderResponses[keyof UnlinkUserProviderResponses];
+
+export type ListOrganizationUsersData = {
+    body?: never;
+    path: {
+        organizationId: string;
+    };
+    query?: {
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/organizations/{organizationId}/users';
+};
+
+export type ListOrganizationUsersErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type ListOrganizationUsersError = ListOrganizationUsersErrors[keyof ListOrganizationUsersErrors];
+
+export type ListOrganizationUsersResponses = {
+    /**
+     * Newest membership first
+     */
+    200: OrganizationUserPage;
+};
+
+export type ListOrganizationUsersResponse = ListOrganizationUsersResponses[keyof ListOrganizationUsersResponses];
 
 export type ListServiceAccountsData = {
     body?: never;

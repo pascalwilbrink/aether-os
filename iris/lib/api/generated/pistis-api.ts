@@ -155,6 +155,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description The organization's people: the users with a membership in Polis,
+         *     newest membership first, with their profile. Pistis pages through
+         *     Polis's memberships (`cursor` is Polis's), so a page can hold fewer
+         *     items than `limit`. Roles stay in Polis.
+         */
+        get: operations["listOrganizationUsers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/service-accounts": {
         parameters: {
             query?: never;
@@ -360,6 +384,20 @@ export interface components {
             /** Format: date-time */
             lastSignInAt: string | null;
         };
+        /** @description A member's profile, as other members see it. */
+        OrganizationUserResponse: {
+            /**
+             * Format: uuid
+             * @description The user's Pistis `sub` (a membership's `subject`).
+             */
+            id: string;
+            displayName: string;
+            email: string | null;
+            status: components["schemas"]["UserStatus"];
+        };
+        OrganizationUserPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["OrganizationUserResponse"][];
+        };
         UserPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["UserResponse"][];
         };
@@ -511,6 +549,18 @@ export interface components {
         };
         /** @description `NOT_FOUND`: the resource doesn't exist. */
         NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description `UNAVAILABLE`: a service this request depends on can't be reached
+         *     right now. Safe to retry.
+         */
+        Unavailable: {
             headers: {
                 [name: string]: unknown;
             };
@@ -878,6 +928,42 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
+        };
+    };
+    listOrganizationUsers: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest membership first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationUserPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
         };
     };
     listServiceAccounts: {

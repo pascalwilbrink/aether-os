@@ -38,6 +38,16 @@ export const zUserResponse = z.object({
 });
 
 /**
+ * A member's profile, as other members see it.
+ */
+export const zOrganizationUserResponse = z.object({
+    id: z.uuid(),
+    displayName: z.string(),
+    email: z.string().nullable(),
+    status: zUserStatus
+});
+
+/**
  * The identity provider, as configured in Pistis: `google`, `github`,
  * `entra:<tenant id>`, … Lowercase letters, digits and `:._-`.
  *
@@ -147,6 +157,10 @@ export const zNextCursor = z.string().nullable();
 export const zPageMeta = z.object({
     nextCursor: zNextCursor
 });
+
+export const zOrganizationUserPage = zPageMeta.and(z.object({
+    items: z.array(zOrganizationUserResponse)
+}));
 
 export const zUserPage = zPageMeta.and(z.object({
     items: z.array(zUserResponse)
@@ -351,6 +365,20 @@ export const zUnlinkUserProviderPath = z.object({
  * Unlinked
  */
 export const zUnlinkUserProviderResponse = z.void();
+
+export const zListOrganizationUsersPath = z.object({
+    organizationId: z.uuid()
+});
+
+export const zListOrganizationUsersQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest membership first
+ */
+export const zListOrganizationUsersResponse = zOrganizationUserPage;
 
 export const zListServiceAccountsPath = z.object({
     organizationId: z.uuid()

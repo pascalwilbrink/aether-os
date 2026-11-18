@@ -52,6 +52,8 @@ Services (`libs/users`):
 
 The users API (`../contracts/pistis.openapi.yaml`) is for platform operators only for now (`@PlatformAccess('platform:manage')`, verified by Krepis's `AuthModule` against Pistis's own signing keys); self-service routes for signed-in users come later. Service accounts are managed with a token for their organization (below).
 
+**An organization's people:** `GET /v1/organizations/{organizationId}/users` (`member:read`, `OrganizationUsersService` in `libs/oidc`) pages through Polis's user memberships of the organization (`PolisDirectory.userMembers`: `GET /v1/organizations/{id}/memberships?subjectType=user` with Pistis's own token; the cursor is Polis's) and returns each member's `id`, `displayName`, `email` and `status`. Only members are ever shown, since the list comes from Polis; a member Pistis doesn't know is left out, so a page can be short. Roles stay in Polis. It lives in `libs/oidc` because that's where Pistis's Polis client and its own service token are.
+
 ## Architecture
 
 Same layout as Polis (`../polis/CLAUDE.md`): `src/` is the app shell (`initializeTransactions()`, `configureHttpApp`), code lives in Nest libraries under `libs/` (`core`, `users`, `service-accounts`, `oidc`; `core` ← `users`, `service-accounts` ← `oidc`), registered in `nest-cli.json` and aliased as `@pistis/<name>`. Database conventions, migrations (`src/database/`), and tests (`test/global-setup.ts` applies the migrations and fails on a missing one) work the same way.

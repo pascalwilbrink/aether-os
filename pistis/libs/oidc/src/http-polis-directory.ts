@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Inject,
   Injectable,
   ServiceUnavailableException,
@@ -98,6 +99,31 @@ export class HttpPolisDirectory extends PolisDirectory {
     } while (cursor);
 
     return roles;
+  }
+
+  async userMembers(
+    organizationId: string,
+    page: { limit: number; cursor?: string },
+  ): Promise<{ subjects: string[]; nextCursor: string | null }> {
+    const { data, response } = await this.call(() =>
+      PolisApi.listMemberships({
+        client: this.client,
+        path: { organizationId },
+        query: { subjectType: 'user', limit: page.limit, cursor: page.cursor },
+      }),
+    );
+    if (response?.status === 400) {
+      // Polis refused the cursor: the caller's, passed on.
+      throw new BadRequestException('The cursor is invalid.');
+    }
+    if (!response?.ok || !data) {
+      throw this.unavailable(response?.status);
+    }
+
+    return {
+      subjects: data.items.map((item) => item.subject),
+      nextCursor: data.nextCursor,
+    };
   }
 
   async organizationStatus(

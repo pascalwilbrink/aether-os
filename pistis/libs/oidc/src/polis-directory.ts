@@ -23,6 +23,15 @@ export abstract class PolisDirectory {
     subjectType?: SubjectType,
   ): Promise<Record<string, ProjectRole>>;
 
+  /**
+   * A page of the organization's user members (their `sub`s), newest
+   * membership first, with Polis's cursor for the next page.
+   */
+  abstract userMembers(
+    organizationId: string,
+    page: { limit: number; cursor?: string },
+  ): Promise<{ subjects: string[]; nextCursor: string | null }>;
+
   /** The organization's status, or null if it doesn't exist. */
   abstract organizationStatus(
     organizationId: string,

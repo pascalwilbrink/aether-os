@@ -13,8 +13,10 @@ import {
   type ReviewDecision,
 } from "@/lib/api/hephaestus";
 import { messageOf as baseMessageOf } from "@/lib/api/messages";
+import { createProjectMembership, deleteProjectMembership, updateProjectMembership } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
 import { valuesOf } from "@/lib/forms";
+import { isProjectRole } from "@/lib/members";
 
 /** What a form shows after a failed submit. */
 export interface FormState {
@@ -29,8 +31,7 @@ export interface ProjectRef {
   projectId: string;
 }
 
-const projectPath = ({ organizationId, projectId }: ProjectRef) =>
-  `/orgs/${organizationId}/projects/${projectId}`;
+const projectPath = ({ organizationId, projectId }: ProjectRef) => `/orgs/${organizationId}/projects/${projectId}`;
 
 const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
 
@@ -104,9 +105,7 @@ export async function createTaskFromTemplateAction(
 }
 
 /** Cancels a task (and everything under it), or retries a failed one. */
-export async function taskAction(
-  ref: ProjectRef & { taskId: string; action: "cancel" | "retry" },
-): Promise<FormState> {
+export async function taskAction(ref: ProjectRef & { taskId: string; action: "cancel" | "retry" }): Promise<FormState> {
   const session = await requireOrganization(ref.organizationId, projectPath(ref));
   try {
     await (ref.action === "cancel" ? cancelTask : retryTask)(
@@ -151,6 +150,74 @@ export async function reviewAction(
       }),
       values: valuesOf(form),
     };
+  }
+  refresh();
+  return {};
+}
+
+// --- Who has a role in the project (`project-member:manage`: organization owners and admins) ---
+
+const accessMessageOf = (error: unknown) =>
+  messageOf(error, {
+    FORBIDDEN: "Only the organization's owners and admins manage who works in a project.",
+    PROJECT_MEMBERSHIP_EXISTS: "They already have a role here.",
+    PROJECT_MEMBER_NOT_IN_ORGANIZATION: "They aren't a member of the organization any more.",
+    PROJECT_ROLE_EXCEEDS_CAP:
+      "Their organization role doesn't allow that (viewers only view; service accounts never approve).",
+    PROJECT_ARCHIVED: "The project is archived.",
+  });
+
+/** Gives a member (`member` = `<subjectType>:<subject>`) a role in the project. */
+export async function grantProjectRoleAction(ref: ProjectRef, _state: FormState, form: FormData): Promise<FormState> {
+  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+  const member = text(form, "member");
+  const subjectType = member.slice(0, member.indexOf(":"));
+  const subject = member.slice(member.indexOf(":") + 1);
+  const role = form.get("role");
+  if ((subjectType !== "user" && subjectType !== "service_account") || !subject) {
+    return { error: "Choose who.", values: valuesOf(form) };
+  }
+  if (!isProjectRole(role)) {
+    return { error: "Choose a role.", values: valuesOf(form) };
+  }
+  try {
+    await createProjectMembership(session.accessToken, ref.organizationId, ref.projectId, {
+      subjectType,
+      subject,
+      role,
+    });
+  } catch (error) {
+    return { error: accessMessageOf(error), values: valuesOf(form) };
+  }
+  refresh();
+  return {};
+}
+
+export async function changeProjectRoleAction(
+  ref: ProjectRef & { membershipId: string },
+  _state: FormState,
+  form: FormData,
+): Promise<FormState> {
+  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+  const role = form.get("role");
+  if (!isProjectRole(role)) {
+    return { error: "Choose a role." };
+  }
+  try {
+    await updateProjectMembership(session.accessToken, ref.organizationId, ref.projectId, ref.membershipId, role);
+  } catch (error) {
+    return { error: accessMessageOf(error) };
+  }
+  refresh();
+  return {};
+}
+
+export async function removeProjectRoleAction(ref: ProjectRef & { membershipId: string }): Promise<FormState> {
+  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+  try {
+    await deleteProjectMembership(session.accessToken, ref.organizationId, ref.projectId, ref.membershipId);
+  } catch (error) {
+    return { error: accessMessageOf(error) };
   }
   refresh();
   return {};

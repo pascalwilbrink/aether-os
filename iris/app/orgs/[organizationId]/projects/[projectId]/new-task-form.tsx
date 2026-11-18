@@ -27,7 +27,9 @@ export function NewTaskForm({
   if (agents.length === 0 || serviceAccounts.length === 0) {
     return (
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        A task needs an agent with a published version and a service account to run as.
+        {agents.length === 0
+          ? "A task needs an agent with a published version: create one under Agents, on the organization's page."
+          : "A task runs as a service account with a role in this project: give one a role under Access, above."}
       </p>
     );
   }
