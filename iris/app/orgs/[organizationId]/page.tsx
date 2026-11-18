@@ -38,6 +38,10 @@ async function Overview({ params }: Pick<PageProps<"/orgs/[organizationId]">, "p
           <h1 className="text-2xl font-semibold">{organization.name}</h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             Signed in as {session.name} ·{" "}
+            <Link href={`/orgs/${organizationId}/members`} className="underline">
+              Members
+            </Link>{" "}
+            ·{" "}
             <Link href="/orgs" className="underline">
               Switch organization
             </Link>

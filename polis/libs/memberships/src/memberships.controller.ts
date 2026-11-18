@@ -45,12 +45,13 @@ export class MembershipsController {
 
   @Get()
   @RequirePermission('member:read')
+  @PlatformAccess('platform:read')
   @ZodSerializerDto(MembershipPage)
   list(
     @Param() { organizationId }: MembershipsParams,
-    @Query() query: ListMembershipsQuery,
+    @Query() { subjectType, ...page }: ListMembershipsQuery,
   ) {
-    return this.memberships.list(organizationId, query);
+    return this.memberships.list(organizationId, page, subjectType);
   }
 
   @Get(':membershipId')

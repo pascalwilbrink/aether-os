@@ -250,8 +250,13 @@ paths:
     get:
       tags: [memberships]
       operationId: listMemberships
-      x-permission: '`member:read`'
+      x-permission: '`member:read`, or `platform:read` (Pistis, for the organization''s people)'
       parameters:
+        - name: subjectType
+          in: query
+          required: false
+          description: Only users, or only service accounts.
+          schema: { $ref: '#/components/schemas/SubjectType' }
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
       responses:

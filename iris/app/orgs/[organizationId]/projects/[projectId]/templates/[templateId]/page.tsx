@@ -4,8 +4,9 @@ import { Suspense } from "react";
 import { getTaskTemplate, getTaskTemplateVersion } from "@/lib/api/hephaestus";
 import { ApiError } from "@/lib/api/http";
 import { listServiceAccounts } from "@/lib/api/pistis";
-import { getProject } from "@/lib/api/polis";
+import { getProject, listProjectMemberships } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
+import { runnableServiceAccounts } from "@/lib/members";
 
 import { TemplateTaskForm } from "../../template-task-form";
 
@@ -25,13 +26,14 @@ async function Template({ params }: Pick<Props, "params">) {
   const projectPath = `/orgs/${organizationId}/projects/${projectId}`;
   const session = await requireOrganization(organizationId, `${projectPath}/templates/${templateId}`);
   const token = session.accessToken;
-  const [project, template, serviceAccounts] = await Promise.all([
+  const [project, template, serviceAccounts, grants] = await Promise.all([
     getProject(token, organizationId, projectId),
     getTaskTemplate(token, organizationId, templateId),
     listServiceAccounts(token, organizationId).catch((error: unknown) => {
       if (error instanceof ApiError && error.status === 403) return { items: [], nextCursor: null };
       throw error;
     }),
+    listProjectMemberships(token, organizationId, projectId),
   ]);
   const version = await getTaskTemplateVersion(token, organizationId, templateId, template.latestVersion);
   const { effective } = version;
@@ -46,11 +48,8 @@ async function Template({ params }: Pick<Props, "params">) {
         </p>
         <h1 className="text-2xl font-semibold">{template.name}</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          {template.projectId ? "This project's template" : "Organization-wide template"} · version{" "}
-          {version.version}
-          {version.content.extends
-            ? ` · extends an organization template (v${version.content.extends.version})`
-            : ""}
+          {template.projectId ? "This project's template" : "Organization-wide template"} · version {version.version}
+          {version.content.extends ? ` · extends an organization template (v${version.content.extends.version})` : ""}
         </p>
         {template.description ? <p className="mt-2 text-sm">{template.description}</p> : null}
       </div>
@@ -84,9 +83,10 @@ async function Template({ params }: Pick<Props, "params">) {
           <TemplateTaskForm
             template={{ organizationId, projectId, templateId, version: version.version }}
             version={version}
-            serviceAccounts={serviceAccounts.items
-              .filter((account) => account.status === "active")
-              .map(({ id, name }) => ({ id, name }))}
+            serviceAccounts={runnableServiceAccounts(serviceAccounts.items, grants.items).map(({ id, name }) => ({
+              id,
+              name,
+            }))}
             idempotencyKey={crypto.randomUUID()}
           />
         </section>

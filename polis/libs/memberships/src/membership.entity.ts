@@ -16,9 +16,16 @@ import type { OrganizationRole, SubjectType } from './membership-roles.js';
   'ck_memberships_roles',
   `cardinality(roles) >= 1 AND roles <@ ARRAY['owner', 'admin', 'member', 'viewer']::text[]`,
 )
-// Keyset pagination: an organization's members, and a subject's organizations.
+// Keyset pagination: an organization's members (all, or of one kind), and a
+// subject's organizations.
 @Index('ix_memberships_organization_id_created_at_id', [
   'organizationId',
+  'createdAt',
+  'id',
+])
+@Index('ix_memberships_organization_id_subject_type_created_at_id', [
+  'organizationId',
+  'subjectType',
   'createdAt',
   'id',
 ])

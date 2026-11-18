@@ -103,13 +103,18 @@ export class MembershipsService {
     return this.mapper.toResponse(entity);
   }
 
+  /** The organization's memberships, newest first; only users or only service accounts with `subjectType`. */
   async list(
     organizationId: string,
     page: PageRequest,
+    subjectType?: SubjectType,
   ): Promise<Page<MembershipResponse>> {
     await this.organizations.assertExists(organizationId);
 
-    return this.page({ organizationId }, page);
+    return this.page(
+      subjectType ? { organizationId, subjectType } : { organizationId },
+      page,
+    );
   }
 
   /**

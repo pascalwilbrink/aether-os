@@ -15,6 +15,8 @@ import { InteractionsController } from './interactions.controller.js';
 import { JwksController } from './jwks.controller.js';
 import { OidcPayloadEntity } from './oidc-payload.entity.js';
 import { OidcProviderService } from './oidc-provider.service.js';
+import { OrganizationUsersController } from './organization-users.controller.js';
+import { OrganizationUsersService } from './organization-users.service.js';
 import { PolisDirectory } from './polis-directory.js';
 import { signingKeys } from './signing-keys.js';
 import {
@@ -31,10 +33,15 @@ import { UpstreamSignInService } from './upstream/upstream-sign-in.service.js';
     UsersModule,
     ServiceAccountsModule,
   ],
-  controllers: [InteractionsController, JwksController],
+  controllers: [
+    InteractionsController,
+    JwksController,
+    OrganizationUsersController,
+  ],
   providers: [
     OidcProviderService,
     UpstreamSignInService,
+    OrganizationUsersService,
     {
       provide: SIGNING_KEYS,
       inject: [ConfigService],

@@ -4,11 +4,25 @@ import { Suspense } from "react";
 import { StatusBadge } from "@/app/components/status-badge";
 import { listAgents, listTasks, listTaskTemplates } from "@/lib/api/hephaestus";
 import { ApiError } from "@/lib/api/http";
-import { listServiceAccounts } from "@/lib/api/pistis";
-import { getOrganization, getProject } from "@/lib/api/polis";
+import { listOrganizationUsers, listServiceAccounts } from "@/lib/api/pistis";
+import { getOrganization, getProject, listMemberships, listProjectMemberships } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
+import {
+  people,
+  PROJECT_ROLES,
+  projectAccess,
+  roleLabel,
+  runnableServiceAccounts,
+  serviceAccountMembers,
+  serviceAccountRows,
+  withoutProjectRole,
+} from "@/lib/members";
 import { formatTime, isTaskStatus, statusLabel, TASK_STATUSES } from "@/lib/tasks";
 
+import { ActionButton, RoleForm } from "@/app/components/action-forms";
+
+import { GrantAccessForm } from "./access-form";
+import { changeProjectRoleAction, removeProjectRoleAction } from "./actions";
 import { NewTaskForm } from "./new-task-form";
 
 type Props = PageProps<"/orgs/[organizationId]/projects/[projectId]">;
@@ -30,20 +44,48 @@ async function Project({ params, searchParams }: Props) {
   const session = await requireOrganization(organizationId, path);
   const token = session.accessToken;
 
-  const [organization, project, tasks, agents, templates, serviceAccounts] = await Promise.all([
+  // Reading members needs `member:read` (every organization role has it); without it, less to show.
+  const orEmpty = <T,>(promise: Promise<{ items: T[]; nextCursor: string | null }>) =>
+    promise.catch((error: unknown) => {
+      if (error instanceof ApiError && error.status === 403) return { items: [] as T[], nextCursor: null };
+      throw error;
+    });
+  const [
+    organization,
+    project,
+    tasks,
+    agents,
+    templates,
+    serviceAccounts,
+    grants,
+    userMemberships,
+    accountMemberships,
+    users,
+  ] = await Promise.all([
     getOrganization(token, organizationId),
     getProject(token, organizationId, projectId),
     listTasks(token, organizationId, projectId, { status }),
     listAgents(token, organizationId),
     listTaskTemplates(token, organizationId, projectId),
-    // Reading service accounts needs `member:read`; without it, no form.
-    listServiceAccounts(token, organizationId).catch((error: unknown) => {
-      if (error instanceof ApiError && error.status === 403) return { items: [], nextCursor: null };
-      throw error;
-    }),
+    orEmpty(listServiceAccounts(token, organizationId)),
+    listProjectMemberships(token, organizationId, projectId),
+    orEmpty(listMemberships(token, organizationId, "user")),
+    orEmpty(listMemberships(token, organizationId, "service_account")),
+    orEmpty(listOrganizationUsers(token, organizationId)),
   ]);
   const runnable = agents.items.filter((agent) => agent.status === "active" && agent.latestVersionId);
-  const accounts = serviceAccounts.items.filter((account) => account.status === "active");
+  // Only service accounts with a role here can run its tasks.
+  const accounts = runnableServiceAccounts(serviceAccounts.items, grants.items);
+  const members = [
+    ...people(userMemberships.items, users.items),
+    ...serviceAccountMembers(serviceAccountRows(serviceAccounts.items, accountMemberships.items)),
+  ];
+  const access = projectAccess(grants.items, members);
+  const candidates = withoutProjectRole(members, grants.items).map((member) => ({
+    value: `${member.subjectType}:${member.subject}`,
+    label: `${member.name}${member.subjectType === "service_account" ? " (service account)" : ""}`,
+  }));
+  const accessRef = (membershipId: string) => ({ organizationId, projectId, membershipId });
 
   return (
     <div className="space-y-10">
@@ -130,6 +172,53 @@ async function Project({ params, searchParams }: Props) {
         )}
       </section>
 
+      <section id="access" className="space-y-3">
+        <div>
+          <h2 className="font-medium">Access</h2>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            Roles in this project. The organization&apos;s owners and admins are admins here already; a task runs as a
+            service account with a role here.{" "}
+            <Link href={`/orgs/${organizationId}/members`} className="underline">
+              Members
+            </Link>
+          </p>
+        </div>
+        {access.length === 0 ? (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">Nobody has a role here yet.</p>
+        ) : (
+          <table className="w-full text-left text-sm">
+            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              {access.map(({ membership, member }) => (
+                <tr key={membership.id} className="align-top">
+                  <td className="py-2 pr-2">
+                    {member?.name ?? `${membership.subject.slice(0, 8)}…`}
+                    {membership.subjectType === "service_account" ? (
+                      <span className="ml-2 text-xs text-zinc-500">service account</span>
+                    ) : null}
+                  </td>
+                  <td className="py-2 pr-2">
+                    <RoleForm
+                      action={changeProjectRoleAction.bind(null, accessRef(membership.id))}
+                      roles={PROJECT_ROLES}
+                      current={membership.role}
+                    />
+                  </td>
+                  <td className="py-2 text-right">
+                    <ActionButton
+                      action={removeProjectRoleAction.bind(null, accessRef(membership.id))}
+                      label="Remove"
+                      pendingLabel="Removing…"
+                      confirmText={`Remove ${member?.name ?? "their"} role (${roleLabel(membership.role)}) in ${project.name}?`}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <GrantAccessForm project={{ organizationId, projectId }} candidates={candidates} />
+      </section>
+
       <section className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
         <h2 className="font-medium">New task</h2>
         <NewTaskForm
@@ -149,7 +238,9 @@ function FilterLink({ href, active, children }: { href: string; active: boolean;
       href={href}
       aria-current={active ? "page" : undefined}
       className={`rounded-full px-2 py-0.5 ${
-        active ? "bg-indigo-600 text-white" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300"
+        active
+          ? "bg-indigo-600 text-white"
+          : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300"
       }`}
     >
       {children}

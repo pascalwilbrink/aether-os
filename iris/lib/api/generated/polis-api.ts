@@ -839,6 +839,8 @@ export interface operations {
     listMemberships: {
         parameters: {
             query?: {
+                /** @description Only users, or only service accounts. */
+                subjectType?: components["schemas"]["SubjectType"];
                 /** @description Page size. */
                 limit?: components["parameters"]["Limit"];
                 /**

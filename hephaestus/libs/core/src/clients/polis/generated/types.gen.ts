@@ -785,6 +785,10 @@ export type ListMembershipsData = {
   };
   query?: {
     /**
+     * Only users, or only service accounts.
+     */
+    subjectType?: SubjectType;
+    /**
      * Page size.
      */
     limit?: number;

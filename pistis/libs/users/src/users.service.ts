@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { Repository } from 'typeorm';
+import { In, type Repository } from 'typeorm';
 
 import {
   findPage,
@@ -47,6 +47,16 @@ export class UsersService {
     );
 
     return mapPage(entities, (entity) => this.mapper.toResponse(entity));
+  }
+
+  /** The users with these IDs that exist, in no particular order. */
+  async findByIds(userIds: string[]): Promise<UserResponse[]> {
+    if (userIds.length === 0) {
+      return [];
+    }
+    const entities = await this.users.findBy({ id: In(userIds) });
+
+    return entities.map((entity) => this.mapper.toResponse(entity));
   }
 
   async findById(userId: string): Promise<UserResponse> {

@@ -115,6 +115,33 @@ describe('Memberships (e2e)', () => {
     expect(duplicate.body.code).toBe('MEMBERSHIP_EXISTS');
   });
 
+  it('lists only users or only service accounts, also for platform readers', async () => {
+    await add().expect(201);
+    await add({
+      subjectType: 'service_account',
+      subject: 'sa-1',
+      roles: ['member'],
+    }).expect(201);
+    const subjects = (body: { items: { subject: string }[] }) =>
+      body.items.map((m) => m.subject);
+
+    const users = await owner
+      .get(base)
+      .query({ subjectType: 'user' })
+      .expect(200);
+    expect(subjects(users.body)).toEqual(['user-1', 'user-0']);
+    const accounts = await owner
+      .get(base)
+      .query({ subjectType: 'service_account' })
+      .expect(200);
+    expect(subjects(accounts.body)).toEqual(['sa-1']);
+    await owner.get(base).query({ subjectType: 'robot' }).expect(400);
+
+    // Pistis reads them with its own token, for the organization's people.
+    const asPistis = await operator.get(base).expect(200);
+    expect(subjects(asPistis.body)).toEqual(['sa-1', 'user-1', 'user-0']);
+  });
+
   it("lists a principal's memberships across organizations", async () => {
     const globex = { body: await foundOrganization(app, 'globex', 'user-0') };
     await add().expect(201);
