@@ -5,7 +5,9 @@ import { getTaskTemplate, getTaskTemplateVersion } from "@/lib/api/hephaestus";
 import { ApiError } from "@/lib/api/http";
 import { listServiceAccounts } from "@/lib/api/pistis";
 import { getProject, listProjectMemberships } from "@/lib/api/polis";
+import { listRepositoryLinks, orUnavailable } from "@/lib/api/proxenos";
 import { requireOrganization } from "@/lib/auth/current";
+import { repositoryChoices } from "@/lib/github";
 import { runnableServiceAccounts } from "@/lib/members";
 
 import { TemplateTaskForm } from "../../template-task-form";
@@ -26,7 +28,7 @@ async function Template({ params }: Pick<Props, "params">) {
   const projectPath = `/orgs/${organizationId}/projects/${projectId}`;
   const session = await requireOrganization(organizationId, `${projectPath}/templates/${templateId}`);
   const token = session.accessToken;
-  const [project, template, serviceAccounts, grants] = await Promise.all([
+  const [project, template, serviceAccounts, grants, links] = await Promise.all([
     getProject(token, organizationId, projectId),
     getTaskTemplate(token, organizationId, templateId),
     listServiceAccounts(token, organizationId).catch((error: unknown) => {
@@ -34,6 +36,7 @@ async function Template({ params }: Pick<Props, "params">) {
       throw error;
     }),
     listProjectMemberships(token, organizationId, projectId),
+    orUnavailable(listRepositoryLinks(token, organizationId, projectId)),
   ]);
   const version = await getTaskTemplateVersion(token, organizationId, templateId, template.latestVersion);
   const { effective } = version;
@@ -87,6 +90,7 @@ async function Template({ params }: Pick<Props, "params">) {
               id,
               name,
             }))}
+            repositories={repositoryChoices(links.items)}
             idempotencyKey={crypto.randomUUID()}
           />
         </section>
