@@ -1,5 +1,7 @@
 import { Check, Column, Entity, Index, PrimaryColumn, Unique } from 'typeorm';
 
+import type { ApiTypes } from '@hephaestus/core';
+
 import type { ExecutionFailureReason } from './runner.errors.js';
 
 export type ExecutionStatus =
@@ -78,6 +80,13 @@ export class ExecutionEntity {
   /** The provisioner's reference to its sandbox, while it has one. */
   @Column({ type: 'jsonb', nullable: true })
   sandboxReference: Record<string, unknown> | null;
+
+  /**
+   * The repository it worked in (docs/git.md): where it started, then what
+   * the agent committed. Null for a task without one.
+   */
+  @Column({ type: 'jsonb', nullable: true })
+  repository: ApiTypes.ExecutionRepository | null;
 
   @Column({ type: 'timestamptz' })
   startedAt: Date;

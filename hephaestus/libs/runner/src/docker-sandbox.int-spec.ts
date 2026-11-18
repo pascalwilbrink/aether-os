@@ -122,6 +122,54 @@ describe('DockerSandboxDriver (Docker)', () => {
     expect(await sandboxContainers(sandboxId)).toEqual([]);
   });
 
+  it('runs commands with bytes in and out, as the sandbox user', async () => {
+    const spec = {
+      sandboxId,
+      ...sandboxOptions,
+      workingDirectory: '/workspace',
+      labels: { 'aether-os.execution-id': sandboxId },
+    };
+    await driver.create(spec, new AbortController().signal);
+    try {
+      // Every byte value survives the trip (bundles are binary).
+      const bytes = Buffer.from(
+        Array.from({ length: 70_000 }, (_, i) => i % 256),
+      );
+      const written = await driver.exec(
+        sandboxId,
+        ['sh', '-c', 'cat > /workspace/blob && id -u'],
+        {
+          stdin: bytes,
+        },
+      );
+      expect(written).toMatchObject({ exitCode: 0 });
+      expect(written.stdout.toString().trim()).toBe('1000');
+      const read = await driver.exec(sandboxId, ['cat', 'blob'], {
+        workingDirectory: '/workspace',
+      });
+      expect(read.stdout.equals(bytes)).toBe(true);
+
+      // The working directory runs scripts (hooks, a repository's own); /tmp doesn't.
+      const scripts = await driver.exec(sandboxId, [
+        'sh',
+        '-c',
+        'for d in /workspace /tmp; do printf "#!/bin/sh\\necho ran" > $d/s; chmod +x $d/s; $d/s 2>&1 || echo refused; done',
+      ]);
+      expect(scripts.stdout.toString()).toMatch(
+        /^ran\n.*(Permission denied|refused)/s,
+      );
+
+      const failing = await driver.exec(sandboxId, [
+        'sh',
+        '-c',
+        'echo oops >&2; exit 3',
+      ]);
+      expect(failing).toMatchObject({ exitCode: 3, stderr: 'oops\n' });
+    } finally {
+      await driver.remove(sandboxId);
+    }
+  });
+
   it('refuses to run as root', async () => {
     await expect(
       driver.create(

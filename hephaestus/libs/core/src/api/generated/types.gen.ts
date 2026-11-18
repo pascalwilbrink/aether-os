@@ -207,6 +207,20 @@ export type CreateTaskRequest = {
      * The definition of done (docs/tasks.md); checked after every run. Keys are unique.
      */
     acceptanceCriteria?: Array<AcceptanceCriterionRequest>;
+    /**
+     * The repository the task works in: one of its project's links in
+     * Proxenos (`docs/git.md`). A subtask without one works in its
+     * parent's (the tree shares a branch).
+     *
+     */
+    repository?: TaskRepository | null;
+};
+
+export type TaskRepository = {
+    /**
+     * A repository link of the task's project (Proxenos). Checked when the task runs.
+     */
+    linkId: string;
 };
 
 export type AcceptanceCriterionRequest = {
@@ -377,6 +391,10 @@ export type CreateTaskFromTemplateRequest = {
      * Added to the template's.
      */
     review?: TaskReviewSettings;
+    /**
+     * The repository the task works in, as for a task written by hand.
+     */
+    repository?: TaskRepository;
 };
 
 /**
@@ -430,6 +448,10 @@ export type TaskResponse = {
      */
     reviewRound: number;
     acceptanceCriteria: Array<AcceptanceCriterion>;
+    /**
+     * The repository it works in (its own, or its parent's), if any.
+     */
+    repository: TaskRepository | null;
     /**
      * The template it was created from, if any.
      */
@@ -590,8 +612,44 @@ export type ExecutionResponse = {
      */
     summary: string | null;
     usage: ExecutionUsage;
+    repository: ExecutionRepository | null;
     startedAt: string;
     endedAt: string | null;
+};
+
+/**
+ * The repository the execution worked in (`docs/git.md`, Inside the
+ * sandbox): checked out at `branch` from `baseSha`, and, once the run
+ * succeeded, what the agent committed on top (taken out of the sandbox
+ * as a bundle). Null for `headSha` and `commits` until then.
+ *
+ */
+export type ExecutionRepository = {
+    linkId: string;
+    /**
+     * `owner/name`.
+     */
+    fullName: string;
+    /**
+     * The task tree's branch, `aether/<top-level task ID>`.
+     */
+    branch: string;
+    /**
+     * The commit the execution started from.
+     */
+    baseSha: string;
+    /**
+     * The last commit at the end (the base if nothing was committed).
+     */
+    headSha: string | null;
+    /**
+     * Commits on top of the base.
+     */
+    commits: number | null;
+    /**
+     * Changes left uncommitted in the sandbox; they're not kept.
+     */
+    uncommittedChanges: boolean | null;
 };
 
 /**

@@ -35,6 +35,7 @@ export class ExecutionMapper {
       summary: null,
       runnerId,
       sandboxReference: null,
+      repository: null,
       startedAt: now,
       heartbeatAt: now,
       deadlineAt: null,
@@ -56,6 +57,7 @@ export class ExecutionMapper {
       error: entity.error,
       summary: entity.summary,
       usage,
+      repository: entity.repository,
       startedAt: entity.startedAt.toISOString(),
       endedAt: entity.endedAt?.toISOString() ?? null,
     };

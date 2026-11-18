@@ -1253,6 +1253,23 @@ components:
           maxItems: 50
           description: The definition of done (docs/tasks.md); checked after every run. Keys are unique.
           items: { $ref: '#/components/schemas/AcceptanceCriterionRequest' }
+        repository:
+          oneOf:
+            - $ref: '#/components/schemas/TaskRepository'
+            - { type: 'null' }
+          description: |
+            The repository the task works in: one of its project's links in
+            Proxenos (`docs/git.md`). A subtask without one works in its
+            parent's (the tree shares a branch).
+    TaskRepository:
+      type: object
+      additionalProperties: false
+      required: [linkId]
+      properties:
+        linkId:
+          type: string
+          format: uuid
+          description: A repository link of the task's project (Proxenos). Checked when the task runs.
     AcceptanceCriterionRequest:
       type: object
       additionalProperties: false
@@ -1447,6 +1464,9 @@ components:
         review:
           $ref: '#/components/schemas/TaskReviewSettings'
           description: Added to the template's.
+        repository:
+          $ref: '#/components/schemas/TaskRepository'
+          description: The repository the task works in, as for a task written by hand.
     TaskReviewSettings:
       type: object
       additionalProperties: false
@@ -1464,7 +1484,7 @@ components:
           items: { type: string, minLength: 1, maxLength: 50 }
     TaskResponse:
       type: object
-      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
+      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -1504,6 +1524,11 @@ components:
         acceptanceCriteria:
           type: array
           items: { $ref: '#/components/schemas/AcceptanceCriterion' }
+        repository:
+          oneOf:
+            - $ref: '#/components/schemas/TaskRepository'
+            - { type: 'null' }
+          description: The repository it works in (its own, or its parent's), if any.
         taskTemplateId:
           type: [string, 'null']
           format: uuid
@@ -1668,7 +1693,7 @@ components:
     ExecutionResponse:
       type: object
       additionalProperties: false
-      required: [id, taskId, attempt, number, status, failureReason, error, summary, usage, startedAt, endedAt]
+      required: [id, taskId, attempt, number, status, failureReason, error, summary, usage, repository, startedAt, endedAt]
       properties:
         id: { type: string, format: uuid }
         taskId: { type: string, format: uuid }
@@ -1686,8 +1711,31 @@ components:
           type: [string, 'null']
           description: What the agent reported when it finished (until artifacts exist).
         usage: { $ref: '#/components/schemas/ExecutionUsage' }
+        repository:
+          oneOf:
+            - $ref: '#/components/schemas/ExecutionRepository'
+            - { type: 'null' }
         startedAt: { type: string, format: date-time }
         endedAt: { type: [string, 'null'], format: date-time }
+    ExecutionRepository:
+      type: object
+      additionalProperties: false
+      description: |
+        The repository the execution worked in (`docs/git.md`, Inside the
+        sandbox): checked out at `branch` from `baseSha`, and, once the run
+        succeeded, what the agent committed on top (taken out of the sandbox
+        as a bundle). Null for `headSha` and `commits` until then.
+      required: [linkId, fullName, branch, baseSha, headSha, commits, uncommittedChanges]
+      properties:
+        linkId: { type: string, format: uuid }
+        fullName: { type: string, description: '`owner/name`.' }
+        branch: { type: string, description: 'The task tree''s branch, `aether/<top-level task ID>`.' }
+        baseSha: { type: string, description: The commit the execution started from. }
+        headSha: { type: [string, 'null'], description: The last commit at the end (the base if nothing was committed). }
+        commits: { type: [integer, 'null'], minimum: 0, description: Commits on top of the base. }
+        uncommittedChanges:
+          type: [boolean, 'null']
+          description: Changes left uncommitted in the sandbox; they're not kept.
     ExecutionUsage:
       type: object
       additionalProperties: false

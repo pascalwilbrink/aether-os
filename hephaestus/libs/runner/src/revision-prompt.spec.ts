@@ -55,4 +55,24 @@ describe('promptFor', () => {
       '### tests-pass: The tests pass\n\n```\n1 failing\n```',
     );
   });
+
+  it('says where the repository is, and that only commits are kept', () => {
+    const prompt = promptFor(task, [], [], {
+      fullName: 'acme/api',
+      path: '/workspace/repo',
+      branch: 'aether/0193',
+      startedFrom: 'main',
+    });
+    expect(prompt).toBe(
+      [
+        '# Write it up\n\nA summary, please.',
+        '',
+        '## Repository',
+        '',
+        'The repository acme/api is checked out at /workspace/repo, on the branch aether/0193 (from main).',
+        'Make your changes there and commit them with git (`git add`, `git commit`): only commits are kept, and uncommitted changes are lost.',
+        "There's no network: don't push, Aether-os takes your commits from here.",
+      ].join('\n'),
+    );
+  });
 });

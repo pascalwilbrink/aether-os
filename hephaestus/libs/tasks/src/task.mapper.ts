@@ -18,6 +18,8 @@ export interface NewTask {
   requestedBy: string;
   idempotencyKey: string;
   status: TaskStatus;
+  /** The repository link it works in: the request's, else the parent's. */
+  repositoryLinkId: string | null;
   /** Set when it comes from a template. */
   template?: TaskTemplateOrigin;
 }
@@ -61,6 +63,7 @@ export class TaskMapper {
           source: 'task' as const,
         })),
       ],
+      repositoryLinkId: task.repositoryLinkId,
       taskTemplateId: task.template?.templateId ?? null,
       taskTemplateVersion: task.template?.version ?? null,
       attempt: 1,
@@ -95,6 +98,9 @@ export class TaskMapper {
       review: { artifactKinds: entity.reviewArtifactKinds },
       reviewRound: entity.reviewRound,
       acceptanceCriteria: entity.acceptanceCriteria,
+      repository: entity.repositoryLinkId
+        ? { linkId: entity.repositoryLinkId }
+        : null,
       taskTemplateId: entity.taskTemplateId,
       taskTemplateVersion: entity.taskTemplateVersion,
       createdAt: entity.createdAt.toISOString(),

@@ -20,7 +20,14 @@ import { ExecutionsController } from './executions.controller.js';
 import { ExecutionsService } from './executions.service.js';
 import { DockerSandboxDriver } from './docker-sandbox-driver.js';
 import { NoSandboxProvisioner } from './no-sandbox-provisioner.js';
+import { GitClient } from './git-client.js';
 import { PistisTaskTokens } from './pistis-task-tokens.js';
+import { RepositoryCheckouts } from './repository-checkouts.js';
+import {
+  HttpRepositoryTokens,
+  NoRepositoryTokens,
+  RepositoryTokens,
+} from './repository-tokens.js';
 import { RUNNER_OPTIONS, runnerOptionsFrom } from './runner.options.js';
 import { SandboxDriver } from './sandbox-driver.js';
 import { SandboxProvisioner } from './sandbox-provisioner.js';
@@ -114,6 +121,16 @@ import {
           clientSecret: config.get('PISTIS_CLIENT_SECRET', { infer: true }),
         }),
     },
+    {
+      provide: RepositoryTokens,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => {
+        const url = config.get('PROXENOS_URL', { infer: true });
+        return url ? new HttpRepositoryTokens(url) : new NoRepositoryTokens();
+      },
+    },
+    { provide: GitClient, useFactory: () => new GitClient() },
+    RepositoryCheckouts,
     ExecutionMapper,
     ExecutionsService,
     ExecutionReaper,

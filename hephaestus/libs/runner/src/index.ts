@@ -11,3 +11,6 @@ export * from './sandbox-driver.js';
 export * from './docker-sandbox-driver.js';
 export * from './workspace-sandbox-provisioner.js';
 export * from './verifier.js';
+export * from './repository-tokens.js';
+export * from './repository-checkouts.js';
+export * from './git-client.js';
