@@ -256,6 +256,18 @@ export const zExecutionFailureReason = z.enum([
     'interrupted'
 ]);
 
+/**
+ * The model calls the execution made through the model gateway, and
+ * their tokens (docs/models.md, Metering). Tokens a provider didn't
+ * report count as 0.
+ *
+ */
+export const zExecutionUsage = z.object({
+    modelCalls: z.int().gte(0),
+    inputTokens: z.int().gte(0),
+    outputTokens: z.int().gte(0)
+});
+
 export const zExecutionResponse = z.object({
     id: z.uuid(),
     taskId: z.uuid(),
@@ -265,6 +277,7 @@ export const zExecutionResponse = z.object({
     failureReason: zExecutionFailureReason.nullable(),
     error: z.string().nullable(),
     summary: z.string().nullable(),
+    usage: zExecutionUsage,
     startedAt: z.iso.datetime(),
     endedAt: z.iso.datetime().nullable()
 });

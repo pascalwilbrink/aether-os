@@ -58,6 +58,12 @@
       ],
       "@hephaestus/runner/*": [
         "./libs/runner/src/*"
+      ],
+      "@hephaestus/models": [
+        "./libs/models/src/index.ts"
+      ],
+      "@hephaestus/models/*": [
+        "./libs/models/src/*"
       ]
     },
     "rewriteRelativeImportExtensions": true

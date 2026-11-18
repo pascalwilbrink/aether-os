@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, LessThan, type Repository } from 'typeorm';
 
 import { findPage, mapPage, Transactional, type Page } from '@hephaestus/core';
+import { ModelGateway } from '@hephaestus/models';
 import {
   InvalidTaskTransitionError,
   TaskQueue,
@@ -60,6 +61,7 @@ export class ExecutionsService {
     private readonly mapper: ExecutionMapper,
     private readonly tasks: TasksService,
     private readonly queue: TaskQueue,
+    private readonly gateway: ModelGateway,
     @Inject(RUNNER_OPTIONS) private readonly options: RunnerOptions,
   ) {}
 
@@ -269,7 +271,12 @@ export class ExecutionsService {
       { where: { taskId }, sortBy: 'startedAt', direction: 'DESC' },
       page,
     );
-    return mapPage(entities, (entity) => this.mapper.toResponse(entity));
+    const usage = await this.gateway.usageOf(
+      entities.items.map((entity) => entity.id),
+    );
+    return mapPage(entities, (entity) =>
+      this.mapper.toResponse(entity, usage.get(entity.id)),
+    );
   }
 
   private lock(executionId: string): Promise<ExecutionEntity | null> {

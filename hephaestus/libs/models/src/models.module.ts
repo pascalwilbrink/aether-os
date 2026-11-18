@@ -1,0 +1,37 @@
+import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+
+import type { Env } from '@hephaestus/core';
+
+import { LanguageModels, MastraModelRouter } from './language-models.js';
+import { ModelCallEntity } from './model-call.entity.js';
+import { ModelGateway } from './model-gateway.js';
+import { OpenBaoSecretStore } from './openbao-secret-store.js';
+import { SecretStore, UnconfiguredSecretStore } from './secret-store.js';
+
+/** The model gateway, OpenBao and metering (docs/models.md). */
+@Module({
+  imports: [TypeOrmModule.forFeature([ModelCallEntity])],
+  providers: [
+    {
+      provide: SecretStore,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => {
+        const address = config.get('OPENBAO_ADDR', { infer: true });
+        const token = config.get('OPENBAO_TOKEN', { infer: true });
+        return address && token
+          ? new OpenBaoSecretStore({
+              address,
+              token,
+              mount: config.get('OPENBAO_KV_MOUNT', { infer: true }),
+            })
+          : new UnconfiguredSecretStore();
+      },
+    },
+    { provide: LanguageModels, useClass: MastraModelRouter },
+    ModelGateway,
+  ],
+  exports: [ModelGateway],
+})
+export class ModelsModule {}

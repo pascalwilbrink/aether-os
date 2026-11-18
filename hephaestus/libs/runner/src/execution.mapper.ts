@@ -1,10 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { v7 as uuidv7 } from 'uuid';
 
+import type { ApiTypes } from '@hephaestus/core';
 import type { TaskResponse } from '@hephaestus/tasks';
 
 import type { ExecutionResponse } from './dto/execution.response.js';
 import { ExecutionEntity } from './execution.entity.js';
+
+const NO_USAGE: ApiTypes.ExecutionUsage = {
+  modelCalls: 0,
+  inputTokens: 0,
+  outputTokens: 0,
+};
 
 @Injectable()
 export class ExecutionMapper {
@@ -35,7 +42,10 @@ export class ExecutionMapper {
     } satisfies ExecutionEntity);
   }
 
-  toResponse(entity: ExecutionEntity): ExecutionResponse {
+  toResponse(
+    entity: ExecutionEntity,
+    usage: ApiTypes.ExecutionUsage = NO_USAGE,
+  ): ExecutionResponse {
     return {
       id: entity.id,
       taskId: entity.taskId,
@@ -45,6 +55,7 @@ export class ExecutionMapper {
       failureReason: entity.failureReason,
       error: entity.error,
       summary: entity.summary,
+      usage,
       startedAt: entity.startedAt.toISOString(),
       endedAt: entity.endedAt?.toISOString() ?? null,
     };

@@ -274,8 +274,21 @@ export type ExecutionResponse = {
      * What the agent reported when it finished (until artifacts exist).
      */
     summary: string | null;
+    usage: ExecutionUsage;
     startedAt: string;
     endedAt: string | null;
+};
+
+/**
+ * The model calls the execution made through the model gateway, and
+ * their tokens (docs/models.md, Metering). Tokens a provider didn't
+ * report count as 0.
+ *
+ */
+export type ExecutionUsage = {
+    modelCalls: number;
+    inputTokens: number;
+    outputTokens: number;
 };
 
 export type ExecutionPage = PageMeta & {

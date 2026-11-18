@@ -121,6 +121,8 @@ describe('Running tasks (e2e)', () => {
           failureReason: null,
           error: null,
           summary: 'Done.',
+          // The fake runtime calls no model.
+          usage: { modelCalls: 0, inputTokens: 0, outputTokens: 0 },
           startedAt: expect.any(String),
           endedAt: expect.any(String),
         },

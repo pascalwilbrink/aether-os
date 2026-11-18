@@ -4,11 +4,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import type { Env } from '@hephaestus/core';
 import { AgentsModule } from '@hephaestus/agents';
+import { ModelGateway, ModelsModule } from '@hephaestus/models';
 import { TasksModule } from '@hephaestus/tasks';
 
 import { AgentRuntime } from './agent-runtime.js';
 import { EchoAgentRuntime, NoAgentRuntime } from './echo-agent-runtime.js';
 import { ExecutionEntity } from './execution.entity.js';
+import { MastraAgentRuntime } from './mastra-agent-runtime.js';
 import { ExecutionMapper } from './execution.mapper.js';
 import { ExecutionReaper } from './execution-reaper.js';
 import { ExecutionsController } from './executions.controller.js';
@@ -30,6 +32,7 @@ import { TaskTokens } from './task-tokens.js';
     TypeOrmModule.forFeature([ExecutionEntity]),
     TasksModule,
     AgentsModule,
+    ModelsModule,
   ],
   controllers: [ExecutionsController],
   providers: [
@@ -41,11 +44,17 @@ import { TaskTokens } from './task-tokens.js';
     },
     {
       provide: AgentRuntime,
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>) =>
-        config.get('AGENT_RUNTIME', { infer: true }) === 'echo'
-          ? new EchoAgentRuntime()
-          : new NoAgentRuntime(),
+      inject: [ConfigService, ModelGateway],
+      useFactory: (config: ConfigService<Env, true>, gateway: ModelGateway) => {
+        switch (config.get('AGENT_RUNTIME', { infer: true })) {
+          case 'mastra':
+            return new MastraAgentRuntime(gateway);
+          case 'echo':
+            return new EchoAgentRuntime();
+          default:
+            return new NoAgentRuntime();
+        }
+      },
     },
     { provide: SandboxProvisioner, useClass: NoSandboxProvisioner },
     {

@@ -2,7 +2,7 @@
 
 How agents reach LLM providers, whose keys they use, and how usage and cost are measured and limited.
 
-Status: agreed design, documentation only. Sections marked **Proposal** are not agreed yet.
+Status: agreed design. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/models`, used by the Mastra runtime): the gateway resolving an agent version's model with the organization's key, else the platform's if allowed (`PLATFORM_MODEL_KEYS`), from OpenBao; calls through Mastra's model router with retries on 429/5xx; and metering of every call (tokens, key source, attribution) in `model_calls`, totalled per execution. Not yet: policy checks, budgets and reservations, prices (cost stays null until the model catalogue), fallback models, the gateway's HTTP endpoint, and LLM spans to Langfuse.
 
 ## Decisions
 
