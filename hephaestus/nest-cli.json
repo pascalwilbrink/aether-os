@@ -34,6 +34,15 @@
         "tsConfigPath": "libs/workspaces/tsconfig.lib.json"
       }
     },
+    "runner": {
+      "type": "library",
+      "root": "libs/runner",
+      "entryFile": "index",
+      "sourceRoot": "libs/runner/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/runner/tsconfig.lib.json"
+      }
+    },
     "tenancy": {
       "type": "library",
       "root": "libs/tenancy",

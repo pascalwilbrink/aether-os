@@ -52,6 +52,12 @@
       ],
       "@hephaestus/tasks/*": [
         "./libs/tasks/src/*"
+      ],
+      "@hephaestus/runner": [
+        "./libs/runner/src/index.ts"
+      ],
+      "@hephaestus/runner/*": [
+        "./libs/runner/src/*"
       ]
     },
     "rewriteRelativeImportExtensions": true

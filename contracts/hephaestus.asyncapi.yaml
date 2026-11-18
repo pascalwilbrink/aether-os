@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Hephaestus events
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Events Hephaestus publishes to the `hephaestus.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -198,4 +198,4 @@ components:
     TaskStatus:
       enum: [blocked, queued, provisioning, running, verifying, awaiting_review, waiting, paused, delivering, succeeded, failed, cancelled]
     TaskFailureReason:
-      enum: [agent_failed, verification_failed, rejected, timeout, budget_exceeded, infrastructure, subtask_failed]
+      enum: [agent_failed, verification_failed, rejected, timeout, budget_exceeded, infrastructure, subtask_failed, access_denied]

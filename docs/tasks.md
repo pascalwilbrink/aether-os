@@ -2,7 +2,7 @@
 
 How Hephaestus models the work it runs and what that work produces.
 
-Status: design in progress. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/tasks`): tasks and subtasks, `dependsOn` within a tree, the lifecycle states as a transition table, the agent version pinned at creation, an idempotency key, cancellation of a whole subtree and retries of failed tasks, and the `task.*` events below. Not yet: the runner (executions, sandboxes, timeouts, concurrency), artifacts, templates, verification and approval.
+Status: design in progress. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/tasks`): tasks and subtasks, `dependsOn` within a tree, the lifecycle states as a transition table, the agent version pinned at creation, an idempotency key, cancellation of a whole subtree and retries of failed tasks, and the `task.*` events below; and the runner (Hephaestus `libs/runner`): executions, claiming queued tasks within the concurrency limits, heartbeats, the provisioning, heartbeat and run timeouts, stopping cancelled executions, and automatic retries of infrastructure failures, with the agent runtime and sandbox provisioner as ports (no Mastra runtime or real sandboxes yet). Not yet: sandboxes across long waits, pausing, artifacts, templates, verification and approval.
 
 ## Decisions
 
@@ -370,10 +370,11 @@ blocked ──(deps done)──▶ queued ──▶ provisioning ──▶ runni
                                          │                                   └─(no drafts)─▶ delivering ──▶ succeeded
                                          └──(all subtasks succeeded)───────────────────────────▶ delivering
       provisioning | running | verifying ──(budget ran out)──▶ paused ──(budget raised)──▶ queued
+      provisioning | running | verifying ──(infrastructure failure, retries left)──▶ queued
       any non-terminal state ──▶ failed | cancelled
 ```
 
-`failureReason` is one of `agent_failed` (the agent gave up), `verification_failed` (still failing after the round limit), `rejected` (a draft was rejected and the task can't continue), `timeout`, `budget_exceeded` (paused longer than the project's `pausedTimeoutDays`), `infrastructure` (retries exhausted) or `subtask_failed`.
+`failureReason` is one of `agent_failed` (the agent gave up), `verification_failed` (still failing after the round limit), `rejected` (a draft was rejected and the task can't continue), `timeout`, `budget_exceeded` (paused longer than the project's `pausedTimeoutDays`), `infrastructure` (retries exhausted), `subtask_failed` or `access_denied` (Pistis refused the task's service account a task token: no role in the project, disabled, or not a member).
 
 ### Executions
 
@@ -413,7 +414,7 @@ The run timeout covers only time spent running, not time waiting in the states w
 
 | Failure | Retried by | How |
 |---|---|---|
-| Infrastructure (sandbox crash, missed heartbeat, OPA, Kriterion or provider unreachable, provider 429/5xx) | Hephaestus, automatically | New execution, exponential backoff, at most 3 attempts per task (project setting) |
+| Infrastructure (sandbox crash, missed heartbeat, OPA, Kriterion or provider unreachable, provider 429/5xx) | Hephaestus, automatically | New execution, exponential backoff, at most 3 executions per attempt (a platform setting for now; a project setting later). An execution interrupted by Hephaestus shutting down is retried without counting |
 | Failed checks | The agent, within the task | Revision rounds, at most 3 (template setting), then `verification_failed` |
 | Agent failure in a subtask | The parent's agent | See Subtask failure |
 | Any terminal `failed` task | A person with `task:create`, or the parent | New execution of the same task, with the same pinned inputs; unblocks its dependents |

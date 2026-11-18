@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.5.0
+  version: 0.6.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -503,6 +503,33 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
+  /v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/executions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      tags: [tasks]
+      operationId: listTaskExecutions
+      x-permission: '`task:read` in the project'
+      description: |
+        The task's executions (docs/tasks.md, Executions): one per try in a
+        sandbox, including the automatic retries after infrastructure
+        failures and those of later attempts.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExecutionPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   parameters:
     OrganizationId:
@@ -824,7 +851,11 @@ components:
       description: The lifecycle in `docs/tasks.md` (Task lifecycle).
     TaskFailureReason:
       type: string
-      enum: [agent_failed, verification_failed, rejected, timeout, budget_exceeded, infrastructure, subtask_failed]
+      enum: [agent_failed, verification_failed, rejected, timeout, budget_exceeded, infrastructure, subtask_failed, access_denied]
+      description: |
+        Why a task failed. `access_denied`: Pistis refused a task token for
+        its service account (no role in the project, disabled, or not a
+        member of the organization).
     CreateTaskRequest:
       type: object
       additionalProperties: false
@@ -893,6 +924,48 @@ components:
             items:
               type: array
               items: { $ref: '#/components/schemas/TaskResponse' }
+    ExecutionStatus:
+      type: string
+      enum: [provisioning, running, completed, failed, cancelled]
+    ExecutionFailureReason:
+      type: string
+      enum: [agent_failed, timeout, infrastructure, access_denied, interrupted]
+      description: |
+        `infrastructure` (a crash, a missed heartbeat, a provisioning timeout,
+        an unreachable dependency) is retried automatically, up to a limit;
+        `interrupted` (Hephaestus shut down) is retried without counting
+        against it. The others fail the task.
+    ExecutionResponse:
+      type: object
+      additionalProperties: false
+      required: [id, taskId, attempt, number, status, failureReason, error, summary, startedAt, endedAt]
+      properties:
+        id: { type: string, format: uuid }
+        taskId: { type: string, format: uuid }
+        attempt: { type: integer, minimum: 1, description: The task's attempt it belongs to. }
+        number: { type: integer, minimum: 1, description: '1, 2, … within the task.' }
+        status: { $ref: '#/components/schemas/ExecutionStatus' }
+        failureReason:
+          oneOf:
+            - { $ref: '#/components/schemas/ExecutionFailureReason' }
+            - { type: 'null' }
+        error:
+          type: [string, 'null']
+          description: What went wrong, for people; never contains secrets.
+        summary:
+          type: [string, 'null']
+          description: What the agent reported when it finished (until artifacts exist).
+        startedAt: { type: string, format: date-time }
+        endedAt: { type: [string, 'null'], format: date-time }
+    ExecutionPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/ExecutionResponse' }
 
     # ---------- pagination ----------
     PageMeta:

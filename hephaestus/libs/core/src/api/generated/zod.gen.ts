@@ -185,6 +185,12 @@ export const zTaskStatus = z.enum([
     'cancelled'
 ]);
 
+/**
+ * Why a task failed. `access_denied`: Pistis refused a task token for
+ * its service account (no role in the project, disabled, or not a
+ * member of the organization).
+ *
+ */
 export const zTaskFailureReason = z.enum([
     'agent_failed',
     'verification_failed',
@@ -192,7 +198,8 @@ export const zTaskFailureReason = z.enum([
     'timeout',
     'budget_exceeded',
     'infrastructure',
-    'subtask_failed'
+    'subtask_failed',
+    'access_denied'
 ]);
 
 export const zCreateTaskRequest = z.object({
@@ -226,6 +233,42 @@ export const zTaskResponse = z.object({
     version: z.int().gte(1)
 });
 
+export const zExecutionStatus = z.enum([
+    'provisioning',
+    'running',
+    'completed',
+    'failed',
+    'cancelled'
+]);
+
+/**
+ * `infrastructure` (a crash, a missed heartbeat, a provisioning timeout,
+ * an unreachable dependency) is retried automatically, up to a limit;
+ * `interrupted` (Hephaestus shut down) is retried without counting
+ * against it. The others fail the task.
+ *
+ */
+export const zExecutionFailureReason = z.enum([
+    'agent_failed',
+    'timeout',
+    'infrastructure',
+    'access_denied',
+    'interrupted'
+]);
+
+export const zExecutionResponse = z.object({
+    id: z.uuid(),
+    taskId: z.uuid(),
+    attempt: z.int().gte(1),
+    number: z.int().gte(1),
+    status: zExecutionStatus,
+    failureReason: zExecutionFailureReason.nullable(),
+    error: z.string().nullable(),
+    summary: z.string().nullable(),
+    startedAt: z.iso.datetime(),
+    endedAt: z.iso.datetime().nullable()
+});
+
 /**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
@@ -249,6 +292,10 @@ export const zWorkspacePage = zPageMeta.and(z.object({
 
 export const zTaskPage = zPageMeta.and(z.object({
     items: z.array(zTaskResponse)
+}));
+
+export const zExecutionPage = zPageMeta.and(z.object({
+    items: z.array(zExecutionResponse)
 }));
 
 /**
@@ -573,3 +620,19 @@ export const zRetryTaskPath = z.object({
  * Queued again (or blocked on its dependencies)
  */
 export const zRetryTaskResponse = zTaskResponse;
+
+export const zListTaskExecutionsPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    taskId: z.uuid()
+});
+
+export const zListTaskExecutionsQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListTaskExecutionsResponse = zExecutionPage;

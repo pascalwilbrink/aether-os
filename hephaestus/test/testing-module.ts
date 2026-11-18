@@ -1,5 +1,9 @@
 import type { DynamicModule, Type } from '@nestjs/common';
-import { Test, type TestingModule } from '@nestjs/testing';
+import {
+  Test,
+  type TestingModule,
+  type TestingModuleBuilder,
+} from '@nestjs/testing';
 
 import {
   AuthModule,
@@ -21,11 +25,19 @@ import { FakePolis } from './fake-polis.js';
  * event inbox (no RabbitMQ: deliver events with `deliverPolisEvent`), and a
  * fake Polis.
  */
-export async function createTestingModule(
+export function createTestingModule(
+  ...modules: (Type | DynamicModule)[]
+): Promise<{ moduleRef: TestingModule; polis: FakePolis }> {
+  return createTestingModuleWith((builder) => builder, ...modules);
+}
+
+/** The same, with providers overridden (e.g. the runner's ports). */
+export async function createTestingModuleWith(
+  override: (builder: TestingModuleBuilder) => TestingModuleBuilder,
   ...modules: (Type | DynamicModule)[]
 ): Promise<{ moduleRef: TestingModule; polis: FakePolis }> {
   const polis = new FakePolis();
-  const moduleRef = await Test.createTestingModule({
+  const builder = Test.createTestingModule({
     imports: [
       hephaestusConfigModule(),
       DatabaseModule,
@@ -41,8 +53,8 @@ export async function createTestingModule(
     ],
   })
     .overrideProvider(PolisClient)
-    .useValue(polis)
-    .compile();
+    .useValue(polis);
+  const moduleRef = await override(builder).compile();
   await moduleRef.init();
   await resetDatabase(moduleRef);
 

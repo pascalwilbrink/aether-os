@@ -18,13 +18,15 @@ import type { TaskFailureReason, TaskStatus } from './task-transitions.js';
 )
 @Check(
   'ck_tasks_failure_reason',
-  `failure_reason IS NULL OR failure_reason IN ('agent_failed', 'verification_failed', 'rejected', 'timeout', 'budget_exceeded', 'infrastructure', 'subtask_failed')`,
+  `failure_reason IS NULL OR failure_reason IN ('agent_failed', 'verification_failed', 'rejected', 'timeout', 'budget_exceeded', 'infrastructure', 'subtask_failed', 'access_denied')`,
 )
 // Keyset pagination: a project's tasks, newest first.
 @Index('ix_tasks_project_id_created_at_id', ['projectId', 'createdAt', 'id'])
 // A task's subtasks, and a tree (dependents, cancellation).
 @Index('ix_tasks_parent_task_id', ['parentTaskId'])
 @Index('ix_tasks_top_level_task_id', ['topLevelTaskId'])
+// The queue (TaskQueue) and the concurrency counts.
+@Index('ix_tasks_status_organization_id', ['status', 'organizationId'])
 export class TaskEntity {
   @PrimaryColumn({ type: 'uuid' })
   id: string;
@@ -80,6 +82,10 @@ export class TaskEntity {
   /** The caller's `Idempotency-Key` (or a command's message ID). */
   @Column({ type: 'text' })
   idempotencyKey: string;
+
+  /** A queued task isn't started before this (backoff after a failure). */
+  @Column({ type: 'timestamptz', nullable: true })
+  nextAttemptAt: Date | null;
 
   @Column({ type: 'timestamptz' })
   createdAt: Date;

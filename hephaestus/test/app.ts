@@ -1,5 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
+import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import type { App } from 'supertest/types.js';
 
 import { configureHttpApp, EventConsumer } from '@hephaestus/core';
@@ -13,15 +13,20 @@ import { FakePolis } from './fake-polis.js';
  * The whole Hephaestus app, configured as in main.ts, on an empty database,
  * consuming from the run's RabbitMQ, with a fake Polis behind PolisClient.
  */
-export async function createApp(): Promise<{
+export async function createApp(
+  override: (builder: TestingModuleBuilder) => TestingModuleBuilder = (
+    builder,
+  ) => builder,
+): Promise<{
   app: INestApplication<App>;
   polis: FakePolis;
 }> {
   const polis = new FakePolis();
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(PolisClient)
-    .useValue(polis)
-    .compile();
+  const moduleRef = await override(
+    Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(PolisClient)
+      .useValue(polis),
+  ).compile();
   const app = configureHttpApp(
     moduleRef.createNestApplication({ logger: false }),
   );

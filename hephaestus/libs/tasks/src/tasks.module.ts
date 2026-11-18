@@ -7,6 +7,7 @@ import { TenancyModule } from '@hephaestus/tenancy';
 import { TaskEntity } from './task.entity.js';
 import { TaskMapper } from './task.mapper.js';
 import { TasksController } from './tasks.controller.js';
+import { TaskQueue } from './task-queue.js';
 import { TasksService } from './tasks.service.js';
 
 @Module({
@@ -16,7 +17,7 @@ import { TasksService } from './tasks.service.js';
     AgentsModule,
   ],
   controllers: [TasksController],
-  providers: [TasksService, TaskMapper],
-  exports: [TasksService],
+  providers: [TasksService, TaskMapper, TaskQueue],
+  exports: [TasksService, TaskQueue],
 })
 export class TasksModule {}
