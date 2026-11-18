@@ -19,7 +19,7 @@ export class WorkspaceMapper {
       projectId: dto.projectId,
       executionId: dto.executionId,
       status: 'requested',
-      repository: dto.repository,
+      repository: dto.repository ?? null,
       sandbox: dto.sandbox,
       sandboxReference: null,
       workingDirectory: dto.workingDirectory,

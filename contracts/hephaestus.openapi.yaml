@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.7.0
+  version: 0.8.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -794,11 +794,15 @@ components:
     CreateWorkspaceRequest:
       type: object
       additionalProperties: false
-      required: [projectId, executionId, repository, sandbox, workingDirectory, expiresAt]
+      required: [projectId, executionId, sandbox, workingDirectory, expiresAt]
       properties:
         projectId: { type: string, format: uuid }
         executionId: { type: string, format: uuid }
-        repository: { $ref: '#/components/schemas/RepositoryConfiguration' }
+        repository:
+          description: The repository to check out; none for a sandbox without one.
+          oneOf:
+            - { $ref: '#/components/schemas/RepositoryConfiguration' }
+            - { type: 'null' }
         sandbox: { $ref: '#/components/schemas/SandboxConfiguration' }
         workingDirectory:
           type: string
@@ -817,7 +821,10 @@ components:
         projectId: { type: string, format: uuid }
         executionId: { type: string, format: uuid }
         status: { $ref: '#/components/schemas/WorkspaceStatus' }
-        repository: { $ref: '#/components/schemas/RepositoryConfiguration' }
+        repository:
+          oneOf:
+            - { $ref: '#/components/schemas/RepositoryConfiguration' }
+            - { type: 'null' }
         sandbox: { $ref: '#/components/schemas/SandboxConfiguration' }
         sandboxReference:
           oneOf:

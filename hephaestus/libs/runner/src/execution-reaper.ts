@@ -48,15 +48,17 @@ export class ExecutionReaper {
             : `Provisioning took longer than ${seconds(this.options.provisioningTimeoutMs)}`,
         );
       }
-      if (execution.sandboxReference) {
-        try {
-          await this.provisioner.destroy(execution.sandboxReference);
-          await this.executions.sandboxDestroyed(execution.id);
-        } catch (error) {
-          this.logger.warn(
-            `Destroying the sandbox of execution ${execution.id} failed: ${String(error)}`,
-          );
-        }
+      try {
+        await this.provisioner.destroy({
+          organizationId: execution.organizationId,
+          executionId: execution.id,
+          reference: execution.sandboxReference,
+        });
+        await this.executions.sandboxDestroyed(execution.id);
+      } catch (error) {
+        this.logger.warn(
+          `Destroying the sandbox of execution ${execution.id} failed: ${String(error)}`,
+        );
       }
     }
     return stale.length;

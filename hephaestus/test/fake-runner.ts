@@ -7,6 +7,7 @@ import {
   type AgentRunResult,
   type RunnerOptions,
   type Sandbox,
+  type SandboxRelease,
   type SandboxRequest,
   type TaskTokenRequest,
 } from '@hephaestus/runner';
@@ -75,8 +76,14 @@ export class FakeSandboxProvisioner extends SandboxProvisioner {
     return Promise.resolve({ reference: { sandboxId: `sbx-${executionId}` } });
   }
 
-  destroy(reference: Record<string, unknown>): Promise<void> {
-    this.destroyed.push(reference);
+  /** Every release, and the references of those that had a sandbox. */
+  readonly releases: SandboxRelease[] = [];
+
+  destroy(release: SandboxRelease): Promise<void> {
+    this.releases.push(release);
+    if (release.reference) {
+      this.destroyed.push(release.reference);
+    }
     return Promise.resolve();
   }
 }

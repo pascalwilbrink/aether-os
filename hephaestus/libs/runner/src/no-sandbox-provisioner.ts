@@ -8,9 +8,9 @@ import {
 } from './sandbox-provisioner.js';
 
 /**
- * No sandboxes yet (they come with the Mastra runtime): fine for agent
- * versions that don't need one; one that does fails without retrying,
- * since retrying won't make a sandbox appear.
+ * No sandboxes (`SANDBOX_DRIVER=none`): fine for agent versions that don't
+ * need one; one that does fails without retrying, since retrying won't make
+ * a sandbox appear.
  */
 @Injectable()
 export class NoSandboxProvisioner extends SandboxProvisioner {
@@ -18,7 +18,7 @@ export class NoSandboxProvisioner extends SandboxProvisioner {
     if (agentVersion.runtime.sandboxRequired) {
       return Promise.reject(
         new RunnerFailure(
-          'The agent version needs a sandbox, and no sandbox provisioner is configured',
+          'The agent version needs a sandbox, and no sandbox driver is configured',
           'infrastructure',
           false,
         ),

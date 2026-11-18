@@ -540,7 +540,8 @@ export interface components {
             projectId: string;
             /** Format: uuid */
             executionId: string;
-            repository: components["schemas"]["RepositoryConfiguration"];
+            /** @description The repository to check out; none for a sandbox without one. */
+            repository?: components["schemas"]["RepositoryConfiguration"] | null;
             sandbox: components["schemas"]["SandboxConfiguration"];
             /** @description Absolute path inside the sandbox. */
             workingDirectory: string;
@@ -560,7 +561,7 @@ export interface components {
             /** Format: uuid */
             executionId: string;
             status: components["schemas"]["WorkspaceStatus"];
-            repository: components["schemas"]["RepositoryConfiguration"];
+            repository: components["schemas"]["RepositoryConfiguration"] | null;
             sandbox: components["schemas"]["SandboxConfiguration"];
             sandboxReference: components["schemas"]["SandboxReference"] | null;
             workingDirectory: string;

@@ -16,10 +16,13 @@ export class FakeSecretStore extends SecretStore {
 /** What a scripted model call returns, or the provider error it throws. */
 export type ScriptedReply =
   | { text: string; inputTokens?: number; outputTokens?: number }
+  /** Calls the first offered tool whose name contains `tool`. */
+  | { toolCall: { tool: string; input: Record<string, unknown> } }
   | { error: { message: string; statusCode: number } };
 
 interface CallOptions {
   prompt: { role: string; content: unknown }[];
+  tools?: { name: string }[];
   temperature?: number;
   maxOutputTokens?: number;
 }
@@ -63,6 +66,29 @@ export class ScriptedLanguageModels extends LanguageModels {
           isRetryable: false,
         }),
       );
+    }
+    if ('toolCall' in reply) {
+      const tool = options.tools?.find((offered) =>
+        offered.name.includes(reply.toolCall.tool),
+      );
+      if (!tool) {
+        return Promise.reject(
+          new Error(`No tool like ${reply.toolCall.tool} was offered`),
+        );
+      }
+      return Promise.resolve({
+        content: [
+          {
+            type: 'tool-call',
+            toolCallId: `call-${this.calls.length}`,
+            toolName: tool.name,
+            input: JSON.stringify(reply.toolCall.input),
+          },
+        ],
+        finishReason: 'tool-calls',
+        usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+        warnings: [],
+      });
     }
     const usage = {
       inputTokens: reply.inputTokens,

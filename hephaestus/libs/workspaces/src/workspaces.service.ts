@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { Repository } from 'typeorm';
+import { In, type Repository } from 'typeorm';
 
 import {
   AccessControl,
@@ -37,7 +37,9 @@ type OrganizationCheck = 'active' | 'exists' | 'none';
  * - the user actions (acquire, release, suspend, resume) require an active
  *   organization;
  * - provisioner callbacks (startProvisioning, markReady, markDestroyed,
- *   markFailed, expire) are system-driven and skip the check.
+ *   markFailed, expire) are system-driven and skip the check, as do the
+ *   runner's own workspaces for executions (`createForExecution`,
+ *   `acquireForExecution`, `destroyForExecution`, `activeForExecution`).
  */
 @Injectable()
 export class WorkspacesService {
@@ -69,6 +71,67 @@ export class WorkspacesService {
     );
 
     return this.mapper.toResponse(entity);
+  }
+
+  /**
+   * A sandbox for a task's execution (the runner; no caller, so no
+   * permission check, and none for the organization: the runner only starts
+   * tasks in active organizations and projects).
+   */
+  @Transactional()
+  async createForExecution(
+    organizationId: string,
+    request: Omit<CreateWorkspaceRequest, 'repository'>,
+  ): Promise<WorkspaceResponse> {
+    const entity = this.mapper.toEntity(
+      { ...request, repository: null },
+      organizationId,
+      new Date(),
+    );
+    await this.workspaces.insert(
+      entity as Parameters<Repository<WorkspaceEntity>['insert']>[0],
+    );
+    return this.mapper.toResponse(entity);
+  }
+
+  /** The runner takes its ready workspace into use. */
+  acquireForExecution(organizationId: string, workspaceId: string) {
+    return this.apply(
+      organizationId,
+      workspaceId,
+      'acquire',
+      'none',
+      (w, now) => {
+        w.startedAt = now;
+      },
+    );
+  }
+
+  /** The runner tears down its workspace (then `markDestroyed`). */
+  destroyForExecution(organizationId: string, workspaceId: string) {
+    return this.apply(organizationId, workspaceId, 'destroy', 'none');
+  }
+
+  /** An execution's workspaces that aren't destroyed, failed or expired. */
+  async activeForExecution(
+    organizationId: string,
+    executionId: string,
+  ): Promise<WorkspaceResponse[]> {
+    const entities = await this.workspaces.find({
+      where: {
+        organizationId,
+        executionId,
+        status: In([
+          'requested',
+          'provisioning',
+          'ready',
+          'in_use',
+          'suspended',
+          'stopping',
+        ]),
+      },
+    });
+    return entities.map((entity) => this.mapper.toResponse(entity));
   }
 
   async list(

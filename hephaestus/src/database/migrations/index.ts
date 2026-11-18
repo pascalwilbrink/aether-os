@@ -3,6 +3,7 @@ import { Tenancy1794755705357 } from './1794755705357-Tenancy.js';
 import { Tasks1794781888697 } from './1794781888697-Tasks.js';
 import { Executions1794997258610 } from './1794997258610-Executions.js';
 import { ModelCalls1794998423374 } from './1794998423374-ModelCalls.js';
+import { WorkspaceWithoutRepository1795001165465 } from './1795001165465-WorkspaceWithoutRepository.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -16,4 +17,5 @@ export const migrations = [
   Tasks1794781888697,
   Executions1794997258610,
   ModelCalls1794998423374,
+  WorkspaceWithoutRepository1795001165465,
 ];
