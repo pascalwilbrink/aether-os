@@ -10,7 +10,9 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 |---|---|---|
 | `polis.openapi.yaml` | Polis | Hephaestus and Pistis (generated HTTP clients); later Agora, Kairos, Iris |
 | `hephaestus.openapi.yaml` | Hephaestus | Iris |
-| `pistis.openapi.yaml` | Pistis | (operators and Iris, once wired) |
+| `pistis.openapi.yaml` | Pistis | Iris |
+| `proxenos.openapi.yaml` | Proxenos (the GitHub App, repository links, tokens, webhooks) | later Hephaestus (repository tokens) and Iris |
+| `proxenos.asyncapi.yaml` | Proxenos (events on `proxenos.events`) | later Hephaestus, Kairos |
 | `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Hephaestus (organization and project events); later Pistis and others |
 | `hephaestus.asyncapi.yaml` | Hephaestus (task events on `hephaestus.events`) | later Kairos, Kriterion, Kerykes, Iris |
 
@@ -36,6 +38,7 @@ pnpm --filter hephaestus generate:api    # -> libs/core/src/api/generated/ (type
 pnpm --filter iris generate:api          # -> lib/api/generated/hephaestus-api.ts
 pnpm --filter pistis generate:api        # -> libs/core/src/api/generated/ (types and Zod), libs/core/src/clients/polis/generated/
 pnpm --filter polis generate:api         # -> libs/core/src/api/generated/ and libs/core/src/events/generated/
+pnpm --filter proxenos generate:api      # -> libs/core/src/api/generated/, clients/polis/generated/, events/generated/
 ```
 
 Consumers declare `"@aether-os/contracts": "workspace:*"` and read specs from `node_modules/@aether-os/contracts/`, so the scripts keep working if this package is later published to a registry.

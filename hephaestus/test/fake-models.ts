@@ -1,6 +1,7 @@
 import type { MastraModelConfig } from '@mastra/core/llm';
 
-import { LanguageModels, SecretStore } from '@hephaestus/models';
+import { SecretStore } from '@hephaestus/core';
+import { LanguageModels } from '@hephaestus/models';
 
 /** Secrets in memory, by path. */
 export class FakeSecretStore extends SecretStore {

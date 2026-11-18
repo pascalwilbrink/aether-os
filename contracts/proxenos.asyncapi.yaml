@@ -1,0 +1,165 @@
+asyncapi: 3.0.0
+info:
+  title: Proxenos events
+  version: 0.1.0
+  description: |
+    Events Proxenos publishes to the `proxenos.events` topic exchange on
+    RabbitMQ; the routing key is the event type. Every message is the Krepis
+    `DomainEvent` envelope (see `../docs/events.md`), JSON, persistent, with
+    the event ID as AMQP `messageId` and the event type as `type`.
+
+    Delivery is at least once (transactional outbox and relay): deduplicate on
+    `eventId`, and ignore an event whose `aggregateVersion` is not newer than
+    the one already applied for that `aggregateId`.
+
+    For now: the GitHub App's installations and the repository links of
+    projects (`../docs/git.md`). Normalized GitHub events for Kairos
+    (`github.issue.opened`, …) and `git.pull-request.updated` come later.
+
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:5672
+    protocol: amqp
+    description: RabbitMQ from ../docker-compose.yml
+
+channels:
+  proxenosEvents:
+    address: proxenos.events
+    description: Topic exchange; consumers bind their own durable queue (`<consumer>.proxenos-events`) to the routing keys they need.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: proxenos.events
+          type: topic
+          durable: true
+          autoDelete: false
+    messages:
+      installationChanged: { $ref: '#/components/messages/installationChanged' }
+      repositoryLinked: { $ref: '#/components/messages/repositoryLinked' }
+      repositoryUnlinked: { $ref: '#/components/messages/repositoryUnlinked' }
+
+operations:
+  publishProxenosEvents:
+    action: send
+    channel: { $ref: '#/channels/proxenosEvents' }
+    messages:
+      - $ref: '#/channels/proxenosEvents/messages/installationChanged'
+      - $ref: '#/channels/proxenosEvents/messages/repositoryLinked'
+      - $ref: '#/channels/proxenosEvents/messages/repositoryUnlinked'
+
+components:
+  messages:
+    installationChanged:
+      name: git.installation-changed
+      summary: |
+        An installation was connected, suspended, unsuspended or deleted, or
+        the repositories it covers changed. Stop starting tasks against
+        repositories it lost (their links are gone already).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: git.installation-changed }
+              payload: { $ref: '#/components/schemas/GitInstallationChanged' }
+    repositoryLinked:
+      name: git.repository-linked
+      summary: A repository was linked to a project (`projectId` is also in the envelope).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: git.repository-linked }
+              payload: { $ref: '#/components/schemas/GitRepositoryLinked' }
+    repositoryUnlinked:
+      name: git.repository-unlinked
+      summary: A repository link was removed, by a person or because the installation lost the repository.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: git.repository-unlinked }
+              payload: { $ref: '#/components/schemas/GitRepositoryUnlinked' }
+
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+    Envelope:
+      type: object
+      description: Krepis's `DomainEvent`.
+      required: [eventId, eventType, schemaVersion, aggregateId, aggregateVersion, occurredAt, organizationId, projectId, actor, payload]
+      properties:
+        eventId: { $ref: '#/components/schemas/Uuid', description: 'UUIDv7; the deduplication key.' }
+        eventType: { type: string }
+        schemaVersion: { type: integer, const: 1 }
+        aggregateId: { $ref: '#/components/schemas/Uuid' }
+        aggregateVersion: { type: integer, minimum: 1 }
+        occurredAt: { type: string, format: date-time }
+        organizationId: { $ref: '#/components/schemas/Uuid' }
+        projectId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        actor:
+          description: The caller whose request caused the event (from its Pistis token); null for GitHub's webhooks and other system work.
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [sub, sub_type]
+              properties:
+                sub: { type: string }
+                sub_type: { enum: [user, service_account, service] }
+                act:
+                  type: object
+                  properties:
+                    sub: { type: string }
+        payload: { type: object }
+    # ---------- event payloads (the envelope's `payload`) ----------
+    RepositoryRef:
+      type: object
+      additionalProperties: false
+      required: [repositoryId, fullName]
+      properties:
+        repositoryId: { $ref: '#/components/schemas/Uuid' }
+        fullName: { type: string }
+    GitInstallationChanged:
+      type: object
+      additionalProperties: false
+      required: [installationId, provider, externalId, account, status, repositoriesAdded, repositoriesRemoved]
+      properties:
+        installationId: { $ref: '#/components/schemas/Uuid' }
+        provider: { type: string, enum: [github] }
+        externalId: { type: string }
+        account: { type: string, description: The GitHub account's login. }
+        status: { type: string, enum: [active, suspended, deleted] }
+        repositoriesAdded:
+          type: array
+          items: { $ref: '#/components/schemas/RepositoryRef' }
+        repositoriesRemoved:
+          type: array
+          items: { $ref: '#/components/schemas/RepositoryRef' }
+    GitRepositoryLinked:
+      type: object
+      additionalProperties: false
+      required: [linkId, projectId, repositoryId, fullName]
+      properties:
+        linkId: { $ref: '#/components/schemas/Uuid' }
+        projectId: { $ref: '#/components/schemas/Uuid' }
+        repositoryId: { $ref: '#/components/schemas/Uuid' }
+        fullName: { type: string }
+    GitRepositoryUnlinked:
+      type: object
+      additionalProperties: false
+      required: [linkId, projectId, repositoryId, fullName, reason]
+      properties:
+        linkId: { $ref: '#/components/schemas/Uuid' }
+        projectId: { $ref: '#/components/schemas/Uuid' }
+        repositoryId: { $ref: '#/components/schemas/Uuid' }
+        fullName: { type: string }
+        reason: { type: string, enum: [unlinked, repository-removed] }

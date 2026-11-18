@@ -4,7 +4,8 @@ import { DataSource } from 'typeorm';
 import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
 import { AgentsService, AgentVersionsService } from '@hephaestus/agents';
 import { ArtifactsService } from '@hephaestus/artifacts';
-import { LanguageModels, ModelGateway, SecretStore } from '@hephaestus/models';
+import { SecretStore } from '@hephaestus/core';
+import { LanguageModels, ModelGateway } from '@hephaestus/models';
 import { TasksService } from '@hephaestus/tasks';
 
 import type { FakePolis } from '../../../test/fake-polis.js';

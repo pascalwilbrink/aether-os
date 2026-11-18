@@ -4,6 +4,7 @@ packages:
   - polis
   - hephaestus
   - pistis
+  - proxenos
   - iris
 
 # Native builds allowed during install.

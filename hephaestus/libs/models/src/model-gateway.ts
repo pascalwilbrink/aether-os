@@ -5,12 +5,11 @@ import type { MastraModelConfig } from '@mastra/core/llm';
 import { In, type Repository } from 'typeorm';
 import { v7 as uuidv7 } from 'uuid';
 
-import type { ApiTypes, Env } from '@hephaestus/core';
+import { SecretStore, type ApiTypes, type Env } from '@hephaestus/core';
 
 import { LanguageModels } from './language-models.js';
 import { ModelCallEntity, type KeySource } from './model-call.entity.js';
 import { ModelKeyMissingError } from './model.errors.js';
-import { SecretStore } from './secret-store.js';
 
 /** Who a model call is for: every call is attributed (docs/models.md). */
 export interface ModelCallContext {
