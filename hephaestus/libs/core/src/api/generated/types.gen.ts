@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ARTIFACT_NOT_DRAFT' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
+export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ARTIFACT_NOT_DRAFT' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'TASK_TEMPLATE_ARCHIVED' | 'TASK_TEMPLATE_INPUTS_INVALID' | 'TASK_TEMPLATE_INVALID' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
 
 /**
  * Problem details for a business-rule violation.
@@ -217,9 +217,9 @@ export type AcceptanceCriterionRequest = {
 
 export type AcceptanceCriterion = AcceptanceCriterionRequest & {
     /**
-     * Where it came from (templates and spec requirements later).
+     * Where it came from (spec requirements later).
      */
-    source: 'task';
+    source: 'template' | 'task';
 };
 
 /**
@@ -265,6 +265,118 @@ export type ArtifactCheck = {
  */
 export type ManualCheck = {
     type: 'manual';
+};
+
+export type TemplateInput = {
+    /**
+     * Referred to as `{{name}}` in the title and instructions.
+     */
+    name: string;
+    description?: string;
+    /**
+     * true if left out.
+     */
+    required?: boolean;
+};
+
+/**
+ * An organization-wide template version this project template builds on.
+ */
+export type TemplateExtends = {
+    templateId: string;
+    version: number;
+};
+
+/**
+ * One version of a template. A project template that `extends` an
+ * organization template inherits its agent, title, inputs, criteria
+ * and review settings, appends its own instructions to the
+ * organization's, and can only add inputs and criteria.
+ *
+ */
+export type TaskTemplateContent = {
+    title?: string;
+    instructions?: string;
+    agentId?: string;
+    inputs?: Array<TemplateInput>;
+    acceptanceCriteria?: Array<AcceptanceCriterionRequest>;
+    review?: TaskReviewSettings;
+    extends?: TemplateExtends;
+};
+
+export type CreateTaskTemplateRequest = TaskTemplateContent & {
+    name: string;
+    description?: string;
+    /**
+     * A project template; organization-wide without it.
+     */
+    projectId?: string;
+};
+
+export type TaskTemplateResponse = {
+    id: string;
+    organizationId: string;
+    projectId: string | null;
+    name: string;
+    description: string;
+    status: 'active' | 'archived';
+    latestVersion: number;
+    createdBy: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type TaskTemplatePage = PageMeta & {
+    items: Array<TaskTemplateResponse>;
+};
+
+/**
+ * What a task from this version gets, with what it extends merged in.
+ */
+export type EffectiveTaskTemplate = {
+    title: string;
+    instructions: string;
+    agentId: string;
+    inputs: Array<TemplateInput>;
+    acceptanceCriteria: Array<AcceptanceCriterionRequest>;
+    review: TaskReviewSettings;
+};
+
+export type TaskTemplateVersionResponse = {
+    templateId: string;
+    version: number;
+    content: TaskTemplateContent;
+    effective: EffectiveTaskTemplate;
+    createdBy: string;
+    createdAt: string;
+};
+
+export type TaskTemplateVersionPage = PageMeta & {
+    items: Array<TaskTemplateVersionResponse>;
+};
+
+export type CreateTaskFromTemplateRequest = {
+    /**
+     * The latest if left out.
+     */
+    version?: number;
+    /**
+     * Values for the template's inputs, by name.
+     */
+    inputs?: {
+        [key: string]: string;
+    };
+    serviceAccountId: string;
+    parentTaskId?: string;
+    dependsOn?: Array<string>;
+    /**
+     * Added to the template's (never replacing them).
+     */
+    acceptanceCriteria?: Array<AcceptanceCriterionRequest>;
+    /**
+     * Added to the template's.
+     */
+    review?: TaskReviewSettings;
 };
 
 /**
@@ -318,6 +430,14 @@ export type TaskResponse = {
      */
     reviewRound: number;
     acceptanceCriteria: Array<AcceptanceCriterion>;
+    /**
+     * The template it was created from, if any.
+     */
+    taskTemplateId: string | null;
+    /**
+     * Pinned when it was created, like the agent version.
+     */
+    taskTemplateVersion: number | null;
     createdAt: string;
     updatedAt: string;
     finishedAt: string | null;
@@ -571,6 +691,8 @@ export type WorkspaceId = string;
 export type ProjectId = string;
 
 export type TaskId = string;
+
+export type TemplateId = string;
 
 export type ArtifactId = string;
 
@@ -1521,6 +1643,435 @@ export type DestroyWorkspaceResponses = {
 };
 
 export type DestroyWorkspaceResponse = DestroyWorkspaceResponses[keyof DestroyWorkspaceResponses];
+
+export type ListTaskTemplatesData = {
+    body?: never;
+    path: {
+        organizationId: string;
+    };
+    query?: {
+        /**
+         * The templates a project sees (its own and the organization's); without it, the organization-wide ones.
+         */
+        projectId?: string;
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/organizations/{organizationId}/task-templates';
+};
+
+export type ListTaskTemplatesErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListTaskTemplatesError = ListTaskTemplatesErrors[keyof ListTaskTemplatesErrors];
+
+export type ListTaskTemplatesResponses = {
+    /**
+     * Newest first
+     */
+    200: TaskTemplatePage;
+};
+
+export type ListTaskTemplatesResponse = ListTaskTemplatesResponses[keyof ListTaskTemplatesResponses];
+
+export type CreateTaskTemplateData = {
+    body: CreateTaskTemplateRequest;
+    path: {
+        organizationId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/task-templates';
+};
+
+export type CreateTaskTemplateErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type CreateTaskTemplateError = CreateTaskTemplateErrors[keyof CreateTaskTemplateErrors];
+
+export type CreateTaskTemplateResponses = {
+    /**
+     * Created, with version 1
+     */
+    201: TaskTemplateResponse;
+};
+
+export type CreateTaskTemplateResponse = CreateTaskTemplateResponses[keyof CreateTaskTemplateResponses];
+
+export type GetTaskTemplateData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        templateId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/task-templates/{templateId}';
+};
+
+export type GetTaskTemplateErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type GetTaskTemplateError = GetTaskTemplateErrors[keyof GetTaskTemplateErrors];
+
+export type GetTaskTemplateResponses = {
+    /**
+     * OK
+     */
+    200: TaskTemplateResponse;
+};
+
+export type GetTaskTemplateResponse = GetTaskTemplateResponses[keyof GetTaskTemplateResponses];
+
+export type ArchiveTaskTemplateData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        templateId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/task-templates/{templateId}/archive';
+};
+
+export type ArchiveTaskTemplateErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ArchiveTaskTemplateError = ArchiveTaskTemplateErrors[keyof ArchiveTaskTemplateErrors];
+
+export type ArchiveTaskTemplateResponses = {
+    /**
+     * Archived
+     */
+    200: TaskTemplateResponse;
+};
+
+export type ArchiveTaskTemplateResponse = ArchiveTaskTemplateResponses[keyof ArchiveTaskTemplateResponses];
+
+export type ListTaskTemplateVersionsData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        templateId: string;
+    };
+    query?: {
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/organizations/{organizationId}/task-templates/{templateId}/versions';
+};
+
+export type ListTaskTemplateVersionsErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListTaskTemplateVersionsError = ListTaskTemplateVersionsErrors[keyof ListTaskTemplateVersionsErrors];
+
+export type ListTaskTemplateVersionsResponses = {
+    /**
+     * Newest first
+     */
+    200: TaskTemplateVersionPage;
+};
+
+export type ListTaskTemplateVersionsResponse = ListTaskTemplateVersionsResponses[keyof ListTaskTemplateVersionsResponses];
+
+export type CreateTaskTemplateVersionData = {
+    body: TaskTemplateContent;
+    path: {
+        organizationId: string;
+        templateId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/task-templates/{templateId}/versions';
+};
+
+export type CreateTaskTemplateVersionErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type CreateTaskTemplateVersionError = CreateTaskTemplateVersionErrors[keyof CreateTaskTemplateVersionErrors];
+
+export type CreateTaskTemplateVersionResponses = {
+    /**
+     * Created
+     */
+    201: TaskTemplateVersionResponse;
+};
+
+export type CreateTaskTemplateVersionResponse = CreateTaskTemplateVersionResponses[keyof CreateTaskTemplateVersionResponses];
+
+export type GetTaskTemplateVersionData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        templateId: string;
+        version: number;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/task-templates/{templateId}/versions/{version}';
+};
+
+export type GetTaskTemplateVersionErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type GetTaskTemplateVersionError = GetTaskTemplateVersionErrors[keyof GetTaskTemplateVersionErrors];
+
+export type GetTaskTemplateVersionResponses = {
+    /**
+     * OK
+     */
+    200: TaskTemplateVersionResponse;
+};
+
+export type GetTaskTemplateVersionResponse = GetTaskTemplateVersionResponses[keyof GetTaskTemplateVersionResponses];
+
+export type CreateTaskFromTemplateData = {
+    body: CreateTaskFromTemplateRequest;
+    headers: {
+        'Idempotency-Key': string;
+    };
+    path: {
+        organizationId: string;
+        projectId: string;
+        templateId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/task-templates/{templateId}/tasks';
+};
+
+export type CreateTaskFromTemplateErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type CreateTaskFromTemplateError = CreateTaskFromTemplateErrors[keyof CreateTaskFromTemplateErrors];
+
+export type CreateTaskFromTemplateResponses = {
+    /**
+     * Already created with this `Idempotency-Key`
+     */
+    200: TaskResponse;
+    /**
+     * Created
+     */
+    201: TaskResponse;
+};
+
+export type CreateTaskFromTemplateResponse = CreateTaskFromTemplateResponses[keyof CreateTaskFromTemplateResponses];
 
 export type ListTasksData = {
     body?: never;

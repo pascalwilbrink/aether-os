@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.11.0
+  version: 0.12.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -33,6 +33,7 @@ tags:
   - name: agent-versions
   - name: workspaces
   - name: tasks
+  - name: task-templates
 
 paths:
   /v1/organizations/{organizationId}/agents:
@@ -355,6 +356,203 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '200': { $ref: '#/components/responses/WorkspaceTransition' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/task-templates:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [task-templates]
+      operationId: createTaskTemplate
+      x-permission: '`org:task-template:manage` (organization-wide), or `task-template:manage` in the body''s project'
+      description: |
+        A template and its first version (docs/tasks.md, Task templates).
+        Without `projectId` it's organization-wide, visible to every
+        project; with one, only to that project.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTaskTemplateRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created, with version 1
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskTemplateResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [task-templates]
+      operationId: listTaskTemplates
+      x-permission: '`org:read`; with `projectId`, `task:read` in it'
+      parameters:
+        - name: projectId
+          in: query
+          required: false
+          description: The templates a project sees (its own and the organization's); without it, the organization-wide ones.
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskTemplatePage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/task-templates/{templateId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/TemplateId'
+    get:
+      tags: [task-templates]
+      operationId: getTaskTemplate
+      x-permission: '`org:read` (organization-wide), or `task:read` in its project'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskTemplateResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/task-templates/{templateId}/archive:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/TemplateId'
+    post:
+      tags: [task-templates]
+      operationId: archiveTaskTemplate
+      x-permission: Managing it at its scope
+      description: No new tasks from it (`TASK_TEMPLATE_ARCHIVED`); existing tasks and templates extending it keep their pinned version. Idempotent.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Archived
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskTemplateResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/task-templates/{templateId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/TemplateId'
+    post:
+      tags: [task-templates]
+      operationId: createTaskTemplateVersion
+      x-permission: Managing it at its scope
+      description: Editing a template is a new version; earlier ones never change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskTemplateContent' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskTemplateVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [task-templates]
+      operationId: listTaskTemplateVersions
+      x-permission: Reading it
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskTemplateVersionPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/task-templates/{templateId}/versions/{version}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/TemplateId'
+      - name: version
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      tags: [task-templates]
+      operationId: getTaskTemplateVersion
+      x-permission: Reading it
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskTemplateVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/task-templates/{templateId}/tasks:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TemplateId'
+    post:
+      tags: [task-templates]
+      operationId: createTaskFromTemplate
+      x-permission: '`task:create` in the project (the template must be visible to it)'
+      description: |
+        A task from a template version (its latest unless given), pinned
+        on the task: its title and instructions with the inputs filled in,
+        its agent, and its acceptance criteria, plus any added here. Like
+        creating a task: `Idempotency-Key` required, 201 or 200.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTaskFromTemplateRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskResponse' }
+        '200':
+          description: Already created with this `Idempotency-Key`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
@@ -707,6 +905,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    TemplateId:
+      name: templateId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     ArtifactId:
       name: artifactId
       in: path
@@ -756,6 +959,9 @@ components:
         - TASK_INVALID_TRANSITION
         - TASK_PARENT_FINISHED
         - TASK_REVIEW_ROUNDS_EXHAUSTED
+        - TASK_TEMPLATE_ARCHIVED
+        - TASK_TEMPLATE_INPUTS_INVALID
+        - TASK_TEMPLATE_INVALID
         - WORKSPACE_INVALID_EXPIRY
         - WORKSPACE_INVALID_TRANSITION
     DomainProblem:
@@ -1063,8 +1269,8 @@ components:
           properties:
             source:
               type: string
-              enum: [task]
-              description: Where it came from (templates and spec requirements later).
+              enum: [template, task]
+              description: Where it came from (spec requirements later).
     CriterionCheck:
       description: How a criterion is checked; by Hephaestus, never by the agent's word.
       oneOf:
@@ -1106,6 +1312,141 @@ components:
       description: Left to the reviewer; approving the draft confirms it.
       properties:
         type: { type: string, const: manual }
+    TemplateInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          pattern: '^[A-Za-z][A-Za-z0-9_]{0,49}$'
+          description: Referred to as `{{name}}` in the title and instructions.
+        description: { type: string, maxLength: 1000 }
+        required: { type: boolean, description: 'true if left out.' }
+    TemplateExtends:
+      type: object
+      additionalProperties: false
+      required: [templateId, version]
+      description: An organization-wide template version this project template builds on.
+      properties:
+        templateId: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+    TaskTemplateContent:
+      type: object
+      additionalProperties: false
+      description: |
+        One version of a template. A project template that `extends` an
+        organization template inherits its agent, title, inputs, criteria
+        and review settings, appends its own instructions to the
+        organization's, and can only add inputs and criteria.
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        instructions: { type: string, minLength: 1, maxLength: 100000 }
+        agentId: { type: string, format: uuid }
+        inputs:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/TemplateInput' }
+        acceptanceCriteria:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/AcceptanceCriterionRequest' }
+        review: { $ref: '#/components/schemas/TaskReviewSettings' }
+        extends: { $ref: '#/components/schemas/TemplateExtends' }
+    CreateTaskTemplateRequest:
+      allOf:
+        - $ref: '#/components/schemas/TaskTemplateContent'
+        - type: object
+          required: [name]
+          properties:
+            name: { type: string, minLength: 1, maxLength: 200 }
+            description: { type: string, maxLength: 2000 }
+            projectId:
+              type: string
+              format: uuid
+              description: A project template; organization-wide without it.
+    TaskTemplateResponse:
+      type: object
+      required: [id, organizationId, projectId, name, description, status, latestVersion, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        projectId: { type: [string, 'null'], format: uuid }
+        name: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [active, archived] }
+        latestVersion: { type: integer, minimum: 1 }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TaskTemplatePage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/TaskTemplateResponse' }
+    EffectiveTaskTemplate:
+      type: object
+      required: [title, instructions, agentId, inputs, acceptanceCriteria, review]
+      description: What a task from this version gets, with what it extends merged in.
+      properties:
+        title: { type: string }
+        instructions: { type: string }
+        agentId: { type: string, format: uuid }
+        inputs:
+          type: array
+          items: { $ref: '#/components/schemas/TemplateInput' }
+        acceptanceCriteria:
+          type: array
+          items: { $ref: '#/components/schemas/AcceptanceCriterionRequest' }
+        review: { $ref: '#/components/schemas/TaskReviewSettings' }
+    TaskTemplateVersionResponse:
+      type: object
+      required: [templateId, version, content, effective, createdBy, createdAt]
+      properties:
+        templateId: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        content: { $ref: '#/components/schemas/TaskTemplateContent' }
+        effective: { $ref: '#/components/schemas/EffectiveTaskTemplate' }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+    TaskTemplateVersionPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/TaskTemplateVersionResponse' }
+    CreateTaskFromTemplateRequest:
+      type: object
+      additionalProperties: false
+      required: [serviceAccountId]
+      properties:
+        version: { type: integer, minimum: 1, description: 'The latest if left out.' }
+        inputs:
+          type: object
+          maxProperties: 20
+          additionalProperties: { type: string, maxLength: 10000 }
+          description: Values for the template's inputs, by name.
+        serviceAccountId: { type: string, format: uuid }
+        parentTaskId: { type: string, format: uuid }
+        dependsOn:
+          type: array
+          maxItems: 50
+          items: { type: string, format: uuid }
+        acceptanceCriteria:
+          type: array
+          maxItems: 50
+          description: Added to the template's (never replacing them).
+          items: { $ref: '#/components/schemas/AcceptanceCriterionRequest' }
+        review:
+          $ref: '#/components/schemas/TaskReviewSettings'
+          description: Added to the template's.
     TaskReviewSettings:
       type: object
       additionalProperties: false
@@ -1123,7 +1464,7 @@ components:
           items: { type: string, minLength: 1, maxLength: 50 }
     TaskResponse:
       type: object
-      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, createdAt, updatedAt, finishedAt, version]
+      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -1163,6 +1504,14 @@ components:
         acceptanceCriteria:
           type: array
           items: { $ref: '#/components/schemas/AcceptanceCriterion' }
+        taskTemplateId:
+          type: [string, 'null']
+          format: uuid
+          description: The template it was created from, if any.
+        taskTemplateVersion:
+          type: [integer, 'null']
+          minimum: 1
+          description: Pinned when it was created, like the agent version.
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         finishedAt: { type: [string, 'null'], format: date-time }

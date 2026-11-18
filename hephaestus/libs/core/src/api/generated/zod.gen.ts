@@ -15,6 +15,9 @@ export const zDomainErrorCode = z.enum([
     'TASK_INVALID_TRANSITION',
     'TASK_PARENT_FINISHED',
     'TASK_REVIEW_ROUNDS_EXHAUSTED',
+    'TASK_TEMPLATE_ARCHIVED',
+    'TASK_TEMPLATE_INPUTS_INVALID',
+    'TASK_TEMPLATE_INVALID',
     'WORKSPACE_INVALID_EXPIRY',
     'WORKSPACE_INVALID_TRANSITION'
 ]);
@@ -246,8 +249,35 @@ export const zAcceptanceCriterionRequest = z.object({
 });
 
 export const zAcceptanceCriterion = zAcceptanceCriterionRequest.and(z.object({
-    source: z.enum(['task'])
+    source: z.enum(['template', 'task'])
 }));
+
+export const zTemplateInput = z.object({
+    name: z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,49}$/),
+    description: z.string().max(1000).optional(),
+    required: z.boolean().optional()
+});
+
+/**
+ * An organization-wide template version this project template builds on.
+ */
+export const zTemplateExtends = z.object({
+    templateId: z.uuid(),
+    version: z.int().gte(1)
+});
+
+export const zTaskTemplateResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    projectId: z.uuid().nullable(),
+    name: z.string(),
+    description: z.string(),
+    status: z.enum(['active', 'archived']),
+    latestVersion: z.int().gte(1),
+    createdBy: z.string(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime()
+});
 
 /**
  * Which of the task's artifacts need approval before they're final
@@ -270,6 +300,60 @@ export const zCreateTaskRequest = z.object({
     acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional()
 });
 
+/**
+ * One version of a template. A project template that `extends` an
+ * organization template inherits its agent, title, inputs, criteria
+ * and review settings, appends its own instructions to the
+ * organization's, and can only add inputs and criteria.
+ *
+ */
+export const zTaskTemplateContent = z.object({
+    title: z.string().min(1).max(200).optional(),
+    instructions: z.string().min(1).max(100000).optional(),
+    agentId: z.uuid().optional(),
+    inputs: z.array(zTemplateInput).max(20).optional(),
+    acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional(),
+    review: zTaskReviewSettings.optional(),
+    extends: zTemplateExtends.optional()
+});
+
+export const zCreateTaskTemplateRequest = zTaskTemplateContent.and(z.object({
+    name: z.string().min(1).max(200),
+    description: z.string().max(2000).optional(),
+    projectId: z.uuid().optional()
+}));
+
+/**
+ * What a task from this version gets, with what it extends merged in.
+ */
+export const zEffectiveTaskTemplate = z.object({
+    title: z.string(),
+    instructions: z.string(),
+    agentId: z.uuid(),
+    inputs: z.array(zTemplateInput),
+    acceptanceCriteria: z.array(zAcceptanceCriterionRequest),
+    review: zTaskReviewSettings
+});
+
+export const zTaskTemplateVersionResponse = z.object({
+    templateId: z.uuid(),
+    version: z.int().gte(1),
+    content: zTaskTemplateContent,
+    effective: zEffectiveTaskTemplate,
+    createdBy: z.string(),
+    createdAt: z.iso.datetime()
+});
+
+export const zCreateTaskFromTemplateRequest = z.object({
+    version: z.int().gte(1).optional(),
+    inputs: z.record(z.string(), z.string().max(10000)).optional(),
+    serviceAccountId: z.uuid(),
+    parentTaskId: z.uuid().optional(),
+    dependsOn: z.array(z.uuid()).max(50).optional(),
+    acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional(),
+    review: zTaskReviewSettings.optional()
+});
+
 export const zTaskResponse = z.object({
     id: z.uuid(),
     organizationId: z.uuid(),
@@ -290,6 +374,8 @@ export const zTaskResponse = z.object({
     review: zTaskReviewSettings,
     reviewRound: z.int().gte(0),
     acceptanceCriteria: z.array(zAcceptanceCriterion),
+    taskTemplateId: z.uuid().nullable(),
+    taskTemplateVersion: z.int().gte(1).nullable(),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
     finishedAt: z.iso.datetime().nullable(),
@@ -468,6 +554,14 @@ export const zWorkspacePage = zPageMeta.and(z.object({
     items: z.array(zWorkspaceResponse)
 }));
 
+export const zTaskTemplatePage = zPageMeta.and(z.object({
+    items: z.array(zTaskTemplateResponse)
+}));
+
+export const zTaskTemplateVersionPage = zPageMeta.and(z.object({
+    items: z.array(zTaskTemplateVersionResponse)
+}));
+
 export const zTaskPage = zPageMeta.and(z.object({
     items: z.array(zTaskResponse)
 }));
@@ -531,6 +625,8 @@ export const zWorkspaceId = z.uuid();
 export const zProjectId = z.uuid();
 
 export const zTaskId = z.uuid();
+
+export const zTemplateId = z.uuid();
 
 export const zArtifactId = z.uuid();
 
@@ -738,6 +834,107 @@ export const zDestroyWorkspacePath = z.object({
  * Transition applied
  */
 export const zDestroyWorkspaceResponse = zWorkspaceResponse;
+
+export const zListTaskTemplatesPath = z.object({
+    organizationId: z.uuid()
+});
+
+export const zListTaskTemplatesQuery = z.object({
+    projectId: z.uuid().optional(),
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListTaskTemplatesResponse = zTaskTemplatePage;
+
+export const zCreateTaskTemplateBody = zCreateTaskTemplateRequest;
+
+export const zCreateTaskTemplatePath = z.object({
+    organizationId: z.uuid()
+});
+
+/**
+ * Created, with version 1
+ */
+export const zCreateTaskTemplateResponse = zTaskTemplateResponse;
+
+export const zGetTaskTemplatePath = z.object({
+    organizationId: z.uuid(),
+    templateId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetTaskTemplateResponse = zTaskTemplateResponse;
+
+export const zArchiveTaskTemplatePath = z.object({
+    organizationId: z.uuid(),
+    templateId: z.uuid()
+});
+
+/**
+ * Archived
+ */
+export const zArchiveTaskTemplateResponse = zTaskTemplateResponse;
+
+export const zListTaskTemplateVersionsPath = z.object({
+    organizationId: z.uuid(),
+    templateId: z.uuid()
+});
+
+export const zListTaskTemplateVersionsQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListTaskTemplateVersionsResponse = zTaskTemplateVersionPage;
+
+export const zCreateTaskTemplateVersionBody = zTaskTemplateContent;
+
+export const zCreateTaskTemplateVersionPath = z.object({
+    organizationId: z.uuid(),
+    templateId: z.uuid()
+});
+
+/**
+ * Created
+ */
+export const zCreateTaskTemplateVersionResponse = zTaskTemplateVersionResponse;
+
+export const zGetTaskTemplateVersionPath = z.object({
+    organizationId: z.uuid(),
+    templateId: z.uuid(),
+    version: z.int().gte(1)
+});
+
+/**
+ * OK
+ */
+export const zGetTaskTemplateVersionResponse = zTaskTemplateVersionResponse;
+
+export const zCreateTaskFromTemplateBody = zCreateTaskFromTemplateRequest;
+
+export const zCreateTaskFromTemplateHeaders = z.object({
+    'Idempotency-Key': z.string().min(1).max(200)
+});
+
+export const zCreateTaskFromTemplatePath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    templateId: z.uuid()
+});
+
+/**
+ * Already created with this `Idempotency-Key`
+ */
+export const zCreateTaskFromTemplateResponse = zTaskResponse;
 
 export const zListTasksPath = z.object({
     organizationId: z.uuid(),

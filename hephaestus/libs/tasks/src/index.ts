@@ -9,3 +9,5 @@ export type {
   TaskFailureReason,
   TaskStatus,
 } from './task-transitions.js';
+export type { TaskTemplateOrigin } from './task.mapper.js';
+export type { CreateTaskRequest } from './dto/create-task.request.js';

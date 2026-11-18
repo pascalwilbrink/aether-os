@@ -25,7 +25,7 @@ import {
   InvalidTaskTransitionError,
   TaskParentFinishedError,
 } from './task.errors.js';
-import { TaskMapper } from './task.mapper.js';
+import { TaskMapper, type TaskTemplateOrigin } from './task.mapper.js';
 import {
   isTerminal,
   nextTaskStatus,
@@ -65,6 +65,8 @@ export class TasksService {
     projectId: string,
     dto: CreateTaskRequest,
     idempotencyKey: string,
+    /** A task from a template: its version and criteria (TemplatesService). */
+    template?: TaskTemplateOrigin,
   ): Promise<{ task: TaskResponse; created: boolean }> {
     const existing = await this.tasks.findOneBy({
       organizationId,
@@ -74,9 +76,10 @@ export class TasksService {
       return { task: this.mapper.toResponse(existing), created: false };
     }
 
-    const keys = (dto.acceptanceCriteria ?? []).map(
-      (criterion) => criterion.key,
-    );
+    const keys = [
+      ...(template?.acceptanceCriteria ?? []),
+      ...(dto.acceptanceCriteria ?? []),
+    ].map((criterion) => criterion.key);
     if (new Set(keys).size !== keys.length) {
       throw new InvalidTaskCriteriaError(
         'Acceptance criteria need unique keys',
@@ -117,6 +120,7 @@ export class TasksService {
         requestedBy: this.access.principal().sub,
         idempotencyKey,
         status: ready ? 'queued' : 'blocked',
+        template,
       },
       new Date(),
     );
@@ -149,6 +153,8 @@ export class TasksService {
         requestedBy: entity.requestedBy,
         idempotencyKey,
         status: entity.status,
+        taskTemplateId: entity.taskTemplateId,
+        taskTemplateVersion: entity.taskTemplateVersion,
       },
     });
 

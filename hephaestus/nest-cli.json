@@ -43,6 +43,15 @@
         "tsConfigPath": "libs/artifacts/tsconfig.lib.json"
       }
     },
+    "templates": {
+      "type": "library",
+      "root": "libs/templates",
+      "entryFile": "index",
+      "sourceRoot": "libs/templates/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/templates/tsconfig.lib.json"
+      }
+    },
     "models": {
       "type": "library",
       "root": "libs/models",

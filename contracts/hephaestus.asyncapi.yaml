@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Hephaestus events
-  version: 0.5.0
+  version: 0.6.0
   description: |
     Events Hephaestus publishes to the `hephaestus.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -192,7 +192,7 @@ components:
     TaskCreated:
       type: object
       additionalProperties: false
-      required: [taskId, parentTaskId, topLevelTaskId, agentId, agentVersionId, serviceAccountId, requestedBy, idempotencyKey, status]
+      required: [taskId, parentTaskId, topLevelTaskId, agentId, agentVersionId, serviceAccountId, requestedBy, idempotencyKey, status, taskTemplateId, taskTemplateVersion]
       properties:
         taskId: { $ref: '#/components/schemas/Uuid' }
         parentTaskId:
@@ -206,6 +206,12 @@ components:
         requestedBy: { type: string }
         idempotencyKey: { type: string }
         status: { $ref: '#/components/schemas/TaskStatus' }
+        taskTemplateId:
+          type: [string, 'null']
+          format: uuid
+        taskTemplateVersion:
+          type: [integer, 'null']
+          minimum: 1
     TaskStatusChanged:
       type: object
       additionalProperties: false

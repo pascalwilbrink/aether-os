@@ -65,6 +65,12 @@
       "@hephaestus/artifacts/*": [
         "./libs/artifacts/src/*"
       ],
+      "@hephaestus/templates": [
+        "./libs/templates/src/index.ts"
+      ],
+      "@hephaestus/templates/*": [
+        "./libs/templates/src/*"
+      ],
       "@hephaestus/models": [
         "./libs/models/src/index.ts"
       ],

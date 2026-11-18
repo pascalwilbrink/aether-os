@@ -97,6 +97,13 @@ export class TaskEntity {
   @Column({ type: 'integer', default: 0 })
   reviewRound: number;
 
+  /** The template version it was created from (docs/tasks.md), if any. */
+  @Column({ type: 'uuid', nullable: true })
+  taskTemplateId: string | null;
+
+  @Column({ type: 'integer', nullable: true })
+  taskTemplateVersion: number | null;
+
   /** A succeeded task's outcome (docs/tasks.md, Primary artifact). */
   @Column({ type: 'uuid', nullable: true })
   primaryArtifactId: string | null;
