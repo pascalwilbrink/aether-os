@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { v7 as uuidv7 } from 'uuid';
 
+import type { ApiTypes } from '@hephaestus/core';
+
 import type { CreateTaskRequest } from './dto/create-task.request.js';
 import type { TaskResponse } from './dto/task.response.js';
 import { TaskEntity } from './task.entity.js';
@@ -16,6 +18,15 @@ export interface NewTask {
   requestedBy: string;
   idempotencyKey: string;
   status: TaskStatus;
+  /** Set when it comes from a template. */
+  template?: TaskTemplateOrigin;
+}
+
+/** The template version a task comes from, and the criteria it brings. */
+export interface TaskTemplateOrigin {
+  templateId: string;
+  version: number;
+  acceptanceCriteria: ApiTypes.AcceptanceCriterionRequest[];
 }
 
 @Injectable()
@@ -40,9 +51,18 @@ export class TaskMapper {
       dependsOn: [...new Set(task.dto.dependsOn ?? [])],
       reviewArtifactKinds: [...new Set(task.dto.review?.artifactKinds ?? [])],
       reviewRound: 0,
-      acceptanceCriteria: (task.dto.acceptanceCriteria ?? []).map(
-        (criterion) => ({ ...criterion, source: 'task' as const }),
-      ),
+      acceptanceCriteria: [
+        ...(task.template?.acceptanceCriteria ?? []).map((criterion) => ({
+          ...criterion,
+          source: 'template' as const,
+        })),
+        ...(task.dto.acceptanceCriteria ?? []).map((criterion) => ({
+          ...criterion,
+          source: 'task' as const,
+        })),
+      ],
+      taskTemplateId: task.template?.templateId ?? null,
+      taskTemplateVersion: task.template?.version ?? null,
       attempt: 1,
       nextAttemptAt: null,
       primaryArtifactId: null,
@@ -75,6 +95,8 @@ export class TaskMapper {
       review: { artifactKinds: entity.reviewArtifactKinds },
       reviewRound: entity.reviewRound,
       acceptanceCriteria: entity.acceptanceCriteria,
+      taskTemplateId: entity.taskTemplateId,
+      taskTemplateVersion: entity.taskTemplateVersion,
       createdAt: entity.createdAt.toISOString(),
       updatedAt: entity.updatedAt.toISOString(),
       finishedAt: entity.finishedAt?.toISOString() ?? null,

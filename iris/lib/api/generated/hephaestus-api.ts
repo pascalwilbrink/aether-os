@@ -258,6 +258,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/task-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listTaskTemplates"];
+        put?: never;
+        /**
+         * @description A template and its first version (docs/tasks.md, Task templates).
+         *     Without `projectId` it's organization-wide, visible to every
+         *     project; with one, only to that project.
+         */
+        post: operations["createTaskTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/task-templates/{templateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getTaskTemplate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/task-templates/{templateId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description No new tasks from it (`TASK_TEMPLATE_ARCHIVED`); existing tasks and templates extending it keep their pinned version. Idempotent. */
+        post: operations["archiveTaskTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/task-templates/{templateId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listTaskTemplateVersions"];
+        put?: never;
+        /** @description Editing a template is a new version; earlier ones never change. */
+        post: operations["createTaskTemplateVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/task-templates/{templateId}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+                version: number;
+            };
+            cookie?: never;
+        };
+        get: operations["getTaskTemplateVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/task-templates/{templateId}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description A task from a template version (its latest unless given), pinned
+         *     on the task: its title and instructions with the inputs filled in,
+         *     its agent, and its acceptance criteria, plus any added here. Like
+         *     creating a task: `Idempotency-Key` required, 201 or 200.
+         */
+        post: operations["createTaskFromTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/projects/{projectId}/tasks": {
         parameters: {
             query?: never;
@@ -544,7 +672,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -741,10 +869,10 @@ export interface components {
         };
         AcceptanceCriterion: components["schemas"]["AcceptanceCriterionRequest"] & {
             /**
-             * @description Where it came from (templates and spec requirements later).
+             * @description Where it came from (spec requirements later).
              * @enum {string}
              */
-            source: "task";
+            source: "template" | "task";
         };
         /** @description How a criterion is checked; by Hephaestus, never by the agent's word. */
         CriterionCheck: components["schemas"]["CommandCheck"] | components["schemas"]["ArtifactCheck"] | components["schemas"]["ManualCheck"];
@@ -778,6 +906,105 @@ export interface components {
              * @enum {string}
              */
             type: "manual";
+        };
+        TemplateInput: {
+            /** @description Referred to as `{{name}}` in the title and instructions. */
+            name: string;
+            description?: string;
+            /** @description true if left out. */
+            required?: boolean;
+        };
+        /** @description An organization-wide template version this project template builds on. */
+        TemplateExtends: {
+            /** Format: uuid */
+            templateId: string;
+            version: number;
+        };
+        /**
+         * @description One version of a template. A project template that `extends` an
+         *     organization template inherits its agent, title, inputs, criteria
+         *     and review settings, appends its own instructions to the
+         *     organization's, and can only add inputs and criteria.
+         */
+        TaskTemplateContent: {
+            title?: string;
+            instructions?: string;
+            /** Format: uuid */
+            agentId?: string;
+            inputs?: components["schemas"]["TemplateInput"][];
+            acceptanceCriteria?: components["schemas"]["AcceptanceCriterionRequest"][];
+            review?: components["schemas"]["TaskReviewSettings"];
+            extends?: components["schemas"]["TemplateExtends"];
+        };
+        CreateTaskTemplateRequest: components["schemas"]["TaskTemplateContent"] & {
+            name: string;
+            description?: string;
+            /**
+             * Format: uuid
+             * @description A project template; organization-wide without it.
+             */
+            projectId?: string;
+        };
+        TaskTemplateResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            projectId: string | null;
+            name: string;
+            description: string;
+            /** @enum {string} */
+            status: "active" | "archived";
+            latestVersion: number;
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        TaskTemplatePage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["TaskTemplateResponse"][];
+        };
+        /** @description What a task from this version gets, with what it extends merged in. */
+        EffectiveTaskTemplate: {
+            title: string;
+            instructions: string;
+            /** Format: uuid */
+            agentId: string;
+            inputs: components["schemas"]["TemplateInput"][];
+            acceptanceCriteria: components["schemas"]["AcceptanceCriterionRequest"][];
+            review: components["schemas"]["TaskReviewSettings"];
+        };
+        TaskTemplateVersionResponse: {
+            /** Format: uuid */
+            templateId: string;
+            version: number;
+            content: components["schemas"]["TaskTemplateContent"];
+            effective: components["schemas"]["EffectiveTaskTemplate"];
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        TaskTemplateVersionPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["TaskTemplateVersionResponse"][];
+        };
+        CreateTaskFromTemplateRequest: {
+            /** @description The latest if left out. */
+            version?: number;
+            /** @description Values for the template's inputs, by name. */
+            inputs?: {
+                [key: string]: string;
+            };
+            /** Format: uuid */
+            serviceAccountId: string;
+            /** Format: uuid */
+            parentTaskId?: string;
+            dependsOn?: string[];
+            /** @description Added to the template's (never replacing them). */
+            acceptanceCriteria?: components["schemas"]["AcceptanceCriterionRequest"][];
+            /** @description Added to the template's. */
+            review?: components["schemas"]["TaskReviewSettings"];
         };
         /**
          * @description Which of the task's artifacts need approval before they're final
@@ -829,6 +1056,13 @@ export interface components {
             /** @description How many times the task has waited for review (0 before the first). */
             reviewRound: number;
             acceptanceCriteria: components["schemas"]["AcceptanceCriterion"][];
+            /**
+             * Format: uuid
+             * @description The template it was created from, if any.
+             */
+            taskTemplateId: string | null;
+            /** @description Pinned when it was created, like the agent version. */
+            taskTemplateVersion: number | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -1100,6 +1334,7 @@ export interface components {
         WorkspaceId: string;
         ProjectId: string;
         TaskId: string;
+        TemplateId: string;
         ArtifactId: string;
         /** @description Page size. */
         Limit: number;
@@ -1563,6 +1798,269 @@ export interface operations {
         requestBody?: never;
         responses: {
             200: components["responses"]["WorkspaceTransition"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listTaskTemplates: {
+        parameters: {
+            query?: {
+                /** @description The templates a project sees (its own and the organization's); without it, the organization-wide ones. */
+                projectId?: string;
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplatePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTaskTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTaskTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created, with version 1 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplateResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    getTaskTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplateResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    archiveTaskTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archived */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplateResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listTaskTemplateVersions: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplateVersionPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTaskTemplateVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskTemplateContent"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplateVersionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    getTaskTemplateVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplateVersionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTaskFromTemplate: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTaskFromTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Already created with this `Idempotency-Key` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];

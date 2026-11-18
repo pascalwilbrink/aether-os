@@ -97,6 +97,8 @@ describe('Tasks (e2e)', () => {
       review: { artifactKinds: [] },
       reviewRound: 0,
       acceptanceCriteria: [],
+      taskTemplateId: null,
+      taskTemplateVersion: null,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
       finishedAt: null,

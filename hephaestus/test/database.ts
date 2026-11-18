@@ -8,6 +8,6 @@ export async function resetDatabase(
   await app
     .get(DataSource)
     .query(
-      'TRUNCATE organization_states, project_states, inbox, outbox, agents, agent_versions, workspaces, tasks, executions, model_calls, artifacts',
+      'TRUNCATE organization_states, project_states, inbox, outbox, agents, agent_versions, workspaces, tasks, executions, model_calls, artifacts, task_templates, task_template_versions',
     );
 }

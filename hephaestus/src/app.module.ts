@@ -15,6 +15,7 @@ import { TenancyModule } from '@hephaestus/tenancy';
 import { ArtifactsModule } from '@hephaestus/artifacts';
 import { RunnerModule } from '@hephaestus/runner';
 import { TasksModule } from '@hephaestus/tasks';
+import { TemplatesModule } from '@hephaestus/templates';
 import { WorkspacesModule } from '@hephaestus/workspaces';
 
 /** The Polis events Hephaestus keeps organization and project status from. */
@@ -62,6 +63,7 @@ export const POLIS_SUBSCRIPTIONS = [
     WorkspacesModule,
     TasksModule,
     ArtifactsModule,
+    TemplatesModule,
     RunnerModule,
   ],
 })

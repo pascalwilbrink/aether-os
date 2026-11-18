@@ -96,6 +96,8 @@ export interface TaskCreated {
     | 'succeeded'
     | 'failed'
     | 'cancelled';
+  taskTemplateId: string | null;
+  taskTemplateVersion: number | null;
 }
 
 /**
