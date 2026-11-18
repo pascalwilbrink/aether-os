@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Hephaestus events
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Events Hephaestus publishes to the `hephaestus.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -9,10 +9,11 @@ info:
     the event ID as AMQP `messageId` and the event type as `type`.
 
     Delivery is at least once (transactional outbox and relay): deduplicate on
-    `eventId`, and ignore an event whose `aggregateVersion` (the task's
-    `version`) is not newer than the one already applied for that task.
+    `eventId`, and ignore an event whose `aggregateVersion` (the task's or
+    artifact's `version`) is not newer than the one already applied for it.
 
-    Every task event has the task's `projectId` in the envelope. More events
+    Every task and artifact event has the task's `projectId` in the envelope;
+    artifact events have the artifact as their aggregate. More events
     (`task.awaiting-review`, `task.verified`, `task.paused` / `task.resumed`)
     come with the parts of the lifecycle that produce them.
 
@@ -42,6 +43,8 @@ channels:
       taskSucceeded: { $ref: '#/components/messages/taskSucceeded' }
       taskFailed: { $ref: '#/components/messages/taskFailed' }
       taskCancelled: { $ref: '#/components/messages/taskCancelled' }
+      artifactCreated: { $ref: '#/components/messages/artifactCreated' }
+      artifactStatusChanged: { $ref: '#/components/messages/artifactStatusChanged' }
 
 operations:
   publishHephaestusEvents:
@@ -53,9 +56,31 @@ operations:
       - $ref: '#/channels/hephaestusEvents/messages/taskSucceeded'
       - $ref: '#/channels/hephaestusEvents/messages/taskFailed'
       - $ref: '#/channels/hephaestusEvents/messages/taskCancelled'
+      - $ref: '#/channels/hephaestusEvents/messages/artifactCreated'
+      - $ref: '#/channels/hephaestusEvents/messages/artifactStatusChanged'
 
 components:
   messages:
+    artifactCreated:
+      name: artifact.created
+      summary: An agent recorded an artifact (`pending` until its execution ends).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: artifact.created }
+              payload: { $ref: '#/components/schemas/ArtifactCreated' }
+    artifactStatusChanged:
+      name: artifact.status-changed
+      summary: An artifact's status changed (e.g. `pending` → `final` or `partial`).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: artifact.status-changed }
+              payload: { $ref: '#/components/schemas/ArtifactStatusChanged' }
     taskCreated:
       name: task.created
       summary: A task (or subtask) was created; its agent version is pinned.
@@ -171,11 +196,39 @@ components:
     TaskSucceeded:
       type: object
       additionalProperties: false
-      required: [taskId, topLevelTaskId, requestedBy]
+      required: [taskId, topLevelTaskId, requestedBy, primaryArtifactId, artifactIds]
       properties:
         taskId: { $ref: '#/components/schemas/Uuid' }
         topLevelTaskId: { $ref: '#/components/schemas/Uuid' }
         requestedBy: { type: string }
+        primaryArtifactId: { $ref: '#/components/schemas/Uuid' }
+        artifactIds:
+          type: array
+          description: Every `final` artifact of the task, the primary one included.
+          items: { $ref: '#/components/schemas/Uuid' }
+    ArtifactCreated:
+      type: object
+      additionalProperties: false
+      required: [artifactId, taskId, executionId, kind, status, primary]
+      properties:
+        artifactId: { $ref: '#/components/schemas/Uuid' }
+        taskId: { $ref: '#/components/schemas/Uuid' }
+        executionId: { $ref: '#/components/schemas/Uuid' }
+        kind: { type: string, description: 'An open set: `text`, `json` so far.' }
+        status: { $ref: '#/components/schemas/ArtifactStatus' }
+        primary: { type: boolean }
+    ArtifactStatusChanged:
+      type: object
+      additionalProperties: false
+      required: [artifactId, taskId, from, to, revisionOf]
+      properties:
+        artifactId: { $ref: '#/components/schemas/Uuid' }
+        taskId: { $ref: '#/components/schemas/Uuid' }
+        from: { $ref: '#/components/schemas/ArtifactStatus' }
+        to: { $ref: '#/components/schemas/ArtifactStatus' }
+        revisionOf: { type: [string, 'null'], format: uuid }
+    ArtifactStatus:
+      enum: [pending, draft, final, rejected, changes_requested, partial]
     TaskFailed:
       type: object
       additionalProperties: false

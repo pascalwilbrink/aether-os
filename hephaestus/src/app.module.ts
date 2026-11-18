@@ -12,6 +12,7 @@ import {
 } from '@hephaestus/core';
 import { AgentsModule } from '@hephaestus/agents';
 import { TenancyModule } from '@hephaestus/tenancy';
+import { ArtifactsModule } from '@hephaestus/artifacts';
 import { RunnerModule } from '@hephaestus/runner';
 import { TasksModule } from '@hephaestus/tasks';
 import { WorkspacesModule } from '@hephaestus/workspaces';
@@ -60,6 +61,7 @@ export const POLIS_SUBSCRIPTIONS = [
     AgentsModule,
     WorkspacesModule,
     TasksModule,
+    ArtifactsModule,
     RunnerModule,
   ],
 })

@@ -34,6 +34,15 @@
         "tsConfigPath": "libs/workspaces/tsconfig.lib.json"
       }
     },
+    "artifacts": {
+      "type": "library",
+      "root": "libs/artifacts",
+      "entryFile": "index",
+      "sourceRoot": "libs/artifacts/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/artifacts/tsconfig.lib.json"
+      }
+    },
     "models": {
       "type": "library",
       "root": "libs/models",

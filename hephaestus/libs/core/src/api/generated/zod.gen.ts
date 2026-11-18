@@ -227,11 +227,69 @@ export const zTaskResponse = z.object({
     failureReason: zTaskFailureReason.nullable(),
     dependsOn: z.array(z.uuid()),
     attempt: z.int().gte(1),
+    primaryArtifactId: z.uuid().nullable(),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
     finishedAt: z.iso.datetime().nullable(),
     version: z.int().gte(1)
 });
+
+/**
+ * `pending`: recorded while its execution runs; becomes `final` when
+ * the task succeeds, `partial` when the execution fails. `draft`,
+ * `rejected` and `changes_requested` come with reviews.
+ *
+ */
+export const zArtifactStatus = z.enum([
+    'pending',
+    'draft',
+    'final',
+    'rejected',
+    'changes_requested',
+    'partial'
+]);
+
+export const zArtifactBase = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    taskId: z.uuid(),
+    executionId: z.uuid(),
+    agentVersionId: z.uuid(),
+    kind: z.string(),
+    status: zArtifactStatus,
+    primary: z.boolean(),
+    revisionOf: z.uuid().nullable(),
+    title: z.string(),
+    metadata: z.record(z.string(), z.string()),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+    version: z.int().gte(1)
+});
+
+export const zTextArtifact = zArtifactBase.and(z.object({
+    kind: z.literal('text'),
+    format: z.enum(['markdown', 'plain']),
+    content: z.string()
+}));
+
+export const zJsonArtifact = zArtifactBase.and(z.object({
+    kind: z.literal('json'),
+    schema: z.string().nullable(),
+    content: z.unknown()
+}));
+
+/**
+ * One artifact; `kind` says which (an open set).
+ */
+export const zArtifactResponse = z.union([
+    z.object({
+        kind: z.literal('text')
+    }).and(zTextArtifact),
+    z.object({
+        kind: z.literal('json')
+    }).and(zJsonArtifact)
+]);
 
 export const zExecutionStatus = z.enum([
     'provisioning',
@@ -307,6 +365,10 @@ export const zTaskPage = zPageMeta.and(z.object({
     items: z.array(zTaskResponse)
 }));
 
+export const zArtifactPage = zPageMeta.and(z.object({
+    items: z.array(zArtifactResponse)
+}));
+
 export const zExecutionPage = zPageMeta.and(z.object({
     items: z.array(zExecutionResponse)
 }));
@@ -362,6 +424,8 @@ export const zWorkspaceId = z.uuid();
 export const zProjectId = z.uuid();
 
 export const zTaskId = z.uuid();
+
+export const zArtifactId = z.uuid();
 
 /**
  * Page size.
@@ -633,6 +697,35 @@ export const zRetryTaskPath = z.object({
  * Queued again (or blocked on its dependencies)
  */
 export const zRetryTaskResponse = zTaskResponse;
+
+export const zListTaskArtifactsPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    taskId: z.uuid()
+});
+
+export const zListTaskArtifactsQuery = z.object({
+    status: zArtifactStatus.optional(),
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Oldest first
+ */
+export const zListTaskArtifactsResponse = zArtifactPage;
+
+export const zGetTaskArtifactPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    taskId: z.uuid(),
+    artifactId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetTaskArtifactResponse = zArtifactResponse;
 
 export const zListTaskExecutionsPath = z.object({
     organizationId: z.uuid(),

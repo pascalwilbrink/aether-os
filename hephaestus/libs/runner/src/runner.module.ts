@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import type { Env } from '@hephaestus/core';
 import { AgentsModule } from '@hephaestus/agents';
+import { ArtifactsModule } from '@hephaestus/artifacts';
 import { ModelGateway, ModelsModule } from '@hephaestus/models';
 import { WorkspacesModule, WorkspacesService } from '@hephaestus/workspaces';
 import { TasksModule } from '@hephaestus/tasks';
@@ -42,6 +43,7 @@ import {
     AgentsModule,
     ModelsModule,
     WorkspacesModule,
+    ArtifactsModule,
   ],
   controllers: [ExecutionsController],
   providers: [

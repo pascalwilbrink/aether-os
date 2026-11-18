@@ -359,6 +359,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description What the task produced (docs/tasks.md, Artifacts), across its
+         *     executions: the primary artifact and others once it succeeded,
+         *     `partial` ones from failed executions, `pending` ones while it runs.
+         */
+        get: operations["listTaskArtifacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getTaskArtifact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/executions": {
         parameters: {
             query?: never;
@@ -639,6 +685,11 @@ export interface components {
             dependsOn: string[];
             /** @description 1, plus one per retry. */
             attempt: number;
+            /**
+             * Format: uuid
+             * @description The outcome of a succeeded task (docs/tasks.md, Primary artifact); null otherwise.
+             */
+            primaryArtifactId: string | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -650,6 +701,72 @@ export interface components {
         };
         TaskPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["TaskResponse"][];
+        };
+        /**
+         * @description `pending`: recorded while its execution runs; becomes `final` when
+         *     the task succeeds, `partial` when the execution fails. `draft`,
+         *     `rejected` and `changes_requested` come with reviews.
+         * @enum {string}
+         */
+        ArtifactStatus: "pending" | "draft" | "final" | "rejected" | "changes_requested" | "partial";
+        ArtifactBase: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            projectId: string;
+            /** Format: uuid */
+            taskId: string;
+            /** Format: uuid */
+            executionId: string;
+            /** Format: uuid */
+            agentVersionId: string;
+            kind: string;
+            status: components["schemas"]["ArtifactStatus"];
+            primary: boolean;
+            /** Format: uuid */
+            revisionOf: string | null;
+            title: string;
+            metadata: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            version: number;
+        };
+        TextArtifact: components["schemas"]["ArtifactBase"] & {
+            /** @constant */
+            kind: "text";
+            /** @enum {string} */
+            format: "markdown" | "plain";
+            content: string;
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "text";
+        };
+        JsonArtifact: components["schemas"]["ArtifactBase"] & {
+            /** @constant */
+            kind: "json";
+            /** @description An optional identifier of the content's schema. */
+            schema: string | null;
+            content: unknown;
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "json";
+        };
+        /** @description One artifact; `kind` says which (an open set). */
+        ArtifactResponse: components["schemas"]["TextArtifact"] | components["schemas"]["JsonArtifact"];
+        ArtifactPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["ArtifactResponse"][];
         };
         /** @enum {string} */
         ExecutionStatus: "provisioning" | "running" | "completed" | "failed" | "cancelled";
@@ -802,6 +919,7 @@ export interface components {
         WorkspaceId: string;
         ProjectId: string;
         TaskId: string;
+        ArtifactId: string;
         /** @description Page size. */
         Limit: number;
         /**
@@ -1439,6 +1557,73 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
+        };
+    };
+    listTaskArtifacts: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ArtifactStatus"];
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Oldest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTaskArtifact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listTaskExecutions: {

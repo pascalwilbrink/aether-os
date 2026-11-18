@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Agent } from '@mastra/core/agent';
+import { createTool } from '@mastra/core/tools';
 import { Workspace } from '@mastra/core/workspace';
+import { z } from 'zod';
 
 import {
   ModelGateway,
@@ -10,10 +12,13 @@ import {
   type ResolvedModel,
 } from '@hephaestus/models';
 
+import type { NewArtifact } from '@hephaestus/artifacts';
+
 import {
   AgentRuntime,
   type AgentRunInput,
   type AgentRunResult,
+  type ArtifactSink,
 } from './agent-runtime.js';
 import { RunnerFailure } from './runner.errors.js';
 
@@ -44,6 +49,7 @@ export class MastraAgentRuntime extends AgentRuntime {
     executionId,
     agentVersion,
     sandbox,
+    artifacts,
     signal,
   }: AgentRunInput): Promise<AgentRunResult> {
     const unsupported = [
@@ -73,6 +79,7 @@ export class MastraAgentRuntime extends AgentRuntime {
       name: `${agentVersion.agentId} v${agentVersion.version}`,
       instructions: agentVersion.instructions,
       model: resolved.model,
+      tools: { submit_artifact: submitArtifactTool(artifacts) },
       // The execution's sandbox, with Mastra's workspace tools (running
       // commands in it); none without one.
       ...(sandbox?.agentSandbox
@@ -132,6 +139,67 @@ export class MastraAgentRuntime extends AgentRuntime {
       throw error;
     }
   }
+}
+
+/**
+ * The tool an agent records its results with (docs/tasks.md, Artifacts).
+ * Flat on purpose (one schema for every provider): JSON content comes as
+ * text and is parsed here. A rejected artifact is a tool error the agent
+ * sees and can react to.
+ */
+function submitArtifactTool(artifacts: ArtifactSink) {
+  return createTool({
+    id: 'submit_artifact',
+    description:
+      'Record something you produced for this task: a text (markdown or plain) or a JSON document. ' +
+      'Mark the main outcome of the task with primary: true (the last one marked wins). ' +
+      'If you mark none, your final answer becomes the outcome. ' +
+      'Content is at most 256 KiB; at most 50 artifacts per run.',
+    inputSchema: z.object({
+      kind: z.enum(['text', 'json']),
+      title: z.string().min(1).max(200).describe('A short name for it'),
+      content: z
+        .string()
+        .describe('The text, or for kind json the JSON document as text'),
+      format: z
+        .enum(['markdown', 'plain'])
+        .optional()
+        .describe('For kind text; markdown if left out'),
+      schema: z
+        .string()
+        .max(200)
+        .optional()
+        .describe("For kind json: an identifier of the document's schema"),
+      primary: z.boolean().optional(),
+    }),
+    execute: async (input) => {
+      let artifact: NewArtifact;
+      if (input.kind === 'text') {
+        artifact = {
+          kind: 'text',
+          title: input.title,
+          format: input.format ?? 'markdown',
+          content: input.content,
+          primary: input.primary,
+        };
+      } else {
+        let content: unknown;
+        try {
+          content = JSON.parse(input.content);
+        } catch {
+          throw new Error('content is not valid JSON');
+        }
+        artifact = {
+          kind: 'json',
+          title: input.title,
+          schema: input.schema ?? null,
+          content,
+          primary: input.primary,
+        };
+      }
+      return artifacts.submit(artifact);
+    },
+  });
 }
 
 /**

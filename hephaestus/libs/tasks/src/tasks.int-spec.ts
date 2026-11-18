@@ -10,6 +10,7 @@ import { TasksModule } from './tasks.module.js';
 import { TasksService } from './tasks.service.js';
 
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000aa';
+const ARTIFACT = '0193a1b2-c3d4-7e5f-8a9b-0000000000ff';
 
 const caller = testPrincipal({
   sub: 'user-1',
@@ -85,7 +86,10 @@ describe('TasksService (Postgres)', () => {
       'deliver',
       'succeed',
     ] as const) {
-      await tasks.transition(orgId, taskId, action);
+      await tasks.transition(orgId, taskId, action, null, {
+        // As the runner records it (artifacts are another library's).
+        outcome: { primaryArtifactId: ARTIFACT, artifactIds: [ARTIFACT] },
+      });
     }
   }
 
@@ -139,8 +143,19 @@ describe('TasksService (Postgres)', () => {
       ['task.status-changed', 'queued', 'dependencies-met'],
     ]);
     expect(
-      events.filter((event) => event.eventType === 'task.succeeded'),
-    ).toHaveLength(1);
+      events
+        .filter((event) => event.eventType === 'task.succeeded')
+        .map((event) => event.payload),
+    ).toEqual([
+      expect.objectContaining({
+        taskId: first.id,
+        primaryArtifactId: ARTIFACT,
+        artifactIds: [ARTIFACT],
+      }),
+    ]);
+    await expect(
+      tasks.findById(orgId, projectId, first.id),
+    ).resolves.toMatchObject({ primaryArtifactId: ARTIFACT });
   });
 
   it('fails with a reason, and retries the same task', async () => {
