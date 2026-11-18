@@ -294,7 +294,8 @@ describe('Artifacts from executions (Postgres)', () => {
     const created = await createTask();
     const runner = moduleRef.get(TaskRunner);
     await runner.tick();
-    for (let i = 0; i < 200 && !sink; i++) {
+    // Until the runtime got the answer to its submission (not just the sink).
+    for (let i = 0; i < 200 && tooBig === undefined; i++) {
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
     expect(tooBig).toBeInstanceOf(ArtifactRejectedError);
