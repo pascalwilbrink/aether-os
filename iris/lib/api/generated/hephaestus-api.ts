@@ -258,6 +258,107 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listTasks"];
+        put?: never;
+        /**
+         * @description Creates a task (or, with `parentTaskId`, a subtask) that runs as a
+         *     service account (`docs/identity.md`: tasks never run as a user; the
+         *     caller is recorded as `requestedBy`). The agent's published version
+         *     is pinned now (`AGENT_NOT_PUBLISHED` without one). A task starts
+         *     `blocked` until every task in `dependsOn` has succeeded, otherwise
+         *     `queued`. `dependsOn` may only name tasks under the same top-level
+         *     task (`TASK_DEPENDENCY_INVALID`).
+         *
+         *     Idempotent per `Idempotency-Key`: a repeated key returns the task it
+         *     created (`200`) instead of creating another.
+         */
+        post: operations["createTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getTask"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Cancels the task and every unfinished task under it. Idempotent for
+         *     a cancelled task; a task that already succeeded or failed can't be
+         *     cancelled (`TASK_INVALID_TRANSITION`).
+         */
+        post: operations["cancelTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Retries a failed task with the same pinned inputs (a new attempt of
+         *     the same task, so dependents keep pointing at it). Only failed tasks
+         *     (`TASK_INVALID_TRANSITION`).
+         */
+        post: operations["retryTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -294,7 +395,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -450,6 +551,75 @@ export interface components {
         WorkspacePage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["WorkspaceResponse"][];
         };
+        /**
+         * @description The lifecycle in `docs/tasks.md` (Task lifecycle).
+         * @enum {string}
+         */
+        TaskStatus: "blocked" | "queued" | "provisioning" | "running" | "verifying" | "awaiting_review" | "waiting" | "paused" | "delivering" | "succeeded" | "failed" | "cancelled";
+        /** @enum {string} */
+        TaskFailureReason: "agent_failed" | "verification_failed" | "rejected" | "timeout" | "budget_exceeded" | "infrastructure" | "subtask_failed";
+        CreateTaskRequest: {
+            title: string;
+            instructions: string;
+            /**
+             * Format: uuid
+             * @description Its published version is pinned when the task is created.
+             */
+            agentId: string;
+            /**
+             * Format: uuid
+             * @description The Pistis service account the task runs as.
+             */
+            serviceAccountId: string;
+            /** @description Makes this a subtask (in the same project). */
+            parentTaskId?: string | null;
+            /** @description Tasks under the same top-level task that must succeed first. */
+            dependsOn?: string[];
+        };
+        TaskResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            projectId: string;
+            /** Format: uuid */
+            parentTaskId: string | null;
+            /**
+             * Format: uuid
+             * @description The tree's root (its own ID for a top-level task).
+             */
+            topLevelTaskId: string;
+            title: string;
+            instructions: string;
+            /** Format: uuid */
+            agentId: string;
+            /**
+             * Format: uuid
+             * @description The agent version pinned when the task was created.
+             */
+            agentVersionId: string;
+            /** Format: uuid */
+            serviceAccountId: string;
+            /** @description The `sub` of whoever created the task. */
+            requestedBy: string;
+            status: components["schemas"]["TaskStatus"];
+            failureReason: components["schemas"]["TaskFailureReason"] | null;
+            dependsOn: string[];
+            /** @description 1, plus one per retry. */
+            attempt: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            finishedAt: string | null;
+            /** @description The `aggregateVersion` of its latest event. */
+            version: number;
+        };
+        TaskPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["TaskResponse"][];
+        };
         PageMeta: {
             nextCursor: components["schemas"]["NextCursor"];
         };
@@ -555,6 +725,8 @@ export interface components {
         AgentId: string;
         VersionId: string;
         WorkspaceId: string;
+        ProjectId: string;
+        TaskId: string;
         /** @description Page size. */
         Limit: number;
         /**
@@ -1023,6 +1195,175 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
             503: components["responses"]["Unavailable"];
+        };
+    };
+    listTasks: {
+        parameters: {
+            query?: {
+                /** @description Only the subtasks of this task. */
+                parentTaskId?: string;
+                status?: components["schemas"]["TaskStatus"];
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTask: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTaskRequest"];
+            };
+        };
+        responses: {
+            /** @description Already created with this `Idempotency-Key` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    cancelTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelled (or already cancelled) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    retryTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued again (or blocked on its dependencies) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
         };
     };
 }

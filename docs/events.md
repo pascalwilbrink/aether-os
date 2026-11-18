@@ -94,6 +94,8 @@ Kairos sends `task.create` commands to Hephaestus when an automation fires (belo
 
 ### Hephaestus (`hephaestus.events`)
 
+Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created`, `task.status-changed`, `task.succeeded`, `task.failed` and `task.cancelled`, with the payloads in that spec (without artifacts, costs or automations, which don't exist yet). The rest come with the parts of the lifecycle that produce them.
+
 | Event | Payload | Consumers |
 |---|---|---|
 | `task.created` | `taskId`, `parentTaskId`, `topLevelTaskId`, `automationId`, `agentVersionId`, `taskTemplateVersion`, `idempotencyKey` | Kairos (correlate its command), Iris |

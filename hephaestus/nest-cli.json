@@ -42,6 +42,15 @@
       "compilerOptions": {
         "tsConfigPath": "libs/tenancy/tsconfig.lib.json"
       }
+    },
+    "tasks": {
+      "type": "library",
+      "root": "libs/tasks",
+      "entryFile": "index",
+      "sourceRoot": "libs/tasks/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/tasks/tsconfig.lib.json"
+      }
     }
   }
 }

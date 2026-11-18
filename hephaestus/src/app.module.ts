@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 
 import {
   AuthModule,
+  HEPHAESTUS_PUBLISHED_EVENTS,
+  HephaestusEventsModule,
   DatabaseModule,
   EventsModule,
   hephaestusConfigModule,
@@ -10,6 +12,7 @@ import {
 } from '@hephaestus/core';
 import { AgentsModule } from '@hephaestus/agents';
 import { TenancyModule } from '@hephaestus/tenancy';
+import { TasksModule } from '@hephaestus/tasks';
 import { WorkspacesModule } from '@hephaestus/workspaces';
 
 /** The Polis events Hephaestus keeps organization and project status from. */
@@ -27,10 +30,11 @@ export const POLIS_SUBSCRIPTIONS = [
     hephaestusConfigModule(),
     DatabaseModule,
     // Consumes Polis's events from hephaestus.polis-events (inbox, retries,
-    // dead-lettering); Hephaestus publishes nothing yet.
+    // dead-lettering), and publishes Hephaestus's own (task events) to
+    // hephaestus.events through the outbox.
     EventsModule.forRoot({
       service: 'hephaestus',
-      publish: [],
+      publish: HEPHAESTUS_PUBLISHED_EVENTS,
       subscribe: { polis: POLIS_SUBSCRIPTIONS },
       rabbitmq: {
         inject: [ConfigService],
@@ -50,9 +54,11 @@ export const POLIS_SUBSCRIPTIONS = [
         jwks: config.get('PISTIS_JWKS', { infer: true }),
       }),
     }),
+    HephaestusEventsModule,
     TenancyModule,
     AgentsModule,
     WorkspacesModule,
+    TasksModule,
   ],
 })
 export class AppModule {}

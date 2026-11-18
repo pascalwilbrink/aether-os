@@ -46,6 +46,12 @@
       ],
       "@hephaestus/tenancy/*": [
         "./libs/tenancy/src/*"
+      ],
+      "@hephaestus/tasks": [
+        "./libs/tasks/src/index.ts"
+      ],
+      "@hephaestus/tasks/*": [
+        "./libs/tasks/src/*"
       ]
     },
     "rewriteRelativeImportExtensions": true

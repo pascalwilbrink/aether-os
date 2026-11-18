@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.4.0
+  version: 0.5.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -32,6 +32,7 @@ tags:
   - name: agents
   - name: agent-versions
   - name: workspaces
+  - name: tasks
 
 paths:
   /v1/organizations/{organizationId}/agents:
@@ -359,6 +360,149 @@ paths:
         '409': { $ref: '#/components/responses/DomainError' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  /v1/organizations/{organizationId}/projects/{projectId}/tasks:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      tags: [tasks]
+      operationId: createTask
+      x-permission: '`task:create` in the project'
+      description: |
+        Creates a task (or, with `parentTaskId`, a subtask) that runs as a
+        service account (`docs/identity.md`: tasks never run as a user; the
+        caller is recorded as `requestedBy`). The agent's published version
+        is pinned now (`AGENT_NOT_PUBLISHED` without one). A task starts
+        `blocked` until every task in `dependsOn` has succeeded, otherwise
+        `queued`. `dependsOn` may only name tasks under the same top-level
+        task (`TASK_DEPENDENCY_INVALID`).
+
+        Idempotent per `Idempotency-Key`: a repeated key returns the task it
+        created (`200`) instead of creating another.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTaskRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskResponse' }
+        '200':
+          description: Already created with this `Idempotency-Key`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    get:
+      tags: [tasks]
+      operationId: listTasks
+      x-permission: '`task:read` in the project'
+      parameters:
+        - name: parentTaskId
+          in: query
+          required: false
+          description: Only the subtasks of this task.
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/TaskStatus' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      tags: [tasks]
+      operationId: getTask
+      x-permission: '`task:read` in the project'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TaskId'
+    post:
+      tags: [tasks]
+      operationId: cancelTask
+      x-permission: '`task:cancel` in the project'
+      description: |
+        Cancels the task and every unfinished task under it. Idempotent for
+        a cancelled task; a task that already succeeded or failed can't be
+        cancelled (`TASK_INVALID_TRANSITION`).
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Cancelled (or already cancelled)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/retry:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TaskId'
+    post:
+      tags: [tasks]
+      operationId: retryTask
+      x-permission: '`task:create` in the project'
+      description: |
+        Retries a failed task with the same pinned inputs (a new attempt of
+        the same task, so dependents keep pointing at it). Only failed tasks
+        (`TASK_INVALID_TRANSITION`).
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Queued again (or blocked on its dependencies)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
 components:
   parameters:
     OrganizationId:
@@ -378,6 +522,16 @@ components:
       schema: { type: string, format: uuid }
     WorkspaceId:
       name: workspaceId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    TaskId:
+      name: taskId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -414,10 +568,14 @@ components:
       type: string
       enum:
         - AGENT_ARCHIVED
+        - AGENT_NOT_PUBLISHED
         - AGENT_VERSION_CONFLICT
         - AGENT_VERSION_INVALID_TRANSITION
         - ORGANIZATION_SUSPENDED
         - PROJECT_ARCHIVED
+        - TASK_DEPENDENCY_INVALID
+        - TASK_INVALID_TRANSITION
+        - TASK_PARENT_FINISHED
         - WORKSPACE_INVALID_EXPIRY
         - WORKSPACE_INVALID_TRANSITION
     DomainProblem:
@@ -658,6 +816,83 @@ components:
             items:
               type: array
               items: { $ref: '#/components/schemas/WorkspaceResponse' }
+
+    # ---------- tasks ----------
+    TaskStatus:
+      type: string
+      enum: [blocked, queued, provisioning, running, verifying, awaiting_review, waiting, paused, delivering, succeeded, failed, cancelled]
+      description: The lifecycle in `docs/tasks.md` (Task lifecycle).
+    TaskFailureReason:
+      type: string
+      enum: [agent_failed, verification_failed, rejected, timeout, budget_exceeded, infrastructure, subtask_failed]
+    CreateTaskRequest:
+      type: object
+      additionalProperties: false
+      required: [title, instructions, agentId, serviceAccountId]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        instructions: { type: string, minLength: 1, maxLength: 100000 }
+        agentId:
+          type: string
+          format: uuid
+          description: Its published version is pinned when the task is created.
+        serviceAccountId:
+          type: string
+          format: uuid
+          description: The Pistis service account the task runs as.
+        parentTaskId:
+          oneOf:
+            - { type: string, format: uuid }
+            - { type: 'null' }
+          description: Makes this a subtask (in the same project).
+        dependsOn:
+          type: array
+          maxItems: 50
+          items: { type: string, format: uuid }
+          description: Tasks under the same top-level task that must succeed first.
+    TaskResponse:
+      type: object
+      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, dependsOn, attempt, createdAt, updatedAt, finishedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        parentTaskId: { type: [string, 'null'], format: uuid }
+        topLevelTaskId:
+          type: string
+          format: uuid
+          description: The tree's root (its own ID for a top-level task).
+        title: { type: string }
+        instructions: { type: string }
+        agentId: { type: string, format: uuid }
+        agentVersionId:
+          type: string
+          format: uuid
+          description: The agent version pinned when the task was created.
+        serviceAccountId: { type: string, format: uuid }
+        requestedBy: { type: string, description: The `sub` of whoever created the task. }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        failureReason:
+          oneOf:
+            - $ref: '#/components/schemas/TaskFailureReason'
+            - { type: 'null' }
+        dependsOn:
+          type: array
+          items: { type: string, format: uuid }
+        attempt: { type: integer, minimum: 1, description: '1, plus one per retry.' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        finishedAt: { type: [string, 'null'], format: date-time }
+        version: { type: integer, minimum: 1, description: The `aggregateVersion` of its latest event. }
+    TaskPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/TaskResponse' }
 
     # ---------- pagination ----------
     PageMeta:

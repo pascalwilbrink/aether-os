@@ -14,7 +14,7 @@ import { OrganizationsService } from '@hephaestus/tenancy';
 
 import { nextAgentStatus } from './agent-transitions.js';
 import { AgentEntity } from './agent.entity.js';
-import { AgentArchivedError } from './agent.errors.js';
+import { AgentArchivedError, AgentNotPublishedError } from './agent.errors.js';
 import { AgentMapper } from './agent.mapper.js';
 import type { AgentResponse } from './dto/agent.response.js';
 import type { CreateAgentRequest } from './dto/create-agent.request.js';
@@ -120,6 +120,24 @@ export class AgentsService {
     }
 
     return { latestVersionId: entity.latestVersionId };
+  }
+
+  /**
+   * The agent's published version, to pin a task to: 404 unless the agent
+   * exists, `AGENT_ARCHIVED`, or `AGENT_NOT_PUBLISHED` without one.
+   */
+  async publishedVersion(
+    organizationId: string,
+    agentId: string,
+  ): Promise<string> {
+    const entity = await this.load(organizationId, agentId);
+    if (entity.status !== 'active') {
+      throw new AgentArchivedError(agentId);
+    }
+    if (!entity.latestVersionId) {
+      throw new AgentNotPublishedError(agentId);
+    }
+    return entity.latestVersionId;
   }
 
   /** Records the published version; call after `lockForVersionChange`. */
