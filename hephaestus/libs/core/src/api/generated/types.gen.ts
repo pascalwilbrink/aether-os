@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
+export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ARTIFACT_NOT_DRAFT' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
 
 /**
  * Problem details for a business-rule violation.
@@ -202,6 +202,20 @@ export type CreateTaskRequest = {
      * Tasks under the same top-level task that must succeed first.
      */
     dependsOn?: Array<string>;
+    review?: TaskReviewSettings;
+};
+
+/**
+ * Which of the task's artifacts need approval before they're final
+ * (docs/tasks.md, What needs approval). Pinned when the task is
+ * created; automations and Themis policy will add to it later.
+ *
+ */
+export type TaskReviewSettings = {
+    /**
+     * Artifact kinds that need approval; `*` for every kind. Empty for none.
+     */
+    artifactKinds: Array<string>;
 };
 
 export type TaskResponse = {
@@ -236,6 +250,11 @@ export type TaskResponse = {
      * The outcome of a succeeded task (docs/tasks.md, Primary artifact); null otherwise.
      */
     primaryArtifactId: string | null;
+    review: TaskReviewSettings;
+    /**
+     * How many times the task has waited for review (0 before the first).
+     */
+    reviewRound: number;
     createdAt: string;
     updatedAt: string;
     finishedAt: string | null;
@@ -272,6 +291,10 @@ export type ArtifactBase = {
     metadata: {
         [key: string]: string;
     };
+    /**
+     * The decision on a draft; null until someone made one.
+     */
+    review: ArtifactReview | null;
     createdAt: string;
     updatedAt: string;
     version: number;
@@ -300,6 +323,32 @@ export type ArtifactResponse = ({
 } & TextArtifact) | ({
     kind: 'json';
 } & JsonArtifact);
+
+export type ArtifactReview = {
+    decision: 'approved' | 'rejected' | 'changes_requested';
+    comments: Array<ReviewComment>;
+    /**
+     * The reviewer's `sub`.
+     */
+    decidedBy: string;
+    decidedAt: string;
+};
+
+export type ReviewComment = {
+    body: string;
+    /**
+     * Where in the artifact it points (a line, a JSON pointer, a heading); free-form.
+     */
+    anchor?: string;
+};
+
+export type ReviewDecisionRequest = {
+    comment?: string;
+};
+
+export type RequestChangesRequest = {
+    comments: Array<ReviewComment>;
+};
 
 export type ArtifactPage = PageMeta & {
     items: Array<ArtifactResponse>;
@@ -1779,6 +1828,165 @@ export type GetTaskArtifactResponses = {
 };
 
 export type GetTaskArtifactResponse = GetTaskArtifactResponses[keyof GetTaskArtifactResponses];
+
+export type ApproveArtifactData = {
+    body?: ReviewDecisionRequest;
+    path: {
+        organizationId: string;
+        projectId: string;
+        taskId: string;
+        artifactId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}/approve';
+};
+
+export type ApproveArtifactErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type ApproveArtifactError = ApproveArtifactErrors[keyof ApproveArtifactErrors];
+
+export type ApproveArtifactResponses = {
+    /**
+     * The artifact, decided
+     */
+    200: ArtifactResponse;
+};
+
+export type ApproveArtifactResponse = ApproveArtifactResponses[keyof ApproveArtifactResponses];
+
+export type RejectArtifactData = {
+    body?: ReviewDecisionRequest;
+    path: {
+        organizationId: string;
+        projectId: string;
+        taskId: string;
+        artifactId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}/reject';
+};
+
+export type RejectArtifactErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type RejectArtifactError = RejectArtifactErrors[keyof RejectArtifactErrors];
+
+export type RejectArtifactResponses = {
+    /**
+     * The artifact, decided
+     */
+    200: ArtifactResponse;
+};
+
+export type RejectArtifactResponse = RejectArtifactResponses[keyof RejectArtifactResponses];
+
+export type RequestArtifactChangesData = {
+    body: RequestChangesRequest;
+    path: {
+        organizationId: string;
+        projectId: string;
+        taskId: string;
+        artifactId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}/request-changes';
+};
+
+export type RequestArtifactChangesErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type RequestArtifactChangesError = RequestArtifactChangesErrors[keyof RequestArtifactChangesErrors];
+
+export type RequestArtifactChangesResponses = {
+    /**
+     * The artifact, decided
+     */
+    200: ArtifactResponse;
+};
+
+export type RequestArtifactChangesResponse = RequestArtifactChangesResponses[keyof RequestArtifactChangesResponses];
 
 export type ListTaskExecutionsData = {
     body?: never;

@@ -5,6 +5,7 @@ import { Executions1794997258610 } from './1794997258610-Executions.js';
 import { ModelCalls1794998423374 } from './1794998423374-ModelCalls.js';
 import { WorkspaceWithoutRepository1795001165465 } from './1795001165465-WorkspaceWithoutRepository.js';
 import { Artifacts1795002247274 } from './1795002247274-Artifacts.js';
+import { Reviews1795003890137 } from './1795003890137-Reviews.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -20,4 +21,5 @@ export const migrations = [
   ModelCalls1794998423374,
   WorkspaceWithoutRepository1795001165465,
   Artifacts1795002247274,
+  Reviews1795003890137,
 ];

@@ -405,6 +405,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Approves a draft: it becomes `final`. The task succeeds once none of
+         *     its drafts is waiting any more and none needs changes.
+         */
+        post: operations["approveArtifact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Rejects a draft: it becomes `rejected`, and the task fails with
+         *     `rejected` (its other drafts become `partial`).
+         */
+        post: operations["rejectArtifact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}/request-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Sends a draft back with comments: it becomes `changes_requested`.
+         *     Once none of the task's drafts is waiting, the agent runs again with
+         *     the comments and produces revised drafts (`revisionOf`). Refused
+         *     after the last review round (`TASK_REVIEW_ROUNDS_EXHAUSTED`):
+         *     approve or reject then.
+         */
+        post: operations["requestArtifactChanges"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/executions": {
         parameters: {
             query?: never;
@@ -466,7 +544,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -652,6 +730,16 @@ export interface components {
             parentTaskId?: string | null;
             /** @description Tasks under the same top-level task that must succeed first. */
             dependsOn?: string[];
+            review?: components["schemas"]["TaskReviewSettings"];
+        };
+        /**
+         * @description Which of the task's artifacts need approval before they're final
+         *     (docs/tasks.md, What needs approval). Pinned when the task is
+         *     created; automations and Themis policy will add to it later.
+         */
+        TaskReviewSettings: {
+            /** @description Artifact kinds that need approval; `*` for every kind. Empty for none. */
+            artifactKinds: string[];
         };
         TaskResponse: {
             /** Format: uuid */
@@ -690,6 +778,9 @@ export interface components {
              * @description The outcome of a succeeded task (docs/tasks.md, Primary artifact); null otherwise.
              */
             primaryArtifactId: string | null;
+            review: components["schemas"]["TaskReviewSettings"];
+            /** @description How many times the task has waited for review (0 before the first). */
+            reviewRound: number;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -731,6 +822,8 @@ export interface components {
             metadata: {
                 [key: string]: string;
             };
+            /** @description The decision on a draft; null until someone made one. */
+            review: components["schemas"]["ArtifactReview"] | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -765,6 +858,26 @@ export interface components {
         };
         /** @description One artifact; `kind` says which (an open set). */
         ArtifactResponse: components["schemas"]["TextArtifact"] | components["schemas"]["JsonArtifact"];
+        ArtifactReview: {
+            /** @enum {string} */
+            decision: "approved" | "rejected" | "changes_requested";
+            comments: components["schemas"]["ReviewComment"][];
+            /** @description The reviewer's `sub`. */
+            decidedBy: string;
+            /** Format: date-time */
+            decidedAt: string;
+        };
+        ReviewComment: {
+            body: string;
+            /** @description Where in the artifact it points (a line, a JSON pointer, a heading); free-form. */
+            anchor?: string;
+        };
+        ReviewDecisionRequest: {
+            comment?: string;
+        };
+        RequestChangesRequest: {
+            comments: components["schemas"]["ReviewComment"][];
+        };
         ArtifactPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["ArtifactResponse"][];
         };
@@ -1624,6 +1737,108 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    approveArtifact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReviewDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description The artifact, decided */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    rejectArtifact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReviewDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description The artifact, decided */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    requestArtifactChanges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestChangesRequest"];
+            };
+        };
+        responses: {
+            /** @description The artifact, decided */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
         };
     };
     listTaskExecutions: {

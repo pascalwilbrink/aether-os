@@ -178,6 +178,7 @@ describe('Running tasks (e2e)', () => {
           revisionOf: null,
           title: 'Answer',
           metadata: {},
+          review: null,
           format: 'markdown',
           content: 'Done.',
           createdAt: expect.any(String),
@@ -212,5 +213,92 @@ describe('Running tasks (e2e)', () => {
     await owner
       .get(`${base}/${MISSING_ID}/artifacts/${task.body.primaryArtifactId}`)
       .expect(404);
+  });
+
+  it('reviews drafts over HTTP, with task:approve in the project', async () => {
+    // As queuedTask, but every artifact needs approval.
+    const agents = `/v1/organizations/${orgId}/agents`;
+    const agentId = (
+      await owner
+        .post(agents)
+        .send({ name: 'Writer', description: '' })
+        .expect(201)
+    ).body.id;
+    const versionId = (
+      await owner
+        .post(`${agents}/${agentId}/versions`)
+        .send(versionBody)
+        .expect(201)
+    ).body.id;
+    await owner
+      .post(`${agents}/${agentId}/versions/${versionId}/publish`)
+      .expect(200);
+    const taskId = (
+      await owner
+        .post(base)
+        .set('idempotency-key', 'reviewed')
+        .send({
+          title: 'Write it up',
+          instructions: 'For review.',
+          agentId,
+          serviceAccountId: SERVICE_ACCOUNT,
+          review: { artifactKinds: ['*'] },
+        })
+        .expect(201)
+    ).body.id;
+    const runner = app.get(TaskRunner);
+    await runner.tick();
+    await runner.drain();
+
+    const task = await owner.get(`${base}/${taskId}`).expect(200);
+    expect(task.body).toMatchObject({
+      status: 'awaiting_review',
+      review: { artifactKinds: ['*'] },
+      reviewRound: 1,
+    });
+    const [draft] = (await owner.get(`${base}/${taskId}/artifacts`).expect(200))
+      .body.items;
+    const path = `${base}/${taskId}/artifacts/${draft.id}`;
+
+    // Editors can't review; approvers can. Requesting changes needs comments.
+    const editor = await asMember(app, orgId, ['member'], {
+      [projectId]: 'editor',
+    });
+    await editor.post(`${path}/approve`).send({}).expect(403);
+    const approver = await asMember(
+      app,
+      orgId,
+      ['member'],
+      { [projectId]: 'approver' },
+      'approver-1',
+    );
+    await approver
+      .post(`${path}/request-changes`)
+      .send({ comments: [] })
+      .expect(400);
+
+    const approved = await approver
+      .post(`${path}/approve`)
+      .send({ comment: 'Good.' })
+      .expect(200);
+    expect(approved.body).toMatchObject({
+      status: 'final',
+      review: {
+        decision: 'approved',
+        comments: [{ body: 'Good.' }],
+        decidedBy: 'approver-1',
+      },
+    });
+    await owner
+      .get(`${base}/${taskId}`)
+      .expect(200)
+      .expect(({ body }) =>
+        expect(body).toMatchObject({
+          status: 'succeeded',
+          primaryArtifactId: draft.id,
+        }),
+      );
+    const again = await approver.post(`${path}/reject`).send({}).expect(409);
+    expect(again.body.code).toBe('ARTIFACT_NOT_DRAFT');
   });
 });

@@ -2,7 +2,7 @@
 
 How Hephaestus models the work it runs and what that work produces.
 
-Status: design in progress. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/tasks`): tasks and subtasks, `dependsOn` within a tree, the lifecycle states as a transition table, the agent version pinned at creation, an idempotency key, cancellation of a whole subtree and retries of failed tasks, and the `task.*` events below; and the runner (Hephaestus `libs/runner`): executions, claiming queued tasks within the concurrency limits, heartbeats, the provisioning, heartbeat and run timeouts, stopping cancelled executions, and automatic retries of infrastructure failures, with a Mastra agent runtime and Docker sandboxes behind ports; and artifacts (Hephaestus `libs/artifacts`): `text` and `json` (inline, up to 256 KiB), recorded by the agent while it runs (`pending`), `final` with one primary artifact when the task succeeds, `partial` when the execution fails. Not yet: other kinds (`file` needs Loculus), drafts and approval, sandboxes across long waits, pausing, templates and verification.
+Status: design in progress. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/tasks`): tasks and subtasks, `dependsOn` within a tree, the lifecycle states as a transition table, the agent version pinned at creation, an idempotency key, cancellation of a whole subtree and retries of failed tasks, and the `task.*` events below; and the runner (Hephaestus `libs/runner`): executions, claiming queued tasks within the concurrency limits, heartbeats, the provisioning, heartbeat and run timeouts, stopping cancelled executions, and automatic retries of infrastructure failures, with a Mastra agent runtime and Docker sandboxes behind ports; and artifacts (Hephaestus `libs/artifacts`): `text` and `json` (inline, up to 256 KiB), recorded by the agent while it runs (`pending`), `final` with one primary artifact when the task succeeds, `partial` when the execution fails. Reviews too: artifacts whose kind the task's `review` setting names start as `draft`, the task waits in `awaiting_review`, reviewers approve, reject or request changes per draft, and changes requested run the agent again with the comments for revised drafts (`revisionOf`), up to `REVIEW_MAX_ROUNDS` rounds. Not yet: other kinds (`file` needs Loculus), approval rules from automations and Themis, sandboxes across long waits, pausing, templates and verification.
 
 ## Decisions
 
@@ -223,6 +223,8 @@ An artifact needs approval (is recorded as `draft`) if **either** of these requi
 
 Requirements only add up: an automation can make approval stricter than policy, but never loosen what policy requires. Tasks started through the API without an automation follow policy only.
 
+Until automations and Themis exist, a task carries its own setting, pinned when it is created: `review.artifactKinds`, the kinds that need approval (`*` for all). Automations and policy will fill in the same setting and can only add to it.
+
 ### Request changes
 
 Reviewing a draft has three answers, all requiring `task:approve`:
@@ -236,7 +238,8 @@ Reviewing a draft has three answers, all requiring `task:approve`:
 - Artifacts stay immutable: a revision is a new artifact, and the chain of `revisionOf` links is the review history. Iris shows it like the rounds of a PR review.
 - Comments can be general or point into the artifact (a line of a file, a requirement in a spec, an entry in a plan).
 - While waiting for review, and while revising, the task is not finished: it only succeeds once its drafts are `final`.
-- Proposal: a project-level limit on revision rounds, after which the task fails instead of looping.
+- A limit on review rounds (a platform setting for now, `REVIEW_MAX_ROUNDS`, 3; a project setting later): after the last round, requesting changes is refused, so reviewers approve or reject instead of looping.
+- Each draft is decided on its own. Approving makes it `final` at once (delivered). A rejection fails the task straight away (its other drafts become `partial`). Otherwise the task waits until no draft is undecided, then runs the agent again if any was sent back, or succeeds.
 
 ### Approval in task trees
 

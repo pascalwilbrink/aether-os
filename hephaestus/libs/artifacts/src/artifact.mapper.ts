@@ -23,9 +23,10 @@ export class ArtifactMapper {
       kind: input.kind,
       status: 'pending',
       primary: input.primary ?? false,
-      revisionOf: null,
+      revisionOf: input.revisionOf ?? null,
       title: input.title,
       metadata: input.metadata ?? {},
+      review: null,
       body:
         input.kind === 'text'
           ? ({
@@ -55,6 +56,7 @@ export class ArtifactMapper {
       revisionOf: entity.revisionOf,
       title: entity.title,
       metadata: entity.metadata,
+      review: entity.review,
       createdAt: entity.createdAt.toISOString(),
       updatedAt: entity.updatedAt.toISOString(),
       version: entity.version,

@@ -156,12 +156,16 @@ export class ExecutionsService {
    * goes straight through `verifying` and `delivering` to `succeeded`.
    */
   @Transactional()
-  async complete(source: ArtifactSource, summary: string): Promise<void> {
+  async complete(
+    source: ArtifactSource,
+    summary: string,
+    reviewKinds: string[] = [],
+  ): Promise<void> {
     const execution = await this.lock(source.executionId);
     if (execution?.status !== 'running') {
       return;
     }
-    const outcome = await this.artifacts.complete(source, summary);
+    const outcome = await this.artifacts.complete(source, summary, reviewKinds);
     if (!outcome) {
       // Finished without anything to show for it.
       await this.end(execution, 'failed', {
@@ -175,6 +179,18 @@ export class ExecutionsService {
       return;
     }
     await this.end(execution, 'completed', { summary });
+    if (outcome.draftArtifactIds.length > 0) {
+      // Drafts wait for people; the sandbox goes (docs/tasks.md).
+      await this.moveTask(
+        execution,
+        [
+          ['verify', 'agent-finished'],
+          ['await-review', 'drafts'],
+        ],
+        { draftArtifactIds: outcome.draftArtifactIds },
+      );
+      return;
+    }
     await this.moveTask(
       execution,
       [
@@ -182,8 +198,18 @@ export class ExecutionsService {
         ['deliver', 'nothing-to-verify'],
         ['succeed', 'nothing-to-deliver'],
       ],
-      { outcome },
+      {
+        outcome: {
+          primaryArtifactId: outcome.primaryArtifactId,
+          artifactIds: await this.artifacts.finalIds(source.taskId),
+        },
+      },
     );
+  }
+
+  /** What reviewers sent back for the task's next run (a revision). */
+  revisionRequests(taskId: string) {
+    return this.artifacts.revisionRequests(taskId);
   }
 
   /**
@@ -354,6 +380,7 @@ export class ExecutionsService {
       notBefore?: Date;
       failureReason?: TaskFailureReason;
       outcome?: { primaryArtifactId: string; artifactIds: string[] };
+      draftArtifactIds?: string[];
     } = {},
   ): Promise<boolean> {
     try {
@@ -363,7 +390,12 @@ export class ExecutionsService {
           execution.taskId,
           action,
           options.failureReason ?? null,
-          { notBefore: options.notBefore, reason, outcome: options.outcome },
+          {
+            notBefore: options.notBefore,
+            reason,
+            outcome: options.outcome,
+            draftArtifactIds: options.draftArtifactIds,
+          },
         );
       }
       return true;

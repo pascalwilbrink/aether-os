@@ -257,6 +257,8 @@ export class TasksService {
       reason?: string;
       /** Required to `succeed`: the artifacts it produced. */
       outcome?: { primaryArtifactId: string; artifactIds: string[] };
+      /** Required to `await-review`: the drafts waiting. */
+      draftArtifactIds?: string[];
     } = {},
   ): Promise<TaskResponse> {
     const task = await this.tasks.findOne({
@@ -279,6 +281,12 @@ export class TasksService {
       }
       task.primaryArtifactId = options.outcome.primaryArtifactId;
     }
+    if (next === 'awaiting_review') {
+      if (!options.draftArtifactIds?.length) {
+        throw new Error('A task awaiting review needs its drafts');
+      }
+      task.reviewRound += 1;
+    }
     // Only a requeued task waits (backoff); anything else starts afresh.
     task.nextAttemptAt =
       action === 'requeue' ? (options.notBefore ?? null) : null;
@@ -288,7 +296,7 @@ export class TasksService {
       options.reason ?? failureReason ?? action,
       next === 'failed' ? failureReason : null,
       null,
-      options.outcome?.artifactIds ?? [],
+      options.outcome?.artifactIds ?? options.draftArtifactIds ?? [],
     );
     if (next === 'succeeded') {
       await this.unblockDependents(task);
@@ -360,6 +368,18 @@ export class TasksService {
           topLevelTaskId: task.topLevelTaskId,
           requestedBy: task.requestedBy,
           failureReason,
+        },
+      });
+    } else if (to === 'awaiting_review') {
+      await this.events.emit({
+        ...base,
+        eventType: 'task.awaiting-review',
+        payload: {
+          taskId: task.id,
+          topLevelTaskId: task.topLevelTaskId,
+          requestedBy: task.requestedBy,
+          draftArtifactIds: artifactIds,
+          round: task.reviewRound,
         },
       });
     } else if (to === 'cancelled') {

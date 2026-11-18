@@ -18,6 +18,7 @@ export type TaskAction =
   | 'pause'
   | 'resume'
   | 'requeue'
+  | 'revise'
   | 'succeed'
   | 'fail'
   | 'cancel'
@@ -75,6 +76,8 @@ const TRANSITIONS: Record<
   },
   pause: { provisioning: 'paused', running: 'paused', verifying: 'paused' },
   resume: { paused: 'queued' },
+  // A reviewer requested changes: the agent runs again (a new execution).
+  revise: { awaiting_review: 'queued' },
   // An infrastructure failure retried automatically: a new execution later.
   requeue: {
     provisioning: 'queued',
