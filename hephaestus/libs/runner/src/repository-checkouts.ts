@@ -24,6 +24,24 @@ const BUNDLE_OUT = '/tmp/aether-out.bundle';
 /** Pushes that lose a race to a sibling are tried this often. */
 const PUSH_ATTEMPTS = 3;
 
+/**
+ * The commits conflict with the task tree's branch, which moved since the
+ * checkout (a sibling pushed). Hephaestus's clone has the branch's head at
+ * `refs/aether/remote`; the runner gives the conflict back to the agent
+ * (`startConflictResolution`) while it has rounds left.
+ */
+export class BranchConflictError extends Error {
+  constructor(
+    readonly branch: string,
+    readonly remoteSha: string,
+  ) {
+    super(
+      `The commits conflict with ${branch}, which moved since the checkout`,
+    );
+    this.name = 'BranchConflictError';
+  }
+}
+
 /** A repository checked out in an execution's sandbox. */
 export interface Checkout {
   linkId: string;
@@ -36,6 +54,7 @@ export interface Checkout {
   baseBranch: string;
   /** Who commits: the GitHub App's bot (docs/git.md), from Proxenos. */
   committer: { name: string; email: string };
+  /** What the agent's commits build on; the branch's head after a conflict. */
   baseSha: string;
   path: string;
   /** Hephaestus's own clone, where the commits come back to. */
@@ -193,6 +212,12 @@ export class RepositoryCheckouts {
     sandbox: Sandbox,
   ): Promise<CollectedCommits> {
     const exec = sandbox.exec!;
+    if (await this.rebaseInProgress(exec, checkout.path)) {
+      throw new RunnerFailure(
+        `The agent left the rebase onto ${checkout.branch} unfinished: its conflicts weren't resolved`,
+        'agent_failed',
+      );
+    }
     const status = await this.sandboxStep(
       exec,
       ['git', 'status', '--porcelain'],
@@ -269,8 +294,8 @@ export class RepositoryCheckouts {
    * checkout (a sibling subtask pushed), the commits are rebased onto it
    * first, and a push that loses a race is tried again. Commits that change
    * `.github/workflows` are refused here (GitHub would refuse them too: the
-   * app has no `workflows` permission). A conflict fails the execution as
-   * retryable: the next one starts from the branch's new head.
+   * app has no `workflows` permission). A rebase conflict throws
+   * `BranchConflictError`: it goes back to the agent (docs/git.md).
    */
   async push(
     checkout: Checkout,
@@ -341,9 +366,9 @@ export class RepositoryCheckouts {
       }
     } catch (error) {
       if (error instanceof RebaseConflictError) {
-        throw new RunnerFailure(
-          `The commits conflict with ${checkout.branch}, which moved since the checkout; the task runs again from its head`,
-          'infrastructure',
+        throw new BranchConflictError(
+          checkout.branch,
+          await this.git.revParse(checkout.hostDirectory, 'refs/aether/remote'),
         );
       }
       if (error instanceof GitError) {
@@ -358,6 +383,108 @@ export class RepositoryCheckouts {
       `${checkout.branch} kept moving; the commits weren't pushed`,
       'infrastructure',
     );
+  }
+
+  /**
+   * Gives a branch conflict to the agent (docs/git.md: a rebase conflict
+   * goes back to the agent): the branch's new commits go into the sandbox (a
+   * bundle of what the base doesn't have; still no network), and the
+   * agent's commits are rebased onto them there, uncommitted changes stashed
+   * and put back. The rebase stops at the first conflicting commit, for the
+   * agent to resolve and continue. From then on the checkout builds on the
+   * branch's head. Returns the conflicted files: none when it applied
+   * cleanly (the branch had changed in the meantime).
+   */
+  async startConflictResolution(
+    checkout: Checkout,
+    sandbox: Sandbox,
+    conflict: BranchConflictError,
+  ): Promise<string[]> {
+    const exec = sandbox.exec!;
+    const bundle = join(checkout.hostDirectory, '..', 'upstream.bundle');
+    try {
+      await this.git.bundle(checkout.hostDirectory, bundle, [
+        'refs/aether/remote',
+        `^${checkout.baseSha}`,
+      ]);
+    } catch (error) {
+      throw new RunnerFailure(
+        `The moved branch couldn't be prepared for the sandbox: ${error instanceof Error ? error.message : String(error)}`,
+        'infrastructure',
+      );
+    }
+    await this.sandboxStep(
+      exec,
+      ['sh', '-c', 'cat > "$1"', 'sh', BUNDLE_IN],
+      'copying the moved branch in',
+      await readFile(bundle),
+    );
+    await this.sandboxStep(
+      exec,
+      [
+        'sh',
+        '-c',
+        [
+          'set -e',
+          'git fetch --quiet --no-tags "$1" "+refs/aether/remote:refs/aether/upstream"',
+          'rm -f "$1"',
+        ].join('\n'),
+        'sh',
+        BUNDLE_IN,
+      ],
+      'fetching the moved branch',
+      undefined,
+      checkout.path,
+    );
+    const rebase = await exec(
+      [
+        'git',
+        '-c',
+        'core.editor=true',
+        'rebase',
+        '--quiet',
+        '--autostash',
+        'refs/aether/upstream',
+      ],
+      { workingDirectory: checkout.path, timeoutMs: 5 * 60_000 },
+    );
+    const stopped = await this.rebaseInProgress(exec, checkout.path);
+    if (rebase.exitCode !== 0 && !stopped) {
+      throw new RunnerFailure(
+        `In the sandbox, rebasing onto ${checkout.branch} failed (exit ${rebase.exitCode}): ${rebase.stderr.trim().slice(-500)}`,
+        'infrastructure',
+      );
+    }
+    const conflicted = await this.sandboxStep(
+      exec,
+      ['git', 'diff', '--name-only', '--diff-filter=U'],
+      'listing the conflicts',
+      undefined,
+      checkout.path,
+    );
+    checkout.baseSha = conflict.remoteSha;
+    checkout.startedFrom = checkout.branch;
+    return conflicted.stdout
+      .toString('utf8')
+      .split('\n')
+      .map((path) => path.trim())
+      .filter(Boolean);
+  }
+
+  /** Whether a rebase stopped in the sandbox's repository and is still in progress. */
+  private async rebaseInProgress(
+    exec: NonNullable<Sandbox['exec']>,
+    path: string,
+  ): Promise<boolean> {
+    const result = await exec(
+      [
+        'sh',
+        '-c',
+        'test -d "$(git rev-parse --git-path rebase-merge)" || test -d "$(git rev-parse --git-path rebase-apply)"',
+      ],
+      { workingDirectory: path, timeoutMs: 60_000 },
+    );
+    return result.exitCode === 0;
   }
 
   /** Removes Hephaestus's clone. */

@@ -11,6 +11,7 @@ import { AgentsService, AgentVersionsService } from '@hephaestus/agents';
 import { ArtifactsService } from '@hephaestus/artifacts';
 import { TasksService, type TaskResponse } from '@hephaestus/tasks';
 import { EventInbox } from '@hephaestus/core';
+import { DataSource } from 'typeorm';
 import { v7 as uuidv7 } from 'uuid';
 import { WorkspacesService } from '@hephaestus/workspaces';
 
@@ -283,6 +284,22 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
         .get(ExecutionsService)
         .list(organizationId, projectId, taskId, { limit: 10 })
     ).items[0];
+  const executionsOf = async (taskId: string) =>
+    (
+      await moduleRef
+        .get(ExecutionsService)
+        .list(organizationId, projectId, taskId, { limit: 10 })
+    ).items;
+  /** Why the task moved, from its `task.status-changed` events in the outbox. */
+  const statusReasons = async (taskId: string) =>
+    (
+      (await moduleRef
+        .get(DataSource)
+        .query(
+          `SELECT message->'payload'->>'reason' AS reason FROM outbox WHERE routing_key = 'task.status-changed' AND message->>'aggregateId' = $1 ORDER BY created_at`,
+          [taskId],
+        )) as { reason: string }[]
+    ).map((row) => row.reason);
 
   it('checks the repository out in the sandbox, and takes the commits back out', async () => {
     let seen: Record<string, string> = {};
@@ -455,40 +472,131 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
     );
   });
 
-  it('runs a conflicting task again from the new head', async () => {
+  /** The agent commits README.md while a sibling pushes another README.md. */
+  const conflictingSibling = async (input: AgentRunInput) => {
+    await shell(
+      input,
+      'cd /workspace/repo && echo mine > README.md && git commit -qam "Mine"',
+    );
+    const seed = join(root, 'seed');
+    git(seed, 'checkout', '--quiet', '-B', input.repository!.branch, 'main');
+    writeFileSync(join(seed, 'README.md'), 'theirs\n');
+    git(seed, 'commit', '--quiet', '-am', 'Theirs');
+    git(seed, 'push', '--quiet', 'origin', `HEAD:${input.repository!.branch}`);
+  };
+
+  it('gives a conflict with the moved branch back to the agent, then pushes', async () => {
     runtime.behaviour = async (input) => {
+      if (!input.conflict) {
+        await conflictingSibling(input);
+        return { outcome: 'completed', summary: 'Mine.' };
+      }
+      // Resolves it in the sandbox: both lines, then finishes the rebase.
       await shell(
         input,
-        'cd /workspace/repo && echo mine > README.md && git commit -qam "Mine"',
+        'cd /workspace/repo && printf "theirs\\nmine\\n" > README.md && git add README.md && GIT_EDITOR=true git rebase --continue',
       );
-      const seed = join(root, 'seed');
-      git(seed, 'checkout', '--quiet', '-B', input.repository!.branch, 'main');
-      writeFileSync(join(seed, 'README.md'), 'theirs\n');
-      git(seed, 'commit', '--quiet', '-am', 'Theirs');
-      git(
-        seed,
-        'push',
-        '--quiet',
-        'origin',
-        `HEAD:${input.repository!.branch}`,
-      );
+      return { outcome: 'completed', summary: 'Mine, after theirs.' };
+    };
+    const created = await taskFor();
+
+    await runOnce();
+
+    await expect(task(created.id)).resolves.toMatchObject({
+      status: 'delivering',
+      attempt: 1,
+    });
+    const branch = `aether/${created.topLevelTaskId}`;
+    expect(runtime.runs).toHaveLength(2);
+    expect(runtime.runs[1].conflict).toEqual({ branch, files: ['README.md'] });
+    // One execution: its second round resolved it, on top of the sibling's commit.
+    expect(await executionsOf(created.id)).toHaveLength(1);
+    expect(git(origin, 'log', '--format=%s', branch)).toBe(
+      'Mine\nTheirs\nInitial commit',
+    );
+    expect(git(origin, 'show', `${branch}:README.md`)).toBe('theirs\nmine');
+    const { repository } = await execution(created.id);
+    expect(repository).toMatchObject({
+      baseSha: git(origin, 'rev-parse', `${branch}~1`),
+      pushedSha: git(origin, 'rev-parse', branch),
+      commits: 1,
+    });
+    const [pullRequest] = (await artifacts(created.id)).filter(
+      (artifact) => artifact.kind === 'pull_request',
+    );
+    expect(pullRequest).toMatchObject({
+      status: 'final',
+      headSha: repository!.pushedSha,
+    });
+    expect(await statusReasons(created.id)).toContain('branch-conflict');
+  });
+
+  it('fails an execution that leaves the rebase unfinished', async () => {
+    runtime.behaviour = async (input) => {
+      if (!input.conflict) await conflictingSibling(input);
       return { outcome: 'completed', summary: 'Mine.' };
     };
     const created = await taskFor();
 
     await runOnce();
 
-    // Retried (infrastructure): the next execution starts from the branch.
+    await expect(task(created.id)).resolves.toMatchObject({
+      status: 'failed',
+      failureReason: 'agent_failed',
+    });
+    expect((await execution(created.id)).error).toMatch(
+      /left the rebase onto aether\/.* unfinished/,
+    );
+  });
+
+  it('runs the task again from the new head once its rounds are used up', async () => {
+    // Every round conflicts again: a sibling keeps pushing to README.md.
+    runtime.behaviour = async (input) => {
+      if (input.conflict) {
+        await shell(
+          input,
+          'cd /workspace/repo && echo resolved > README.md && git add README.md && GIT_EDITOR=true git rebase --continue',
+        );
+        const seed = join(root, 'seed');
+        git(seed, 'fetch', '--quiet', 'origin');
+        git(
+          seed,
+          'checkout',
+          '--quiet',
+          '-B',
+          input.repository!.branch,
+          `origin/${input.repository!.branch}`,
+        );
+        writeFileSync(
+          join(seed, 'README.md'),
+          `theirs again ${runtime.runs.length}\n`,
+        );
+        git(seed, 'commit', '--quiet', '-am', 'Theirs again');
+        git(
+          seed,
+          'push',
+          '--quiet',
+          'origin',
+          `HEAD:${input.repository!.branch}`,
+        );
+      } else {
+        await conflictingSibling(input);
+      }
+      return { outcome: 'completed', summary: 'Mine.' };
+    };
+    const created = await taskFor();
+
+    await runOnce();
+
+    // VERIFICATION_MAX_ROUNDS (3) runs, then retried (infrastructure) from the branch's head.
+    expect(runtime.runs).toHaveLength(3);
     await expect(task(created.id)).resolves.toMatchObject({
       status: 'queued',
       attempt: 1,
     });
     expect((await execution(created.id)).error).toMatch(
-      /conflict with aether\/.* runs again from its head/,
+      /still conflict with aether\/.* after 3 rounds; the task runs again from its head/,
     );
-    expect(
-      git(origin, 'log', '--format=%s', `aether/${created.topLevelTaskId}`),
-    ).toBe('Theirs\nInitial commit');
     expect(
       (await artifacts(created.id)).filter((a) => a.kind === 'pull_request'),
     ).toEqual([]);

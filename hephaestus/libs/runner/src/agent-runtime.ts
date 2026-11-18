@@ -37,6 +37,13 @@ export interface AgentRunInput {
    */
   repository?: AgentRepository | null;
   /**
+   * After the task tree's branch moved and the agent's commits conflict
+   * with it (docs/git.md): a rebase onto the branch is in progress in the
+   * repository, stopped at these conflicts, for the agent to resolve and
+   * continue. Absent or null otherwise.
+   */
+  conflict?: BranchConflict | null;
+  /**
    * Aborted when the execution must stop (cancelled, timed out, lost, or
    * Hephaestus shutting down): save what's needed and return quickly.
    */
@@ -52,6 +59,13 @@ export interface AgentRepository {
   branch: string;
   /** What it started from: the task branch itself, or the default branch. */
   startedFrom: string;
+}
+
+export interface BranchConflict {
+  /** The task tree's branch, which moved. */
+  branch: string;
+  /** Files with conflicts; empty when the rebase applied cleanly. */
+  files: string[];
 }
 
 export interface FailedCheck {

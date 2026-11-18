@@ -249,6 +249,23 @@ export class ExecutionsService {
    * (for Kriterion). If any failed and the agent gets another try, the task
    * goes back to `running`.
    */
+  /**
+   * Back to the agent in the same execution, after its checks passed
+   * (docs/git.md: a branch conflict to resolve). Nothing changes once the
+   * execution ended.
+   */
+  @Transactional()
+  async returnToAgent(
+    source: ArtifactSource,
+    reason: 'branch-conflict',
+  ): Promise<void> {
+    const execution = await this.lock(source.executionId);
+    if (execution?.status !== 'running') {
+      return;
+    }
+    await this.moveTask(execution, [['run', reason]]);
+  }
+
   @Transactional()
   async recordVerification(
     source: ArtifactSource,
