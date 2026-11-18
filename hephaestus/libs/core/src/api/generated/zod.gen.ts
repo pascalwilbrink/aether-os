@@ -10,6 +10,7 @@ export const zDomainErrorCode = z.enum([
     'ARTIFACT_NOT_DRAFT',
     'ORGANIZATION_SUSPENDED',
     'PROJECT_ARCHIVED',
+    'TASK_CRITERIA_INVALID',
     'TASK_DEPENDENCY_INVALID',
     'TASK_INVALID_TRANSITION',
     'TASK_PARENT_FINISHED',
@@ -205,6 +206,50 @@ export const zTaskFailureReason = z.enum([
 ]);
 
 /**
+ * Run in the task's sandbox (the agent version must need one); exit code 0 passes.
+ */
+export const zCommandCheck = z.object({
+    type: z.literal('command'),
+    command: z.string().min(1).max(4000),
+    timeoutSeconds: z.int().gte(1).lte(900).optional()
+});
+
+/**
+ * A structural check on the run's artifacts; every given condition must hold.
+ */
+export const zArtifactCheck = z.object({
+    type: z.literal('artifact'),
+    primaryKind: z.string().min(1).optional(),
+    titles: z.array(z.string().min(1)).max(20).optional()
+});
+
+/**
+ * Left to the reviewer; approving the draft confirms it.
+ */
+export const zManualCheck = z.object({
+    type: z.literal('manual')
+});
+
+/**
+ * How a criterion is checked; by Hephaestus, never by the agent's word.
+ */
+export const zCriterionCheck = z.discriminatedUnion('type', [
+    zCommandCheck,
+    zArtifactCheck,
+    zManualCheck
+]);
+
+export const zAcceptanceCriterionRequest = z.object({
+    key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/),
+    description: z.string().min(1).max(2000),
+    check: zCriterionCheck
+});
+
+export const zAcceptanceCriterion = zAcceptanceCriterionRequest.and(z.object({
+    source: z.enum(['task'])
+}));
+
+/**
  * Which of the task's artifacts need approval before they're final
  * (docs/tasks.md, What needs approval). Pinned when the task is
  * created; automations and Themis policy will add to it later.
@@ -221,7 +266,8 @@ export const zCreateTaskRequest = z.object({
     serviceAccountId: z.uuid(),
     parentTaskId: z.uuid().nullish(),
     dependsOn: z.array(z.uuid()).max(50).optional(),
-    review: zTaskReviewSettings.optional()
+    review: zTaskReviewSettings.optional(),
+    acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional()
 });
 
 export const zTaskResponse = z.object({
@@ -243,6 +289,7 @@ export const zTaskResponse = z.object({
     primaryArtifactId: z.uuid().nullable(),
     review: zTaskReviewSettings,
     reviewRound: z.int().gte(0),
+    acceptanceCriteria: z.array(zAcceptanceCriterion),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
     finishedAt: z.iso.datetime().nullable(),
@@ -263,6 +310,16 @@ export const zArtifactStatus = z.enum([
     'changes_requested',
     'partial'
 ]);
+
+export const zCriterionResult = z.object({
+    key: z.string(),
+    outcome: z.enum([
+        'passed',
+        'failed',
+        'manual'
+    ]),
+    output: z.string()
+});
 
 export const zReviewComment = z.object({
     body: z.string().min(1).max(10000),
@@ -311,6 +368,12 @@ export const zJsonArtifact = zArtifactBase.and(z.object({
     content: z.unknown()
 }));
 
+export const zVerificationArtifact = zArtifactBase.and(z.object({
+    kind: z.literal('verification'),
+    round: z.int().gte(1),
+    results: z.array(zCriterionResult)
+}));
+
 /**
  * One artifact; `kind` says which (an open set).
  */
@@ -320,7 +383,10 @@ export const zArtifactResponse = z.union([
     }).and(zTextArtifact),
     z.object({
         kind: z.literal('json')
-    }).and(zJsonArtifact)
+    }).and(zJsonArtifact),
+    z.object({
+        kind: z.literal('verification')
+    }).and(zVerificationArtifact)
 ]);
 
 export const zReviewDecisionRequest = z.object({
@@ -351,7 +417,8 @@ export const zExecutionFailureReason = z.enum([
     'timeout',
     'infrastructure',
     'access_denied',
-    'interrupted'
+    'interrupted',
+    'verification_failed'
 ]);
 
 /**

@@ -37,4 +37,22 @@ describe('promptFor', () => {
     expect(prompt).toContain('"rows": 2');
     expect(prompt).toContain('- (/rows) Three rows.\n- And a total.');
   });
+
+  it('adds the failed acceptance criteria after a verification round', () => {
+    const prompt = promptFor(
+      task,
+      [],
+      [
+        {
+          key: 'tests-pass',
+          description: 'The tests pass',
+          output: '1 failing',
+        },
+      ],
+    );
+    expect(prompt).toContain('## Acceptance criteria not met');
+    expect(prompt).toContain(
+      '### tests-pass: The tests pass\n\n```\n1 failing\n```',
+    );
+  });
 });

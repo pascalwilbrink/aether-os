@@ -184,7 +184,7 @@ describe('TaskRunner (Postgres)', () => {
       ['provisioning', 'provision'],
       ['running', 'sandbox-ready'],
       ['verifying', 'agent-finished'],
-      ['delivering', 'nothing-to-verify'],
+      ['delivering', 'verified'],
       ['succeeded', 'nothing-to-deliver'],
     ]);
     const [execution] = await t.executionsOf(first.id);

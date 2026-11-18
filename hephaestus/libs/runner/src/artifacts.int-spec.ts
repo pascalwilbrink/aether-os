@@ -112,9 +112,11 @@ describe('Artifacts from executions (Postgres)', () => {
   }
 
   const task = (id: string) => tasks.findById(organizationId, projectId, id);
+  /** What the agent produced (each run's verification artifact aside). */
   const artifactsOf = async (taskId: string) =>
-    (await artifacts.list(organizationId, projectId, taskId, { limit: 100 }))
-      .items;
+    (
+      await artifacts.list(organizationId, projectId, taskId, { limit: 100 })
+    ).items.filter((artifact) => artifact.kind !== 'verification');
   const text = (title: string, primary?: boolean) =>
     ({
       kind: 'text',
@@ -187,6 +189,9 @@ describe('Artifacts from executions (Postgres)', () => {
     ).toEqual([
       ['artifact.created', 'pending'],
       ['artifact.created', 'pending'],
+      // The run's verification (no criteria: nothing to check).
+      ['artifact.created', 'pending'],
+      ['artifact.status-changed', 'final'],
       ['artifact.status-changed', 'final'],
       ['artifact.status-changed', 'final'],
     ]);
@@ -194,7 +199,8 @@ describe('Artifacts from executions (Postgres)', () => {
       published.find((event) => event.eventType === 'task.succeeded')?.payload,
     ).toMatchObject({
       primaryArtifactId: all[1].id,
-      artifactIds: [all[0].id, all[1].id],
+      // Every final artifact: the agent's two and the verification.
+      artifactIds: [all[0].id, all[1].id, expect.any(String)],
     });
   });
 

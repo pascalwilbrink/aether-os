@@ -14,6 +14,7 @@ import { EchoAgentRuntime, NoAgentRuntime } from './echo-agent-runtime.js';
 import { ExecutionEntity } from './execution.entity.js';
 import { MastraAgentRuntime } from './mastra-agent-runtime.js';
 import { ExecutionMapper } from './execution.mapper.js';
+import { ExecutionPreparer } from './execution-preparer.js';
 import { ExecutionReaper } from './execution-reaper.js';
 import { ExecutionsController } from './executions.controller.js';
 import { ExecutionsService } from './executions.service.js';
@@ -25,6 +26,7 @@ import { SandboxDriver } from './sandbox-driver.js';
 import { SandboxProvisioner } from './sandbox-provisioner.js';
 import { TaskRunner } from './task-runner.js';
 import { TaskTokens } from './task-tokens.js';
+import { Verifier } from './verifier.js';
 import {
   SANDBOX_OPTIONS,
   WorkspaceSandboxProvisioner,
@@ -115,6 +117,8 @@ import {
     ExecutionMapper,
     ExecutionsService,
     ExecutionReaper,
+    ExecutionPreparer,
+    Verifier,
     TaskRunner,
   ],
   exports: [ExecutionsService, TaskRunner],

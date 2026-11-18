@@ -177,7 +177,8 @@ describe('Running tasks (e2e)', () => {
           primary: true,
           revisionOf: null,
           title: 'Answer',
-          metadata: {},
+          // Made from the agent's final answer.
+          metadata: { 'aether-os.final-answer': 'true' },
           review: null,
           format: 'markdown',
           content: 'Done.',
@@ -185,6 +186,15 @@ describe('Running tasks (e2e)', () => {
           updatedAt: expect.any(String),
           version: 2,
         },
+        // Verification is part of every run: no criteria, nothing to check.
+        expect.objectContaining({
+          kind: 'verification',
+          title: 'Verification, round 1',
+          status: 'final',
+          primary: false,
+          round: 1,
+          results: [],
+        }),
       ],
       nextCursor: null,
     });

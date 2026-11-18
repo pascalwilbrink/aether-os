@@ -2,7 +2,13 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, LessThan, type Repository } from 'typeorm';
 
-import { findPage, mapPage, Transactional, type Page } from '@hephaestus/core';
+import {
+  findPage,
+  mapPage,
+  Transactional,
+  type ApiTypes,
+  type Page,
+} from '@hephaestus/core';
 import {
   ArtifactRejectedError,
   ArtifactsService,
@@ -48,6 +54,7 @@ const TASK_FAILURE: Record<
   timeout: 'timeout',
   infrastructure: 'infrastructure',
   access_denied: 'access_denied',
+  verification_failed: 'verification_failed',
 };
 
 /**
@@ -179,23 +186,18 @@ export class ExecutionsService {
       return;
     }
     await this.end(execution, 'completed', { summary });
+    // The task is `verifying`: its checks passed (`startVerifying`).
     if (outcome.draftArtifactIds.length > 0) {
       // Drafts wait for people; the sandbox goes (docs/tasks.md).
-      await this.moveTask(
-        execution,
-        [
-          ['verify', 'agent-finished'],
-          ['await-review', 'drafts'],
-        ],
-        { draftArtifactIds: outcome.draftArtifactIds },
-      );
+      await this.moveTask(execution, [['await-review', 'drafts']], {
+        draftArtifactIds: outcome.draftArtifactIds,
+      });
       return;
     }
     await this.moveTask(
       execution,
       [
-        ['verify', 'agent-finished'],
-        ['deliver', 'nothing-to-verify'],
+        ['deliver', 'verified'],
         ['succeed', 'nothing-to-deliver'],
       ],
       {
@@ -205,6 +207,60 @@ export class ExecutionsService {
         },
       },
     );
+  }
+
+  /**
+   * The agent finished a run: settles its outcome (`ArtifactsService.settle`)
+   * and moves the task to `verifying`. False when it produced nothing at all
+   * (the execution then fails `agent_failed`).
+   */
+  @Transactional()
+  async startVerifying(
+    source: ArtifactSource,
+    summary: string,
+  ): Promise<boolean> {
+    const execution = await this.lock(source.executionId);
+    if (execution?.status !== 'running') {
+      return false;
+    }
+    if (!(await this.artifacts.settle(source, summary))) {
+      return false;
+    }
+    return this.moveTask(execution, [['verify', 'agent-finished']]);
+  }
+
+  /** What the checks look at (the run's artifacts, and the task's final ones). */
+  artifactsToVerify(taskId: string, executionId: string) {
+    return this.artifacts.forVerification(taskId, executionId);
+  }
+
+  /**
+   * Records a round of checks: a verification artifact, and `task.verified`
+   * (for Kriterion). If any failed and the agent gets another try, the task
+   * goes back to `running`.
+   */
+  @Transactional()
+  async recordVerification(
+    source: ArtifactSource,
+    round: number,
+    results: ApiTypes.CriterionResult[],
+    retry: boolean,
+  ): Promise<void> {
+    const execution = await this.lock(source.executionId);
+    if (execution?.status !== 'running') {
+      return;
+    }
+    await this.artifacts.recordVerification(source, round, results);
+    await this.tasks.recordVerification(source.organizationId, source.taskId, {
+      executionId: source.executionId,
+      agentVersionId: source.agentVersionId,
+      round,
+      passed: results.every((result) => result.outcome !== 'failed'),
+      results: results.map(({ key, outcome }) => ({ key, outcome })),
+    });
+    if (retry) {
+      await this.moveTask(execution, [['run', 'checks-failed']]);
+    }
   }
 
   /** What reviewers sent back for the task's next run (a revision). */

@@ -89,6 +89,8 @@ export const zEnv = z
     RUNNER_RETRY_BACKOFF_MS: z.coerce.number().int().min(0).default(10_000),
     /** Review rounds a task may have before its drafts must be approved or rejected. */
     REVIEW_MAX_ROUNDS: z.coerce.number().int().min(1).max(20).default(3),
+    /** Runs of the agent per execution while acceptance criteria fail. */
+    VERIFICATION_MAX_ROUNDS: z.coerce.number().int().min(1).max(10).default(3),
     /**
      * Sandboxes for agent versions that need one (`runtime.sandboxRequired`):
      * `none` (the default) fails such tasks; `docker` runs hardened containers

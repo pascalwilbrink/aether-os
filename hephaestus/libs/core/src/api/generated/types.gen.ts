@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ARTIFACT_NOT_DRAFT' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
+export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ARTIFACT_NOT_DRAFT' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
 
 /**
  * Problem details for a business-rule violation.
@@ -203,6 +203,68 @@ export type CreateTaskRequest = {
      */
     dependsOn?: Array<string>;
     review?: TaskReviewSettings;
+    /**
+     * The definition of done (docs/tasks.md); checked after every run. Keys are unique.
+     */
+    acceptanceCriteria?: Array<AcceptanceCriterionRequest>;
+};
+
+export type AcceptanceCriterionRequest = {
+    key: string;
+    description: string;
+    check: CriterionCheck;
+};
+
+export type AcceptanceCriterion = AcceptanceCriterionRequest & {
+    /**
+     * Where it came from (templates and spec requirements later).
+     */
+    source: 'task';
+};
+
+/**
+ * How a criterion is checked; by Hephaestus, never by the agent's word.
+ */
+export type CriterionCheck = ({
+    type: 'command';
+} & CommandCheck) | ({
+    type: 'artifact';
+} & ArtifactCheck) | ({
+    type: 'manual';
+} & ManualCheck);
+
+/**
+ * Run in the task's sandbox (the agent version must need one); exit code 0 passes.
+ */
+export type CommandCheck = {
+    type: 'command';
+    command: string;
+    /**
+     * 300 if left out.
+     */
+    timeoutSeconds?: number;
+};
+
+/**
+ * A structural check on the run's artifacts; every given condition must hold.
+ */
+export type ArtifactCheck = {
+    type: 'artifact';
+    /**
+     * The primary artifact's kind.
+     */
+    primaryKind?: string;
+    /**
+     * Artifacts with these titles exist.
+     */
+    titles?: Array<string>;
+};
+
+/**
+ * Left to the reviewer; approving the draft confirms it.
+ */
+export type ManualCheck = {
+    type: 'manual';
 };
 
 /**
@@ -255,6 +317,7 @@ export type TaskResponse = {
      * How many times the task has waited for review (0 before the first).
      */
     reviewRound: number;
+    acceptanceCriteria: Array<AcceptanceCriterion>;
     createdAt: string;
     updatedAt: string;
     finishedAt: string | null;
@@ -315,6 +378,24 @@ export type JsonArtifact = ArtifactBase & {
     content: unknown;
 };
 
+export type VerificationArtifact = ArtifactBase & {
+    kind: 'verification';
+    /**
+     * Within its execution: 1, plus one per run after failed checks.
+     */
+    round: number;
+    results: Array<CriterionResult>;
+};
+
+export type CriterionResult = {
+    key: string;
+    outcome: 'passed' | 'failed' | 'manual';
+    /**
+     * What the check said: a command's output (its last 16 KiB), or why it failed.
+     */
+    output: string;
+};
+
 /**
  * One artifact; `kind` says which (an open set).
  */
@@ -322,7 +403,9 @@ export type ArtifactResponse = ({
     kind: 'text';
 } & TextArtifact) | ({
     kind: 'json';
-} & JsonArtifact);
+} & JsonArtifact) | ({
+    kind: 'verification';
+} & VerificationArtifact);
 
 export type ArtifactReview = {
     decision: 'approved' | 'rejected' | 'changes_requested';
@@ -363,7 +446,7 @@ export type ExecutionStatus = 'provisioning' | 'running' | 'completed' | 'failed
  * against it. The others fail the task.
  *
  */
-export type ExecutionFailureReason = 'agent_failed' | 'timeout' | 'infrastructure' | 'access_denied' | 'interrupted';
+export type ExecutionFailureReason = 'agent_failed' | 'timeout' | 'infrastructure' | 'access_denied' | 'interrupted' | 'verification_failed';
 
 export type ExecutionResponse = {
     id: string;

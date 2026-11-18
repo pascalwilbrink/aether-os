@@ -6,6 +6,7 @@ import {
   AccessControl,
   findPage,
   HephaestusEvents,
+  type HephaestusEventTypes,
   isUniqueViolation,
   mapPage,
   Transactional,
@@ -19,6 +20,7 @@ import type { ListTasksQuery } from './dto/list-tasks.query.js';
 import type { TaskResponse } from './dto/task.response.js';
 import { TaskEntity } from './task.entity.js';
 import {
+  InvalidTaskCriteriaError,
   InvalidTaskDependencyError,
   InvalidTaskTransitionError,
   TaskParentFinishedError,
@@ -72,6 +74,14 @@ export class TasksService {
       return { task: this.mapper.toResponse(existing), created: false };
     }
 
+    const keys = (dto.acceptanceCriteria ?? []).map(
+      (criterion) => criterion.key,
+    );
+    if (new Set(keys).size !== keys.length) {
+      throw new InvalidTaskCriteriaError(
+        'Acceptance criteria need unique keys',
+      );
+    }
     await this.projects.assertAcceptsWrites(organizationId, projectId);
     const agentVersionId = await this.agents.publishedVersion(
       organizationId,
@@ -302,6 +312,36 @@ export class TasksService {
       await this.unblockDependents(task);
     }
     return this.mapper.toResponse(task);
+  }
+
+  /**
+   * Publishes the outcome of a verification round (`task.verified`, for
+   * Kriterion); a change to the task's event stream, so its version moves.
+   */
+  @Transactional()
+  async recordVerification(
+    organizationId: string,
+    taskId: string,
+    verification: Omit<HephaestusEventTypes.TaskVerified, 'taskId'>,
+  ): Promise<void> {
+    const task = await this.tasks.findOne({
+      where: { id: taskId, organizationId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!task) {
+      throw new NotFoundException(`Task ${taskId} not found`);
+    }
+    task.version += 1;
+    task.updatedAt = new Date();
+    await this.tasks.save(task);
+    await this.events.emit({
+      eventType: 'task.verified',
+      aggregateId: task.id,
+      aggregateVersion: task.version,
+      organizationId,
+      projectId: task.projectId,
+      payload: { taskId: task.id, ...verification },
+    });
   }
 
   /** A task's status, for the runner (no tenancy check); null if unknown. */

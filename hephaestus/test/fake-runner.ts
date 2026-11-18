@@ -28,6 +28,7 @@ export function testRunnerOptions(
     stopGraceMs: 50,
     maxInfrastructureFailures: 3,
     retryBackoffMs: 0,
+    maxVerificationRounds: 3,
     ...overrides,
   };
 }
@@ -66,14 +67,53 @@ export class FakeTaskTokens extends TaskTokens {
   }
 }
 
-/** Sandboxes that are only records of what was provisioned and destroyed. */
+/** What a scripted sandbox command returns. */
+export interface FakeCommandResult {
+  exitCode: number;
+  output?: string;
+  timedOut?: boolean;
+}
+
+/**
+ * Sandboxes that are only records of what was provisioned and destroyed.
+ * Commands (verification's `command` checks) answer from `commands`: each
+ * call takes the next result for that command, the last one repeating.
+ */
 export class FakeSandboxProvisioner extends SandboxProvisioner {
   readonly provisioned: string[] = [];
   readonly destroyed: Record<string, unknown>[] = [];
+  readonly commands = new Map<string, FakeCommandResult[]>();
+  readonly ran: string[] = [];
 
-  provision({ executionId }: SandboxRequest): Promise<Sandbox | null> {
+  provision({
+    executionId,
+    agentVersion,
+  }: SandboxRequest): Promise<Sandbox | null> {
     this.provisioned.push(executionId);
-    return Promise.resolve({ reference: { sandboxId: `sbx-${executionId}` } });
+    const executeCommand = (command: string) => {
+      this.ran.push(command);
+      const results = this.commands.get(command) ?? [{ exitCode: 127 }];
+      const result = results.length > 1 ? results.shift()! : results[0];
+      return Promise.resolve({
+        success: result.exitCode === 0,
+        exitCode: result.exitCode,
+        stdout: result.output ?? '',
+        stderr: '',
+        executionTimeMs: 1,
+        timedOut: result.timedOut,
+      });
+    };
+    return Promise.resolve({
+      reference: { sandboxId: `sbx-${executionId}` },
+      // Only for versions that run in a sandbox (as the real one).
+      ...(agentVersion.runtime.sandboxRequired
+        ? {
+            agentSandbox: {
+              executeCommand,
+            } as unknown as Sandbox['agentSandbox'],
+          }
+        : {}),
+    });
   }
 
   /** Every release, and the references of those that had a sandbox. */

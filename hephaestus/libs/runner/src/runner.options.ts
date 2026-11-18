@@ -15,6 +15,8 @@ export interface RunnerOptions {
   stopGraceMs: number;
   maxInfrastructureFailures: number;
   retryBackoffMs: number;
+  /** Runs of the agent per execution while acceptance criteria fail. */
+  maxVerificationRounds: number;
 }
 
 export const RUNNER_OPTIONS = Symbol('RUNNER_OPTIONS');
@@ -37,5 +39,6 @@ export function runnerOptionsFrom(
     stopGraceMs: get('RUNNER_STOP_GRACE_MS'),
     maxInfrastructureFailures: get('RUNNER_MAX_INFRASTRUCTURE_FAILURES'),
     retryBackoffMs: get('RUNNER_RETRY_BACKOFF_MS'),
+    maxVerificationRounds: get('VERIFICATION_MAX_ROUNDS'),
   };
 }

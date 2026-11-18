@@ -10,3 +10,4 @@ export * from './mastra-agent-runtime.js';
 export * from './sandbox-driver.js';
 export * from './docker-sandbox-driver.js';
 export * from './workspace-sandbox-provisioner.js';
+export * from './verifier.js';

@@ -544,7 +544,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -731,6 +731,53 @@ export interface components {
             /** @description Tasks under the same top-level task that must succeed first. */
             dependsOn?: string[];
             review?: components["schemas"]["TaskReviewSettings"];
+            /** @description The definition of done (docs/tasks.md); checked after every run. Keys are unique. */
+            acceptanceCriteria?: components["schemas"]["AcceptanceCriterionRequest"][];
+        };
+        AcceptanceCriterionRequest: {
+            key: string;
+            description: string;
+            check: components["schemas"]["CriterionCheck"];
+        };
+        AcceptanceCriterion: components["schemas"]["AcceptanceCriterionRequest"] & {
+            /**
+             * @description Where it came from (templates and spec requirements later).
+             * @enum {string}
+             */
+            source: "task";
+        };
+        /** @description How a criterion is checked; by Hephaestus, never by the agent's word. */
+        CriterionCheck: components["schemas"]["CommandCheck"] | components["schemas"]["ArtifactCheck"] | components["schemas"]["ManualCheck"];
+        /** @description Run in the task's sandbox (the agent version must need one); exit code 0 passes. */
+        CommandCheck: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "command";
+            command: string;
+            /** @description 300 if left out. */
+            timeoutSeconds?: number;
+        };
+        /** @description A structural check on the run's artifacts; every given condition must hold. */
+        ArtifactCheck: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "artifact";
+            /** @description The primary artifact's kind. */
+            primaryKind?: string;
+            /** @description Artifacts with these titles exist. */
+            titles?: string[];
+        };
+        /** @description Left to the reviewer; approving the draft confirms it. */
+        ManualCheck: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "manual";
         };
         /**
          * @description Which of the task's artifacts need approval before they're final
@@ -781,6 +828,7 @@ export interface components {
             review: components["schemas"]["TaskReviewSettings"];
             /** @description How many times the task has waited for review (0 before the first). */
             reviewRound: number;
+            acceptanceCriteria: components["schemas"]["AcceptanceCriterion"][];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -856,8 +904,28 @@ export interface components {
              */
             kind: "json";
         };
+        VerificationArtifact: components["schemas"]["ArtifactBase"] & {
+            /** @constant */
+            kind: "verification";
+            /** @description Within its execution: 1, plus one per run after failed checks. */
+            round: number;
+            results: components["schemas"]["CriterionResult"][];
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "verification";
+        };
+        CriterionResult: {
+            key: string;
+            /** @enum {string} */
+            outcome: "passed" | "failed" | "manual";
+            /** @description What the check said: a command's output (its last 16 KiB), or why it failed. */
+            output: string;
+        };
         /** @description One artifact; `kind` says which (an open set). */
-        ArtifactResponse: components["schemas"]["TextArtifact"] | components["schemas"]["JsonArtifact"];
+        ArtifactResponse: components["schemas"]["TextArtifact"] | components["schemas"]["JsonArtifact"] | components["schemas"]["VerificationArtifact"];
         ArtifactReview: {
             /** @enum {string} */
             decision: "approved" | "rejected" | "changes_requested";
@@ -890,7 +958,7 @@ export interface components {
          *     against it. The others fail the task.
          * @enum {string}
          */
-        ExecutionFailureReason: "agent_failed" | "timeout" | "infrastructure" | "access_denied" | "interrupted";
+        ExecutionFailureReason: "agent_failed" | "timeout" | "infrastructure" | "access_denied" | "interrupted" | "verification_failed";
         ExecutionResponse: {
             /** Format: uuid */
             id: string;
