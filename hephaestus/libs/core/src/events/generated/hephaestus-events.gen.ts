@@ -54,7 +54,8 @@ export interface TaskFailed {
     | 'timeout'
     | 'budget_exceeded'
     | 'infrastructure'
-    | 'subtask_failed';
+    | 'subtask_failed'
+    | 'access_denied';
 }
 
 /**

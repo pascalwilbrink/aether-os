@@ -172,7 +172,13 @@ export type WorkspacePage = PageMeta & {
  */
 export type TaskStatus = 'blocked' | 'queued' | 'provisioning' | 'running' | 'verifying' | 'awaiting_review' | 'waiting' | 'paused' | 'delivering' | 'succeeded' | 'failed' | 'cancelled';
 
-export type TaskFailureReason = 'agent_failed' | 'verification_failed' | 'rejected' | 'timeout' | 'budget_exceeded' | 'infrastructure' | 'subtask_failed';
+/**
+ * Why a task failed. `access_denied`: Pistis refused a task token for
+ * its service account (no role in the project, disabled, or not a
+ * member of the organization).
+ *
+ */
+export type TaskFailureReason = 'agent_failed' | 'verification_failed' | 'rejected' | 'timeout' | 'budget_exceeded' | 'infrastructure' | 'subtask_failed' | 'access_denied';
 
 export type CreateTaskRequest = {
     title: string;
@@ -234,6 +240,46 @@ export type TaskResponse = {
 
 export type TaskPage = PageMeta & {
     items: Array<TaskResponse>;
+};
+
+export type ExecutionStatus = 'provisioning' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+/**
+ * `infrastructure` (a crash, a missed heartbeat, a provisioning timeout,
+ * an unreachable dependency) is retried automatically, up to a limit;
+ * `interrupted` (Hephaestus shut down) is retried without counting
+ * against it. The others fail the task.
+ *
+ */
+export type ExecutionFailureReason = 'agent_failed' | 'timeout' | 'infrastructure' | 'access_denied' | 'interrupted';
+
+export type ExecutionResponse = {
+    id: string;
+    taskId: string;
+    /**
+     * The task's attempt it belongs to.
+     */
+    attempt: number;
+    /**
+     * 1, 2, … within the task.
+     */
+    number: number;
+    status: ExecutionStatus;
+    failureReason: ExecutionFailureReason | null;
+    /**
+     * What went wrong, for people; never contains secrets.
+     */
+    error: string | null;
+    /**
+     * What the agent reported when it finished (until artifacts exist).
+     */
+    summary: string | null;
+    startedAt: string;
+    endedAt: string | null;
+};
+
+export type ExecutionPage = PageMeta & {
+    items: Array<ExecutionResponse>;
 };
 
 export type PageMeta = {
@@ -1545,3 +1591,63 @@ export type RetryTaskResponses = {
 };
 
 export type RetryTaskResponse = RetryTaskResponses[keyof RetryTaskResponses];
+
+export type ListTaskExecutionsData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+        taskId: string;
+    };
+    query?: {
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/executions';
+};
+
+export type ListTaskExecutionsErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListTaskExecutionsError = ListTaskExecutionsErrors[keyof ListTaskExecutionsErrors];
+
+export type ListTaskExecutionsResponses = {
+    /**
+     * Newest first
+     */
+    200: ExecutionPage;
+};
+
+export type ListTaskExecutionsResponse = ListTaskExecutionsResponses[keyof ListTaskExecutionsResponses];

@@ -102,7 +102,7 @@ Services communicate asynchronously over **RabbitMQ**: for example Polis announc
 The code doesn't match the model yet:
 
 - Hephaestus still contains `libs/agents` (agents and versions); that belongs in Agora once Agora exists.
-- Hephaestus has tasks (`libs/tasks`: the model, API and lifecycle), but no runner yet: nothing moves a queued task forward, and executions, artifacts, templates and verification are still to come (`docs/tasks.md`).
+- Hephaestus has tasks (`libs/tasks`: the model, API and lifecycle) and a runner (`libs/runner`: executions, the queue with concurrency limits, heartbeats, timeouts, cancellation, retries), but no real agent runtime or sandboxes yet: the runtime and sandbox provisioner are ports with stand-ins (`AGENT_RUNTIME=echo` locally), Mastra comes next. Artifacts, templates and verification are still to come (`docs/tasks.md`).
 
 Organizations and projects live in Polis only: Hephaestus keeps their status from Polis's events (`hephaestus/libs/tenancy`). Add organization and project features to Polis.
 

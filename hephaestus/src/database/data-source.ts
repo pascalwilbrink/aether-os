@@ -12,6 +12,7 @@ import { AgentVersionEntity } from '../../libs/agents/src/agent-version.entity.j
 import { AgentEntity } from '../../libs/agents/src/agent.entity.js';
 import { OrganizationStateEntity } from '../../libs/tenancy/src/organization-state.entity.js';
 import { ProjectStateEntity } from '../../libs/tenancy/src/project-state.entity.js';
+import { ExecutionEntity } from '../../libs/runner/src/execution.entity.js';
 import { TaskEntity } from '../../libs/tasks/src/task.entity.js';
 import { WorkspaceEntity } from '../../libs/workspaces/src/workspace.entity.js';
 import { migrations } from './migrations/index.js';
@@ -45,6 +46,7 @@ export default new DataSource(
       AgentVersionEntity,
       WorkspaceEntity,
       TaskEntity,
+      ExecutionEntity,
     ],
   }),
 );

@@ -39,6 +39,7 @@ export class TaskMapper {
       failureReason: null,
       dependsOn: [...new Set(task.dto.dependsOn ?? [])],
       attempt: 1,
+      nextAttemptAt: null,
       idempotencyKey: task.idempotencyKey,
       createdAt: now,
       updatedAt: now,

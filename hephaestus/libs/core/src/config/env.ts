@@ -24,6 +24,54 @@ export const zEnv = z.object({
    */
   PISTIS_CLIENT_ID: z.string().min(1).default('hephaestus'),
   PISTIS_CLIENT_SECRET: z.string().min(16),
+  /**
+   * The runner (libs/runner): which agent runtime runs tasks. `none` (the
+   * default) starts no runner, so tasks stay queued; `echo` is a stand-in
+   * that finishes every task at once, for local development.
+   */
+  AGENT_RUNTIME: z.enum(['none', 'echo']).default('none'),
+  /** How often the runner looks for queued tasks and stale executions. */
+  RUNNER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
+  /** Executions one Hephaestus instance runs at once. */
+  RUNNER_MAX_EXECUTIONS: z.coerce.number().int().positive().default(4),
+  /** Running tasks per organization and per project (docs/tasks.md, Concurrency). */
+  RUNNER_MAX_TASKS_PER_ORGANIZATION: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(10),
+  RUNNER_MAX_TASKS_PER_PROJECT: z.coerce.number().int().positive().default(5),
+  /** docs/tasks.md, Timeouts. */
+  RUNNER_PROVISIONING_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(10 * 60_000),
+  RUNNER_RUN_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60 * 60_000),
+  RUNNER_HEARTBEAT_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(15_000),
+  RUNNER_HEARTBEAT_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(2 * 60_000),
+  /** How long a stopped execution gets to save its state (docs/tasks.md, Cancellation). */
+  RUNNER_STOP_GRACE_MS: z.coerce.number().int().min(0).default(30_000),
+  /** Executions per attempt after infrastructure failures (docs/tasks.md, Retries). */
+  RUNNER_MAX_INFRASTRUCTURE_FAILURES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(3),
+  /** The first retry's delay; doubled for each one after it. */
+  RUNNER_RETRY_BACKOFF_MS: z.coerce.number().int().min(0).default(10_000),
 });
 
 export type Env = z.infer<typeof zEnv>;

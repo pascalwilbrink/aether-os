@@ -359,6 +359,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/executions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description The task's executions (docs/tasks.md, Executions): one per try in a
+         *     sandbox, including the automatic retries after infrastructure
+         *     failures and those of later attempts.
+         */
+        get: operations["listTaskExecutions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -556,8 +581,13 @@ export interface components {
          * @enum {string}
          */
         TaskStatus: "blocked" | "queued" | "provisioning" | "running" | "verifying" | "awaiting_review" | "waiting" | "paused" | "delivering" | "succeeded" | "failed" | "cancelled";
-        /** @enum {string} */
-        TaskFailureReason: "agent_failed" | "verification_failed" | "rejected" | "timeout" | "budget_exceeded" | "infrastructure" | "subtask_failed";
+        /**
+         * @description Why a task failed. `access_denied`: Pistis refused a task token for
+         *     its service account (no role in the project, disabled, or not a
+         *     member of the organization).
+         * @enum {string}
+         */
+        TaskFailureReason: "agent_failed" | "verification_failed" | "rejected" | "timeout" | "budget_exceeded" | "infrastructure" | "subtask_failed" | "access_denied";
         CreateTaskRequest: {
             title: string;
             instructions: string;
@@ -619,6 +649,39 @@ export interface components {
         };
         TaskPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["TaskResponse"][];
+        };
+        /** @enum {string} */
+        ExecutionStatus: "provisioning" | "running" | "completed" | "failed" | "cancelled";
+        /**
+         * @description `infrastructure` (a crash, a missed heartbeat, a provisioning timeout,
+         *     an unreachable dependency) is retried automatically, up to a limit;
+         *     `interrupted` (Hephaestus shut down) is retried without counting
+         *     against it. The others fail the task.
+         * @enum {string}
+         */
+        ExecutionFailureReason: "agent_failed" | "timeout" | "infrastructure" | "access_denied" | "interrupted";
+        ExecutionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            taskId: string;
+            /** @description The task's attempt it belongs to. */
+            attempt: number;
+            /** @description 1, 2, … within the task. */
+            number: number;
+            status: components["schemas"]["ExecutionStatus"];
+            failureReason: components["schemas"]["ExecutionFailureReason"] | null;
+            /** @description What went wrong, for people; never contains secrets. */
+            error: string | null;
+            /** @description What the agent reported when it finished (until artifacts exist). */
+            summary: string | null;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            endedAt: string | null;
+        };
+        ExecutionPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["ExecutionResponse"][];
         };
         PageMeta: {
             nextCursor: components["schemas"]["NextCursor"];
@@ -1364,6 +1427,43 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
+        };
+    };
+    listTaskExecutions: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

@@ -17,6 +17,7 @@ export type TaskAction =
   | 'deliver'
   | 'pause'
   | 'resume'
+  | 'requeue'
   | 'succeed'
   | 'fail'
   | 'cancel'
@@ -26,6 +27,14 @@ export const TERMINAL: readonly TaskStatus[] = [
   'succeeded',
   'failed',
   'cancelled',
+];
+
+/** States that hold a sandbox or a slot (docs/tasks.md, Concurrency). */
+export const COUNTING: readonly TaskStatus[] = [
+  'provisioning',
+  'running',
+  'verifying',
+  'delivering',
 ];
 
 const ACTIVE: readonly TaskStatus[] = [
@@ -66,6 +75,12 @@ const TRANSITIONS: Record<
   },
   pause: { provisioning: 'paused', running: 'paused', verifying: 'paused' },
   resume: { paused: 'queued' },
+  // An infrastructure failure retried automatically: a new execution later.
+  requeue: {
+    provisioning: 'queued',
+    running: 'queued',
+    verifying: 'queued',
+  },
   succeed: { delivering: 'succeeded' },
   fail: Object.fromEntries(ACTIVE.map((status) => [status, 'failed'])),
   // Idempotent for a cancelled task; succeeded and failed are final.

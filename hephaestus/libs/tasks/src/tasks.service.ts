@@ -235,6 +235,7 @@ export class TasksService {
     );
     task.attempt += 1;
     task.finishedAt = null;
+    task.nextAttemptAt = null;
     await this.apply(task, ready ? 'queued' : 'blocked', 'retry', null, null);
     return this.mapper.toResponse(task);
   }
@@ -242,7 +243,8 @@ export class TasksService {
   /**
    * Moves a task through its lifecycle (the runner; no HTTP route). On
    * success, its dependents whose dependencies have all succeeded become
-   * `queued`.
+   * `queued`. `requeue` takes `notBefore` (the backoff); `reason` replaces
+   * the action in `task.status-changed`.
    */
   @Transactional()
   async transition(
@@ -250,6 +252,7 @@ export class TasksService {
     taskId: string,
     action: Exclude<TaskAction, 'cancel' | 'retry'>,
     failureReason: TaskFailureReason | null = null,
+    options: { notBefore?: Date; reason?: string } = {},
   ): Promise<TaskResponse> {
     const task = await this.tasks.findOne({
       where: { id: taskId, organizationId },
@@ -265,10 +268,13 @@ export class TasksService {
     if (next === 'failed' && !failureReason) {
       throw new Error('A failed task needs a failure reason');
     }
+    // Only a requeued task waits (backoff); anything else starts afresh.
+    task.nextAttemptAt =
+      action === 'requeue' ? (options.notBefore ?? null) : null;
     await this.apply(
       task,
       next,
-      failureReason ?? action,
+      options.reason ?? failureReason ?? action,
       next === 'failed' ? failureReason : null,
       null,
     );
@@ -276,6 +282,18 @@ export class TasksService {
       await this.unblockDependents(task);
     }
     return this.mapper.toResponse(task);
+  }
+
+  /** A task's status, for the runner (no tenancy check); null if unknown. */
+  async statusOf(
+    organizationId: string,
+    taskId: string,
+  ): Promise<TaskStatus | null> {
+    const task = await this.tasks.findOne({
+      where: { id: taskId, organizationId },
+      select: { id: true, status: true },
+    });
+    return task?.status ?? null;
   }
 
   /** Sets the status, bumps the version and emits the events for it. */
