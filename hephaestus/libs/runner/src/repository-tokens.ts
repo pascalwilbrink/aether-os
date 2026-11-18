@@ -9,6 +9,10 @@ export interface RepositoryCredentials {
   fullName: string;
   cloneUrl: string;
   defaultBranch: string;
+  /** GitHub's REST API for the repository's host. */
+  apiUrl: string;
+  /** The GitHub App's bot identity: who Aether-os commits as. */
+  committer: { name: string; email: string };
 }
 
 /**
@@ -88,6 +92,8 @@ export class HttpRepositoryTokens extends RepositoryTokens {
         fullName: data.repository.fullName,
         cloneUrl: data.repository.cloneUrl,
         defaultBranch: data.repository.defaultBranch,
+        apiUrl: data.repository.apiUrl,
+        committer: data.committer,
       };
     }
     const problem = result.error as

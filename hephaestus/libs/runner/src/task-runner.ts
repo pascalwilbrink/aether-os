@@ -18,6 +18,7 @@ import {
   type AgentRunResult,
   type FailedCheck,
 } from './agent-runtime.js';
+import { Deliveries } from './deliveries.js';
 import { ExecutionPreparer } from './execution-preparer.js';
 import { ExecutionReaper, seconds } from './execution-reaper.js';
 import { ExecutionsService } from './executions.service.js';
@@ -81,6 +82,7 @@ export class TaskRunner
     private readonly preparer: ExecutionPreparer,
     private readonly runtime: AgentRuntime,
     private readonly verifier: Verifier,
+    private readonly deliveries: Deliveries,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -149,6 +151,12 @@ export class TaskRunner
 
   private async round(): Promise<void> {
     await this.reaper.reap();
+    // Pull requests to open, branches to delete (outside executions).
+    await this.deliveries
+      .run()
+      .catch((error: unknown) =>
+        this.logger.error(`Deliveries failed: ${String(error)}`),
+      );
     while (!this.stopping && this.running.size < this.options.maxExecutions) {
       const claimed = await this.executions.claim(this.id);
       if (!claimed) {

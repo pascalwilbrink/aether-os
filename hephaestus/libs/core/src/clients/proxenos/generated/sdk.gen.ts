@@ -109,7 +109,9 @@ export const githubSetup = <ThrowOnError extends boolean = false>(
  * A delivery is stored once (`X-GitHub-Delivery`; a redelivery is
  * acknowledged without being handled again). Installation events
  * (`installation`, `installation_repositories`) update installations,
- * their repositories and links, and publish `git.installation-changed`.
+ * their repositories and links, and publish `git.installation-changed`;
+ * `pull_request` events on connected repositories publish
+ * `git.pull-request.updated`.
  *
  */
 export const githubWebhook = <ThrowOnError extends boolean = false>(

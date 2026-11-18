@@ -82,7 +82,9 @@ export class RepositoryTokensService {
         fullName: repository.fullName,
         cloneUrl: `${base}/${repository.fullName}.git`,
         defaultBranch: repository.defaultBranch,
+        apiUrl: this.config.get('GITHUB_API_URL', { infer: true }),
       },
+      committer: await this.github.botIdentity(),
     };
   }
 }

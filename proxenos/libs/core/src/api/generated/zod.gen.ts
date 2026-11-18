@@ -91,7 +91,12 @@ export const zRepositoryTokenResponse = z.object({
     repository: z.object({
         fullName: z.string(),
         cloneUrl: z.url(),
-        defaultBranch: z.string()
+        defaultBranch: z.string(),
+        apiUrl: z.url()
+    }),
+    committer: z.object({
+        name: z.string(),
+        email: z.string()
     })
 });
 

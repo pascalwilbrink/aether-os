@@ -76,7 +76,7 @@ Rules:
 
 ### Proxenos (`proxenos.events`)
 
-Proxenos, the integrations service (see `git.md`), turns verified provider webhooks into normalized events. Built so far (`../contracts/proxenos.asyncapi.yaml`): `git.installation-changed`, `git.repository-linked` and `git.repository-unlinked`.
+Proxenos, the integrations service (see `git.md`), turns verified provider webhooks into normalized events. Built so far (`../contracts/proxenos.asyncapi.yaml`): `git.installation-changed`, `git.repository-linked`, `git.repository-unlinked` and `git.pull-request.updated`.
 
 | Event | Payload | Consumers |
 |---|---|---|
@@ -84,7 +84,7 @@ Proxenos, the integrations service (see `git.md`), turns verified provider webho
 | `git.installation-changed` | `installationId`, `provider`, `externalId`, `account`, `status`, `repositoriesAdded` / `repositoriesRemoved` (`repositoryId`, `fullName`) | Hephaestus, Kairos |
 | `git.repository-linked` | `linkId`, `projectId`, `repositoryId`, `fullName` | Hephaestus, Iris |
 | `git.repository-unlinked` | the same, and `reason` (`unlinked`, or `repository-removed` when the installation lost it) | Hephaestus, Iris |
-| `git.pull-request.updated` | `repository`, `number`, `state`, `headSha`, `mergedAt` | Hephaestus (artifact `state`, branch cleanup) |
+| `git.pull-request.updated` | `repositoryId`, `repository`, `number`, `url`, `state` (`open`, `closed`, `merged`), `branch`, `baseBranch`, `headSha`, `mergedAt`, `fromAetherOs` | Hephaestus (artifact `state`, branch cleanup) |
 
 ### Kairos (`kairos.events`)
 

@@ -160,8 +160,10 @@ export class ExecutionsService {
   }
 
   /**
-   * The agent finished. Until verification and artifacts exist, the task
-   * goes straight through `verifying` and `delivering` to `succeeded`.
+   * The agent finished and its checks passed: its artifacts become final
+   * (or drafts, for review), and the task goes through `delivering` to
+   * `succeeded`, or stays `delivering` while a pull request is to be
+   * opened (`Deliveries`).
    */
   @Transactional()
   async complete(
@@ -193,6 +195,13 @@ export class ExecutionsService {
       await this.moveTask(execution, [['await-review', 'drafts']], {
         draftArtifactIds: outcome.draftArtifactIds,
       });
+      return;
+    }
+    if (
+      (await this.artifacts.undeliveredPullRequests(source.taskId)).length > 0
+    ) {
+      // A pull request to open: the runner delivers it, then succeeds.
+      await this.moveTask(execution, [['deliver', 'verified']], {});
       return;
     }
     await this.moveTask(

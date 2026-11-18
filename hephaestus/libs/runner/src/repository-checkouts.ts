@@ -24,12 +24,6 @@ const BUNDLE_OUT = '/tmp/aether-out.bundle';
 /** Pushes that lose a race to a sibling are tried this often. */
 const PUSH_ATTEMPTS = 3;
 
-/** Who commits in a sandbox (docs/git.md: the Aether-os bot identity). */
-export const COMMITTER = {
-  name: 'Aether-os',
-  email: 'aether-os@users.noreply.github.com',
-};
-
 /** A repository checked out in an execution's sandbox. */
 export interface Checkout {
   linkId: string;
@@ -40,6 +34,8 @@ export interface Checkout {
   startedFrom: string;
   /** The repository's default branch: where pull requests go. */
   baseBranch: string;
+  /** Who commits: the GitHub App's bot (docs/git.md), from Proxenos. */
+  committer: { name: string; email: string };
   baseSha: string;
   path: string;
   /** Hephaestus's own clone, where the commits come back to. */
@@ -146,8 +142,8 @@ export class RepositoryCheckouts {
           BUNDLE_IN,
           REPOSITORY_PATH,
           branch,
-          COMMITTER.name,
-          COMMITTER.email,
+          credentials.committer.name,
+          credentials.committer.email,
         ],
         'checking out the repository',
       );
@@ -169,6 +165,7 @@ export class RepositoryCheckouts {
         branch,
         startedFrom,
         baseBranch: credentials.defaultBranch,
+        committer: credentials.committer,
         baseSha,
         path: REPOSITORY_PATH,
         hostDirectory,
@@ -323,7 +320,7 @@ export class RepositoryCheckouts {
             'refs/aether/remote',
             checkout.baseSha,
             headSha,
-            COMMITTER,
+            checkout.committer,
           );
         }
         try {

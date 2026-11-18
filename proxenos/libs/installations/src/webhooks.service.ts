@@ -7,6 +7,10 @@ import { isUniqueViolation } from '@proxenos/core';
 import { GitHubApp, GitHubNotConfiguredError } from '@proxenos/github';
 
 import { InstallationsService } from './installations.service.js';
+import {
+  PullRequestsService,
+  type GitHubPullRequestPayload,
+} from './pull-requests.service.js';
 import { WebhookDeliveryEntity } from './webhook-delivery.entity.js';
 
 export interface GitHubDelivery {
@@ -34,6 +38,7 @@ export class WebhooksService {
     @InjectRepository(WebhookDeliveryEntity)
     private readonly deliveries: Repository<WebhookDeliveryEntity>,
     private readonly installations: InstallationsService,
+    private readonly pullRequests: PullRequestsService,
     private readonly github: GitHubApp,
   ) {}
 
@@ -113,6 +118,9 @@ export class WebhooksService {
     }
     if (event === 'installation_repositories') {
       await this.installations.syncByExternalId(externalId);
+    }
+    if (event === 'pull_request') {
+      await this.pullRequests.received(payload as GitHubPullRequestPayload);
     }
   }
 }

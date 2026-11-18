@@ -68,6 +68,8 @@ export class TaskMapper {
       taskTemplateVersion: task.template?.version ?? null,
       attempt: 1,
       nextAttemptAt: null,
+      deliveryAttempts: 0,
+      branchCleanupAt: null,
       primaryArtifactId: null,
       idempotencyKey: task.idempotencyKey,
       createdAt: now,

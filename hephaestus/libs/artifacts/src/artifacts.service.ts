@@ -12,10 +12,15 @@ import {
   type DomainEvent,
   type HephaestusEventTypes,
   type Page,
+  type ProxenosEvents,
 } from '@hephaestus/core';
 import { TasksService } from '@hephaestus/tasks';
 
-import { ArtifactEntity, type ArtifactStatus } from './artifact.entity.js';
+import {
+  ArtifactEntity,
+  type ArtifactStatus,
+  type PullRequestContent,
+} from './artifact.entity.js';
 import { ArtifactRejectedError } from './artifact.errors.js';
 import { ArtifactMapper } from './artifact.mapper.js';
 import type { ArtifactResponse } from './dto/artifact.response.js';
@@ -322,6 +327,90 @@ export class ArtifactsService {
   }
 
   /** Every final artifact of the task, oldest first (its outcome's list). */
+  /**
+   * The task's final `pull_request` artifacts that delivery hasn't opened
+   * yet (docs/git.md: delivery opens the pull request).
+   */
+  async undeliveredPullRequests(taskId: string): Promise<ArtifactResponse[]> {
+    const entities = await this.artifacts
+      .createQueryBuilder('artifact')
+      .where('artifact.task_id = :taskId', { taskId })
+      .andWhere(`artifact.kind = 'pull_request'`)
+      .andWhere(`artifact.status = 'final'`)
+      .andWhere(`artifact.body -> 'pullRequest' = 'null'::jsonb`)
+      .orderBy('artifact.created_at', 'ASC')
+      .getMany();
+    return entities.map((entity) => this.mapper.toResponse(entity));
+  }
+
+  /** Delivery opened (or adopted) the pull request. */
+  async markDelivered(
+    artifactId: string,
+    pullRequest: NonNullable<PullRequestContent['pullRequest']>,
+  ): Promise<void> {
+    await this.artifacts.query(
+      `UPDATE artifacts
+          SET body = jsonb_set(body, '{pullRequest}', $2::jsonb),
+              updated_at = now(),
+              version = version + 1
+        WHERE id = $1`,
+      [artifactId, JSON.stringify(pullRequest)],
+    );
+  }
+
+  /** What a delivered task succeeds with: its latest final primary artifact, and all its final ones. */
+  async outcome(
+    taskId: string,
+  ): Promise<{ primaryArtifactId: string; artifactIds: string[] }> {
+    const primary = await this.artifacts.findOneOrFail({
+      where: { taskId, status: 'final', primary: true },
+      order: { createdAt: 'DESC', id: 'DESC' },
+      select: { id: true },
+    });
+    return {
+      primaryArtifactId: primary.id,
+      artifactIds: await this.finalIds(taskId),
+    };
+  }
+
+  /**
+   * GitHub changed a pull request (Proxenos, `git.pull-request.updated`):
+   * the `pull_request` artifacts it belongs to follow its state, and a
+   * merged or closed one's branch goes (docs/git.md, Branch cleanup).
+   */
+  @OnDomainEvent('proxenos.git.pull-request.updated')
+  async onPullRequestUpdated(
+    event: DomainEvent<ProxenosEvents.GitPullRequestUpdated>,
+  ): Promise<void> {
+    const { repository, branch, number, state, url } = event.payload;
+    const organizationId = event.organizationId;
+    if (!organizationId) {
+      return;
+    }
+    await this.artifacts.query(
+      `UPDATE artifacts
+          SET body = jsonb_set(body, '{pullRequest}', $5::jsonb),
+              updated_at = now(),
+              version = version + 1
+        WHERE organization_id = $1
+          AND kind = 'pull_request'
+          AND body ->> 'repository' = $2
+          AND body ->> 'branch' = $3
+          AND (body -> 'pullRequest' ->> 'number')::int = $4`,
+      [
+        organizationId,
+        repository,
+        branch,
+        number,
+        JSON.stringify({ number, url, state }),
+      ],
+    );
+    const topLevelTaskId = /^aether\/([0-9a-f-]{36})$/.exec(branch)?.[1];
+    if (topLevelTaskId && state !== 'open') {
+      await this.tasks.requestBranchCleanup(organizationId, topLevelTaskId);
+    }
+  }
+
   async finalIds(taskId: string): Promise<string[]> {
     return (
       await this.artifacts.find({

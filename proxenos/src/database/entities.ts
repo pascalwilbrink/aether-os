@@ -2,6 +2,7 @@ import { OutboxMessageEntity } from '@aether-os/krepis';
 
 import { ConnectRequestEntity } from '../../libs/installations/src/connect-request.entity.js';
 import { InstallationEntity } from '../../libs/installations/src/installation.entity.js';
+import { PullRequestEntity } from '../../libs/installations/src/pull-request.entity.js';
 import { RepositoryEntity } from '../../libs/installations/src/repository.entity.js';
 import { WebhookDeliveryEntity } from '../../libs/installations/src/webhook-delivery.entity.js';
 import { RepositoryLinkEntity } from '../../libs/repositories/src/repository-link.entity.js';
@@ -13,5 +14,6 @@ export const entities = [
   ConnectRequestEntity,
   WebhookDeliveryEntity,
   RepositoryLinkEntity,
+  PullRequestEntity,
   OutboxMessageEntity,
 ];

@@ -15,7 +15,10 @@ import {
 } from '@hephaestus/core';
 import { PolisClient } from '@hephaestus/tenancy';
 
-import { POLIS_SUBSCRIPTIONS } from '../src/app.module.js';
+import {
+  POLIS_SUBSCRIPTIONS,
+  PROXENOS_SUBSCRIPTIONS,
+} from '../src/app.module.js';
 import { resetDatabase } from './database.js';
 import { tokens } from './tokens.js';
 import { FakePolis } from './fake-polis.js';
@@ -44,7 +47,10 @@ export async function createTestingModuleWith(
       EventsModule.forRoot({
         service: 'hephaestus',
         publish: HEPHAESTUS_PUBLISHED_EVENTS,
-        subscribe: { polis: POLIS_SUBSCRIPTIONS },
+        subscribe: {
+          polis: POLIS_SUBSCRIPTIONS,
+          proxenos: PROXENOS_SUBSCRIPTIONS,
+        },
       }),
       // AccessControl; tests act as a principal with actingAs().
       AuthModule.forRoot({ issuer: tokens.issuer, jwks: tokens.jwks }),

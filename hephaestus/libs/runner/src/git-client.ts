@@ -163,6 +163,26 @@ export class GitClient {
     }
   }
 
+  /**
+   * Deletes the remote's branch (gone already is fine). Git pushes from a
+   * repository, so an empty one in `scratch` serves.
+   */
+  async deleteBranch(
+    scratch: string,
+    url: string,
+    branch: string,
+    auth?: GitAuth,
+  ): Promise<void> {
+    if (!(await this.remoteHead(url, branch, auth))) {
+      return;
+    }
+    await this.run(['init', '--quiet', scratch]);
+    await this.run(
+      ['push', '--quiet', '--no-verify', url, `:refs/heads/${branch}`],
+      { cwd: scratch, auth },
+    );
+  }
+
   /** A full clone of one branch (bundles need the history). */
   async clone(
     url: string,

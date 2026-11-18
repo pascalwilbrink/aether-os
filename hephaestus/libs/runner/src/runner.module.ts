@@ -20,7 +20,10 @@ import { ExecutionsController } from './executions.controller.js';
 import { ExecutionsService } from './executions.service.js';
 import { DockerSandboxDriver } from './docker-sandbox-driver.js';
 import { NoSandboxProvisioner } from './no-sandbox-provisioner.js';
+import { Deliveries } from './deliveries.js';
 import { GitClient } from './git-client.js';
+import { GitHubPullRequests, PullRequests } from './pull-requests.js';
+import { TaskRepositoryAccess } from './task-repository-access.js';
 import { PistisTaskTokens } from './pistis-task-tokens.js';
 import { RepositoryCheckouts } from './repository-checkouts.js';
 import {
@@ -131,6 +134,9 @@ import {
     },
     { provide: GitClient, useFactory: () => new GitClient() },
     RepositoryCheckouts,
+    { provide: PullRequests, useFactory: () => new GitHubPullRequests() },
+    TaskRepositoryAccess,
+    Deliveries,
     ExecutionMapper,
     ExecutionsService,
     ExecutionReaper,

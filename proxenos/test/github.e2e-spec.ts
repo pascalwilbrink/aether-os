@@ -314,6 +314,12 @@ describe('GitHub: connecting, links, tokens, webhooks (e2e)', () => {
         fullName: 'acme/api',
         cloneUrl: `${github.url}/acme/api.git`,
         defaultBranch: 'main',
+        apiUrl: `${github.url}/api/v3`,
+      },
+      // The app's bot, as GitHub shows its commits.
+      committer: {
+        name: 'aether-os-test[bot]',
+        email: '4242+aether-os-test[bot]@users.noreply.127.0.0.1',
       },
     });
     await task.post(tokens).send({ access: 'write' }).expect(201);
@@ -468,5 +474,75 @@ describe('GitHub: connecting, links, tokens, webhooks (e2e)', () => {
       installation: { id: 99 },
     }).expect(202);
     expect((await outboxEvents(app)).length).toBe(after);
+  });
+
+  it('follows pull requests on connected repositories', async () => {
+    const { api } = await connected();
+    const pr = (overrides: object = {}) => ({
+      action: 'opened',
+      installation: { id: 77 },
+      repository: { id: 1001, full_name: 'acme/api' },
+      sender: { login: 'aether-os-test[bot]', type: 'Bot' },
+      pull_request: {
+        number: 12,
+        html_url: 'https://github.com/acme/api/pull/12',
+        state: 'open',
+        merged: false,
+        merged_at: null,
+        head: { ref: 'aether/0193', sha: 'abc123' },
+        base: { ref: 'main' },
+        ...overrides,
+      },
+    });
+    const updates = async () =>
+      (await outboxEvents(app)).filter(
+        (e) => e.eventType === 'git.pull-request.updated',
+      );
+
+    await deliver('pull_request', pr()).expect(202);
+    await deliver('pull_request', {
+      ...pr({
+        state: 'closed',
+        merged: true,
+        merged_at: '2026-11-18T12:00:00Z',
+        head: { ref: 'aether/0193', sha: 'def456' },
+      }),
+      action: 'closed',
+      sender: { login: 'ada', type: 'User' },
+    }).expect(202);
+    // Another repository, not connected: nothing.
+    await deliver('pull_request', { ...pr(), repository: { id: 9999 } }).expect(
+      202,
+    );
+
+    const events = await updates();
+    expect(events.map((e) => [e.aggregateVersion, e.payload])).toEqual([
+      [
+        1,
+        {
+          repositoryId: api.id,
+          repository: 'acme/api',
+          number: 12,
+          url: 'https://github.com/acme/api/pull/12',
+          state: 'open',
+          branch: 'aether/0193',
+          baseBranch: 'main',
+          headSha: 'abc123',
+          mergedAt: null,
+          fromAetherOs: true,
+        },
+      ],
+      [
+        2,
+        expect.objectContaining({
+          state: 'merged',
+          headSha: 'def456',
+          mergedAt: '2026-11-18T12:00:00.000Z',
+          fromAetherOs: false,
+        }),
+      ],
+    ]);
+    expect(events[0].aggregateId).toBe(events[1].aggregateId);
+    expect(events[0].organizationId).toBe(orgId);
   });
 });
