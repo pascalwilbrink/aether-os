@@ -4,10 +4,10 @@ import { createTool } from '@mastra/core/tools';
 import { Workspace } from '@mastra/core/workspace';
 import { z } from 'zod';
 
+import { SecretStoreUnavailableError } from '@hephaestus/core';
 import {
   ModelGateway,
   ModelKeyMissingError,
-  SecretStoreUnavailableError,
   type ModelCallContext,
   type ResolvedModel,
 } from '@hephaestus/models';

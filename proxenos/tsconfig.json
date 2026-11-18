@@ -1,0 +1,59 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "types": [
+      "vitest/globals",
+      "node"
+    ],
+    "paths": {
+      "@proxenos/core": [
+        "./libs/core/src/index.ts"
+      ],
+      "@proxenos/core/*": [
+        "./libs/core/src/*"
+      ],
+      "@proxenos/github": [
+        "./libs/github/src/index.ts"
+      ],
+      "@proxenos/github/*": [
+        "./libs/github/src/*"
+      ],
+      "@proxenos/tenancy": [
+        "./libs/tenancy/src/index.ts"
+      ],
+      "@proxenos/tenancy/*": [
+        "./libs/tenancy/src/*"
+      ],
+      "@proxenos/installations": [
+        "./libs/installations/src/index.ts"
+      ],
+      "@proxenos/installations/*": [
+        "./libs/installations/src/*"
+      ],
+      "@proxenos/repositories": [
+        "./libs/repositories/src/index.ts"
+      ],
+      "@proxenos/repositories/*": [
+        "./libs/repositories/src/*"
+      ]
+    },
+    "rewriteRelativeImportExtensions": true
+  }
+}

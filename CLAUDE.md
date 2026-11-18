@@ -13,7 +13,7 @@ Aether-os is a platform for building, running and supporting AI agents. This fol
 | **Agora** | Agent management: agent definitions and their immutable versions | not created yet | Planned |
 | **Themis** | Policies: versioned Rego policy sets per organization/project, served to OPA as bundles ([APS](https://agentpolicyspecification.github.io)) | not created yet | Planned |
 | **Kairos** | Automations: a trigger (e.g. an incoming GitHub issue) bound to an agent | not created yet | Planned |
-| **Proxenos** | Connections to external systems: the GitHub App and its installations, repository ↔ project links, provider tokens, verified webhooks turned into events; later Slack, Jira and others | not created yet | Planned |
+| **Proxenos** | Connections to external systems: the GitHub App and its installations, repository ↔ project links, provider tokens, verified webhooks turned into events; later Slack, Jira and others | `proxenos/` | Active: connecting the GitHub App, installations and their repositories, repository ↔ project links, repository tokens for tasks, installation webhooks |
 | **Kerykes** | Notifications: turns events that need people (reviews waiting, failures, paused work, budgets) into in-app, email and Slack / Teams messages (chat via Proxenos), with per-user preferences | not created yet | Planned |
 | **Hephaestus** | Task management and execution: runs tasks with an agent, in sandboxed workspaces | `hephaestus/` | Active, being reshaped |
 | **Loculus** | Object storage: S3-compatible, issues signed URLs | not in this folder | Separate service |
@@ -110,7 +110,7 @@ Organizations and projects live in Polis only: Hephaestus keeps their status fro
 
 ### Workspace
 
-The root `pnpm-workspace.yaml` lists the packages: `contracts` (`@aether-os/contracts`), `krepis` (`@aether-os/krepis`), `polis`, `hephaestus`, `pistis` and `iris`. There is one lockfile, at the root; always run `pnpm install` from the root. Add new services to `pnpm-workspace.yaml`.
+The root `pnpm-workspace.yaml` lists the packages: `contracts` (`@aether-os/contracts`), `krepis` (`@aether-os/krepis`), `polis`, `hephaestus`, `pistis`, `proxenos` and `iris`. There is one lockfile, at the root; always run `pnpm install` from the root. Add new services to `pnpm-workspace.yaml`.
 
 ```bash
 pnpm install               # whole workspace
@@ -125,7 +125,7 @@ pnpm format:check          # prettier, as CI runs it (`pnpm format` in a package
 **CI** (`.github/workflows/ci.yml`, on pushes to `main` and on pull requests) runs, in order: `pnpm install --frozen-lockfile`, `pnpm generate:api` (fails if the generated files differ from what's committed), `format:check`, `lint`, `build`, `test` and `test:e2e`. Each step only covers the packages changed since the base commit (the pull request's merge base, or the previous `main` commit) plus the packages that depend on them, so a Krepis change also checks Polis and Hephaestus, a `contracts` change checks every consumer, and changes only to `docs/` or `infra/` check nothing. Changes to the lockfile, `pnpm-workspace.yaml`, the root `package.json` or `.github/` check everything (see `.github/scripts/affected-filter.sh`). Run the same locally before pushing.
 
 - **Packages stay publishable.** The workspace is set up so moving to a package registry later is cheap: packages depend on each other with `workspace:*` (which `pnpm publish` rewrites to real versions), import only from each other's published entry points (never another package's `src/`, no TypeScript path aliases across packages), and `contracts` is consumed as a package (`node_modules/@aether-os/contracts/...`) rather than by relative path.
-- **Contracts:** `contracts/` holds the API specs (`polis.openapi.yaml`, `hephaestus.openapi.yaml`), one per service. Each spec is the source of truth for that service's HTTP API, including its validation: services generate Zod schemas from it and validate with `nestjs-zod`'s `ZodValidationPipe` (target; see `docs/engineering.md`). Edit the spec first, then run `pnpm generate:api` (root, or in the service and each consumer; currently Iris consumes Hephaestus) and commit the regenerated files. See `contracts/README.md`.
+- **Contracts:** `contracts/` holds the API specs (`polis.openapi.yaml`, `hephaestus.openapi.yaml`, `pistis.openapi.yaml`, `proxenos.openapi.yaml`), one per service. Each spec is the source of truth for that service's HTTP API, including its validation: services generate Zod schemas from it and validate with `nestjs-zod`'s `ZodValidationPipe` (target; see `docs/engineering.md`). Edit the spec first, then run `pnpm generate:api` (root, or in the service and each consumer; currently Iris consumes Hephaestus) and commit the regenerated files. See `contracts/README.md`.
 - **Krepis:** shared NestJS code goes in `krepis/`, never copied between services. Consumers depend on it with `workspace:*` plus `dependenciesMeta.injected`, so pnpm copies it into each consumer and its peer dependencies (Nest, TypeORM, Zod, …) resolve to the consumer's own copies. `pnpm-workspace.yaml` sets `dedupeInjectedDeps: false`, without which pnpm 10 silently symlinks Krepis instead whenever it can, and Krepis then resolves its peers from its own `node_modules` (two TypeORM copies, broken DI). `syncInjectedDepsAfterScripts` refreshes the copies whenever Krepis's `build` script runs. See `krepis/CLAUDE.md`.
 
 ## Local development
@@ -139,7 +139,7 @@ docker compose down -v     # stop and wipe all data
 
 | What | Where |
 |---|---|
-| Iris / Polis / Hephaestus / Pistis | `localhost:3000` / `3001` / `3002` / `3003` (each app's default `PORT`) |
+| Iris / Polis / Hephaestus / Pistis / Proxenos | `localhost:3000` / `3001` / `3002` / `3003` / `3004` (each app's default `PORT`) |
 | Postgres | `localhost:5432`, user `aether` / `aether`, one database per service (`infra/postgres/init/`) |
 | RabbitMQ | AMQP `localhost:5672`, UI `localhost:15672`, `aether` / `aether` |
 | OpenBao | `localhost:8200`, root token `dev-root-token` (dev mode: in-memory, wiped on restart) |
@@ -150,4 +150,4 @@ docker compose down -v     # stop and wipe all data
 | Mailpit | SMTP `localhost:1025` (any credentials), UI `localhost:8025`: catches all local email; production uses Resend or SES |
 | Grafana | `localhost:3300` (no login locally): logs from Loki, linked to traces in Jaeger |
 
-All credentials are fixed local-only values. MinIO in the compose file is only Langfuse's storage, not a stand-in for Loculus. Polis, Hephaestus and Pistis run on their own Postgres databases with migrations (`cd polis && cp .env.example .env && pnpm start:dev`, likewise in `hephaestus`); there's no SQLite left.
+All credentials are fixed local-only values. MinIO in the compose file is only Langfuse's storage, not a stand-in for Loculus. Polis, Hephaestus, Pistis and Proxenos run on their own Postgres databases with migrations (`cd polis && cp .env.example .env && pnpm start:dev`, likewise in `hephaestus`); there's no SQLite left.

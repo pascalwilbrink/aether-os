@@ -2,13 +2,16 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import type { Env } from '@hephaestus/core';
+import {
+  OpenBaoSecretStore,
+  SecretStore,
+  UnconfiguredSecretStore,
+  type Env,
+} from '@hephaestus/core';
 
 import { LanguageModels, MastraModelRouter } from './language-models.js';
 import { ModelCallEntity } from './model-call.entity.js';
 import { ModelGateway } from './model-gateway.js';
-import { OpenBaoSecretStore } from './openbao-secret-store.js';
-import { SecretStore, UnconfiguredSecretStore } from './secret-store.js';
 
 /** The model gateway, OpenBao and metering (docs/models.md). */
 @Module({

@@ -137,6 +137,7 @@ The organization-wide variants carry an `org:` prefix in code, so every permissi
 | `task:approve` | project | ✓ | ✓ | | |
 | `workspace:read` | project | ✓ | ✓ | ✓ | ✓ |
 | `workspace:manage` (create, acquire, release, suspend, resume, destroy) | project | ✓ | ✓ | ✓ | |
+| `repository:token` (a short-lived token for one of the project's linked repositories, from Proxenos; only with a task token, `../docs/git.md`) | project | ✓ | ✓ | ✓ | |
 
 Approval is gated only by `task:approve`: every principal holding it in the task's project can approve that task, with two rules:
 

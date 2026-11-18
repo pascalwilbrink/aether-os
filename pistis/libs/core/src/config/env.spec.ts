@@ -16,10 +16,11 @@ describe('zEnv', () => {
       PISTIS_ISSUER: 'http://localhost:3003/oidc',
       ACCESS_TOKEN_TTL_SECONDS: 600,
     });
-    // Iris, and Hephaestus as a platform service.
+    // Iris, Hephaestus and Proxenos as platform services, and operators.
     expect(env.PISTIS_CLIENTS.map((client) => client.client_id)).toEqual([
       'iris',
       'hephaestus',
+      'proxenos',
       'operator',
     ]);
     expect(env.PISTIS_SIGNING_KEYS).toBeUndefined();

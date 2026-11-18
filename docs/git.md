@@ -2,7 +2,7 @@
 
 How Aether-os gets access to repositories, receives their events, and turns an agent's work into branches and pull requests.
 
-Status: agreed design, documentation only. Sections marked **Proposal** are not agreed yet.
+Status: agreed design, being built. Proxenos (`../proxenos`) connects the GitHub App (signed single-use state, then the installing person's own GitHub authorization checked against the installation), keeps installations and their repositories in step with GitHub (verified, deduplicated installation webhooks, and a sync), links repositories to projects, and mints installation tokens narrowed to one linked repository for task tokens. Not yet: repositories in sandboxes, pushing, pull requests, normalized events for Kairos. Sections marked **Proposal** are not agreed yet.
 
 ## Decisions
 
