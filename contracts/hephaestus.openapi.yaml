@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.6.0
+  version: 0.7.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -938,7 +938,7 @@ components:
     ExecutionResponse:
       type: object
       additionalProperties: false
-      required: [id, taskId, attempt, number, status, failureReason, error, summary, startedAt, endedAt]
+      required: [id, taskId, attempt, number, status, failureReason, error, summary, usage, startedAt, endedAt]
       properties:
         id: { type: string, format: uuid }
         taskId: { type: string, format: uuid }
@@ -955,8 +955,21 @@ components:
         summary:
           type: [string, 'null']
           description: What the agent reported when it finished (until artifacts exist).
+        usage: { $ref: '#/components/schemas/ExecutionUsage' }
         startedAt: { type: string, format: date-time }
         endedAt: { type: [string, 'null'], format: date-time }
+    ExecutionUsage:
+      type: object
+      additionalProperties: false
+      description: |
+        The model calls the execution made through the model gateway, and
+        their tokens (docs/models.md, Metering). Tokens a provider didn't
+        report count as 0.
+      required: [modelCalls, inputTokens, outputTokens]
+      properties:
+        modelCalls: { type: integer, minimum: 0 }
+        inputTokens: { type: integer, minimum: 0 }
+        outputTokens: { type: integer, minimum: 0 }
     ExecutionPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'

@@ -1,0 +1,153 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { Agent } from '@mastra/core/agent';
+
+import {
+  ModelGateway,
+  ModelKeyMissingError,
+  SecretStoreUnavailableError,
+  type ModelCallContext,
+  type ResolvedModel,
+} from '@hephaestus/models';
+
+import {
+  AgentRuntime,
+  type AgentRunInput,
+  type AgentRunResult,
+} from './agent-runtime.js';
+import { RunnerFailure } from './runner.errors.js';
+
+/** Model calls (agent loop steps) one execution may make. */
+const MAX_STEPS = 20;
+/** Retries of a model call on 429 and 5xx, within the execution. */
+const MODEL_RETRIES = 2;
+
+/**
+ * Runs an agent version with Mastra (../../CLAUDE.md): the version's
+ * instructions and model become a Mastra `Agent`, the model resolved by the
+ * model gateway (key from OpenBao), and the task's title and instructions
+ * are its input. Every step is metered. Tools and skills aren't supported
+ * yet, so a version that enables any fails rather than running without them.
+ */
+@Injectable()
+export class MastraAgentRuntime extends AgentRuntime {
+  private readonly logger = new Logger(MastraAgentRuntime.name);
+
+  constructor(private readonly gateway: ModelGateway) {
+    super();
+  }
+
+  async run({
+    task,
+    executionId,
+    agentVersion,
+    signal,
+  }: AgentRunInput): Promise<AgentRunResult> {
+    const unsupported = [
+      ...agentVersion.tools.filter((tool) => tool.enabled).map((t) => t.name),
+      ...agentVersion.skills
+        .filter((skill) => skill.enabled)
+        .map((s) => `${s.name}@${s.version}`),
+    ];
+    if (unsupported.length > 0) {
+      throw new RunnerFailure(
+        `Tools and skills aren't supported yet (${unsupported.join(', ')})`,
+        'infrastructure',
+        false,
+      );
+    }
+
+    const context: ModelCallContext = {
+      organizationId: task.organizationId,
+      projectId: task.projectId,
+      taskId: task.id,
+      executionId,
+      agentVersionId: agentVersion.id,
+    };
+    const resolved = await this.resolve(context, agentVersion.model);
+    const agent = new Agent({
+      id: `agent-version-${agentVersion.id}`,
+      name: `${agentVersion.agentId} v${agentVersion.version}`,
+      instructions: agentVersion.instructions,
+      model: resolved.model,
+    });
+
+    // Every call is metered, including those of a run that fails.
+    const metering: Promise<void>[] = [];
+    try {
+      const result = await agent.generate(
+        `# ${task.title}\n\n${task.instructions}`,
+        {
+          abortSignal: signal,
+          maxSteps: MAX_STEPS,
+          modelSettings: {
+            temperature: agentVersion.model.temperature,
+            maxOutputTokens: agentVersion.model.maxTokens,
+            maxRetries: MODEL_RETRIES,
+          },
+          onStepFinish: (step) => {
+            metering.push(
+              this.gateway.record(context, resolved, {
+                inputTokens: step.usage?.inputTokens,
+                outputTokens: step.usage?.outputTokens,
+                finishReason: step.finishReason,
+              }),
+            );
+          },
+        },
+      );
+      await Promise.all(metering);
+      if (result.finishReason === 'error' || result.error) {
+        throw toFailure(result.error);
+      }
+      return { outcome: 'completed', summary: result.text };
+    } catch (error) {
+      await Promise.allSettled(metering);
+      throw toFailure(error);
+    }
+  }
+
+  private async resolve(
+    context: ModelCallContext,
+    model: AgentRunInput['agentVersion']['model'],
+  ): Promise<ResolvedModel> {
+    try {
+      return await this.gateway.resolve(context, model);
+    } catch (error) {
+      if (error instanceof ModelKeyMissingError) {
+        // A configuration problem: retrying won't add a key.
+        throw new RunnerFailure(error.message, 'infrastructure', false);
+      }
+      if (error instanceof SecretStoreUnavailableError) {
+        throw new RunnerFailure(error.message, 'infrastructure');
+      }
+      throw error;
+    }
+  }
+}
+
+/**
+ * A provider error as an execution failure: a refused key (401, 403) or a
+ * bad request (400, 404: e.g. an unknown model) won't get better by
+ * retrying; rate limits and server errors (already retried within the
+ * execution) may.
+ */
+function toFailure(error: unknown): RunnerFailure {
+  if (error instanceof RunnerFailure) {
+    return error;
+  }
+  const status = (error as { statusCode?: unknown } | null)?.statusCode;
+  const message = error instanceof Error ? error.message : String(error);
+  if (typeof status === 'number' && [400, 401, 403, 404].includes(status)) {
+    return new RunnerFailure(
+      `The model provider refused the call (${status}): ${message}`,
+      'infrastructure',
+      false,
+    );
+  }
+  return new RunnerFailure(
+    typeof status === 'number'
+      ? `The model provider failed (${status}): ${message}`
+      : `The model call failed: ${message}`,
+    'infrastructure',
+  );
+}

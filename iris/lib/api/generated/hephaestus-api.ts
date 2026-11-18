@@ -675,10 +675,21 @@ export interface components {
             error: string | null;
             /** @description What the agent reported when it finished (until artifacts exist). */
             summary: string | null;
+            usage: components["schemas"]["ExecutionUsage"];
             /** Format: date-time */
             startedAt: string;
             /** Format: date-time */
             endedAt: string | null;
+        };
+        /**
+         * @description The model calls the execution made through the model gateway, and
+         *     their tokens (docs/models.md, Metering). Tokens a provider didn't
+         *     report count as 0.
+         */
+        ExecutionUsage: {
+            modelCalls: number;
+            inputTokens: number;
+            outputTokens: number;
         };
         ExecutionPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["ExecutionResponse"][];

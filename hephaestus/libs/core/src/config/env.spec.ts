@@ -29,10 +29,27 @@ describe('zEnv', () => {
       RUNNER_STOP_GRACE_MS: 30_000,
       RUNNER_MAX_INFRASTRUCTURE_FAILURES: 3,
       RUNNER_RETRY_BACKOFF_MS: 10_000,
+      OPENBAO_KV_MOUNT: 'secret',
+      PLATFORM_MODEL_KEYS: false,
     });
+    expect(zEnv.safeParse({ ...valid, AGENT_RUNTIME: 'other' }).success).toBe(
+      false,
+    );
+  });
+
+  it('requires OpenBao for the Mastra runtime (model keys)', () => {
     expect(zEnv.safeParse({ ...valid, AGENT_RUNTIME: 'mastra' }).success).toBe(
       false,
     );
+    expect(
+      zEnv.parse({
+        ...valid,
+        AGENT_RUNTIME: 'mastra',
+        OPENBAO_ADDR: 'http://localhost:8200',
+        OPENBAO_TOKEN: 'dev-root-token',
+        PLATFORM_MODEL_KEYS: 'true',
+      }),
+    ).toMatchObject({ AGENT_RUNTIME: 'mastra', PLATFORM_MODEL_KEYS: true });
   });
 
   it("requires Pistis and Hephaestus's client secret at Pistis", () => {
