@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import type { Env } from '@hephaestus/core';
 import { AgentsModule } from '@hephaestus/agents';
 import { ModelGateway, ModelsModule } from '@hephaestus/models';
+import { WorkspacesModule, WorkspacesService } from '@hephaestus/workspaces';
 import { TasksModule } from '@hephaestus/tasks';
 
 import { AgentRuntime } from './agent-runtime.js';
@@ -15,12 +16,19 @@ import { ExecutionMapper } from './execution.mapper.js';
 import { ExecutionReaper } from './execution-reaper.js';
 import { ExecutionsController } from './executions.controller.js';
 import { ExecutionsService } from './executions.service.js';
+import { DockerSandboxDriver } from './docker-sandbox-driver.js';
 import { NoSandboxProvisioner } from './no-sandbox-provisioner.js';
 import { PistisTaskTokens } from './pistis-task-tokens.js';
 import { RUNNER_OPTIONS, runnerOptionsFrom } from './runner.options.js';
+import { SandboxDriver } from './sandbox-driver.js';
 import { SandboxProvisioner } from './sandbox-provisioner.js';
 import { TaskRunner } from './task-runner.js';
 import { TaskTokens } from './task-tokens.js';
+import {
+  SANDBOX_OPTIONS,
+  WorkspaceSandboxProvisioner,
+  type SandboxOptions,
+} from './workspace-sandbox-provisioner.js';
 
 /**
  * The task runner (docs/tasks.md, Task lifecycle): executions, the queue
@@ -33,6 +41,7 @@ import { TaskTokens } from './task-tokens.js';
     TasksModule,
     AgentsModule,
     ModelsModule,
+    WorkspacesModule,
   ],
   controllers: [ExecutionsController],
   providers: [
@@ -56,7 +65,41 @@ import { TaskTokens } from './task-tokens.js';
         }
       },
     },
-    { provide: SandboxProvisioner, useClass: NoSandboxProvisioner },
+    {
+      provide: SANDBOX_OPTIONS,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>): SandboxOptions => ({
+        image: config.get('SANDBOX_IMAGE', { infer: true }),
+        user: config.get('SANDBOX_USER', { infer: true }),
+        cpus: config.get('SANDBOX_CPUS', { infer: true }),
+        memoryMb: config.get('SANDBOX_MEMORY_MB', { infer: true }),
+        pidsLimit: config.get('SANDBOX_PIDS_LIMIT', { infer: true }),
+        workspaceMb: config.get('SANDBOX_WORKSPACE_MB', { infer: true }),
+        lifetimeMs:
+          config.get('RUNNER_PROVISIONING_TIMEOUT_MS', { infer: true }) +
+          config.get('RUNNER_RUN_TIMEOUT_MS', { infer: true }),
+      }),
+    },
+    // Connects to Docker only when used.
+    { provide: SandboxDriver, useFactory: () => new DockerSandboxDriver() },
+    {
+      provide: SandboxProvisioner,
+      inject: [
+        ConfigService,
+        WorkspacesService,
+        SandboxDriver,
+        SANDBOX_OPTIONS,
+      ],
+      useFactory: (
+        config: ConfigService<Env, true>,
+        workspaces: WorkspacesService,
+        driver: SandboxDriver,
+        options: SandboxOptions,
+      ) =>
+        config.get('SANDBOX_DRIVER', { infer: true }) === 'docker'
+          ? new WorkspaceSandboxProvisioner(workspaces, driver, options)
+          : new NoSandboxProvisioner(),
+    },
     {
       provide: TaskTokens,
       inject: [ConfigService],

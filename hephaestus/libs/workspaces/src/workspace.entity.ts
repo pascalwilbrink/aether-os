@@ -32,8 +32,9 @@ export class WorkspaceEntity {
   @Column({ type: 'text' })
   status: WorkspaceStatus;
 
-  @Column({ type: 'jsonb' })
-  repository: ApiTypes.RepositoryConfiguration;
+  /** None for a sandbox without a repository (e.g. a task's, for now). */
+  @Column({ type: 'jsonb', nullable: true })
+  repository: ApiTypes.RepositoryConfiguration | null;
 
   @Column({ type: 'jsonb' })
   sandbox: ApiTypes.SandboxConfiguration;

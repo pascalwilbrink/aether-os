@@ -133,7 +133,10 @@ export type SandboxReference = {
 export type CreateWorkspaceRequest = {
     projectId: string;
     executionId: string;
-    repository: RepositoryConfiguration;
+    /**
+     * The repository to check out; none for a sandbox without one.
+     */
+    repository?: RepositoryConfiguration | null;
     sandbox: SandboxConfiguration;
     /**
      * Absolute path inside the sandbox.
@@ -151,7 +154,7 @@ export type WorkspaceResponse = {
     projectId: string;
     executionId: string;
     status: WorkspaceStatus;
-    repository: RepositoryConfiguration;
+    repository: RepositoryConfiguration | null;
     sandbox: SandboxConfiguration;
     sandboxReference: SandboxReference | null;
     workingDirectory: string;

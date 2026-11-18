@@ -7,3 +7,6 @@ export * from './task-tokens.js';
 export * from './runner.errors.js';
 export * from './runner.options.js';
 export * from './mastra-agent-runtime.js';
+export * from './sandbox-driver.js';
+export * from './docker-sandbox-driver.js';
+export * from './workspace-sandbox-provisioner.js';

@@ -27,7 +27,10 @@ importers:
         version: 9.1.2(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.5.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@mastra/core':
         specifier: 1.84.0
-        version: 1.84.0(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(express@5.3.0)(rxjs@7.8.2)(zod@4.6.7)
+        version: 1.84.0(@bufbuild/protobuf@2.17.0)(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(express@5.3.0)(rxjs@7.8.2)(zod@4.6.7)
+      '@mastra/docker':
+        specifier: 0.14.0
+        version: 0.14.0(@mastra/core@1.84.0(@bufbuild/protobuf@2.17.0)(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(express@5.3.0)(rxjs@7.8.2)(zod@4.6.7))(bare-buffer@3.7.2)
       '@nestjs/common':
         specifier: ^12.0.1
         version: 12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -49,6 +52,9 @@ importers:
       '@opentelemetry/api':
         specifier: ^1.10.0
         version: 1.10.0
+      dockerode:
+        specifier: ^4.0.12
+        version: 4.0.12
       nestjs-zod:
         specifier: ^5.6.0
         version: 5.6.0(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)(zod@4.6.7)
@@ -101,6 +107,9 @@ importers:
       '@types/amqplib':
         specifier: ^0.10.8
         version: 0.10.8
+      '@types/dockerode':
+        specifier: ^4.0.2
+        version: 4.0.2
       '@types/express':
         specifier: ^5.0.0
         version: 5.0.6
@@ -754,6 +763,9 @@ packages:
   '@borewit/text-codec@0.2.3':
     resolution: {integrity: sha512-49CycTz1aAZmvFcwkeFyhud1HUmRIB5Tabf7ALV+VA4Iu85MTfz2cUwzPagMFAdVBvrWdkCxG67I30tUwwpKsw==}
 
+  '@bufbuild/protobuf@2.17.0':
+    resolution: {integrity: sha512-hcPkSz6D7MiTU/5VBBhK+kxaYDoOdQ6yJRFJ3kS8Nydp+VZXfg1vrpABKPNod8bXMufsVCmiUJVIKFzCzta4uw==}
+
   '@chat-adapter/catalog@4.45.0':
     resolution: {integrity: sha512-oP8ySvXTYRVRIusTehLTvpwynMLkEcaFZBASZRDDfNFZzSO02xQX1kVgMAz4VbtiMTMU6k01tjZE4KEDbrmonA==}
     engines: {node: '>=20'}
@@ -761,6 +773,10 @@ packages:
   '@colors/colors@1.5.0':
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
     engines: {node: '>=0.1.90'}
+
+  '@docker/sandboxes@0.53.0':
+    resolution: {integrity: sha512-copLxQxHrUAmMdyolkGHr5t5nzOe4+fHdsizT4KpyjRp+pauiwzFlLYRQEqsvigte9kJiCNyIS7dqqxTm5x0Ng==}
+    engines: {node: '>=20'}
 
   '@emnapi/core@2.0.0-beta.2':
     resolution: {integrity: sha512-MzCVoWtcg4Pm2B3je5mMvYMvj3MmBKw+fU7vbsJc9/iT8ip6/eYIHo/Dsm/mr+wsHB6SEyJDuxB09Yy6r/8+4A==}
@@ -1277,6 +1293,12 @@ packages:
     peerDependenciesMeta:
       '@json-render/chat':
         optional: true
+
+  '@mastra/docker@0.14.0':
+    resolution: {integrity: sha512-5YUS68tLZmXqsltAqPqzuiPXvpAp0G1cwx583EUB+GJ4K5YK8yZo5ZCItQNluC5PAPTizb3pV6cJPr3mXhLzvA==}
+    engines: {node: '>=22.13.0'}
+    peerDependencies:
+      '@mastra/core': '>=1.67.0-0 <2.0.0-0'
 
   '@mastra/schema-compat@1.4.0':
     resolution: {integrity: sha512-td/x/hfCxY1/3w44FNMNv/qQ/ydNke5tFIP1FLxqGtO33wwtfDR801dQwSSLa8MA3z02D9RkNTb2ynLWuqX88A==}
@@ -2138,6 +2160,9 @@ packages:
   '@types/express@5.0.6':
     resolution: {integrity: sha512-sKYVuV7Sv9fbPIt/442koC7+IIwK5olP1KWeD88e/idgoJqDm3JV/YUiPwkoKK92ylff2MGxSz1CSjsXelx0YA==}
 
+  '@types/formidable@3.4.6':
+    resolution: {integrity: sha512-LI4Hk+KNsM5q7br4oMVoaWeb+gUqJpz1N8+Y2Q6Cz9cVH33ybahRKUWaRmMboVlkwSbOUGgwc/pEkS7yMSzoWg==}
+
   '@types/http-assert@1.5.6':
     resolution: {integrity: sha512-TTEwmtjgVbYAzZYWyeHPrrtWnfVkm8tQkP8P21uQifPgMRgjrow3XDEYqucuC8SKZJT7pUnhU/JymvjggxO9vw==}
 
@@ -2229,6 +2254,9 @@ packages:
 
   '@types/validator@13.15.10':
     resolution: {integrity: sha512-T8L6i7wCuyoK8A/ZeLYt1+q0ty3Zb9+qbSSvrIVitzT3YjZqkTZ40IbRsPanlB4h1QB3JVL1SYCdR6ngtFYcuA==}
+
+  '@types/ws@8.18.2':
+    resolution: {integrity: sha512-67MQl+fpWKVTT1NYdnmo3U4sc/xPo/zQBncVnI74qmQa0z/b+1g6iYqNmGCPbxO+zz2aklb08a0oHfegiVd0/w==}
 
   '@typescript-eslint/eslint-plugin@8.72.2':
     resolution: {integrity: sha512-222PKFXKihmFpi/pS5njoBgdAqsPhj2/GBmFbrNw8Tq8gEG9Sv+kSlKFy4u2q+mJv9ZzJgM2Gkv/bUzRZwZw5g==}
@@ -3156,6 +3184,10 @@ packages:
 
   docker-modem@5.0.7:
     resolution: {integrity: sha512-XJgGhoR/CLpqshm4d3L7rzH6t8NgDFUIIpztYlLHIApeJjMZKYJMz2zxPsYxnejq5h3ELYSw/RBsi3t5h7gNTA==}
+    engines: {node: '>= 8.0'}
+
+  dockerode@4.0.12:
+    resolution: {integrity: sha512-/bCZd6KlGcjZO8Buqmi/vXuqEGVEZ0PNjx/biBNqJD3MhK9DmdiAuKxqfNhflgDESDIiBz3qF+0e55+CpnrUcw==}
     engines: {node: '>= 8.0'}
 
   dockerode@5.0.1:
@@ -4707,8 +4739,14 @@ packages:
     resolution: {integrity: sha512-smsWv2LzFjP03xmvFoJ331ss6h+jixfA4UUV/Bsiyuu4YJPfN+FIQGOIiv4w9/+MoHkfkJ22UIaQWRVFRfH6Vw==}
     engines: {node: '>=20'}
 
+  openapi-fetch@0.17.0:
+    resolution: {integrity: sha512-PsbZR1wAPcG91eEthKhN+Zn92FMHxv+/faECIwjXdxfTODGSGegYv0sc1Olz+HYPvKOuoXfp+0pA2XVt2cI0Ig==}
+
   openapi-types@12.1.3:
     resolution: {integrity: sha512-N4YtSYJqghVu4iek2ZUvcN/0aqH1kRDuNqzcycDxhOUpg7GdvLa2F3DgS6yBNhInhv2r/6I0Flkn7CqL8+nIcw==}
+
+  openapi-typescript-helpers@0.1.0:
+    resolution: {integrity: sha512-OKTGPthhivLw/fHz6c3OPtg72vi86qaMlqbJuVJ23qOvQ+53uw1n7HdmkJFibloF7QEjDrDkzJiOJuockM/ljw==}
 
   openapi-typescript@7.13.0:
     resolution: {integrity: sha512-EFP392gcqXS7ntPvbhBzbF8TyBA+baIYEm791Hy5YkjDYKTnk/Tn5OQeKm5BIZvJihpp8Zzr4hzx0Irde1LNGQ==}
@@ -4767,6 +4805,10 @@ packages:
   p-map@7.1.1:
     resolution: {integrity: sha512-6Lh3jQPLthYujSrlw6ccWXBGZTkoTCz27Hd92g79LH/kjAbgoEu0t442cCCNbegPSJsA0lwDX8z0bcKtkpA32g==}
     engines: {node: '>=18'}
+
+  p-retry@7.1.0:
+    resolution: {integrity: sha512-xL4PiFRQa/f9L9ZvR4/gUCRNus4N8YX80ku8kv9Jqz+ZokkiZLM0bcvX0gm1F3PDi9SPRsww1BDsTWgE6Y1GLQ==}
+    engines: {node: '>=20'}
 
   p-retry@7.1.1:
     resolution: {integrity: sha512-J5ApzjyRkkf601HpEeykoiCvzHQjWxPAHhyjFcEUP2SWq0+35NKh8TLhpLw+Dkq5TZBFvUM6UigdE9hIVYTl5w==}
@@ -5644,6 +5686,10 @@ packages:
     resolution: {integrity: sha512-AjQF1QsmqfJys+LXfGTNum+qw4S88CojRInG/6t31W/1fk6G59s92bnAvGz5Cmur+kQv2SURXEvvudLmbrE8QA==}
     engines: {node: '>=18.17'}
 
+  undici@6.28.1:
+    resolution: {integrity: sha512-zWpdTVD54H48CIybL0rWQ3ukpb9d23wM7eH5RtfdmeP70cWHNjtfo7P4vZX+5CoDcO53J4Pu5uXp7lNfjc6DRA==}
+    engines: {node: '>=18.17'}
+
   undici@6.29.1:
     resolution: {integrity: sha512-EvRlUt/QqAEvXdQeRMYUfwOQsfzpDztykrG2owGEE/rBOBoYv9uF39ZzsNDh4lTFHhTr2XOZjKkYgueD12ZmGA==}
     engines: {node: '>=18.17'}
@@ -5706,6 +5752,11 @@ packages:
   utility-types@3.11.0:
     resolution: {integrity: sha512-6Z7Ma2aVEWisaL6TvBCy7P8rm2LQoPv6dJ7ecIaIixHcwfbJ0x7mWdbcwlIM5IGQxPZSFYeqRCqlOOeKoJYMkw==}
     engines: {node: '>= 4'}
+
+  uuid@10.0.0:
+    resolution: {integrity: sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+    hasBin: true
 
   uuid@11.1.1:
     resolution: {integrity: sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==}
@@ -5954,18 +6005,20 @@ packages:
 
 snapshots:
 
-  '@a2a-js/sdk@0.3.14(@grpc/grpc-js@1.14.7)(express@5.3.0)':
+  '@a2a-js/sdk@0.3.14(@bufbuild/protobuf@2.17.0)(@grpc/grpc-js@1.14.7)(express@5.3.0)':
     dependencies:
       uuid: 11.1.1
     optionalDependencies:
+      '@bufbuild/protobuf': 2.17.0
       '@grpc/grpc-js': 1.14.7
       express: 5.3.0
 
-  '@a2a-js/sdk@1.0.1(@grpc/grpc-js@1.14.7)(express@5.3.0)':
+  '@a2a-js/sdk@1.0.1(@bufbuild/protobuf@2.17.0)(@grpc/grpc-js@1.14.7)(express@5.3.0)':
     dependencies:
       jose: 6.2.17
       uuid: 11.1.1
     optionalDependencies:
+      '@bufbuild/protobuf': 2.17.0
       '@grpc/grpc-js': 1.14.7
       express: 5.3.0
 
@@ -6186,10 +6239,27 @@ snapshots:
 
   '@borewit/text-codec@0.2.3': {}
 
+  '@bufbuild/protobuf@2.17.0': {}
+
   '@chat-adapter/catalog@4.45.0': {}
 
   '@colors/colors@1.5.0':
     optional: true
+
+  '@docker/sandboxes@0.53.0':
+    dependencies:
+      '@bufbuild/protobuf': 2.17.0
+      '@types/formidable': 3.4.6
+      '@types/ws': 8.18.2
+      formidable: 3.5.4
+      jose: 6.2.17
+      openapi-fetch: 0.17.0
+      p-retry: 7.1.0
+      undici: 6.28.1
+      ws: 8.23.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   '@emnapi/core@2.0.0-beta.2':
     dependencies:
@@ -6672,10 +6742,10 @@ snapshots:
     dependencies:
       '@lukeed/csprng': 1.1.0
 
-  '@mastra/core@1.84.0(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(express@5.3.0)(rxjs@7.8.2)(zod@4.6.7)':
+  '@mastra/core@1.84.0(@bufbuild/protobuf@2.17.0)(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(express@5.3.0)(rxjs@7.8.2)(zod@4.6.7)':
     dependencies:
-      '@a2a-js/sdk-v0_3': '@a2a-js/sdk@0.3.14(@grpc/grpc-js@1.14.7)(express@5.3.0)'
-      '@a2a-js/sdk-v1': '@a2a-js/sdk@1.0.1(@grpc/grpc-js@1.14.7)(express@5.3.0)'
+      '@a2a-js/sdk-v0_3': '@a2a-js/sdk@0.3.14(@bufbuild/protobuf@2.17.0)(@grpc/grpc-js@1.14.7)(express@5.3.0)'
+      '@a2a-js/sdk-v1': '@a2a-js/sdk@1.0.1(@bufbuild/protobuf@2.17.0)(@grpc/grpc-js@1.14.7)(express@5.3.0)'
       '@ai-sdk/provider-utils-v6': '@ai-sdk/provider-utils@4.0.66(zod@4.6.7)'
       '@ai-sdk/provider-utils-v7': '@ai-sdk/provider-utils@5.0.81(zod@4.6.7)'
       '@ai-sdk/provider-v5': '@ai-sdk/provider@2.0.5'
@@ -6725,6 +6795,21 @@ snapshots:
       - workflow
       - zod-openapi
       - zod-to-json-schema
+
+  '@mastra/docker@0.14.0(@mastra/core@1.84.0(@bufbuild/protobuf@2.17.0)(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(express@5.3.0)(rxjs@7.8.2)(zod@4.6.7))(bare-buffer@3.7.2)':
+    dependencies:
+      '@docker/sandboxes': 0.53.0
+      '@grpc/grpc-js': 1.14.7
+      '@mastra/core': 1.84.0(@bufbuild/protobuf@2.17.0)(@grpc/grpc-js@1.14.7)(@opentelemetry/api@1.10.0)(express@5.3.0)(rxjs@7.8.2)(zod@4.6.7)
+      dockerode: 4.0.12
+      tar-stream: 3.2.2(bare-buffer@3.7.2)
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
+      - bufferutil
+      - react-native-b4a
+      - supports-color
+      - utf-8-validate
 
   '@mastra/schema-compat@1.4.0(zod@4.6.7)':
     dependencies:
@@ -7466,6 +7551,10 @@ snapshots:
       '@types/express-serve-static-core': 5.1.3
       '@types/serve-static': 2.2.0
 
+  '@types/formidable@3.4.6':
+    dependencies:
+      '@types/node': 24.19.2
+
   '@types/http-assert@1.5.6': {}
 
   '@types/http-errors@2.0.5': {}
@@ -7577,6 +7666,10 @@ snapshots:
 
   '@types/validator@13.15.10':
     optional: true
+
+  '@types/ws@8.18.2':
+    dependencies:
+      '@types/node': 24.19.2
 
   '@typescript-eslint/eslint-plugin@8.72.2(@typescript-eslint/parser@8.72.2(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)':
     dependencies:
@@ -8481,6 +8574,18 @@ snapshots:
       readable-stream: 3.6.2
       split-ca: 1.0.1
       ssh2: 1.17.0
+    transitivePeerDependencies:
+      - supports-color
+
+  dockerode@4.0.12:
+    dependencies:
+      '@balena/dockerignore': 1.0.2
+      '@grpc/grpc-js': 1.14.7
+      '@grpc/proto-loader': 0.7.15
+      docker-modem: 5.0.7
+      protobufjs: 7.6.6
+      tar-fs: 2.1.5
+      uuid: 10.0.0
     transitivePeerDependencies:
       - supports-color
 
@@ -10343,7 +10448,13 @@ snapshots:
       powershell-utils: 0.1.0
       wsl-utils: 0.3.1
 
+  openapi-fetch@0.17.0:
+    dependencies:
+      openapi-typescript-helpers: 0.1.0
+
   openapi-types@12.1.3: {}
+
+  openapi-typescript-helpers@0.1.0: {}
 
   openapi-typescript@7.13.0(typescript@5.9.3):
     dependencies:
@@ -10442,6 +10553,10 @@ snapshots:
       p-limit: 3.1.0
 
   p-map@7.1.1: {}
+
+  p-retry@7.1.0:
+    dependencies:
+      is-network-error: 1.3.2
 
   p-retry@7.1.1:
     dependencies:
@@ -11438,6 +11553,8 @@ snapshots:
 
   undici@6.20.1: {}
 
+  undici@6.28.1: {}
+
   undici@6.29.1: {}
 
   undici@8.12.4: {}
@@ -11525,6 +11642,8 @@ snapshots:
   util-deprecate@1.0.2: {}
 
   utility-types@3.11.0: {}
+
+  uuid@10.0.0: {}
 
   uuid@11.1.1: {}
 

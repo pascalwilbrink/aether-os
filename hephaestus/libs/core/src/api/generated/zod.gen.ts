@@ -143,7 +143,7 @@ export const zSandboxReference = z.object({
 export const zCreateWorkspaceRequest = z.object({
     projectId: z.uuid(),
     executionId: z.uuid(),
-    repository: zRepositoryConfiguration,
+    repository: zRepositoryConfiguration.nullish(),
     sandbox: zSandboxConfiguration,
     workingDirectory: z.string().regex(/^\//),
     expiresAt: z.iso.datetime()
@@ -155,7 +155,7 @@ export const zWorkspaceResponse = z.object({
     projectId: z.uuid(),
     executionId: z.uuid(),
     status: zWorkspaceStatus,
-    repository: zRepositoryConfiguration,
+    repository: zRepositoryConfiguration.nullable(),
     sandbox: zSandboxConfiguration,
     sandboxReference: zSandboxReference.nullable(),
     workingDirectory: z.string(),

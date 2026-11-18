@@ -87,6 +87,24 @@ export const zEnv = z
       .default(3),
     /** The first retry's delay; doubled for each one after it. */
     RUNNER_RETRY_BACKOFF_MS: z.coerce.number().int().min(0).default(10_000),
+    /**
+     * Sandboxes for agent versions that need one (`runtime.sandboxRequired`):
+     * `none` (the default) fails such tasks; `docker` runs hardened containers
+     * on the local Docker engine (`DOCKER_HOST`, else its socket).
+     */
+    SANDBOX_DRIVER: z.enum(['none', 'docker']).default('none'),
+    /** The image sandboxes run; it needs a shell (`sh`). */
+    SANDBOX_IMAGE: z.string().min(1).default('node:22-slim'),
+    /** `uid[:gid]` sandboxes run as: never root. */
+    SANDBOX_USER: z
+      .string()
+      .regex(/^[1-9]\d*(:[1-9]\d*)?$/, 'a non-root uid[:gid]')
+      .default('1000:1000'),
+    SANDBOX_CPUS: z.coerce.number().positive().max(64).default(1),
+    SANDBOX_MEMORY_MB: z.coerce.number().int().min(64).default(2048),
+    SANDBOX_PIDS_LIMIT: z.coerce.number().int().min(16).default(256),
+    /** Size of the writable working directory, /workspace (a tmpfs). */
+    SANDBOX_WORKSPACE_MB: z.coerce.number().int().min(16).default(1024),
   })
   .superRefine((env, ctx) => {
     if (env.AGENT_RUNTIME === 'mastra') {

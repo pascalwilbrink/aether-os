@@ -31,6 +31,13 @@ describe('zEnv', () => {
       RUNNER_RETRY_BACKOFF_MS: 10_000,
       OPENBAO_KV_MOUNT: 'secret',
       PLATFORM_MODEL_KEYS: false,
+      SANDBOX_DRIVER: 'none',
+      SANDBOX_IMAGE: 'node:22-slim',
+      SANDBOX_USER: '1000:1000',
+      SANDBOX_CPUS: 1,
+      SANDBOX_MEMORY_MB: 2048,
+      SANDBOX_PIDS_LIMIT: 256,
+      SANDBOX_WORKSPACE_MB: 1024,
     });
     expect(zEnv.safeParse({ ...valid, AGENT_RUNTIME: 'other' }).success).toBe(
       false,
@@ -50,6 +57,17 @@ describe('zEnv', () => {
         PLATFORM_MODEL_KEYS: 'true',
       }),
     ).toMatchObject({ AGENT_RUNTIME: 'mastra', PLATFORM_MODEL_KEYS: true });
+  });
+
+  it('never runs sandboxes as root', () => {
+    for (const user of ['0', '0:0', 'root', '1000:0x', '']) {
+      expect(zEnv.safeParse({ ...valid, SANDBOX_USER: user }).success).toBe(
+        false,
+      );
+    }
+    expect(zEnv.parse({ ...valid, SANDBOX_USER: '1001' }).SANDBOX_USER).toBe(
+      '1001',
+    );
   });
 
   it("requires Pistis and Hephaestus's client secret at Pistis", () => {

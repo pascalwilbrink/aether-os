@@ -243,9 +243,9 @@ export class TaskRunner
       await this.failed(executionId, error);
     } finally {
       timers.forEach(clearTimeout);
-      if (sandbox) {
-        await this.destroy(executionId, sandbox);
-      }
+      // Also when provisioning was abandoned: the provisioner finds what
+      // the execution left behind by its ID.
+      await this.destroy(task.organizationId, executionId, sandbox);
     }
   }
 
@@ -294,10 +294,20 @@ export class TaskRunner
     );
   }
 
-  private async destroy(executionId: string, sandbox: Sandbox): Promise<void> {
+  private async destroy(
+    organizationId: string,
+    executionId: string,
+    sandbox: Sandbox | null,
+  ): Promise<void> {
     try {
-      await this.provisioner.destroy(sandbox.reference);
-      await this.executions.sandboxDestroyed(executionId);
+      await this.provisioner.destroy({
+        organizationId,
+        executionId,
+        reference: sandbox?.reference ?? null,
+      });
+      if (sandbox) {
+        await this.executions.sandboxDestroyed(executionId);
+      }
     } catch (error) {
       // The reaper doesn't see it any more; the provisioner's own expiry
       // (workspaces) is the backstop.

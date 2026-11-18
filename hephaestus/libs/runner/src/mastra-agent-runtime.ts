@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Agent } from '@mastra/core/agent';
+import { Workspace } from '@mastra/core/workspace';
 
 import {
   ModelGateway,
@@ -25,7 +26,9 @@ const MODEL_RETRIES = 2;
  * Runs an agent version with Mastra (../../CLAUDE.md): the version's
  * instructions and model become a Mastra `Agent`, the model resolved by the
  * model gateway (key from OpenBao), and the task's title and instructions
- * are its input. Every step is metered. Tools and skills aren't supported
+ * are its input. Every step is metered. With a sandbox, the agent gets a
+ * Mastra workspace on it (shell tools: run a command, read a background
+ * process's output, stop it). Configured tools and skills aren't supported
  * yet, so a version that enables any fails rather than running without them.
  */
 @Injectable()
@@ -40,6 +43,7 @@ export class MastraAgentRuntime extends AgentRuntime {
     task,
     executionId,
     agentVersion,
+    sandbox,
     signal,
   }: AgentRunInput): Promise<AgentRunResult> {
     const unsupported = [
@@ -69,6 +73,11 @@ export class MastraAgentRuntime extends AgentRuntime {
       name: `${agentVersion.agentId} v${agentVersion.version}`,
       instructions: agentVersion.instructions,
       model: resolved.model,
+      // The execution's sandbox, with Mastra's workspace tools (running
+      // commands in it); none without one.
+      ...(sandbox?.agentSandbox
+        ? { workspace: new Workspace({ sandbox: sandbox.agentSandbox }) }
+        : {}),
     });
 
     // Every call is metered, including those of a run that fails.
