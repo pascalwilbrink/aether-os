@@ -322,6 +322,29 @@ describe('Reviews (Postgres)', () => {
     ]);
   });
 
+  it("links an agent's answer to the answer a reviewer sent back", async () => {
+    // An agent that only answers (no submit_artifact).
+    runtime.behaviour = ({ revisions }) =>
+      Promise.resolve({
+        outcome: 'completed',
+        summary: revisions.length ? 'Better answer.' : 'First answer.',
+      });
+    const created = await createTask(['*']);
+    await runOnce();
+    const [first] = await artifactsOf(created.id);
+
+    await decide(created.id, first.id, 'changes_requested');
+    await runOnce();
+
+    const [, revised] = await artifactsOf(created.id);
+    expect(revised).toMatchObject({
+      title: 'Answer',
+      content: 'Better answer.',
+      status: 'draft',
+      revisionOf: first.id,
+    });
+  });
+
   it('stops asking for changes after the last review round', async () => {
     runtime.behaviour = summaryAndData;
     const created = await createTask(['text']);

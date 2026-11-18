@@ -20,7 +20,7 @@ export async function call<T>(
   base: string,
   path: string,
   token: string,
-  init: { method?: string; body?: unknown } = {},
+  init: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
 ): Promise<T> {
   const response = await fetch(new URL(path, base), {
     method: init.method ?? "GET",
@@ -28,6 +28,7 @@ export async function call<T>(
       authorization: `Bearer ${token}`,
       accept: "application/json",
       ...(init.body === undefined ? {} : { "content-type": "application/json" }),
+      ...init.headers,
     },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
     cache: "no-store",

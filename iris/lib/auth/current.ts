@@ -23,3 +23,17 @@ export async function requireSession(returnTo = "/"): Promise<Session> {
   }
   return session;
 }
+
+/**
+ * The session, with a token for `organizationId`: a token for another
+ * organization (or none) means switching, through Pistis.
+ */
+export async function requireOrganization(organizationId: string, returnTo: string): Promise<Session> {
+  const session = await requireSession(returnTo);
+  if (session.organizationId !== organizationId) {
+    redirect(
+      `/auth/sign-in?organization=${encodeURIComponent(organizationId)}&returnTo=${encodeURIComponent(returnTo)}`,
+    );
+  }
+  return session;
+}

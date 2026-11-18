@@ -44,6 +44,10 @@ export const config = {
     }
     return secret;
   },
+  /** Pistis's API: the issuer's origin unless set. */
+  get pistisUrl() {
+    return process.env.PISTIS_URL || new URL(this.pistisIssuer).origin;
+  },
   get polisUrl() {
     return value("POLIS_URL", "http://localhost:3001");
   },
