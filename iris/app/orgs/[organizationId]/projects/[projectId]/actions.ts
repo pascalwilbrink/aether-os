@@ -12,12 +12,15 @@ import {
   reviewArtifact,
   type ReviewDecision,
 } from "@/lib/api/hephaestus";
-import { ApiError } from "@/lib/api/http";
+import { messageOf as baseMessageOf } from "@/lib/api/messages";
 import { requireOrganization } from "@/lib/auth/current";
+import { valuesOf } from "@/lib/forms";
 
 /** What a form shows after a failed submit. */
 export interface FormState {
   error?: string;
+  /** What was submitted, shown again after a refused submit. */
+  values?: Record<string, string>;
 }
 
 /** Where a project's pages live. */
@@ -31,19 +34,8 @@ const projectPath = ({ organizationId, projectId }: ProjectRef) =>
 
 const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
 
-/** A message for people from an API error; anything else is thrown on. */
-function messageOf(error: unknown): string {
-  if (!(error instanceof ApiError)) {
-    throw error;
-  }
-  if (error.status === 403) {
-    return "You aren't allowed to do that in this project.";
-  }
-  if (error.status === 400) {
-    return "Some fields aren't valid. Check them and try again.";
-  }
-  return error.message;
-}
+const messageOf = (error: unknown, byCode: Record<string, string> = {}) =>
+  baseMessageOf(error, { FORBIDDEN: "You aren't allowed to do that in this project.", ...byCode });
 
 /**
  * Creates a task, then opens it. Every Server Function checks the session
@@ -70,7 +62,7 @@ export async function createTaskAction(ref: ProjectRef, _state: FormState, form:
       )
     ).id;
   } catch (error) {
-    return { error: messageOf(error) };
+    return { error: messageOf(error), values: valuesOf(form) };
   }
   redirect(`${projectPath(ref)}/tasks/${taskId}`);
 }
@@ -106,7 +98,7 @@ export async function createTaskFromTemplateAction(
       )
     ).id;
   } catch (error) {
-    return { error: messageOf(error) };
+    return { error: messageOf(error), values: valuesOf(form) };
   }
   redirect(`${projectPath(ref)}/tasks/${taskId}`);
 }
@@ -140,7 +132,7 @@ export async function reviewAction(
   const decision = text(form, "decision") as ReviewDecision;
   const comment = text(form, "comment");
   if (decision === "request-changes" && !comment) {
-    return { error: "Say what should change." };
+    return { error: "Say what should change.", values: valuesOf(form) };
   }
   try {
     await reviewArtifact(
@@ -153,10 +145,12 @@ export async function reviewAction(
       decision === "request-changes" ? { comments: [{ body: comment }] } : comment ? { comment } : {},
     );
   } catch (error) {
-    if (error instanceof ApiError && error.code === "TASK_REVIEW_ROUNDS_EXHAUSTED") {
-      return { error: "This task has had its review rounds: approve or reject it now." };
-    }
-    return { error: messageOf(error) };
+    return {
+      error: messageOf(error, {
+        TASK_REVIEW_ROUNDS_EXHAUSTED: "This task has had its review rounds: approve or reject it now.",
+      }),
+      values: valuesOf(form),
+    };
   }
   refresh();
   return {};
