@@ -91,6 +91,7 @@ describe('Tasks (e2e)', () => {
       requestedBy: 'user-1',
       status: 'queued',
       failureReason: null,
+      pausedFor: null,
       dependsOn: [],
       attempt: 1,
       primaryArtifactId: null,

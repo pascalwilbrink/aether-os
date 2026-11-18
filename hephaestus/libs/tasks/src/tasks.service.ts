@@ -13,6 +13,7 @@ import {
   type Page,
 } from '@hephaestus/core';
 import { AgentsService } from '@hephaestus/agents';
+import type { BudgetScope } from '@hephaestus/models';
 import { OrganizationsService, ProjectsService } from '@hephaestus/tenancy';
 
 import type { CreateTaskRequest } from './dto/create-task.request.js';
@@ -279,6 +280,8 @@ export class TasksService {
       outcome?: { primaryArtifactId: string; artifactIds: string[] };
       /** Required to `await-review`: the drafts waiting. */
       draftArtifactIds?: string[];
+      /** Required to `pause`: the budget that ran out. */
+      pausedFor?: BudgetScope;
     } = {},
   ): Promise<TaskResponse> {
     const task = await this.tasks.findOne({
@@ -306,6 +309,12 @@ export class TasksService {
         throw new Error('A task awaiting review needs its drafts');
       }
       task.reviewRound += 1;
+    }
+    if (next === 'paused') {
+      if (!options.pausedFor) {
+        throw new Error('A paused task needs the budget that ran out');
+      }
+      task.pausedFor = options.pausedFor;
     }
     // Only a requeued task waits (backoff); anything else starts afresh.
     task.nextAttemptAt =
@@ -362,6 +371,16 @@ export class TasksService {
     );
   }
 
+  /** Tasks paused for a budget, oldest first (the runner resumes them; no caller). */
+  async paused(limit: number): Promise<TaskResponse[]> {
+    const entities = await this.tasks.find({
+      where: { status: 'paused' },
+      order: { updatedAt: 'ASC' },
+      take: limit,
+    });
+    return entities.map((entity) => this.mapper.toResponse(entity));
+  }
+
   /** A delivery failed and will be tried again (`delivering` waits until then). */
   async deliveryRetryAt(taskId: string, at: Date): Promise<void> {
     await this.tasks.update({ id: taskId }, { nextAttemptAt: at });
@@ -412,6 +431,9 @@ export class TasksService {
     const from = task.status;
     const now = new Date();
     task.status = to;
+    if (to !== 'paused') {
+      task.pausedFor = null;
+    }
     task.failureReason = failureReason;
     task.updatedAt = now;
     if (isTerminal(to)) {
@@ -465,6 +487,23 @@ export class TasksService {
           draftArtifactIds: artifactIds,
           round: task.reviewRound,
         },
+      });
+    } else if (to === 'paused' && task.pausedFor) {
+      await this.events.emit({
+        ...base,
+        eventType: 'task.paused',
+        payload: {
+          taskId: task.id,
+          topLevelTaskId: task.topLevelTaskId,
+          requestedBy: task.requestedBy,
+          scope: task.pausedFor,
+        },
+      });
+    } else if (from === 'paused' && to === 'queued') {
+      await this.events.emit({
+        ...base,
+        eventType: 'task.resumed',
+        payload: { taskId: task.id, topLevelTaskId: task.topLevelTaskId },
       });
     } else if (to === 'cancelled') {
       await this.events.emit({

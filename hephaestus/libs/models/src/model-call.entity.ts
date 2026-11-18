@@ -13,6 +13,9 @@ export type KeySource = 'organization' | 'platform';
   `key_source IN ('organization', 'platform')`,
 )
 @Index('ix_model_calls_execution_id', ['executionId'])
+// What budgets sum (docs/models.md): per project and month, per task tree.
+@Index('ix_model_calls_project_id_created_at', ['projectId', 'createdAt'])
+@Index('ix_model_calls_top_level_task_id', ['topLevelTaskId'])
 // Usage per organization over time (budgets, later).
 @Index('ix_model_calls_organization_id_created_at', [
   'organizationId',
@@ -30,6 +33,10 @@ export class ModelCallEntity {
 
   @Column({ type: 'uuid' })
   taskId: string;
+
+  /** Null for calls recorded before task trees were tracked. */
+  @Column({ type: 'uuid', nullable: true })
+  topLevelTaskId: string | null;
 
   @Column({ type: 'uuid' })
   executionId: string;

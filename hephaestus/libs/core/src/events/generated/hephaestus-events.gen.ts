@@ -46,6 +46,27 @@ export interface ArtifactStatusChanged {
 }
 
 /**
+ * Payload of `budget.threshold-reached`.
+ */
+export interface BudgetThresholdReached {
+  budgetId: string;
+  scope: 'organization' | 'project' | 'task_tree';
+  scopeId: string;
+  /**
+   * US dollars
+   */
+  limitUsd: string;
+  /**
+   * US dollars
+   */
+  spentUsd: string;
+  /**
+   * The month it's for; null for a task tree's (its lifetime).
+   */
+  windowStart: string | null;
+}
+
+/**
  * Payload of `task.awaiting-review`.
  */
 export interface TaskAwaitingReview {
@@ -116,6 +137,24 @@ export interface TaskFailed {
     | 'infrastructure'
     | 'subtask_failed'
     | 'access_denied';
+}
+
+/**
+ * Payload of `task.paused`.
+ */
+export interface TaskPaused {
+  taskId: string;
+  topLevelTaskId: string;
+  requestedBy: string;
+  scope: 'organization' | 'project' | 'task_tree';
+}
+
+/**
+ * Payload of `task.resumed`.
+ */
+export interface TaskResumed {
+  taskId: string;
+  topLevelTaskId: string;
 }
 
 /**
@@ -191,10 +230,13 @@ export interface TaskVerified {
 export interface HephaestusEventPayloads {
   'artifact.created': ArtifactCreated;
   'artifact.status-changed': ArtifactStatusChanged;
+  'budget.threshold-reached': BudgetThresholdReached;
   'task.awaiting-review': TaskAwaitingReview;
   'task.cancelled': TaskCancelled;
   'task.created': TaskCreated;
   'task.failed': TaskFailed;
+  'task.paused': TaskPaused;
+  'task.resumed': TaskResumed;
   'task.status-changed': TaskStatusChanged;
   'task.succeeded': TaskSucceeded;
   'task.verified': TaskVerified;
@@ -206,10 +248,13 @@ export type HephaestusEventType = keyof HephaestusEventPayloads;
 export const HEPHAESTUS_EVENT_TYPES = [
   'artifact.created',
   'artifact.status-changed',
+  'budget.threshold-reached',
   'task.awaiting-review',
   'task.cancelled',
   'task.created',
   'task.failed',
+  'task.paused',
+  'task.resumed',
   'task.status-changed',
   'task.succeeded',
   'task.verified',

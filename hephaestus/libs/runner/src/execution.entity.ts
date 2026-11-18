@@ -5,7 +5,13 @@ import type { ApiTypes } from '@hephaestus/core';
 import type { ExecutionFailureReason } from './runner.errors.js';
 
 export type ExecutionStatus =
-  'provisioning' | 'running' | 'completed' | 'failed' | 'cancelled';
+  | 'provisioning'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  /** A budget ran out (docs/models.md); the task resumes in a new execution. */
+  | 'paused';
 
 export const ACTIVE_EXECUTION: readonly ExecutionStatus[] = [
   'provisioning',
@@ -21,7 +27,7 @@ export const ACTIVE_EXECUTION: readonly ExecutionStatus[] = [
 @Unique('uq_executions_task_id_number', ['taskId', 'number'])
 @Check(
   'ck_executions_status',
-  `status IN ('provisioning', 'running', 'completed', 'failed', 'cancelled')`,
+  `status IN ('provisioning', 'running', 'completed', 'failed', 'cancelled', 'paused')`,
 )
 @Check(
   'ck_executions_failure_reason',

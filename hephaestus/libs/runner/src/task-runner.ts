@@ -19,7 +19,9 @@ import {
   type BranchConflict,
   type FailedCheck,
 } from './agent-runtime.js';
-import { Deliveries } from './deliveries.js';
+import { BudgetExceededError } from '@hephaestus/models';
+
+import { Housekeeping } from './housekeeping.js';
 import { ExecutionPreparer } from './execution-preparer.js';
 import { ExecutionReaper, seconds } from './execution-reaper.js';
 import { ExecutionsService } from './executions.service.js';
@@ -83,7 +85,7 @@ export class TaskRunner
     private readonly preparer: ExecutionPreparer,
     private readonly runtime: AgentRuntime,
     private readonly verifier: Verifier,
-    private readonly deliveries: Deliveries,
+    private readonly housekeeping: Housekeeping,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -152,12 +154,9 @@ export class TaskRunner
 
   private async round(): Promise<void> {
     await this.reaper.reap();
-    // Pull requests to open, branches to delete (outside executions).
-    await this.deliveries
-      .run()
-      .catch((error: unknown) =>
-        this.logger.error(`Deliveries failed: ${String(error)}`),
-      );
+    // Outside executions: pull requests to open, branches to delete, paused
+    // tasks whose budgets have room again.
+    await this.housekeeping.run();
     while (!this.stopping && this.running.size < this.options.maxExecutions) {
       const claimed = await this.executions.claim(this.id);
       if (!claimed) {
@@ -197,6 +196,7 @@ export class TaskRunner
     let checkout: Checkout | null = null;
 
     try {
+      await this.untilStopped(this.preparer.assertBudget(task), signal);
       const agentVersion = await this.untilStopped(
         this.preparer.agentVersion(task),
         signal,
@@ -469,6 +469,9 @@ export class TaskRunner
           // Already ended by a reaper.
           return;
       }
+    }
+    if (error instanceof BudgetExceededError) {
+      return this.executions.pause(executionId, error.scope, error.message);
     }
     if (error instanceof RunnerFailure) {
       return this.executions.fail(

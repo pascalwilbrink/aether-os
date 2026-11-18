@@ -17,6 +17,7 @@ const context: ModelCallContext = {
   organizationId: 'org-1',
   projectId: 'project-1',
   taskId: 'task-1',
+  topLevelTaskId: 'task-1',
   executionId: 'execution-1',
   agentVersionId: 'version-1',
 };

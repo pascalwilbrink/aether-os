@@ -1,6 +1,7 @@
 import { Check, Column, Entity, Index, PrimaryColumn, Unique } from 'typeorm';
 
 import type { ApiTypes } from '@hephaestus/core';
+import type { BudgetScope } from '@hephaestus/models';
 
 import type { TaskFailureReason, TaskStatus } from './task-transitions.js';
 
@@ -17,6 +18,10 @@ import type { TaskFailureReason, TaskStatus } from './task-transitions.js';
 @Check(
   'ck_tasks_status',
   `status IN ('blocked', 'queued', 'provisioning', 'running', 'verifying', 'awaiting_review', 'waiting', 'paused', 'delivering', 'succeeded', 'failed', 'cancelled')`,
+)
+@Check(
+  'ck_tasks_paused_for',
+  `paused_for IS NULL OR paused_for IN ('organization', 'project', 'task_tree')`,
 )
 @Check(
   'ck_tasks_failure_reason',
@@ -72,6 +77,10 @@ export class TaskEntity {
 
   @Column({ type: 'text', nullable: true })
   failureReason: TaskFailureReason | null;
+
+  /** While `paused`: the budget that ran out (docs/models.md). */
+  @Column({ type: 'text', nullable: true })
+  pausedFor: BudgetScope | null;
 
   /** Tasks under the same top-level task that must succeed first. */
   @Column({ type: 'uuid', array: true, default: () => "'{}'" })

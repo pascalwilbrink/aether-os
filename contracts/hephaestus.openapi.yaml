@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.13.0
+  version: 0.14.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -37,6 +37,7 @@ tags:
   - name: tasks
   - name: task-templates
   - name: models
+  - name: budgets
 
 paths:
   /v1/organizations/{organizationId}/agents:
@@ -1010,6 +1011,132 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
+  /v1/organizations/{organizationId}/budget:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [budgets]
+      operationId: getOrganizationBudget
+      x-permission: '`org:read`'
+      description: The organization's monthly budget for model calls, and what this month's calls cost so far.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [budgets]
+      operationId: setOrganizationBudget
+      x-permission: '`org:manage`'
+      description: |
+        Sets (or, with `limitUsd: null`, removes) the organization's monthly
+        limit. Tasks it paused resume within a runner round once it has room.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetBudgetRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/budget:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [budgets]
+      operationId: getProjectBudget
+      x-permission: '`project:read` in the project'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [budgets]
+      operationId: setProjectBudget
+      x-permission: '`project:manage` in the project'
+      description: Sets (or removes) the project's monthly limit.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetBudgetRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/budget:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      tags: [budgets]
+      operationId: getTaskTreeBudget
+      x-permission: '`task:read` in the project'
+      description: The budget of the task's tree (its top-level task's), for the tree's whole life.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [budgets]
+      operationId: setTaskTreeBudget
+      x-permission: '`task:create` in the project'
+      description: Sets (or removes) the limit of the task's tree; its paused tasks resume once it has room.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetBudgetRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
 components:
   parameters:
     OrganizationId:
@@ -1094,6 +1221,7 @@ components:
         - AGENT_VERSION_CONFLICT
         - AGENT_VERSION_INVALID_TRANSITION
         - ARTIFACT_NOT_DRAFT
+        - TASK_BUDGET_INVALID
         - MODEL_ALREADY_EXISTS
         - MODEL_NOT_AVAILABLE
         - MODEL_PRICE_INVALID
@@ -1406,6 +1534,14 @@ components:
             The repository the task works in: one of its project's links in
             Proxenos (`docs/git.md`). A subtask without one works in its
             parent's (the tree shares a branch).
+        budgetUsd:
+          description: |
+            A limit for the whole task tree's model calls (docs/models.md,
+            Budgets); only on a top-level task (`TASK_BUDGET_INVALID`).
+            Raise it later with `PUT …/tasks/{taskId}/budget`.
+          oneOf:
+            - $ref: '#/components/schemas/Usd'
+            - type: 'null'
     TaskRepository:
       type: object
       additionalProperties: false
@@ -1629,7 +1765,7 @@ components:
           items: { type: string, minLength: 1, maxLength: 50 }
     TaskResponse:
       type: object
-      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
+      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, pausedFor, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -1649,6 +1785,11 @@ components:
         serviceAccountId: { type: string, format: uuid }
         requestedBy: { type: string, description: The `sub` of whoever created the task. }
         status: { $ref: '#/components/schemas/TaskStatus' }
+        pausedFor:
+          description: While `paused`, the budget that ran out; null otherwise.
+          oneOf:
+            - $ref: '#/components/schemas/BudgetScope'
+            - type: 'null'
         failureReason:
           oneOf:
             - $ref: '#/components/schemas/TaskFailureReason'
@@ -1858,7 +1999,8 @@ components:
               items: { $ref: '#/components/schemas/ArtifactResponse' }
     ExecutionStatus:
       type: string
-      enum: [provisioning, running, completed, failed, cancelled]
+      description: '`paused`: a budget ran out (docs/models.md); the task resumes in a new execution.'
+      enum: [provisioning, running, completed, failed, cancelled, paused]
     ExecutionFailureReason:
       type: string
       enum: [agent_failed, timeout, infrastructure, access_denied, interrupted, verification_failed]
@@ -2119,3 +2261,49 @@ components:
             items:
               type: array
               items: { $ref: '#/components/schemas/ModelResponse' }
+
+    # ---------- budgets ----------
+    BudgetScope:
+      type: string
+      description: |
+        What a budget limits (docs/models.md, Budgets): an organization's or
+        a project's model calls per calendar month (UTC), or a task tree's
+        over its whole life.
+      enum: [organization, project, task_tree]
+    SetBudgetRequest:
+      type: object
+      additionalProperties: false
+      required: [limitUsd]
+      properties:
+        limitUsd:
+          description: The limit; null for none.
+          oneOf:
+            - $ref: '#/components/schemas/Usd'
+            - type: 'null'
+    BudgetResponse:
+      type: object
+      required: [scope, scopeId, limitUsd, spentUsd, windowStart, thresholdPercent, updatedAt]
+      properties:
+        scope: { $ref: '#/components/schemas/BudgetScope' }
+        scopeId:
+          type: string
+          format: uuid
+          description: The organization, project or top-level task.
+        limitUsd:
+          oneOf:
+            - $ref: '#/components/schemas/Usd'
+            - type: 'null'
+        spentUsd:
+          description: What the scope's model calls cost in the window (this month; a task tree's whole life).
+          $ref: '#/components/schemas/Usd'
+        windowStart:
+          type: [string, 'null']
+          format: date-time
+          description: The start of this month (UTC); null for a task tree.
+        thresholdPercent:
+          type: integer
+          description: At this share of the limit, `budget.threshold-reached` is published (once per window).
+        updatedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When the limit was last set; null if it never was.

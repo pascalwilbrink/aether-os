@@ -5,7 +5,11 @@ import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
 import { AgentsService, AgentVersionsService } from '@hephaestus/agents';
 import { ArtifactsService } from '@hephaestus/artifacts';
 import { SecretStore } from '@hephaestus/core';
-import { LanguageModels, ModelGateway } from '@hephaestus/models';
+import {
+  LanguageModels,
+  BudgetsService,
+  ModelGateway,
+} from '@hephaestus/models';
 import { TasksService } from '@hephaestus/tasks';
 
 import type { FakePolis } from '../../../test/fake-polis.js';
@@ -51,8 +55,9 @@ describe('MastraAgentRuntime (Postgres)', () => {
           .useValue(testRunnerOptions({ maxExecutions: 1 }))
           .overrideProvider(AgentRuntime)
           .useFactory({
-            factory: (gateway: ModelGateway) => new MastraAgentRuntime(gateway),
-            inject: [ModelGateway],
+            factory: (gateway: ModelGateway, budgets: BudgetsService) =>
+              new MastraAgentRuntime(gateway, budgets),
+            inject: [ModelGateway, BudgetsService],
           })
           .overrideProvider(SecretStore)
           .useValue(secrets)
@@ -351,5 +356,161 @@ describe('MastraAgentRuntime (Postgres)', () => {
       "Tools and skills aren't supported yet (github)",
     );
     expect(models.calls).toHaveLength(0);
+  });
+
+  describe('budgets (docs/models.md)', () => {
+    const owner = () =>
+      testPrincipal({
+        sub: 'user-1',
+        subType: 'user',
+        organizationId,
+        organizationRoles: ['owner'],
+        scopes: [],
+      });
+    const budgets = () => actingAs(moduleRef.get(BudgetsService), owner());
+    /** Events of a type in the outbox, oldest first. */
+    const published = async (eventType: string) =>
+      (
+        (await moduleRef
+          .get(DataSource)
+          .query(
+            `SELECT message->'payload' AS payload FROM outbox WHERE routing_key = $1 ORDER BY created_at`,
+            [eventType],
+          )) as { payload: Record<string, unknown> }[]
+      ).map((row) => row.payload);
+
+    beforeEach(() => {
+      secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
+        apiKey: 'sk-organization',
+      });
+    });
+
+    it('pauses a run when its task tree budget runs out, and resumes it once raised', async () => {
+      // The tool call costs 1 × $3 + 1 × $15 per million tokens: $0.000018.
+      models.replies = [
+        {
+          toolCall: {
+            tool: 'submit_artifact',
+            input: { kind: 'text', title: 'Notes', content: 'Half done.' },
+          },
+        },
+        { text: 'Done.' },
+      ];
+      const { task: created } = await taskFor();
+      await budgets().setTaskTree(
+        organizationId,
+        projectId,
+        created.id,
+        '0.00001',
+      );
+
+      await runOnce();
+
+      // Stopped after the first call: the second never happened.
+      expect(models.calls).toHaveLength(1);
+      await expect(task(created.id)).resolves.toMatchObject({
+        status: 'paused',
+        pausedFor: 'task_tree',
+      });
+      const [paused] = await executionsOf(created.id);
+      expect(paused).toMatchObject({
+        status: 'paused',
+        error: 'The task tree budget ran out',
+        usage: { modelCalls: 1, costUsd: '0.000018' },
+      });
+      // Its unfinished work isn't carried over.
+      expect(
+        (
+          await actingAs(moduleRef.get(ArtifactsService), owner()).list(
+            organizationId,
+            projectId,
+            created.id,
+            { limit: 50 },
+          )
+        ).items.map((artifact) => artifact.status),
+      ).toEqual(['partial']);
+      expect(await published('task.paused')).toEqual([
+        {
+          taskId: created.id,
+          topLevelTaskId: created.id,
+          requestedBy: 'user-1',
+          scope: 'task_tree',
+        },
+      ]);
+      expect(await published('budget.threshold-reached')).toEqual([
+        expect.objectContaining({
+          scope: 'task_tree',
+          scopeId: created.id,
+          limitUsd: '0.000010',
+          spentUsd: '0.000018',
+          windowStart: null,
+        }),
+      ]);
+
+      // Still paused while the budget has no room.
+      await runOnce();
+      await expect(task(created.id)).resolves.toMatchObject({
+        status: 'paused',
+      });
+
+      await budgets().setTaskTree(organizationId, projectId, created.id, '1');
+      await runOnce();
+
+      await expect(task(created.id)).resolves.toMatchObject({
+        status: 'succeeded',
+        pausedFor: null,
+      });
+      expect(await executionsOf(created.id)).toHaveLength(2);
+      expect(await published('task.resumed')).toEqual([
+        { taskId: created.id, topLevelTaskId: created.id },
+      ]);
+      await expect(
+        budgets().getTaskTree(organizationId, created.id),
+      ).resolves.toMatchObject({ limitUsd: '1.000000', spentUsd: '0.000018' });
+    });
+
+    it('pauses a task before it starts when the organization spent its month', async () => {
+      await budgets().setOrganization(organizationId, '0');
+      const { task: created } = await taskFor();
+
+      await runOnce();
+
+      expect(models.calls).toHaveLength(0);
+      await expect(task(created.id)).resolves.toMatchObject({
+        status: 'paused',
+        pausedFor: 'organization',
+      });
+      expect((await executionsOf(created.id))[0]).toMatchObject({
+        status: 'paused',
+        error: 'The organization budget ran out',
+      });
+
+      // Removing the limit lets it run.
+      await budgets().setOrganization(organizationId, null);
+      await runOnce();
+      await expect(task(created.id)).resolves.toMatchObject({
+        status: 'succeeded',
+      });
+    });
+
+    it("keeps a run's answer when its last call used up the budget", async () => {
+      models.replies = [{ text: 'Fixed.', inputTokens: 10, outputTokens: 2 }];
+      await budgets().setProject(organizationId, projectId, '0.00001');
+      const { task: created } = await taskFor();
+
+      await runOnce();
+
+      // The run ended on its own: the budget pauses the next one, not this.
+      await expect(task(created.id)).resolves.toMatchObject({
+        status: 'succeeded',
+      });
+      await expect(
+        budgets().exceeded({
+          organizationId,
+          projectId,
+          topLevelTaskId: created.id,
+        }),
+      ).resolves.toBe('project');
+    });
   });
 });

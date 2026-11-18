@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 
 import { AgentVersionsService } from '@hephaestus/agents';
 import type { ApiTypes } from '@hephaestus/core';
+import { BudgetExceededError, BudgetsService } from '@hephaestus/models';
 import type { TaskResponse } from '@hephaestus/tasks';
 
 import {
@@ -35,7 +36,23 @@ export class ExecutionPreparer {
     private readonly tokens: TaskTokens,
     private readonly provisioner: SandboxProvisioner,
     private readonly repositories: RepositoryCheckouts,
+    private readonly budgets: BudgetsService,
   ) {}
+
+  /**
+   * Before an execution starts work: throws `BudgetExceededError` when one
+   * of the task's budgets ran out, so it pauses before using a sandbox.
+   */
+  async assertBudget(task: TaskResponse): Promise<void> {
+    const scope = await this.budgets.exceeded({
+      organizationId: task.organizationId,
+      projectId: task.projectId,
+      topLevelTaskId: task.topLevelTaskId,
+    });
+    if (scope) {
+      throw new BudgetExceededError(scope);
+    }
+  }
 
   agentVersion(task: TaskResponse): Promise<ApiTypes.AgentVersionResponse> {
     return this.agentVersions.findById(

@@ -708,6 +708,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        /** @description The organization's monthly budget for model calls, and what this month's calls cost so far. */
+        get: operations["getOrganizationBudget"];
+        /**
+         * @description Sets (or, with `limitUsd: null`, removes) the organization's monthly
+         *     limit. Tasks it paused resume within a runner round once it has room.
+         */
+        put: operations["setOrganizationBudget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getProjectBudget"];
+        /** @description Sets (or removes) the project's monthly limit. */
+        put: operations["setProjectBudget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        /** @description The budget of the task's tree (its top-level task's), for the tree's whole life. */
+        get: operations["getTaskTreeBudget"];
+        /** @description Sets (or removes) the limit of the task's tree; its paused tasks resume once it has room. */
+        put: operations["setTaskTreeBudget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -744,7 +809,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "MODEL_ALREADY_EXISTS" | "MODEL_NOT_AVAILABLE" | "MODEL_PRICE_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "MODEL_ALREADY_EXISTS" | "MODEL_NOT_AVAILABLE" | "MODEL_PRICE_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -939,6 +1004,12 @@ export interface components {
              *     parent's (the tree shares a branch).
              */
             repository?: components["schemas"]["TaskRepository"] | null;
+            /**
+             * @description A limit for the whole task tree's model calls (docs/models.md,
+             *     Budgets); only on a top-level task (`TASK_BUDGET_INVALID`).
+             *     Raise it later with `PUT …/tasks/{taskId}/budget`.
+             */
+            budgetUsd?: components["schemas"]["Usd"] | null;
         };
         TaskRepository: {
             /**
@@ -1130,6 +1201,8 @@ export interface components {
             /** @description The `sub` of whoever created the task. */
             requestedBy: string;
             status: components["schemas"]["TaskStatus"];
+            /** @description While `paused`, the budget that ran out; null otherwise. */
+            pausedFor: components["schemas"]["BudgetScope"] | null;
             failureReason: components["schemas"]["TaskFailureReason"] | null;
             dependsOn: string[];
             /** @description 1, plus one per retry. */
@@ -1305,8 +1378,11 @@ export interface components {
         ArtifactPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["ArtifactResponse"][];
         };
-        /** @enum {string} */
-        ExecutionStatus: "provisioning" | "running" | "completed" | "failed" | "cancelled";
+        /**
+         * @description `paused`: a budget ran out (docs/models.md); the task resumes in a new execution.
+         * @enum {string}
+         */
+        ExecutionStatus: "provisioning" | "running" | "completed" | "failed" | "cancelled" | "paused";
         /**
          * @description `infrastructure` (a crash, a missed heartbeat, a provisioning timeout,
          *     an unreachable dependency) is retried automatically, up to a limit;
@@ -1490,6 +1566,40 @@ export interface components {
         };
         ModelPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["ModelResponse"][];
+        };
+        /**
+         * @description What a budget limits (docs/models.md, Budgets): an organization's or
+         *     a project's model calls per calendar month (UTC), or a task tree's
+         *     over its whole life.
+         * @enum {string}
+         */
+        BudgetScope: "organization" | "project" | "task_tree";
+        SetBudgetRequest: {
+            /** @description The limit; null for none. */
+            limitUsd: components["schemas"]["Usd"] | null;
+        };
+        BudgetResponse: {
+            scope: components["schemas"]["BudgetScope"];
+            /**
+             * Format: uuid
+             * @description The organization, project or top-level task.
+             */
+            scopeId: string;
+            limitUsd: components["schemas"]["Usd"] | null;
+            /** @description What the scope's model calls cost in the window (this month; a task tree's whole life). */
+            spentUsd: components["schemas"]["Usd"];
+            /**
+             * Format: date-time
+             * @description The start of this month (UTC); null for a task tree.
+             */
+            windowStart: string | null;
+            /** @description At this share of the limit, `budget.threshold-reached` is published (once per window). */
+            thresholdPercent: number;
+            /**
+             * Format: date-time
+             * @description When the limit was last set; null if it never was.
+             */
+            updatedAt: string | null;
         };
         /** @description Pass as `cursor` to get the next page; `null` on the last page. */
         NextCursor: string | null;
@@ -2878,6 +2988,185 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModelPriceResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    getOrganizationBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setOrganizationBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetBudgetRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getProjectBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setProjectBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetBudgetRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getTaskTreeBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setTaskTreeBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetBudgetRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];

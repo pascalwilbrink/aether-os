@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ARTIFACT_NOT_DRAFT' | 'MODEL_ALREADY_EXISTS' | 'MODEL_NOT_AVAILABLE' | 'MODEL_PRICE_INVALID' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'TASK_TEMPLATE_ARCHIVED' | 'TASK_TEMPLATE_INPUTS_INVALID' | 'TASK_TEMPLATE_INVALID' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
+export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ARTIFACT_NOT_DRAFT' | 'TASK_BUDGET_INVALID' | 'MODEL_ALREADY_EXISTS' | 'MODEL_NOT_AVAILABLE' | 'MODEL_PRICE_INVALID' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'TASK_TEMPLATE_ARCHIVED' | 'TASK_TEMPLATE_INPUTS_INVALID' | 'TASK_TEMPLATE_INVALID' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
 
 /**
  * Problem details for a business-rule violation.
@@ -214,6 +214,13 @@ export type CreateTaskRequest = {
      *
      */
     repository?: TaskRepository | null;
+    /**
+     * A limit for the whole task tree's model calls (docs/models.md,
+     * Budgets); only on a top-level task (`TASK_BUDGET_INVALID`).
+     * Raise it later with `PUT …/tasks/{taskId}/budget`.
+     *
+     */
+    budgetUsd?: Usd | null;
 };
 
 export type TaskRepository = {
@@ -432,6 +439,10 @@ export type TaskResponse = {
      */
     requestedBy: string;
     status: TaskStatus;
+    /**
+     * While `paused`, the budget that ran out; null otherwise.
+     */
+    pausedFor: BudgetScope | null;
     failureReason: TaskFailureReason | null;
     dependsOn: Array<string>;
     /**
@@ -617,7 +628,10 @@ export type ArtifactPage = PageMeta & {
     items: Array<ArtifactResponse>;
 };
 
-export type ExecutionStatus = 'provisioning' | 'running' | 'completed' | 'failed' | 'cancelled';
+/**
+ * `paused`: a budget ran out (docs/models.md); the task resumes in a new execution.
+ */
+export type ExecutionStatus = 'provisioning' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
 
 /**
  * `infrastructure` (a crash, a missed heartbeat, a provisioning timeout,
@@ -851,6 +865,46 @@ export type ModelResponse = {
 
 export type ModelPage = PageMeta & {
     items: Array<ModelResponse>;
+};
+
+/**
+ * What a budget limits (docs/models.md, Budgets): an organization's or
+ * a project's model calls per calendar month (UTC), or a task tree's
+ * over its whole life.
+ *
+ */
+export type BudgetScope = 'organization' | 'project' | 'task_tree';
+
+export type SetBudgetRequest = {
+    /**
+     * The limit; null for none.
+     */
+    limitUsd: Usd | null;
+};
+
+export type BudgetResponse = {
+    scope: BudgetScope;
+    /**
+     * The organization, project or top-level task.
+     */
+    scopeId: string;
+    limitUsd: Usd | null;
+    /**
+     * What the scope's model calls cost in the window (this month; a task tree's whole life).
+     */
+    spentUsd: Usd;
+    /**
+     * The start of this month (UTC); null for a task tree.
+     */
+    windowStart: string | null;
+    /**
+     * At this share of the limit, `budget.threshold-reached` is published (once per window).
+     */
+    thresholdPercent: number;
+    /**
+     * When the limit was last set; null if it never was.
+     */
+    updatedAt: string | null;
 };
 
 /**
@@ -3199,3 +3253,309 @@ export type AddModelPriceResponses = {
 };
 
 export type AddModelPriceResponse = AddModelPriceResponses[keyof AddModelPriceResponses];
+
+export type GetOrganizationBudgetData = {
+    body?: never;
+    path: {
+        organizationId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/budget';
+};
+
+export type GetOrganizationBudgetErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type GetOrganizationBudgetError = GetOrganizationBudgetErrors[keyof GetOrganizationBudgetErrors];
+
+export type GetOrganizationBudgetResponses = {
+    /**
+     * OK
+     */
+    200: BudgetResponse;
+};
+
+export type GetOrganizationBudgetResponse = GetOrganizationBudgetResponses[keyof GetOrganizationBudgetResponses];
+
+export type SetOrganizationBudgetData = {
+    body: SetBudgetRequest;
+    path: {
+        organizationId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/budget';
+};
+
+export type SetOrganizationBudgetErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type SetOrganizationBudgetError = SetOrganizationBudgetErrors[keyof SetOrganizationBudgetErrors];
+
+export type SetOrganizationBudgetResponses = {
+    /**
+     * OK
+     */
+    200: BudgetResponse;
+};
+
+export type SetOrganizationBudgetResponse = SetOrganizationBudgetResponses[keyof SetOrganizationBudgetResponses];
+
+export type GetProjectBudgetData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/budget';
+};
+
+export type GetProjectBudgetErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type GetProjectBudgetError = GetProjectBudgetErrors[keyof GetProjectBudgetErrors];
+
+export type GetProjectBudgetResponses = {
+    /**
+     * OK
+     */
+    200: BudgetResponse;
+};
+
+export type GetProjectBudgetResponse = GetProjectBudgetResponses[keyof GetProjectBudgetResponses];
+
+export type SetProjectBudgetData = {
+    body: SetBudgetRequest;
+    path: {
+        organizationId: string;
+        projectId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/budget';
+};
+
+export type SetProjectBudgetErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type SetProjectBudgetError = SetProjectBudgetErrors[keyof SetProjectBudgetErrors];
+
+export type SetProjectBudgetResponses = {
+    /**
+     * OK
+     */
+    200: BudgetResponse;
+};
+
+export type SetProjectBudgetResponse = SetProjectBudgetResponses[keyof SetProjectBudgetResponses];
+
+export type GetTaskTreeBudgetData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+        taskId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/budget';
+};
+
+export type GetTaskTreeBudgetErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type GetTaskTreeBudgetError = GetTaskTreeBudgetErrors[keyof GetTaskTreeBudgetErrors];
+
+export type GetTaskTreeBudgetResponses = {
+    /**
+     * OK
+     */
+    200: BudgetResponse;
+};
+
+export type GetTaskTreeBudgetResponse = GetTaskTreeBudgetResponses[keyof GetTaskTreeBudgetResponses];
+
+export type SetTaskTreeBudgetData = {
+    body: SetBudgetRequest;
+    path: {
+        organizationId: string;
+        projectId: string;
+        taskId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/budget';
+};
+
+export type SetTaskTreeBudgetErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type SetTaskTreeBudgetError = SetTaskTreeBudgetErrors[keyof SetTaskTreeBudgetErrors];
+
+export type SetTaskTreeBudgetResponses = {
+    /**
+     * OK
+     */
+    200: BudgetResponse;
+};
+
+export type SetTaskTreeBudgetResponse = SetTaskTreeBudgetResponses[keyof SetTaskTreeBudgetResponses];

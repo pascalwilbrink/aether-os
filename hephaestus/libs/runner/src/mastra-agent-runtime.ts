@@ -6,8 +6,11 @@ import { z } from 'zod';
 
 import { SecretStoreUnavailableError } from '@hephaestus/core';
 import {
+  BudgetExceededError,
+  BudgetsService,
   ModelGateway,
   ModelKeyMissingError,
+  type BudgetScope,
   ModelRetiredError,
   type ModelCallContext,
   type ResolvedModel,
@@ -41,7 +44,10 @@ const MODEL_RETRIES = 2;
 export class MastraAgentRuntime extends AgentRuntime {
   private readonly logger = new Logger(MastraAgentRuntime.name);
 
-  constructor(private readonly gateway: ModelGateway) {
+  constructor(
+    private readonly gateway: ModelGateway,
+    private readonly budgets: BudgetsService,
+  ) {
     super();
   }
 
@@ -75,6 +81,7 @@ export class MastraAgentRuntime extends AgentRuntime {
       organizationId: task.organizationId,
       projectId: task.projectId,
       taskId: task.id,
+      topLevelTaskId: task.topLevelTaskId,
       executionId,
       agentVersionId: agentVersion.id,
     };
@@ -92,8 +99,31 @@ export class MastraAgentRuntime extends AgentRuntime {
         : {}),
     });
 
-    // Every call is metered, including those of a run that fails.
+    // Every call is metered, including those of a run that fails, and
+    // after each one the budgets are checked (docs/models.md). Mastra asks
+    // its stop conditions before it reports a step (onStepFinish), so each
+    // step is metered by whichever sees it first: the stop condition, for
+    // every step before another call (a run whose budget ran out stops
+    // there), and onStepFinish for the last one.
     const metering: Promise<void>[] = [];
+    let metered = 0;
+    let reported = 0;
+    let ranOut: BudgetScope | null = null;
+    const budget = {
+      organizationId: task.organizationId,
+      projectId: task.projectId,
+      topLevelTaskId: task.topLevelTaskId,
+    };
+    const meter = (step: MeteredStep): Promise<void> => {
+      const done = this.gateway
+        .record(context, resolved, usageOf(step))
+        .then(() => this.budgets.afterCall(budget))
+        .then((scope) => {
+          ranOut ??= scope;
+        });
+      metering.push(done);
+      return done;
+    };
     try {
       const result = await agent.generate(
         promptFor(task, revisions, failedChecks, repository, conflict),
@@ -105,31 +135,36 @@ export class MastraAgentRuntime extends AgentRuntime {
             maxOutputTokens: agentVersion.model.maxTokens,
             maxRetries: MODEL_RETRIES,
           },
+          stopWhen: async ({ steps }: { steps: readonly unknown[] }) => {
+            while (metered < steps.length) {
+              await meter(steps[metered++] as MeteredStep).catch(
+                () => undefined,
+              );
+            }
+            return ranOut !== null;
+          },
           onStepFinish: (step) => {
-            metering.push(
-              this.gateway.record(context, resolved, {
-                inputTokens: step.usage?.inputTokens,
-                outputTokens: step.usage?.outputTokens,
-                // Mastra's normalized usage: reads and writes of the
-                // provider's prompt cache, both part of inputTokens.
-                cacheReadTokens: step.usage?.cachedInputTokens,
-                cacheWriteTokens: (
-                  step.usage as
-                    { cacheCreationInputTokens?: number } | undefined
-                )?.cacheCreationInputTokens,
-                finishReason: step.finishReason,
-              }),
-            );
+            if (reported++ >= metered) {
+              metered++;
+              void meter(step as MeteredStep).catch(() => undefined);
+            }
           },
         },
       );
       await Promise.all(metering);
+      // A run that ended on its own keeps its answer, even if its last call
+      // used up the budget; one stopped for it pauses.
+      if (ranOut && result.finishReason !== 'stop') {
+        throw new BudgetExceededError(ranOut);
+      }
       if (result.finishReason === 'error' || result.error) {
         throw toFailure(result.error);
       }
       return { outcome: 'completed', summary: result.text };
     } catch (error) {
       await Promise.allSettled(metering);
+      if (error instanceof BudgetExceededError) throw error;
+      if (ranOut) throw new BudgetExceededError(ranOut);
       throw toFailure(error);
     }
   }
@@ -396,4 +431,26 @@ function toFailure(error: unknown): RunnerFailure {
       : `The model call failed: ${message}`,
     'infrastructure',
   );
+}
+
+/** What the gateway meters of a step (Mastra's normalized usage). */
+interface MeteredStep {
+  finishReason?: string;
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    cachedInputTokens?: number;
+    cacheCreationInputTokens?: number;
+  };
+}
+
+/** Reads and writes of the provider's prompt cache are both part of input. */
+function usageOf(step: MeteredStep) {
+  return {
+    inputTokens: step.usage?.inputTokens,
+    outputTokens: step.usage?.outputTokens,
+    cacheReadTokens: step.usage?.cachedInputTokens,
+    cacheWriteTokens: step.usage?.cacheCreationInputTokens,
+    finishReason: step.finishReason,
+  };
 }

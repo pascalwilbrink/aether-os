@@ -3,6 +3,7 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
+import type { BudgetFormState } from "@/app/components/budget";
 import type { ApiSchema } from "@/lib/api";
 import {
   cancelTask,
@@ -10,6 +11,8 @@ import {
   createTaskFromTemplate,
   retryTask,
   reviewArtifact,
+  setProjectBudget,
+  setTaskTreeBudget,
   type ReviewDecision,
 } from "@/lib/api/hephaestus";
 import { ApiError } from "@/lib/api/http";
@@ -17,6 +20,7 @@ import { messageOf as baseMessageOf } from "@/lib/api/messages";
 import { createProjectMembership, deleteProjectMembership, updateProjectMembership } from "@/lib/api/polis";
 import { linkRepository, unlinkRepository } from "@/lib/api/proxenos";
 import { requireOrganization } from "@/lib/auth/current";
+import { parseLimit } from "@/lib/budgets";
 import { valuesOf } from "@/lib/forms";
 import { isProjectRole } from "@/lib/members";
 
@@ -47,6 +51,10 @@ const messageOf = (error: unknown, byCode: Record<string, string> = {}) =>
  */
 export async function createTaskAction(ref: ProjectRef, _state: FormState, form: FormData): Promise<FormState> {
   const session = await requireOrganization(ref.organizationId, projectPath(ref));
+  const budget = parseLimit(text(form, "budgetUsd"));
+  if ("error" in budget) {
+    return { error: budget.error, values: valuesOf(form) };
+  }
   let taskId: string;
   try {
     taskId = (
@@ -61,6 +69,7 @@ export async function createTaskAction(ref: ProjectRef, _state: FormState, form:
           serviceAccountId: text(form, "serviceAccountId"),
           review: { artifactKinds: form.get("review") === "all" ? ["*"] : [] },
           ...repositoryOf(form),
+          ...(budget.limitUsd === null ? {} : { budgetUsd: budget.limitUsd }),
         },
         text(form, "idempotencyKey"),
       )
@@ -275,4 +284,55 @@ export async function unlinkRepositoryAction(ref: ProjectRef & { linkId: string 
   }
   refresh();
   return {};
+}
+
+// --- Budgets: the project's monthly limit (`project:manage`), a task tree's (`task:create`) ---
+
+const budgetMessageOf = (error: unknown, forbidden: string) =>
+  messageOf(error, {
+    FORBIDDEN: forbidden,
+    PROJECT_ARCHIVED: "The project is archived.",
+    ORGANIZATION_SUSPENDED: "The organization is suspended.",
+  });
+
+/** Sets (or removes) the project's monthly limit. */
+export async function setProjectBudgetAction(
+  ref: ProjectRef,
+  _state: BudgetFormState,
+  form: FormData,
+): Promise<BudgetFormState> {
+  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+  const limit = String(form.get("limit") ?? "");
+  const parsed = parseLimit(limit);
+  if ("error" in parsed) {
+    return { error: parsed.error, limit };
+  }
+  try {
+    await setProjectBudget(session.accessToken, ref.organizationId, ref.projectId, parsed.limitUsd);
+  } catch (error) {
+    return { error: budgetMessageOf(error, "Only the project's admins set its budget."), limit };
+  }
+  refresh();
+  return { notice: parsed.limitUsd === null ? "The limit is removed." : "Saved." };
+}
+
+/** Sets (or removes) the limit of a task's tree; its paused tasks resume once it has room. */
+export async function setTaskBudgetAction(
+  ref: ProjectRef & { taskId: string },
+  _state: BudgetFormState,
+  form: FormData,
+): Promise<BudgetFormState> {
+  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+  const limit = String(form.get("limit") ?? "");
+  const parsed = parseLimit(limit);
+  if ("error" in parsed) {
+    return { error: parsed.error, limit };
+  }
+  try {
+    await setTaskTreeBudget(session.accessToken, ref.organizationId, ref.projectId, ref.taskId, parsed.limitUsd);
+  } catch (error) {
+    return { error: budgetMessageOf(error, "You can't change this task's budget."), limit };
+  }
+  refresh();
+  return { notice: parsed.limitUsd === null ? "The limit is removed." : "Saved." };
 }

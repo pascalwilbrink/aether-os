@@ -46,6 +46,10 @@ async function Overview({ params }: Pick<PageProps<"/orgs/[organizationId]">, "p
               GitHub
             </Link>{" "}
             ·{" "}
+            <Link href={`/orgs/${organizationId}/budget`} className="underline">
+              Budget
+            </Link>{" "}
+            ·{" "}
             <Link href="/orgs" className="underline">
               Switch organization
             </Link>

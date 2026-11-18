@@ -9,6 +9,7 @@ import {
   type ApiTypes,
   type Page,
 } from '@hephaestus/core';
+import type { BudgetScope } from '@hephaestus/models';
 import {
   ArtifactRejectedError,
   ArtifactsService,
@@ -369,6 +370,30 @@ export class ExecutionsService {
   }
 
   /** The task was cancelled; the execution stopped (or was abandoned). */
+  /**
+   * A budget ran out (docs/models.md, Budgets): the execution ends `paused`
+   * and the task pauses with the budget named, until it has room again
+   * (`PausedTasks`). The execution's unfinished work isn't carried over:
+   * its pending artifacts become `partial`, as for any execution that ends
+   * without an outcome, and the next execution starts afresh.
+   */
+  @Transactional()
+  async pause(
+    executionId: string,
+    scope: BudgetScope,
+    error: string,
+  ): Promise<void> {
+    const execution = await this.lock(executionId);
+    if (!execution || !ACTIVE_EXECUTION.includes(execution.status)) {
+      return;
+    }
+    await this.end(execution, 'paused', { error });
+    await this.artifacts.abandon(execution.id);
+    await this.moveTask(execution, [['pause', `budget-exceeded:${scope}`]], {
+      pausedFor: scope,
+    });
+  }
+
   @Transactional()
   async cancelled(executionId: string): Promise<void> {
     const execution = await this.lock(executionId);
@@ -480,6 +505,7 @@ export class ExecutionsService {
       failureReason?: TaskFailureReason;
       outcome?: { primaryArtifactId: string; artifactIds: string[] };
       draftArtifactIds?: string[];
+      pausedFor?: BudgetScope;
     } = {},
   ): Promise<boolean> {
     try {
@@ -494,6 +520,7 @@ export class ExecutionsService {
             reason,
             outcome: options.outcome,
             draftArtifactIds: options.draftArtifactIds,
+            pausedFor: options.pausedFor,
           },
         );
       }

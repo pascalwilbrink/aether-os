@@ -32,6 +32,7 @@ interface CallOptions {
   tools?: { name: string }[];
   temperature?: number;
   maxOutputTokens?: number;
+  abortSignal?: AbortSignal;
 }
 
 /**
@@ -59,6 +60,14 @@ export class ScriptedLanguageModels extends LanguageModels {
   }
 
   private reply(options: CallOptions) {
+    // As a provider's fetch would: an aborted call never reaches it.
+    if (options.abortSignal?.aborted) {
+      return Promise.reject(
+        options.abortSignal.reason instanceof Error
+          ? options.abortSignal.reason
+          : new DOMException('The call was aborted', 'AbortError'),
+      );
+    }
     this.calls.push(options);
     const reply = this.replies.shift() ?? { text: 'Done.' };
     if ('error' in reply) {

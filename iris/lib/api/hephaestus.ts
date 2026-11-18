@@ -157,3 +157,39 @@ export const createTaskFromTemplate = (
     token,
     { method: "POST", body, headers: { "idempotency-key": idempotencyKey } },
   );
+
+// --- Budgets for model calls (docs/models.md: the organization's and a project's per month, a task tree's) ---
+
+type Budget = ApiSchema<"BudgetResponse">;
+const budgetOf = (organizationId: string, projectId?: string) =>
+  projectId
+    ? `/v1/organizations/${organizationId}/projects/${projectId}/budget`
+    : `/v1/organizations/${organizationId}/budget`;
+
+export const getOrganizationBudget = (token: string, organizationId: string) =>
+  hephaestus<Budget>(budgetOf(organizationId), token);
+
+export const setOrganizationBudget = (token: string, organizationId: string, limitUsd: string | null) =>
+  hephaestus<Budget>(budgetOf(organizationId), token, { method: "PUT", body: { limitUsd } });
+
+export const getProjectBudget = (token: string, organizationId: string, projectId: string) =>
+  hephaestus<Budget>(budgetOf(organizationId, projectId), token);
+
+export const setProjectBudget = (token: string, organizationId: string, projectId: string, limitUsd: string | null) =>
+  hephaestus<Budget>(budgetOf(organizationId, projectId), token, { method: "PUT", body: { limitUsd } });
+
+/** The budget of the task's tree (its top-level task's). */
+export const getTaskTreeBudget = (token: string, organizationId: string, projectId: string, taskId: string) =>
+  hephaestus<Budget>(`${tasksOf(organizationId, projectId)}/${taskId}/budget`, token);
+
+export const setTaskTreeBudget = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+  taskId: string,
+  limitUsd: string | null,
+) =>
+  hephaestus<Budget>(`${tasksOf(organizationId, projectId)}/${taskId}/budget`, token, {
+    method: "PUT",
+    body: { limitUsd },
+  });

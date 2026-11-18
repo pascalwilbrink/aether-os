@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Hephaestus events
-  version: 0.6.0
+  version: 0.7.0
   description: |
     Events Hephaestus publishes to the `hephaestus.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -13,9 +13,9 @@ info:
     artifact's `version`) is not newer than the one already applied for it.
 
     Every task and artifact event has the task's `projectId` in the envelope;
-    artifact events have the artifact as their aggregate. More events
-    (`task.awaiting-review`, `task.verified`, `task.paused` / `task.resumed`)
-    come with the parts of the lifecycle that produce them.
+    artifact events have the artifact as their aggregate;
+    `budget.threshold-reached` has the budget as its aggregate (its
+    `projectId` is the budget's project, if any).
 
 defaultContentType: application/json
 
@@ -45,6 +45,9 @@ channels:
       taskCancelled: { $ref: '#/components/messages/taskCancelled' }
       taskAwaitingReview: { $ref: '#/components/messages/taskAwaitingReview' }
       taskVerified: { $ref: '#/components/messages/taskVerified' }
+      taskPaused: { $ref: '#/components/messages/taskPaused' }
+      taskResumed: { $ref: '#/components/messages/taskResumed' }
+      budgetThresholdReached: { $ref: '#/components/messages/budgetThresholdReached' }
       artifactCreated: { $ref: '#/components/messages/artifactCreated' }
       artifactStatusChanged: { $ref: '#/components/messages/artifactStatusChanged' }
 
@@ -60,11 +63,44 @@ operations:
       - $ref: '#/channels/hephaestusEvents/messages/taskCancelled'
       - $ref: '#/channels/hephaestusEvents/messages/taskAwaitingReview'
       - $ref: '#/channels/hephaestusEvents/messages/taskVerified'
+      - $ref: '#/channels/hephaestusEvents/messages/taskPaused'
+      - $ref: '#/channels/hephaestusEvents/messages/taskResumed'
+      - $ref: '#/channels/hephaestusEvents/messages/budgetThresholdReached'
       - $ref: '#/channels/hephaestusEvents/messages/artifactCreated'
       - $ref: '#/channels/hephaestusEvents/messages/artifactStatusChanged'
 
 components:
   messages:
+    taskPaused:
+      name: task.paused
+      summary: A budget ran out (docs/models.md); the task resumes when it's raised or renewed (Kerykes tells the budget's admins).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: task.paused }
+              payload: { $ref: '#/components/schemas/TaskPaused' }
+    taskResumed:
+      name: task.resumed
+      summary: The budget that paused a task has room again; it's queued.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: task.resumed }
+              payload: { $ref: '#/components/schemas/TaskResumed' }
+    budgetThresholdReached:
+      name: budget.threshold-reached
+      summary: A budget is 80% spent (once per window; Kerykes tells its admins).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: budget.threshold-reached }
+              payload: { $ref: '#/components/schemas/BudgetThresholdReached' }
     taskVerified:
       name: task.verified
       summary: Hephaestus checked a run against the task's acceptance criteria (Kriterion tracks pass rates).
@@ -309,6 +345,42 @@ components:
         cancelledBy:
           type: [string, 'null']
           description: The `sub` of whoever cancelled it (the task itself or an ancestor); null when the system did.
+    BudgetScope:
+      enum: [organization, project, task_tree]
+    TaskPaused:
+      type: object
+      additionalProperties: false
+      required: [taskId, topLevelTaskId, requestedBy, scope]
+      properties:
+        taskId: { $ref: '#/components/schemas/Uuid' }
+        topLevelTaskId: { $ref: '#/components/schemas/Uuid' }
+        requestedBy: { type: string }
+        scope:
+          description: The budget that ran out.
+          $ref: '#/components/schemas/BudgetScope'
+    TaskResumed:
+      type: object
+      additionalProperties: false
+      required: [taskId, topLevelTaskId]
+      properties:
+        taskId: { $ref: '#/components/schemas/Uuid' }
+        topLevelTaskId: { $ref: '#/components/schemas/Uuid' }
+    BudgetThresholdReached:
+      type: object
+      additionalProperties: false
+      required: [budgetId, scope, scopeId, limitUsd, spentUsd, windowStart]
+      properties:
+        budgetId: { $ref: '#/components/schemas/Uuid' }
+        scope: { $ref: '#/components/schemas/BudgetScope' }
+        scopeId:
+          description: The organization, project or top-level task.
+          $ref: '#/components/schemas/Uuid'
+        limitUsd: { type: string, description: US dollars, 6 decimals. }
+        spentUsd: { type: string, description: US dollars, 6 decimals. }
+        windowStart:
+          type: [string, 'null']
+          format: date-time
+          description: The month it's for; null for a task tree's (its lifetime).
     TaskStatus:
       enum: [blocked, queued, provisioning, running, verifying, awaiting_review, waiting, paused, delivering, succeeded, failed, cancelled]
     TaskFailureReason:

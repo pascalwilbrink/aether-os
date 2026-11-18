@@ -5,7 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import type { Env } from '@hephaestus/core';
 import { AgentsModule } from '@hephaestus/agents';
 import { ArtifactsModule } from '@hephaestus/artifacts';
-import { ModelGateway, ModelsModule } from '@hephaestus/models';
+import { BudgetsService, ModelGateway, ModelsModule } from '@hephaestus/models';
 import { WorkspacesModule, WorkspacesService } from '@hephaestus/workspaces';
 import { TasksModule } from '@hephaestus/tasks';
 
@@ -21,6 +21,8 @@ import { ExecutionsService } from './executions.service.js';
 import { DockerSandboxDriver } from './docker-sandbox-driver.js';
 import { NoSandboxProvisioner } from './no-sandbox-provisioner.js';
 import { Deliveries } from './deliveries.js';
+import { Housekeeping } from './housekeeping.js';
+import { PausedTasks } from './paused-tasks.js';
 import { GitClient } from './git-client.js';
 import { GitHubPullRequests, PullRequests } from './pull-requests.js';
 import { TaskRepositoryAccess } from './task-repository-access.js';
@@ -67,11 +69,15 @@ import {
     },
     {
       provide: AgentRuntime,
-      inject: [ConfigService, ModelGateway],
-      useFactory: (config: ConfigService<Env, true>, gateway: ModelGateway) => {
+      inject: [ConfigService, ModelGateway, BudgetsService],
+      useFactory: (
+        config: ConfigService<Env, true>,
+        gateway: ModelGateway,
+        budgets: BudgetsService,
+      ) => {
         switch (config.get('AGENT_RUNTIME', { infer: true })) {
           case 'mastra':
-            return new MastraAgentRuntime(gateway);
+            return new MastraAgentRuntime(gateway, budgets);
           case 'echo':
             return new EchoAgentRuntime();
           default:
@@ -137,6 +143,8 @@ import {
     { provide: PullRequests, useFactory: () => new GitHubPullRequests() },
     TaskRepositoryAccess,
     Deliveries,
+    PausedTasks,
+    Housekeeping,
     ExecutionMapper,
     ExecutionsService,
     ExecutionReaper,
