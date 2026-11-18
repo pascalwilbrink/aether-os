@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Hephaestus events
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Events Hephaestus publishes to the `hephaestus.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -43,6 +43,7 @@ channels:
       taskSucceeded: { $ref: '#/components/messages/taskSucceeded' }
       taskFailed: { $ref: '#/components/messages/taskFailed' }
       taskCancelled: { $ref: '#/components/messages/taskCancelled' }
+      taskAwaitingReview: { $ref: '#/components/messages/taskAwaitingReview' }
       artifactCreated: { $ref: '#/components/messages/artifactCreated' }
       artifactStatusChanged: { $ref: '#/components/messages/artifactStatusChanged' }
 
@@ -56,11 +57,22 @@ operations:
       - $ref: '#/channels/hephaestusEvents/messages/taskSucceeded'
       - $ref: '#/channels/hephaestusEvents/messages/taskFailed'
       - $ref: '#/channels/hephaestusEvents/messages/taskCancelled'
+      - $ref: '#/channels/hephaestusEvents/messages/taskAwaitingReview'
       - $ref: '#/channels/hephaestusEvents/messages/artifactCreated'
       - $ref: '#/channels/hephaestusEvents/messages/artifactStatusChanged'
 
 components:
   messages:
+    taskAwaitingReview:
+      name: task.awaiting-review
+      summary: A task's drafts wait for someone with `task:approve` (Kerykes tells them).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: task.awaiting-review }
+              payload: { $ref: '#/components/schemas/TaskAwaitingReview' }
     artifactCreated:
       name: artifact.created
       summary: An agent recorded an artifact (`pending` until its execution ends).
@@ -206,6 +218,18 @@ components:
           type: array
           description: Every `final` artifact of the task, the primary one included.
           items: { $ref: '#/components/schemas/Uuid' }
+    TaskAwaitingReview:
+      type: object
+      additionalProperties: false
+      required: [taskId, topLevelTaskId, requestedBy, draftArtifactIds, round]
+      properties:
+        taskId: { $ref: '#/components/schemas/Uuid' }
+        topLevelTaskId: { $ref: '#/components/schemas/Uuid' }
+        requestedBy: { type: string }
+        draftArtifactIds:
+          type: array
+          items: { $ref: '#/components/schemas/Uuid' }
+        round: { type: integer, minimum: 1, description: '1 for the first review, plus one per revision.' }
     ArtifactCreated:
       type: object
       additionalProperties: false

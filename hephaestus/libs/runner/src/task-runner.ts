@@ -230,6 +230,7 @@ export class TaskRunner
         executionId,
         agentVersionId: task.agentVersionId,
       };
+      const revisions = await this.executions.revisionRequests(task.id);
       const result = await this.untilStopped(
         this.runtime.run({
           task,
@@ -237,6 +238,7 @@ export class TaskRunner
           agentVersion,
           sandbox,
           token,
+          revisions,
           artifacts: {
             submit: async (artifact) => ({
               artifactId: await this.executions.recordArtifact(
@@ -250,7 +252,11 @@ export class TaskRunner
         signal,
       );
       if (result.outcome === 'completed') {
-        await this.executions.complete(source, result.summary);
+        await this.executions.complete(
+          source,
+          result.summary,
+          task.review.artifactKinds,
+        );
       } else {
         await this.executions.fail(executionId, 'agent_failed', result.error);
       }

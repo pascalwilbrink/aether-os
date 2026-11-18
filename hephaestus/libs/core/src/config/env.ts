@@ -87,6 +87,8 @@ export const zEnv = z
       .default(3),
     /** The first retry's delay; doubled for each one after it. */
     RUNNER_RETRY_BACKOFF_MS: z.coerce.number().int().min(0).default(10_000),
+    /** Review rounds a task may have before its drafts must be approved or rejected. */
+    REVIEW_MAX_ROUNDS: z.coerce.number().int().min(1).max(20).default(3),
     /**
      * Sandboxes for agent versions that need one (`runtime.sandboxRequired`):
      * `none` (the default) fails such tasks; `docker` runs hardened containers

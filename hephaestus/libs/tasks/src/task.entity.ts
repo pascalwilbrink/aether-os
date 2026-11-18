@@ -83,6 +83,14 @@ export class TaskEntity {
   @Column({ type: 'text' })
   idempotencyKey: string;
 
+  /** Artifact kinds that need approval (`*`: all); pinned at creation. */
+  @Column({ type: 'text', array: true, default: () => "'{}'" })
+  reviewArtifactKinds: string[];
+
+  /** Times the task has entered `awaiting_review`. */
+  @Column({ type: 'integer', default: 0 })
+  reviewRound: number;
+
   /** A succeeded task's outcome (docs/tasks.md, Primary artifact). */
   @Column({ type: 'uuid', nullable: true })
   primaryArtifactId: string | null;

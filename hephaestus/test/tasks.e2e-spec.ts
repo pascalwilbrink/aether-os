@@ -94,6 +94,8 @@ describe('Tasks (e2e)', () => {
       dependsOn: [],
       attempt: 1,
       primaryArtifactId: null,
+      review: { artifactKinds: [] },
+      reviewRound: 0,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
       finishedAt: null,

@@ -50,6 +50,7 @@ export class MastraAgentRuntime extends AgentRuntime {
     agentVersion,
     sandbox,
     artifacts,
+    revisions,
     signal,
   }: AgentRunInput): Promise<AgentRunResult> {
     const unsupported = [
@@ -90,27 +91,24 @@ export class MastraAgentRuntime extends AgentRuntime {
     // Every call is metered, including those of a run that fails.
     const metering: Promise<void>[] = [];
     try {
-      const result = await agent.generate(
-        `# ${task.title}\n\n${task.instructions}`,
-        {
-          abortSignal: signal,
-          maxSteps: MAX_STEPS,
-          modelSettings: {
-            temperature: agentVersion.model.temperature,
-            maxOutputTokens: agentVersion.model.maxTokens,
-            maxRetries: MODEL_RETRIES,
-          },
-          onStepFinish: (step) => {
-            metering.push(
-              this.gateway.record(context, resolved, {
-                inputTokens: step.usage?.inputTokens,
-                outputTokens: step.usage?.outputTokens,
-                finishReason: step.finishReason,
-              }),
-            );
-          },
+      const result = await agent.generate(promptFor(task, revisions), {
+        abortSignal: signal,
+        maxSteps: MAX_STEPS,
+        modelSettings: {
+          temperature: agentVersion.model.temperature,
+          maxOutputTokens: agentVersion.model.maxTokens,
+          maxRetries: MODEL_RETRIES,
         },
-      );
+        onStepFinish: (step) => {
+          metering.push(
+            this.gateway.record(context, resolved, {
+              inputTokens: step.usage?.inputTokens,
+              outputTokens: step.usage?.outputTokens,
+              finishReason: step.finishReason,
+            }),
+          );
+        },
+      });
       await Promise.all(metering);
       if (result.finishReason === 'error' || result.error) {
         throw toFailure(result.error);
@@ -139,6 +137,55 @@ export class MastraAgentRuntime extends AgentRuntime {
       throw error;
     }
   }
+}
+
+/**
+ * The task as the agent's input; for a revision run, followed by what
+ * reviewers sent back: each artifact, its content and their comments.
+ */
+export function promptFor(
+  task: AgentRunInput['task'],
+  revisions: AgentRunInput['revisions'],
+): string {
+  const prompt = `# ${task.title}\n\n${task.instructions}`;
+  if (revisions.length === 0) {
+    return prompt;
+  }
+  const requests = revisions.map((artifact) => {
+    const content =
+      artifact.kind === 'text'
+        ? artifact.content
+        : JSON.stringify((artifact as { content?: unknown }).content, null, 2);
+    const comments = (artifact.review?.comments ?? [])
+      .map((comment) =>
+        comment.anchor
+          ? `- (${comment.anchor}) ${comment.body}`
+          : `- ${comment.body}`,
+      )
+      .join('\n');
+    return [
+      `### ${artifact.title} (artifact ${artifact.id}, ${artifact.kind})`,
+      '',
+      'What you submitted:',
+      '',
+      '```',
+      content,
+      '```',
+      '',
+      'Reviewer comments:',
+      '',
+      comments,
+    ].join('\n');
+  });
+  return [
+    prompt,
+    '',
+    '## Changes requested',
+    '',
+    'A reviewer sent back what you submitted earlier. Submit a revised version of each artifact below with submit_artifact, setting `revises` to its artifact ID.',
+    '',
+    ...requests,
+  ].join('\n');
 }
 
 /**
@@ -171,6 +218,13 @@ function submitArtifactTool(artifacts: ArtifactSink) {
         .optional()
         .describe("For kind json: an identifier of the document's schema"),
       primary: z.boolean().optional(),
+      revises: z
+        .string()
+        .uuid()
+        .optional()
+        .describe(
+          'When revising: the ID of the artifact a reviewer sent back that this replaces',
+        ),
     }),
     execute: async (input) => {
       let artifact: NewArtifact;
@@ -181,6 +235,7 @@ function submitArtifactTool(artifacts: ArtifactSink) {
           format: input.format ?? 'markdown',
           content: input.content,
           primary: input.primary,
+          revisionOf: input.revises,
         };
       } else {
         let content: unknown;
@@ -195,6 +250,7 @@ function submitArtifactTool(artifacts: ArtifactSink) {
           schema: input.schema ?? null,
           content,
           primary: input.primary,
+          revisionOf: input.revises,
         };
       }
       return artifacts.submit(artifact);

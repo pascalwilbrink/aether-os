@@ -7,11 +7,13 @@ export const zDomainErrorCode = z.enum([
     'AGENT_NOT_PUBLISHED',
     'AGENT_VERSION_CONFLICT',
     'AGENT_VERSION_INVALID_TRANSITION',
+    'ARTIFACT_NOT_DRAFT',
     'ORGANIZATION_SUSPENDED',
     'PROJECT_ARCHIVED',
     'TASK_DEPENDENCY_INVALID',
     'TASK_INVALID_TRANSITION',
     'TASK_PARENT_FINISHED',
+    'TASK_REVIEW_ROUNDS_EXHAUSTED',
     'WORKSPACE_INVALID_EXPIRY',
     'WORKSPACE_INVALID_TRANSITION'
 ]);
@@ -202,13 +204,24 @@ export const zTaskFailureReason = z.enum([
     'access_denied'
 ]);
 
+/**
+ * Which of the task's artifacts need approval before they're final
+ * (docs/tasks.md, What needs approval). Pinned when the task is
+ * created; automations and Themis policy will add to it later.
+ *
+ */
+export const zTaskReviewSettings = z.object({
+    artifactKinds: z.array(z.string().min(1).max(50)).max(20)
+});
+
 export const zCreateTaskRequest = z.object({
     title: z.string().min(1).max(200),
     instructions: z.string().min(1).max(100000),
     agentId: z.uuid(),
     serviceAccountId: z.uuid(),
     parentTaskId: z.uuid().nullish(),
-    dependsOn: z.array(z.uuid()).max(50).optional()
+    dependsOn: z.array(z.uuid()).max(50).optional(),
+    review: zTaskReviewSettings.optional()
 });
 
 export const zTaskResponse = z.object({
@@ -228,6 +241,8 @@ export const zTaskResponse = z.object({
     dependsOn: z.array(z.uuid()),
     attempt: z.int().gte(1),
     primaryArtifactId: z.uuid().nullable(),
+    review: zTaskReviewSettings,
+    reviewRound: z.int().gte(0),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
     finishedAt: z.iso.datetime().nullable(),
@@ -249,6 +264,22 @@ export const zArtifactStatus = z.enum([
     'partial'
 ]);
 
+export const zReviewComment = z.object({
+    body: z.string().min(1).max(10000),
+    anchor: z.string().max(500).optional()
+});
+
+export const zArtifactReview = z.object({
+    decision: z.enum([
+        'approved',
+        'rejected',
+        'changes_requested'
+    ]),
+    comments: z.array(zReviewComment),
+    decidedBy: z.string(),
+    decidedAt: z.iso.datetime()
+});
+
 export const zArtifactBase = z.object({
     id: z.uuid(),
     organizationId: z.uuid(),
@@ -262,6 +293,7 @@ export const zArtifactBase = z.object({
     revisionOf: z.uuid().nullable(),
     title: z.string(),
     metadata: z.record(z.string(), z.string()),
+    review: zArtifactReview.nullable(),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
     version: z.int().gte(1)
@@ -290,6 +322,14 @@ export const zArtifactResponse = z.union([
         kind: z.literal('json')
     }).and(zJsonArtifact)
 ]);
+
+export const zReviewDecisionRequest = z.object({
+    comment: z.string().min(1).max(10000).optional()
+});
+
+export const zRequestChangesRequest = z.object({
+    comments: z.array(zReviewComment).min(1).max(100)
+});
 
 export const zExecutionStatus = z.enum([
     'provisioning',
@@ -726,6 +766,48 @@ export const zGetTaskArtifactPath = z.object({
  * OK
  */
 export const zGetTaskArtifactResponse = zArtifactResponse;
+
+export const zApproveArtifactBody = zReviewDecisionRequest;
+
+export const zApproveArtifactPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    taskId: z.uuid(),
+    artifactId: z.uuid()
+});
+
+/**
+ * The artifact, decided
+ */
+export const zApproveArtifactResponse = zArtifactResponse;
+
+export const zRejectArtifactBody = zReviewDecisionRequest;
+
+export const zRejectArtifactPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    taskId: z.uuid(),
+    artifactId: z.uuid()
+});
+
+/**
+ * The artifact, decided
+ */
+export const zRejectArtifactResponse = zArtifactResponse;
+
+export const zRequestArtifactChangesBody = zRequestChangesRequest;
+
+export const zRequestArtifactChangesPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    taskId: z.uuid(),
+    artifactId: z.uuid()
+});
+
+/**
+ * The artifact, decided
+ */
+export const zRequestArtifactChangesResponse = zArtifactResponse;
 
 export const zListTaskExecutionsPath = z.object({
     organizationId: z.uuid(),

@@ -46,6 +46,20 @@ export interface ArtifactStatusChanged {
 }
 
 /**
+ * Payload of `task.awaiting-review`.
+ */
+export interface TaskAwaitingReview {
+  taskId: string;
+  topLevelTaskId: string;
+  requestedBy: string;
+  draftArtifactIds: string[];
+  /**
+   * 1 for the first review, plus one per revision.
+   */
+  round: number;
+}
+
+/**
  * Payload of `task.cancelled`.
  */
 export interface TaskCancelled {
@@ -157,6 +171,7 @@ export interface TaskSucceeded {
 export interface HephaestusEventPayloads {
   'artifact.created': ArtifactCreated;
   'artifact.status-changed': ArtifactStatusChanged;
+  'task.awaiting-review': TaskAwaitingReview;
   'task.cancelled': TaskCancelled;
   'task.created': TaskCreated;
   'task.failed': TaskFailed;
@@ -170,6 +185,7 @@ export type HephaestusEventType = keyof HephaestusEventPayloads;
 export const HEPHAESTUS_EVENT_TYPES = [
   'artifact.created',
   'artifact.status-changed',
+  'task.awaiting-review',
   'task.cancelled',
   'task.created',
   'task.failed',

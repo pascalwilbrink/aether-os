@@ -1,12 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { Repository } from 'typeorm';
+import { In, Not, type Repository } from 'typeorm';
 
 import {
   findPage,
   HephaestusEvents,
   mapPage,
+  OnDomainEvent,
   Transactional,
+  type DomainEvent,
+  type HephaestusEventTypes,
   type Page,
 } from '@hephaestus/core';
 import { TasksService } from '@hephaestus/tasks';
@@ -30,6 +33,8 @@ interface NewArtifactBase {
   title: string;
   /** The task's outcome; the last one marked primary wins. */
   primary?: boolean;
+  /** For a revision: the artifact a reviewer sent back that it replaces. */
+  revisionOf?: string;
   metadata?: Record<string, string>;
 }
 
@@ -40,10 +45,13 @@ export type NewArtifact = NewArtifactBase &
     | { kind: 'json'; schema?: string | null; content: unknown }
   );
 
-/** The outcome of a succeeded execution. */
+/** What a completed execution produced (one review round). */
 export interface ArtifactOutcome {
   primaryArtifactId: string;
+  /** Final at once: they need no approval. */
   artifactIds: string[];
+  /** Waiting for approval; none means the task can succeed. */
+  draftArtifactIds: string[];
 }
 
 /** Content is stored inline up to this size (UTF-8 bytes); Loculus later. */
@@ -86,6 +94,18 @@ export class ArtifactsService {
         `The content is ${size} bytes; at most ${MAX_CONTENT_BYTES} are allowed`,
       );
     }
+    if (input.revisionOf) {
+      const revised = await this.artifacts.findOneBy({
+        id: input.revisionOf,
+        taskId: source.taskId,
+        status: 'changes_requested',
+      });
+      if (!revised) {
+        throw new ArtifactRejectedError(
+          'revises must name an artifact of this task a reviewer sent back',
+        );
+      }
+    }
     const recorded = await this.artifacts.count({
       where: { executionId: source.executionId },
     });
@@ -125,7 +145,8 @@ export class ArtifactsService {
   }
 
   /**
-   * The execution succeeded: its pending artifacts become `final`, with one
+   * The execution completed: its pending artifacts become `draft` if their
+   * kind needs approval (`reviewKinds`, `*` for all), else `final`, with one
    * primary. Without one marked primary, the agent's final answer becomes
    * the primary text artifact; without an answer, its latest artifact. Null
    * when it produced nothing at all (no outcome).
@@ -134,6 +155,7 @@ export class ArtifactsService {
   async complete(
     source: ArtifactSource,
     finalAnswer: string,
+    reviewKinds: string[] = [],
   ): Promise<ArtifactOutcome | null> {
     let pending = await this.pendingOf(source.executionId);
     if (!pending.some((artifact) => artifact.primary)) {
@@ -152,13 +174,89 @@ export class ArtifactsService {
         return null;
       }
     }
+    const needsReview = (kind: string) =>
+      reviewKinds.includes('*') || reviewKinds.includes(kind);
     for (const artifact of pending) {
-      await this.changeStatus(artifact, 'final');
+      await this.setStatus(
+        artifact,
+        needsReview(artifact.kind) ? 'draft' : 'final',
+      );
     }
     return {
       primaryArtifactId: pending.find((artifact) => artifact.primary)!.id,
-      artifactIds: pending.map((artifact) => artifact.id),
+      artifactIds: pending
+        .filter((artifact) => artifact.status === 'final')
+        .map((artifact) => artifact.id),
+      draftArtifactIds: pending
+        .filter((artifact) => artifact.status === 'draft')
+        .map((artifact) => artifact.id),
     };
+  }
+
+  /** Every final artifact of the task, oldest first (its outcome's list). */
+  async finalIds(taskId: string): Promise<string[]> {
+    return (
+      await this.artifacts.find({
+        where: { taskId, status: 'final' },
+        order: { createdAt: 'ASC', id: 'ASC' },
+        select: { id: true },
+      })
+    ).map((artifact) => artifact.id);
+  }
+
+  /**
+   * What reviewers sent back and the agent hasn't revised yet: the input of
+   * a revision run, with the reviewers' comments (`review`).
+   */
+  async revisionRequests(taskId: string): Promise<ArtifactResponse[]> {
+    const sentBack = await this.artifacts.find({
+      where: { taskId, status: 'changes_requested' },
+      order: { createdAt: 'ASC', id: 'ASC' },
+    });
+    if (sentBack.length === 0) {
+      return [];
+    }
+    const revised = new Set(
+      (
+        await this.artifacts.find({
+          where: {
+            taskId,
+            revisionOf: In(sentBack.map((artifact) => artifact.id)),
+            status: Not('partial'),
+          },
+          select: { id: true, revisionOf: true },
+        })
+      ).map((artifact) => artifact.revisionOf),
+    );
+    return sentBack
+      .filter((artifact) => !revised.has(artifact.id))
+      .map((artifact) => this.mapper.toResponse(artifact));
+  }
+
+  /**
+   * A task that failed or was cancelled leaves nothing waiting: its drafts
+   * and pending artifacts become `partial` (docs/tasks.md, Status). Final
+   * ones stay final: delivery isn't undone.
+   */
+  @OnDomainEvent('hephaestus.task.failed')
+  @OnDomainEvent('hephaestus.task.cancelled')
+  async onTaskEnded(
+    event: DomainEvent<
+      HephaestusEventTypes.TaskFailed | HephaestusEventTypes.TaskCancelled
+    >,
+  ): Promise<void> {
+    const left = await this.artifacts.find({
+      where: {
+        taskId: event.payload.taskId,
+        status: In(['draft', 'pending']),
+      },
+      order: { createdAt: 'ASC', id: 'ASC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    for (const artifact of left) {
+      artifact.primary = false;
+      await this.setStatus(artifact, 'partial');
+    }
   }
 
   /**
@@ -169,7 +267,7 @@ export class ArtifactsService {
   async abandon(executionId: string): Promise<void> {
     for (const artifact of await this.pendingOf(executionId)) {
       artifact.primary = false;
-      await this.changeStatus(artifact, 'partial');
+      await this.setStatus(artifact, 'partial');
     }
   }
 
@@ -216,10 +314,11 @@ export class ArtifactsService {
     });
   }
 
-  private async changeStatus(
-    artifact: ArtifactEntity,
-    to: ArtifactStatus,
-  ): Promise<void> {
+  /**
+   * Changes an artifact's status (and saves what else changed on it), with
+   * its `artifact.status-changed` event. Within this library only.
+   */
+  async setStatus(artifact: ArtifactEntity, to: ArtifactStatus): Promise<void> {
     const from = artifact.status;
     artifact.status = to;
     artifact.updatedAt = new Date();

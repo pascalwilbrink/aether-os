@@ -1,5 +1,5 @@
-import type { ApiTypes } from '@hephaestus/core';
 import type { NewArtifact } from '@hephaestus/artifacts';
+import type { ApiTypes } from '@hephaestus/core';
 import type { TaskResponse } from '@hephaestus/tasks';
 
 import type { Sandbox } from './sandbox-provisioner.js';
@@ -19,6 +19,12 @@ export interface AgentRunInput {
   token: string;
   /** Where the agent records what it produces (docs/tasks.md, Artifacts). */
   artifacts: ArtifactSink;
+  /**
+   * For a revision run: the drafts reviewers sent back, each with their
+   * comments (`review`). The agent revises each (`revisionOf`). Empty
+   * otherwise.
+   */
+  revisions: ApiTypes.ArtifactResponse[];
   /**
    * Aborted when the execution must stop (cancelled, timed out, lost, or
    * Hephaestus shutting down): save what's needed and return quickly.

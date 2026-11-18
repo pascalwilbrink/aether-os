@@ -11,6 +11,9 @@ export interface TextContent {
   content: string;
 }
 
+/** The decision on a draft (docs/tasks.md, Request changes). */
+export type ArtifactReview = ApiTypes.ArtifactReview;
+
 /** A `json` artifact's content. */
 export interface JsonContent {
   schema: string | null;
@@ -30,11 +33,13 @@ export interface JsonContent {
 // A task's artifacts in order (keyset pagination).
 @Index('ix_artifacts_task_id_created_at_id', ['taskId', 'createdAt', 'id'])
 @Index('ix_artifacts_execution_id', ['executionId'])
-// At most one final primary artifact per task.
-@Index('uq_artifacts_final_primary_task_id', ['taskId'], {
+// At most one primary artifact per execution (one per review round).
+@Index('uq_artifacts_primary_execution_id', ['executionId'], {
   unique: true,
-  where: `"primary" AND status = 'final'`,
+  where: `"primary" AND status IN ('final', 'draft')`,
 })
+// A task's drafts, and what was sent back (reviews).
+@Index('ix_artifacts_task_id_status', ['taskId', 'status'])
 export class ArtifactEntity {
   @PrimaryColumn({ type: 'uuid' })
   id: string;
@@ -77,6 +82,10 @@ export class ArtifactEntity {
   /** The kind's own fields (`TextContent`, `JsonContent`). */
   @Column({ type: 'jsonb' })
   body: TextContent | JsonContent;
+
+  /** Set when someone decided on it as a draft. */
+  @Column({ type: 'jsonb', nullable: true })
+  review: ArtifactReview | null;
 
   @Column({ type: 'timestamptz' })
   createdAt: Date;

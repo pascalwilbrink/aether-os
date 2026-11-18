@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.9.0
+  version: 0.10.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -555,6 +555,99 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}/approve:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TaskId'
+      - $ref: '#/components/parameters/ArtifactId'
+    post:
+      tags: [artifacts]
+      operationId: approveArtifact
+      x-permission: '`task:approve` in the project'
+      description: |
+        Approves a draft: it becomes `final`. The task succeeds once none of
+        its drafts is waiting any more and none needs changes.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewDecisionRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: The artifact, decided
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ArtifactResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}/reject:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TaskId'
+      - $ref: '#/components/parameters/ArtifactId'
+    post:
+      tags: [artifacts]
+      operationId: rejectArtifact
+      x-permission: '`task:approve` in the project'
+      description: |
+        Rejects a draft: it becomes `rejected`, and the task fails with
+        `rejected` (its other drafts become `partial`).
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewDecisionRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: The artifact, decided
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ArtifactResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}/request-changes:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TaskId'
+      - $ref: '#/components/parameters/ArtifactId'
+    post:
+      tags: [artifacts]
+      operationId: requestArtifactChanges
+      x-permission: '`task:approve` in the project'
+      description: |
+        Sends a draft back with comments: it becomes `changes_requested`.
+        Once none of the task's drafts is waiting, the agent runs again with
+        the comments and produces revised drafts (`revisionOf`). Refused
+        after the last review round (`TASK_REVIEW_ROUNDS_EXHAUSTED`):
+        approve or reject then.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RequestChangesRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: The artifact, decided
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ArtifactResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
   /v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/executions:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
@@ -655,11 +748,13 @@ components:
         - AGENT_NOT_PUBLISHED
         - AGENT_VERSION_CONFLICT
         - AGENT_VERSION_INVALID_TRANSITION
+        - ARTIFACT_NOT_DRAFT
         - ORGANIZATION_SUSPENDED
         - PROJECT_ARCHIVED
         - TASK_DEPENDENCY_INVALID
         - TASK_INVALID_TRANSITION
         - TASK_PARENT_FINISHED
+        - TASK_REVIEW_ROUNDS_EXHAUSTED
         - WORKSPACE_INVALID_EXPIRY
         - WORKSPACE_INVALID_TRANSITION
     DomainProblem:
@@ -945,9 +1040,25 @@ components:
           maxItems: 50
           items: { type: string, format: uuid }
           description: Tasks under the same top-level task that must succeed first.
+        review: { $ref: '#/components/schemas/TaskReviewSettings' }
+    TaskReviewSettings:
+      type: object
+      additionalProperties: false
+      required: [artifactKinds]
+      description: |
+        Which of the task's artifacts need approval before they're final
+        (docs/tasks.md, What needs approval). Pinned when the task is
+        created; automations and Themis policy will add to it later.
+      properties:
+        artifactKinds:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          description: Artifact kinds that need approval; `*` for every kind. Empty for none.
+          items: { type: string, minLength: 1, maxLength: 50 }
     TaskResponse:
       type: object
-      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, dependsOn, attempt, primaryArtifactId, createdAt, updatedAt, finishedAt, version]
+      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, dependsOn, attempt, primaryArtifactId, review, reviewRound, createdAt, updatedAt, finishedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -979,6 +1090,11 @@ components:
           type: [string, 'null']
           format: uuid
           description: The outcome of a succeeded task (docs/tasks.md, Primary artifact); null otherwise.
+        review: { $ref: '#/components/schemas/TaskReviewSettings' }
+        reviewRound:
+          type: integer
+          minimum: 0
+          description: How many times the task has waited for review (0 before the first).
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         finishedAt: { type: [string, 'null'], format: date-time }
@@ -1001,7 +1117,7 @@ components:
         `rejected` and `changes_requested` come with reviews.
     ArtifactBase:
       type: object
-      required: [id, organizationId, projectId, taskId, executionId, agentVersionId, kind, status, primary, revisionOf, title, metadata, createdAt, updatedAt, version]
+      required: [id, organizationId, projectId, taskId, executionId, agentVersionId, kind, status, primary, revisionOf, title, metadata, review, createdAt, updatedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -1017,6 +1133,11 @@ components:
         metadata:
           type: object
           additionalProperties: { type: string }
+        review:
+          description: The decision on a draft; null until someone made one.
+          oneOf:
+            - { $ref: '#/components/schemas/ArtifactReview' }
+            - { type: 'null' }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         version: { type: integer, minimum: 1 }
@@ -1050,6 +1171,42 @@ components:
         mapping:
           text: '#/components/schemas/TextArtifact'
           json: '#/components/schemas/JsonArtifact'
+    ArtifactReview:
+      type: object
+      additionalProperties: false
+      required: [decision, comments, decidedBy, decidedAt]
+      properties:
+        decision: { type: string, enum: [approved, rejected, changes_requested] }
+        comments:
+          type: array
+          items: { $ref: '#/components/schemas/ReviewComment' }
+        decidedBy: { type: string, description: The reviewer's `sub`. }
+        decidedAt: { type: string, format: date-time }
+    ReviewComment:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        body: { type: string, minLength: 1, maxLength: 10000 }
+        anchor:
+          type: string
+          maxLength: 500
+          description: Where in the artifact it points (a line, a JSON pointer, a heading); free-form.
+    ReviewDecisionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        comment: { type: string, minLength: 1, maxLength: 10000 }
+    RequestChangesRequest:
+      type: object
+      additionalProperties: false
+      required: [comments]
+      properties:
+        comments:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { $ref: '#/components/schemas/ReviewComment' }
     ArtifactPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'
