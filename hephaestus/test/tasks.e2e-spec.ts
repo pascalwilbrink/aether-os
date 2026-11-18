@@ -99,6 +99,7 @@ describe('Tasks (e2e)', () => {
       acceptanceCriteria: [],
       taskTemplateId: null,
       taskTemplateVersion: null,
+      repository: null,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
       finishedAt: null,

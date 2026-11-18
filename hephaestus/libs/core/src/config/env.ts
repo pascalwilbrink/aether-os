@@ -109,6 +109,11 @@ export const zEnv = z
     SANDBOX_PIDS_LIMIT: z.coerce.number().int().min(16).default(256),
     /** Size of the writable working directory, /workspace (a tmpfs). */
     SANDBOX_WORKSPACE_MB: z.coerce.number().int().min(16).default(1024),
+    /**
+     * Proxenos's API (docs/git.md): repository tokens for tasks that work in
+     * a repository. Without it such tasks fail.
+     */
+    PROXENOS_URL: z.url({ protocol: /^https?$/ }).optional(),
   })
   .superRefine((env, ctx) => {
     if (env.AGENT_RUNTIME === 'mastra') {

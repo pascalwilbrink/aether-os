@@ -97,6 +97,13 @@ export class TaskEntity {
   @Column({ type: 'integer', default: 0 })
   reviewRound: number;
 
+  /**
+   * The repository link (Proxenos) it works in, its own or its parent's
+   * (docs/git.md); checked when it runs.
+   */
+  @Column({ type: 'uuid', nullable: true })
+  repositoryLinkId: string | null;
+
   /** The template version it was created from (docs/tasks.md), if any. */
   @Column({ type: 'uuid', nullable: true })
   taskTemplateId: string | null;

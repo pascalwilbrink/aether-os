@@ -92,6 +92,7 @@ export class TasksService {
     );
 
     let topLevelTaskId: string | null = null;
+    let repositoryLinkId = dto.repository?.linkId ?? null;
     if (dto.parentTaskId) {
       const parent = await this.load(
         organizationId,
@@ -102,6 +103,8 @@ export class TasksService {
         throw new TaskParentFinishedError(parent.id);
       }
       topLevelTaskId = parent.topLevelTaskId;
+      // The tree shares a branch (docs/git.md), so a repository too.
+      repositoryLinkId ??= parent.repositoryLinkId;
     }
     const dependsOn = [...new Set(dto.dependsOn ?? [])];
     const ready = await this.dependenciesSucceeded(
@@ -120,6 +123,7 @@ export class TasksService {
         requestedBy: this.access.principal().sub,
         idempotencyKey,
         status: ready ? 'queued' : 'blocked',
+        repositoryLinkId,
         template,
       },
       new Date(),

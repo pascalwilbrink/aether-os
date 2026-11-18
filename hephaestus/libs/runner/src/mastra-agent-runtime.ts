@@ -52,6 +52,7 @@ export class MastraAgentRuntime extends AgentRuntime {
     artifacts,
     revisions,
     failedChecks,
+    repository,
     signal,
   }: AgentRunInput): Promise<AgentRunResult> {
     const unsupported = [
@@ -93,7 +94,7 @@ export class MastraAgentRuntime extends AgentRuntime {
     const metering: Promise<void>[] = [];
     try {
       const result = await agent.generate(
-        promptFor(task, revisions, failedChecks),
+        promptFor(task, revisions, failedChecks, repository),
         {
           abortSignal: signal,
           maxSteps: MAX_STEPS,
@@ -151,9 +152,10 @@ export function promptFor(
   task: AgentRunInput['task'],
   revisions: AgentRunInput['revisions'],
   failedChecks: AgentRunInput['failedChecks'] = [],
+  repository: AgentRunInput['repository'] = null,
 ): string {
   const prompt = withFailedChecks(
-    `# ${task.title}\n\n${task.instructions}`,
+    withRepository(`# ${task.title}\n\n${task.instructions}`, repository),
     failedChecks,
   );
   if (revisions.length === 0) {
@@ -193,6 +195,25 @@ export function promptFor(
     'A reviewer sent back what you submitted earlier. Submit a revised version of each artifact below with submit_artifact, setting `revises` to its artifact ID.',
     '',
     ...requests,
+  ].join('\n');
+}
+
+/** Where the repository is, and that only commits are kept. */
+function withRepository(
+  prompt: string,
+  repository: AgentRunInput['repository'],
+): string {
+  if (!repository) {
+    return prompt;
+  }
+  return [
+    prompt,
+    '',
+    '## Repository',
+    '',
+    `The repository ${repository.fullName} is checked out at ${repository.path}, on the branch ${repository.branch} (from ${repository.startedFrom}).`,
+    'Make your changes there and commit them with git (`git add`, `git commit`): only commits are kept, and uncommitted changes are lost.',
+    "There's no network: don't push, Aether-os takes your commits from here.",
   ].join('\n');
 }
 

@@ -2,7 +2,7 @@
 
 How Aether-os gets access to repositories, receives their events, and turns an agent's work into branches and pull requests.
 
-Status: agreed design, being built. Proxenos (`../proxenos`) connects the GitHub App (signed single-use state, then the installing person's own GitHub authorization checked against the installation), keeps installations and their repositories in step with GitHub (verified, deduplicated installation webhooks, and a sync), links repositories to projects, and mints installation tokens narrowed to one linked repository for task tokens. Not yet: repositories in sandboxes, pushing, pull requests, normalized events for Kairos. Sections marked **Proposal** are not agreed yet.
+Status: agreed design, being built. Proxenos (`../proxenos`) connects the GitHub App (signed single-use state, then the installing person's own GitHub authorization checked against the installation), keeps installations and their repositories in step with GitHub (verified, deduplicated installation webhooks, and a sync), links repositories to projects, and mints installation tokens narrowed to one linked repository for task tokens. Hephaestus puts a task's repository in its sandbox and takes the agent's commits back out (below). Not yet: pushing, pull requests, normalized events for Kairos. Sections marked **Proposal** are not agreed yet.
 
 ## Decisions
 
@@ -36,9 +36,9 @@ Status: agreed design, being built. Proxenos (`../proxenos`) connects the GitHub
 
 | Operation | How |
 |---|---|
-| Clone, fetch | Through the sandbox's egress proxy. The proxy adds a **read-only** credential for the task's repository only; the sandbox never sees a token. |
+| Clone, fetch | Through the sandbox's egress proxy. The proxy adds a **read-only** credential for the task's repository only; the sandbox never sees a token. **Built so far, until the proxy exists:** Hephaestus clones with a read token on its own side and moves the repository into the sandbox as a git bundle, so the sandbox has no network at all. |
 | Commit | The agent commits locally in the sandbox. Author: the Aether-os app's bot identity; every commit gets an `Aether-Task: <task ID>` trailer (and `Co-authored-by:` the requesting user, when there is one). |
-| Push | **Hephaestus**, not the sandbox: at the end of a run it takes the new commits out of the sandbox (a `git bundle`) and pushes them to the task tree's branch with its own token. It refuses to push anything but `aether/*` branches, and refuses force-pushes to branches it didn't create. |
+| Push | **Hephaestus**, not the sandbox: at the end of a run it takes the new commits out of the sandbox (a `git bundle`; built) and pushes them to the task tree's branch with its own token. It refuses to push anything but `aether/*` branches, and refuses force-pushes to branches it didn't create. |
 | Pull request, comments | Hephaestus calls the provider API at **delivery**, never the agent directly. |
 
 Because pushes happen outside the sandbox, a compromised or misbehaving agent can at worst produce bad commits on its own branch, which still go through verification and review.

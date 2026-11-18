@@ -4,6 +4,11 @@ import { AgentVersionsService } from '@hephaestus/agents';
 import type { ApiTypes } from '@hephaestus/core';
 import type { TaskResponse } from '@hephaestus/tasks';
 
+import {
+  RepositoryCheckouts,
+  type Checkout,
+  type CollectedCommits,
+} from './repository-checkouts.js';
 import { RUNNER_OPTIONS, type RunnerOptions } from './runner.options.js';
 import {
   SandboxProvisioner,
@@ -17,8 +22,9 @@ const MAX_TOKEN_SECONDS = 3600;
 
 /**
  * What an execution needs before its agent runs, and gives back after: the
- * pinned agent version, a task token, and a sandbox if the version needs
- * one (`TaskRunner` wraps each step so a stopped execution stops waiting).
+ * pinned agent version, a task token, a sandbox if the version needs one,
+ * and the task's repository in it (`TaskRunner` wraps each step so a
+ * stopped execution stops waiting).
  */
 @Injectable()
 export class ExecutionPreparer {
@@ -27,6 +33,7 @@ export class ExecutionPreparer {
     private readonly agentVersions: AgentVersionsService,
     private readonly tokens: TaskTokens,
     private readonly provisioner: SandboxProvisioner,
+    private readonly repositories: RepositoryCheckouts,
   ) {}
 
   agentVersion(task: TaskResponse): Promise<ApiTypes.AgentVersionResponse> {
@@ -70,5 +77,23 @@ export class ExecutionPreparer {
 
   release(release: SandboxRelease): Promise<void> {
     return this.provisioner.destroy(release);
+  }
+
+  /** The task's repository in its sandbox, or null if it works in none (docs/git.md). */
+  checkout(
+    task: TaskResponse,
+    token: string,
+    sandbox: Sandbox | null,
+  ): Promise<Checkout | null> {
+    return this.repositories.checkout(task, token, sandbox);
+  }
+
+  /** What the agent committed, out of the sandbox and into Hephaestus's clone. */
+  collect(checkout: Checkout, sandbox: Sandbox): Promise<CollectedCommits> {
+    return this.repositories.collect(checkout, sandbox);
+  }
+
+  cleanup(checkout: Checkout): Promise<void> {
+    return this.repositories.cleanup(checkout);
   }
 }

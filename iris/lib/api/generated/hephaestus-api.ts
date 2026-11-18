@@ -861,6 +861,19 @@ export interface components {
             review?: components["schemas"]["TaskReviewSettings"];
             /** @description The definition of done (docs/tasks.md); checked after every run. Keys are unique. */
             acceptanceCriteria?: components["schemas"]["AcceptanceCriterionRequest"][];
+            /**
+             * @description The repository the task works in: one of its project's links in
+             *     Proxenos (`docs/git.md`). A subtask without one works in its
+             *     parent's (the tree shares a branch).
+             */
+            repository?: components["schemas"]["TaskRepository"] | null;
+        };
+        TaskRepository: {
+            /**
+             * Format: uuid
+             * @description A repository link of the task's project (Proxenos). Checked when the task runs.
+             */
+            linkId: string;
         };
         AcceptanceCriterionRequest: {
             key: string;
@@ -1005,6 +1018,8 @@ export interface components {
             acceptanceCriteria?: components["schemas"]["AcceptanceCriterionRequest"][];
             /** @description Added to the template's. */
             review?: components["schemas"]["TaskReviewSettings"];
+            /** @description The repository the task works in, as for a task written by hand. */
+            repository?: components["schemas"]["TaskRepository"];
         };
         /**
          * @description Which of the task's artifacts need approval before they're final
@@ -1056,6 +1071,8 @@ export interface components {
             /** @description How many times the task has waited for review (0 before the first). */
             reviewRound: number;
             acceptanceCriteria: components["schemas"]["AcceptanceCriterion"][];
+            /** @description The repository it works in (its own, or its parent's), if any. */
+            repository: components["schemas"]["TaskRepository"] | null;
             /**
              * Format: uuid
              * @description The template it was created from, if any.
@@ -1209,10 +1226,33 @@ export interface components {
             /** @description What the agent reported when it finished (until artifacts exist). */
             summary: string | null;
             usage: components["schemas"]["ExecutionUsage"];
+            repository: components["schemas"]["ExecutionRepository"] | null;
             /** Format: date-time */
             startedAt: string;
             /** Format: date-time */
             endedAt: string | null;
+        };
+        /**
+         * @description The repository the execution worked in (`docs/git.md`, Inside the
+         *     sandbox): checked out at `branch` from `baseSha`, and, once the run
+         *     succeeded, what the agent committed on top (taken out of the sandbox
+         *     as a bundle). Null for `headSha` and `commits` until then.
+         */
+        ExecutionRepository: {
+            /** Format: uuid */
+            linkId: string;
+            /** @description `owner/name`. */
+            fullName: string;
+            /** @description The task tree's branch, `aether/<top-level task ID>`. */
+            branch: string;
+            /** @description The commit the execution started from. */
+            baseSha: string;
+            /** @description The last commit at the end (the base if nothing was committed). */
+            headSha: string | null;
+            /** @description Commits on top of the base. */
+            commits: number | null;
+            /** @description Changes left uncommitted in the sandbox; they're not kept. */
+            uncommittedChanges: boolean | null;
         };
         /**
          * @description The model calls the execution made through the model gateway, and

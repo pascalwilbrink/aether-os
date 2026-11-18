@@ -55,6 +55,7 @@ export class TemplatedTasksService {
         parentTaskId: request.parentTaskId,
         dependsOn: request.dependsOn,
         acceptanceCriteria: request.acceptanceCriteria,
+        repository: request.repository,
         review: {
           artifactKinds: [
             ...new Set([

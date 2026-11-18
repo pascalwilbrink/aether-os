@@ -32,10 +32,26 @@ export interface AgentRunInput {
    */
   failedChecks: FailedCheck[];
   /**
+   * The repository checked out in the sandbox, when the task works in one
+   * (docs/git.md): the agent commits there; only commits are kept.
+   */
+  repository?: AgentRepository | null;
+  /**
    * Aborted when the execution must stop (cancelled, timed out, lost, or
    * Hephaestus shutting down): save what's needed and return quickly.
    */
   signal: AbortSignal;
+}
+
+export interface AgentRepository {
+  /** `owner/name`. */
+  fullName: string;
+  /** In the sandbox. */
+  path: string;
+  /** The task tree's branch, checked out. */
+  branch: string;
+  /** What it started from: the task branch itself, or the default branch. */
+  startedFrom: string;
 }
 
 export interface FailedCheck {

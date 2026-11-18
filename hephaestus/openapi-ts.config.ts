@@ -24,4 +24,14 @@ export default defineConfig([
     },
     plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
   },
+  // Proxenos's API: repository tokens for tasks (docs/git.md).
+  {
+    input: 'node_modules/@aether-os/contracts/proxenos.openapi.yaml',
+    output: {
+      path: 'libs/core/src/clients/proxenos/generated',
+      importFileExtension: '.js',
+      clean: true,
+    },
+    plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
+  },
 ]);

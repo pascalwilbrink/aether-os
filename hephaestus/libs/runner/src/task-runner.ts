@@ -22,6 +22,7 @@ import { ExecutionPreparer } from './execution-preparer.js';
 import { ExecutionReaper, seconds } from './execution-reaper.js';
 import { ExecutionsService } from './executions.service.js';
 import { RunnerFailure } from './runner.errors.js';
+import type { Checkout } from './repository-checkouts.js';
 import { RUNNER_OPTIONS, type RunnerOptions } from './runner.options.js';
 import type { Sandbox } from './sandbox-provisioner.js';
 import { Verifier } from './verifier.js';
@@ -184,6 +185,7 @@ export class TaskRunner
       stopAfter(this.options.provisioningTimeoutMs, 'provisioning-timeout'),
     ];
     let sandbox: Sandbox | null = null;
+    let checkout: Checkout | null = null;
 
     try {
       const agentVersion = await this.untilStopped(
@@ -205,6 +207,21 @@ export class TaskRunner
         this.preparer.sandbox(task, executionId, agentVersion, signal),
         signal,
       );
+      checkout = await this.untilStopped(
+        this.preparer.checkout(task, token, sandbox),
+        signal,
+      );
+      if (checkout) {
+        await this.executions.recordRepository(executionId, {
+          linkId: checkout.linkId,
+          fullName: checkout.fullName,
+          branch: checkout.branch,
+          baseSha: checkout.baseSha,
+          headSha: null,
+          commits: null,
+          uncommittedChanges: null,
+        });
+      }
       clearTimeout(timers[0]);
 
       const deadline = await this.executions.markRunning(
@@ -231,6 +248,12 @@ export class TaskRunner
         token,
         revisions: await this.executions.revisionRequests(task.id),
         failedChecks: [],
+        repository: checkout && {
+          fullName: checkout.fullName,
+          path: checkout.path,
+          branch: checkout.branch,
+          startedFrom: checkout.startedFrom,
+        },
         artifacts: {
           submit: async (artifact) => ({
             artifactId: await this.executions.recordArtifact(source, artifact),
@@ -238,11 +261,14 @@ export class TaskRunner
         },
         signal,
       };
-      await this.runAndVerify(task, source, input, sandbox, signal);
+      await this.runAndVerify(task, source, input, sandbox, checkout, signal);
     } catch (error) {
       await this.failed(executionId, error);
     } finally {
       timers.forEach(clearTimeout);
+      if (checkout) {
+        await this.preparer.cleanup(checkout);
+      }
       // Also when provisioning was abandoned: the provisioner finds what
       // the execution left behind by its ID.
       await this.destroy(task.organizationId, executionId, sandbox);
@@ -260,6 +286,7 @@ export class TaskRunner
     source: Parameters<ExecutionsService['complete']>[0],
     input: AgentRunInput,
     sandbox: Sandbox | null,
+    checkout: Checkout | null,
     signal: AbortSignal,
   ): Promise<void> {
     const { executionId } = input;
@@ -298,6 +325,20 @@ export class TaskRunner
       await this.executions.recordVerification(source, round, results, retry);
 
       if (failed.length === 0) {
+        if (checkout && sandbox) {
+          // While the sandbox is still there: what the agent committed.
+          const collected = await this.untilStopped(
+            this.preparer.collect(checkout, sandbox),
+            signal,
+          );
+          await this.executions.recordRepository(executionId, {
+            linkId: checkout.linkId,
+            fullName: checkout.fullName,
+            branch: checkout.branch,
+            baseSha: checkout.baseSha,
+            ...collected,
+          });
+        }
         return this.executions.complete(
           source,
           result.summary,

@@ -3,12 +3,22 @@ import type { WorkspaceSandbox } from '@mastra/core/workspace';
 import type { ApiTypes } from '@hephaestus/core';
 import type { TaskResponse } from '@hephaestus/tasks';
 
+import type {
+  SandboxExecOptions,
+  SandboxExecResult,
+} from './sandbox-driver.js';
+
 /** A sandbox an execution runs in. */
 export interface Sandbox {
   /** The provisioner's own reference, stored on the execution. */
   reference: Record<string, unknown>;
   /** The sandbox as the agent runtime's workspace uses it (Mastra). */
   agentSandbox?: WorkspaceSandbox;
+  /** Hephaestus's own commands, with bytes in and out (repositories). */
+  exec?: (
+    command: string[],
+    options?: SandboxExecOptions,
+  ) => Promise<SandboxExecResult>;
 }
 
 export interface SandboxRequest {

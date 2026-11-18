@@ -8,6 +8,7 @@ import { Artifacts1795002247274 } from './1795002247274-Artifacts.js';
 import { Reviews1795003890137 } from './1795003890137-Reviews.js';
 import { Verification1795005075662 } from './1795005075662-Verification.js';
 import { TaskTemplates1795006479486 } from './1795006479486-TaskTemplates.js';
+import { Repositories1795025797701 } from './1795025797701-Repositories.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -26,4 +27,5 @@ export const migrations = [
   Reviews1795003890137,
   Verification1795005075662,
   TaskTemplates1795006479486,
+  Repositories1795025797701,
 ];

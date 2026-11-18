@@ -208,6 +208,10 @@ export const zTaskFailureReason = z.enum([
     'access_denied'
 ]);
 
+export const zTaskRepository = z.object({
+    linkId: z.uuid()
+});
+
 /**
  * Run in the task's sandbox (the agent version must need one); exit code 0 passes.
  */
@@ -297,7 +301,8 @@ export const zCreateTaskRequest = z.object({
     parentTaskId: z.uuid().nullish(),
     dependsOn: z.array(z.uuid()).max(50).optional(),
     review: zTaskReviewSettings.optional(),
-    acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional()
+    acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional(),
+    repository: zTaskRepository.nullish()
 });
 
 /**
@@ -351,7 +356,8 @@ export const zCreateTaskFromTemplateRequest = z.object({
     parentTaskId: z.uuid().optional(),
     dependsOn: z.array(z.uuid()).max(50).optional(),
     acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional(),
-    review: zTaskReviewSettings.optional()
+    review: zTaskReviewSettings.optional(),
+    repository: zTaskRepository.optional()
 });
 
 export const zTaskResponse = z.object({
@@ -374,6 +380,7 @@ export const zTaskResponse = z.object({
     review: zTaskReviewSettings,
     reviewRound: z.int().gte(0),
     acceptanceCriteria: z.array(zAcceptanceCriterion),
+    repository: zTaskRepository.nullable(),
     taskTemplateId: z.uuid().nullable(),
     taskTemplateVersion: z.int().gte(1).nullable(),
     createdAt: z.iso.datetime(),
@@ -508,6 +515,23 @@ export const zExecutionFailureReason = z.enum([
 ]);
 
 /**
+ * The repository the execution worked in (`docs/git.md`, Inside the
+ * sandbox): checked out at `branch` from `baseSha`, and, once the run
+ * succeeded, what the agent committed on top (taken out of the sandbox
+ * as a bundle). Null for `headSha` and `commits` until then.
+ *
+ */
+export const zExecutionRepository = z.object({
+    linkId: z.uuid(),
+    fullName: z.string(),
+    branch: z.string(),
+    baseSha: z.string(),
+    headSha: z.string().nullable(),
+    commits: z.int().gte(0).nullable(),
+    uncommittedChanges: z.boolean().nullable()
+});
+
+/**
  * The model calls the execution made through the model gateway, and
  * their tokens (docs/models.md, Metering). Tokens a provider didn't
  * report count as 0.
@@ -529,6 +553,7 @@ export const zExecutionResponse = z.object({
     error: z.string().nullable(),
     summary: z.string().nullable(),
     usage: zExecutionUsage,
+    repository: zExecutionRepository.nullable(),
     startedAt: z.iso.datetime(),
     endedAt: z.iso.datetime().nullable()
 });

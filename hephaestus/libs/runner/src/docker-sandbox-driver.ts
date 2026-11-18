@@ -2,9 +2,13 @@ import { Logger } from '@nestjs/common';
 import { DockerSandbox } from '@mastra/docker';
 import Docker from 'dockerode';
 
+import { PassThrough } from 'node:stream';
+
 import {
   SandboxDriver,
   type CreatedSandbox,
+  type SandboxExecOptions,
+  type SandboxExecResult,
   type SandboxSpec,
 } from './sandbox-driver.js';
 
@@ -45,6 +49,8 @@ export class DockerSandboxDriver extends SandboxDriver {
       container = await this.docker.createContainer({
         name,
         Image: spec.image,
+        // Whatever the image's entrypoint (e.g. `git` in alpine/git): just sleep.
+        Entrypoint: [''],
         Cmd: ['sleep', 'infinity'],
         User: spec.user,
         WorkingDir: spec.workingDirectory,
@@ -70,7 +76,13 @@ export class DockerSandboxDriver extends SandboxDriver {
           Init: true,
           Privileged: false,
           Tmpfs: {
-            [spec.workingDirectory]: tmpfs(spec.user, spec.workspaceMb, '0700'),
+            // Executable: the repository's own scripts and Git hooks run there.
+            [spec.workingDirectory]: tmpfs(
+              spec.user,
+              spec.workspaceMb,
+              '0700',
+              true,
+            ),
             '/tmp': tmpfs(spec.user, 256, '1777'),
           },
         },
@@ -120,6 +132,61 @@ export class DockerSandboxDriver extends SandboxDriver {
     }
   }
 
+  async exec(
+    sandboxId: string,
+    command: string[],
+    options: SandboxExecOptions = {},
+  ): Promise<SandboxExecResult> {
+    const exec = await this.docker.getContainer(containerName(sandboxId)).exec({
+      Cmd: command,
+      AttachStdin: options.stdin !== undefined,
+      AttachStdout: true,
+      AttachStderr: true,
+      Tty: false,
+      WorkingDir: options.workingDirectory,
+    });
+    const stream = await exec.start({
+      hijack: true,
+      stdin: options.stdin !== undefined,
+    });
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
+    const out = new PassThrough().on('data', (chunk: Buffer) =>
+      stdout.push(chunk),
+    );
+    const err = new PassThrough().on('data', (chunk: Buffer) =>
+      stderr.push(chunk),
+    );
+    this.docker.modem.demuxStream(stream, out, err);
+
+    const timeoutMs = options.timeoutMs ?? 60_000;
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        stream.destroy();
+        reject(new Error(`${command[0]} took longer than ${timeoutMs} ms`));
+      }, timeoutMs);
+      const done = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      stream.on('end', done);
+      stream.on('close', done);
+      stream.on('error', (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+      if (options.stdin !== undefined) {
+        stream.end(options.stdin);
+      }
+    });
+    const { ExitCode } = await exec.inspect();
+    return {
+      exitCode: ExitCode ?? -1,
+      stdout: Buffer.concat(stdout),
+      stderr: Buffer.concat(stderr).toString('utf8'),
+    };
+  }
+
   private async ensureImage(image: string): Promise<void> {
     try {
       await this.docker.getImage(image).inspect();
@@ -141,7 +208,13 @@ function containerName(sandboxId: string): string {
   return `aether-sandbox-${sandboxId}`;
 }
 
-function tmpfs(user: string, sizeMb: number, mode: string): string {
+/** Docker mounts tmpfs `noexec` unless told otherwise. */
+function tmpfs(
+  user: string,
+  sizeMb: number,
+  mode: string,
+  exec = false,
+): string {
   const [uid, gid = uid] = user.split(':');
-  return `rw,nosuid,nodev,size=${sizeMb}m,uid=${uid},gid=${gid},mode=${mode}`;
+  return `rw,nosuid,nodev,${exec ? 'exec' : 'noexec'},size=${sizeMb}m,uid=${uid},gid=${gid},mode=${mode}`;
 }

@@ -378,6 +378,14 @@ export class ExecutionsService {
     }));
   }
 
+  /** The repository the execution works in, or what the agent committed there. */
+  async recordRepository(
+    executionId: string,
+    repository: ApiTypes.ExecutionRepository,
+  ): Promise<void> {
+    await this.executions.update({ id: executionId }, { repository });
+  }
+
   /** The sandbox is gone; forget its reference. */
   async sandboxDestroyed(executionId: string): Promise<void> {
     await this.executions.update(

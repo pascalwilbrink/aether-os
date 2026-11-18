@@ -106,6 +106,8 @@ export class WorkspaceSandboxProvisioner extends SandboxProvisioner {
           resourceId: created.resourceId,
         },
         agentSandbox: created.agentSandbox,
+        exec: (command, options) =>
+          this.driver.exec(executionId, command, options),
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
