@@ -40,6 +40,9 @@ export class TaskMapper {
       dependsOn: [...new Set(task.dto.dependsOn ?? [])],
       reviewArtifactKinds: [...new Set(task.dto.review?.artifactKinds ?? [])],
       reviewRound: 0,
+      acceptanceCriteria: (task.dto.acceptanceCriteria ?? []).map(
+        (criterion) => ({ ...criterion, source: 'task' as const }),
+      ),
       attempt: 1,
       nextAttemptAt: null,
       primaryArtifactId: null,
@@ -71,6 +74,7 @@ export class TaskMapper {
       primaryArtifactId: entity.primaryArtifactId,
       review: { artifactKinds: entity.reviewArtifactKinds },
       reviewRound: entity.reviewRound,
+      acceptanceCriteria: entity.acceptanceCriteria,
       createdAt: entity.createdAt.toISOString(),
       updatedAt: entity.updatedAt.toISOString(),
       finishedAt: entity.finishedAt?.toISOString() ?? null,

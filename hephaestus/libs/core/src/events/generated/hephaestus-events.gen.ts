@@ -167,6 +167,24 @@ export interface TaskSucceeded {
   artifactIds: string[];
 }
 
+/**
+ * Payload of `task.verified`.
+ */
+export interface TaskVerified {
+  taskId: string;
+  executionId: string;
+  agentVersionId: string;
+  round: number;
+  /**
+   * No criterion failed (manual ones are left to the reviewer).
+   */
+  passed: boolean;
+  results: {
+    key: string;
+    outcome: 'passed' | 'failed' | 'manual';
+  }[];
+}
+
 /** Every Hephaestus event type, mapped to its payload. */
 export interface HephaestusEventPayloads {
   'artifact.created': ArtifactCreated;
@@ -177,6 +195,7 @@ export interface HephaestusEventPayloads {
   'task.failed': TaskFailed;
   'task.status-changed': TaskStatusChanged;
   'task.succeeded': TaskSucceeded;
+  'task.verified': TaskVerified;
 }
 
 export type HephaestusEventType = keyof HephaestusEventPayloads;
@@ -191,4 +210,5 @@ export const HEPHAESTUS_EVENT_TYPES = [
   'task.failed',
   'task.status-changed',
   'task.succeeded',
+  'task.verified',
 ] as const satisfies readonly HephaestusEventType[];

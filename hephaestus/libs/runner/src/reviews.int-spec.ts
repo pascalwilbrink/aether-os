@@ -125,9 +125,11 @@ describe('Reviews (Postgres)', () => {
   }
 
   const task = (id: string) => tasks.findById(organizationId, projectId, id);
+  /** What the agent produced (each run's verification artifact aside). */
   const artifactsOf = async (taskId: string) =>
-    (await artifacts.list(organizationId, projectId, taskId, { limit: 100 }))
-      .items;
+    (
+      await artifacts.list(organizationId, projectId, taskId, { limit: 100 })
+    ).items.filter((artifact) => artifact.kind !== 'verification');
   const decide = (
     taskId: string,
     artifactId: string,

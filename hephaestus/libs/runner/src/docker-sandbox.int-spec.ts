@@ -199,7 +199,14 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
       scopes: [],
     });
 
-  async function taskFor(sandboxRequired: boolean) {
+  async function taskFor(
+    sandboxRequired: boolean,
+    acceptanceCriteria: {
+      key: string;
+      description: string;
+      check: { type: 'command'; command: string };
+    }[] = [],
+  ) {
     const agents = actingAs(moduleRef.get(AgentsService), caller());
     const versions = actingAs(moduleRef.get(AgentVersionsService), caller());
     const agentId = (
@@ -227,6 +234,7 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
           instructions: 'Who are you in there?',
           agentId,
           serviceAccountId: SERVICE_ACCOUNT,
+          acceptanceCriteria,
         },
         `key-${++key}`,
       )
@@ -291,6 +299,44 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
       }),
     ]);
     expect(await sandboxContainers(executionId)).toEqual([]);
+  });
+
+  it('checks command criteria in the sandbox, after the agent worked in it', async () => {
+    models.replies = [
+      {
+        toolCall: {
+          tool: 'execute_command',
+          input: { command: 'echo done > /workspace/result.txt' },
+        },
+      },
+      { text: 'Wrote the result.' },
+    ];
+    const task = await taskFor(true, [
+      {
+        key: 'result-written',
+        description: 'The result is in /workspace/result.txt',
+        check: {
+          type: 'command',
+          command: 'grep -q done /workspace/result.txt',
+        },
+      },
+    ]);
+
+    await runner().tick();
+    await runner().drain();
+
+    await expect(
+      tasks.findById(organizationId, projectId, task.id),
+    ).resolves.toMatchObject({ status: 'succeeded' });
+    const [verification] = (await moduleRef
+      .get(DataSource)
+      .query(
+        `SELECT body FROM artifacts WHERE task_id = $1 AND kind = 'verification'`,
+        [task.id],
+      )) as { body: { results: unknown[] } }[];
+    expect(verification.body.results).toEqual([
+      { key: 'result-written', outcome: 'passed', output: '' },
+    ]);
   });
 
   it('tears the sandbox down when the task is cancelled mid-command', async () => {

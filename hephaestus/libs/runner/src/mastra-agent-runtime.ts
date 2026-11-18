@@ -51,6 +51,7 @@ export class MastraAgentRuntime extends AgentRuntime {
     sandbox,
     artifacts,
     revisions,
+    failedChecks,
     signal,
   }: AgentRunInput): Promise<AgentRunResult> {
     const unsupported = [
@@ -91,24 +92,27 @@ export class MastraAgentRuntime extends AgentRuntime {
     // Every call is metered, including those of a run that fails.
     const metering: Promise<void>[] = [];
     try {
-      const result = await agent.generate(promptFor(task, revisions), {
-        abortSignal: signal,
-        maxSteps: MAX_STEPS,
-        modelSettings: {
-          temperature: agentVersion.model.temperature,
-          maxOutputTokens: agentVersion.model.maxTokens,
-          maxRetries: MODEL_RETRIES,
+      const result = await agent.generate(
+        promptFor(task, revisions, failedChecks),
+        {
+          abortSignal: signal,
+          maxSteps: MAX_STEPS,
+          modelSettings: {
+            temperature: agentVersion.model.temperature,
+            maxOutputTokens: agentVersion.model.maxTokens,
+            maxRetries: MODEL_RETRIES,
+          },
+          onStepFinish: (step) => {
+            metering.push(
+              this.gateway.record(context, resolved, {
+                inputTokens: step.usage?.inputTokens,
+                outputTokens: step.usage?.outputTokens,
+                finishReason: step.finishReason,
+              }),
+            );
+          },
         },
-        onStepFinish: (step) => {
-          metering.push(
-            this.gateway.record(context, resolved, {
-              inputTokens: step.usage?.inputTokens,
-              outputTokens: step.usage?.outputTokens,
-              finishReason: step.finishReason,
-            }),
-          );
-        },
-      });
+      );
       await Promise.all(metering);
       if (result.finishReason === 'error' || result.error) {
         throw toFailure(result.error);
@@ -146,8 +150,12 @@ export class MastraAgentRuntime extends AgentRuntime {
 export function promptFor(
   task: AgentRunInput['task'],
   revisions: AgentRunInput['revisions'],
+  failedChecks: AgentRunInput['failedChecks'] = [],
 ): string {
-  const prompt = `# ${task.title}\n\n${task.instructions}`;
+  const prompt = withFailedChecks(
+    `# ${task.title}\n\n${task.instructions}`,
+    failedChecks,
+  );
   if (revisions.length === 0) {
     return prompt;
   }
@@ -185,6 +193,37 @@ export function promptFor(
     'A reviewer sent back what you submitted earlier. Submit a revised version of each artifact below with submit_artifact, setting `revises` to its artifact ID.',
     '',
     ...requests,
+  ].join('\n');
+}
+
+/**
+ * After a verification round with failures: what failed and what the checks
+ * said. The agent's earlier artifacts and its sandbox are kept.
+ */
+function withFailedChecks(
+  prompt: string,
+  failedChecks: AgentRunInput['failedChecks'],
+): string {
+  if (failedChecks.length === 0) {
+    return prompt;
+  }
+  return [
+    prompt,
+    '',
+    '## Acceptance criteria not met',
+    '',
+    "Your work was checked against the task's acceptance criteria and these failed. Fix them: your sandbox and the artifacts you already submitted are kept; submit new ones where they change.",
+    '',
+    ...failedChecks.map((check) =>
+      [
+        `### ${check.key}: ${check.description}`,
+        '',
+        '```',
+        check.output,
+        '```',
+        '',
+      ].join('\n'),
+    ),
   ].join('\n');
 }
 

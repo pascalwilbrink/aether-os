@@ -25,3 +25,9 @@ export class TaskParentFinishedError extends DomainError {
     );
   }
 }
+
+export class InvalidTaskCriteriaError extends DomainError {
+  constructor(message: string) {
+    super(message, 'TASK_CRITERIA_INVALID');
+  }
+}

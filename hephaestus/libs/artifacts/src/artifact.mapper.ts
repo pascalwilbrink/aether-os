@@ -6,15 +6,20 @@ import {
   ArtifactEntity,
   type JsonContent,
   type TextContent,
+  type VerificationContent,
 } from './artifact.entity.js';
-import type { ArtifactSource, NewArtifact } from './artifacts.service.js';
+import type {
+  ArtifactSource,
+  NewArtifact,
+  NewVerification,
+} from './artifacts.service.js';
 
 @Injectable()
 export class ArtifactMapper {
   /** A new `pending` artifact; its ID (UUIDv7) is generated here. */
   toEntity(
     source: ArtifactSource,
-    input: NewArtifact,
+    input: NewArtifact | NewVerification,
     now: Date,
   ): ArtifactEntity {
     return Object.assign(new ArtifactEntity(), {
@@ -23,20 +28,12 @@ export class ArtifactMapper {
       kind: input.kind,
       status: 'pending',
       primary: input.primary ?? false,
-      revisionOf: input.revisionOf ?? null,
+      revisionOf:
+        input.kind === 'verification' ? null : (input.revisionOf ?? null),
       title: input.title,
       metadata: input.metadata ?? {},
       review: null,
-      body:
-        input.kind === 'text'
-          ? ({
-              format: input.format,
-              content: input.content,
-            } satisfies TextContent)
-          : ({
-              schema: input.schema ?? null,
-              content: input.content,
-            } satisfies JsonContent),
+      body: bodyOf(input),
       createdAt: now,
       updatedAt: now,
       version: 1,
@@ -70,6 +67,15 @@ export class ArtifactMapper {
         content: body.content,
       };
     }
+    if (entity.kind === 'verification') {
+      const body = entity.body as VerificationContent;
+      return {
+        ...base,
+        kind: 'verification',
+        round: body.round,
+        results: body.results,
+      };
+    }
     const body = entity.body as JsonContent;
     return {
       ...base,
@@ -77,5 +83,18 @@ export class ArtifactMapper {
       schema: body.schema,
       content: body.content,
     };
+  }
+}
+
+function bodyOf(
+  input: NewArtifact | NewVerification,
+): TextContent | JsonContent | VerificationContent {
+  switch (input.kind) {
+    case 'text':
+      return { format: input.format, content: input.content };
+    case 'json':
+      return { schema: input.schema ?? null, content: input.content };
+    default:
+      return { round: input.round, results: input.results };
   }
 }

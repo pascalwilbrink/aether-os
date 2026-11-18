@@ -3,12 +3,18 @@ import { Check, Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import type { ApiTypes } from '@hephaestus/core';
 
 export type ArtifactStatus = ApiTypes.ArtifactStatus;
-export type ArtifactKind = 'text' | 'json';
+export type ArtifactKind = 'text' | 'json' | 'verification';
 
 /** A `text` artifact's content. */
 export interface TextContent {
   format: 'markdown' | 'plain';
   content: string;
+}
+
+/** A `verification` artifact's content: one round of checks. */
+export interface VerificationContent {
+  round: number;
+  results: ApiTypes.CriterionResult[];
 }
 
 /** The decision on a draft (docs/tasks.md, Request changes). */
@@ -29,7 +35,7 @@ export interface JsonContent {
   'ck_artifacts_status',
   `status IN ('pending', 'draft', 'final', 'rejected', 'changes_requested', 'partial')`,
 )
-@Check('ck_artifacts_kind', `kind IN ('text', 'json')`)
+@Check('ck_artifacts_kind', `kind IN ('text', 'json', 'verification')`)
 // A task's artifacts in order (keyset pagination).
 @Index('ix_artifacts_task_id_created_at_id', ['taskId', 'createdAt', 'id'])
 @Index('ix_artifacts_execution_id', ['executionId'])
@@ -81,7 +87,7 @@ export class ArtifactEntity {
 
   /** The kind's own fields (`TextContent`, `JsonContent`). */
   @Column({ type: 'jsonb' })
-  body: TextContent | JsonContent;
+  body: TextContent | JsonContent | VerificationContent;
 
   /** Set when someone decided on it as a draft. */
   @Column({ type: 'jsonb', nullable: true })

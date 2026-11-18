@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Hephaestus events
-  version: 0.4.0
+  version: 0.5.0
   description: |
     Events Hephaestus publishes to the `hephaestus.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -44,6 +44,7 @@ channels:
       taskFailed: { $ref: '#/components/messages/taskFailed' }
       taskCancelled: { $ref: '#/components/messages/taskCancelled' }
       taskAwaitingReview: { $ref: '#/components/messages/taskAwaitingReview' }
+      taskVerified: { $ref: '#/components/messages/taskVerified' }
       artifactCreated: { $ref: '#/components/messages/artifactCreated' }
       artifactStatusChanged: { $ref: '#/components/messages/artifactStatusChanged' }
 
@@ -58,11 +59,22 @@ operations:
       - $ref: '#/channels/hephaestusEvents/messages/taskFailed'
       - $ref: '#/channels/hephaestusEvents/messages/taskCancelled'
       - $ref: '#/channels/hephaestusEvents/messages/taskAwaitingReview'
+      - $ref: '#/channels/hephaestusEvents/messages/taskVerified'
       - $ref: '#/channels/hephaestusEvents/messages/artifactCreated'
       - $ref: '#/channels/hephaestusEvents/messages/artifactStatusChanged'
 
 components:
   messages:
+    taskVerified:
+      name: task.verified
+      summary: Hephaestus checked a run against the task's acceptance criteria (Kriterion tracks pass rates).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: task.verified }
+              payload: { $ref: '#/components/schemas/TaskVerified' }
     taskAwaitingReview:
       name: task.awaiting-review
       summary: A task's drafts wait for someone with `task:approve` (Kerykes tells them).
@@ -218,6 +230,25 @@ components:
           type: array
           description: Every `final` artifact of the task, the primary one included.
           items: { $ref: '#/components/schemas/Uuid' }
+    TaskVerified:
+      type: object
+      additionalProperties: false
+      required: [taskId, executionId, agentVersionId, round, passed, results]
+      properties:
+        taskId: { $ref: '#/components/schemas/Uuid' }
+        executionId: { $ref: '#/components/schemas/Uuid' }
+        agentVersionId: { $ref: '#/components/schemas/Uuid' }
+        round: { type: integer, minimum: 1 }
+        passed: { type: boolean, description: No criterion failed (manual ones are left to the reviewer). }
+        results:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [key, outcome]
+            properties:
+              key: { type: string }
+              outcome: { type: string, enum: [passed, failed, manual] }
     TaskAwaitingReview:
       type: object
       additionalProperties: false

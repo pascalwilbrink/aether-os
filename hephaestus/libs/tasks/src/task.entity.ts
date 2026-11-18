@@ -1,5 +1,7 @@
 import { Check, Column, Entity, Index, PrimaryColumn, Unique } from 'typeorm';
 
+import type { ApiTypes } from '@hephaestus/core';
+
 import type { TaskFailureReason, TaskStatus } from './task-transitions.js';
 
 /**
@@ -86,6 +88,10 @@ export class TaskEntity {
   /** Artifact kinds that need approval (`*`: all); pinned at creation. */
   @Column({ type: 'text', array: true, default: () => "'{}'" })
   reviewArtifactKinds: string[];
+
+  /** The definition of done, fixed at creation (docs/tasks.md). */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  acceptanceCriteria: ApiTypes.AcceptanceCriterion[];
 
   /** Times the task has entered `awaiting_review`. */
   @Column({ type: 'integer', default: 0 })

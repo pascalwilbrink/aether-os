@@ -9,16 +9,22 @@ import {
   type OnApplicationShutdown,
 } from '@nestjs/common';
 
-import { AgentVersionsService } from '@hephaestus/agents';
+import type { ApiTypes } from '@hephaestus/core';
 import type { TaskResponse } from '@hephaestus/tasks';
 
-import { AgentRuntime } from './agent-runtime.js';
+import {
+  AgentRuntime,
+  type AgentRunInput,
+  type AgentRunResult,
+  type FailedCheck,
+} from './agent-runtime.js';
+import { ExecutionPreparer } from './execution-preparer.js';
 import { ExecutionReaper, seconds } from './execution-reaper.js';
 import { ExecutionsService } from './executions.service.js';
 import { RunnerFailure } from './runner.errors.js';
 import { RUNNER_OPTIONS, type RunnerOptions } from './runner.options.js';
-import { SandboxProvisioner, type Sandbox } from './sandbox-provisioner.js';
-import { TaskTokens } from './task-tokens.js';
+import type { Sandbox } from './sandbox-provisioner.js';
+import { Verifier } from './verifier.js';
 
 /** Why the runner stops an execution before it ends by itself. */
 type StopReason =
@@ -35,9 +41,6 @@ interface Running {
   controller: AbortController;
   done: Promise<void>;
 }
-
-/** Pistis issues task tokens for at most an hour. */
-const MAX_TOKEN_SECONDS = 3600;
 
 /**
  * Runs queued tasks (docs/tasks.md, Task lifecycle), in every Hephaestus
@@ -74,10 +77,9 @@ export class TaskRunner
     @Inject(RUNNER_OPTIONS) private readonly options: RunnerOptions,
     private readonly executions: ExecutionsService,
     private readonly reaper: ExecutionReaper,
-    private readonly agentVersions: AgentVersionsService,
+    private readonly preparer: ExecutionPreparer,
     private readonly runtime: AgentRuntime,
-    private readonly provisioner: SandboxProvisioner,
-    private readonly tokens: TaskTokens,
+    private readonly verifier: Verifier,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -185,31 +187,22 @@ export class TaskRunner
 
     try {
       const agentVersion = await this.untilStopped(
-        this.agentVersions.findById(
-          task.organizationId,
-          task.agentId,
-          task.agentVersionId,
-        ),
+        this.preparer.agentVersion(task),
         signal,
       );
-      const token = await this.untilStopped(
-        this.tokens.issue({
-          serviceAccountId: task.serviceAccountId,
-          organizationId: task.organizationId,
-          projectId: task.projectId,
-          taskId: task.id,
-          expiresInSeconds: Math.min(
-            MAX_TOKEN_SECONDS,
-            Math.ceil(
-              (this.options.provisioningTimeoutMs + this.options.runTimeoutMs) /
-                1000,
-            ),
-          ),
-        }),
-        signal,
-      );
+      if (
+        task.acceptanceCriteria.some(({ check }) => check.type === 'command') &&
+        !agentVersion.runtime.sandboxRequired
+      ) {
+        throw new RunnerFailure(
+          "Command checks run in the task's sandbox, and its agent version runs without one (runtime.sandboxRequired)",
+          'infrastructure',
+          false,
+        );
+      }
+      const token = await this.untilStopped(this.preparer.token(task), signal);
       sandbox = await this.untilStopped(
-        this.provisioner.provision({ task, executionId, agentVersion, signal }),
+        this.preparer.sandbox(task, executionId, agentVersion, signal),
         signal,
       );
       clearTimeout(timers[0]);
@@ -230,36 +223,22 @@ export class TaskRunner
         executionId,
         agentVersionId: task.agentVersionId,
       };
-      const revisions = await this.executions.revisionRequests(task.id);
-      const result = await this.untilStopped(
-        this.runtime.run({
-          task,
-          executionId,
-          agentVersion,
-          sandbox,
-          token,
-          revisions,
-          artifacts: {
-            submit: async (artifact) => ({
-              artifactId: await this.executions.recordArtifact(
-                source,
-                artifact,
-              ),
-            }),
-          },
-          signal,
-        }),
+      const input: AgentRunInput = {
+        task,
+        executionId,
+        agentVersion,
+        sandbox,
+        token,
+        revisions: await this.executions.revisionRequests(task.id),
+        failedChecks: [],
+        artifacts: {
+          submit: async (artifact) => ({
+            artifactId: await this.executions.recordArtifact(source, artifact),
+          }),
+        },
         signal,
-      );
-      if (result.outcome === 'completed') {
-        await this.executions.complete(
-          source,
-          result.summary,
-          task.review.artifactKinds,
-        );
-      } else {
-        await this.executions.fail(executionId, 'agent_failed', result.error);
-      }
+      };
+      await this.runAndVerify(task, source, input, sandbox, signal);
     } catch (error) {
       await this.failed(executionId, error);
     } finally {
@@ -267,6 +246,76 @@ export class TaskRunner
       // Also when provisioning was abandoned: the provisioner finds what
       // the execution left behind by its ID.
       await this.destroy(task.organizationId, executionId, sandbox);
+    }
+  }
+
+  /**
+   * Runs the agent, then checks its work against the task's acceptance
+   * criteria (docs/tasks.md, Verification), while its sandbox is still
+   * there. Failures go back to the agent, up to `maxVerificationRounds`
+   * runs; then the execution fails `verification_failed`.
+   */
+  private async runAndVerify(
+    task: TaskResponse,
+    source: Parameters<ExecutionsService['complete']>[0],
+    input: AgentRunInput,
+    sandbox: Sandbox | null,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const { executionId } = input;
+    let failedChecks: FailedCheck[] = [];
+    for (let round = 1; ; round++) {
+      const result: AgentRunResult = await this.untilStopped(
+        this.runtime.run({ ...input, failedChecks }),
+        signal,
+      );
+      if (result.outcome === 'failed') {
+        return this.executions.fail(executionId, 'agent_failed', result.error);
+      }
+      if (!(await this.executions.startVerifying(source, result.summary))) {
+        return this.executions.fail(
+          executionId,
+          'agent_failed',
+          'The agent finished without an outcome (no answer, no artifacts)',
+        );
+      }
+
+      const results = await this.untilStopped(
+        this.executions
+          .artifactsToVerify(task.id, executionId)
+          .then((artifacts) =>
+            this.verifier.verify({
+              criteria: task.acceptanceCriteria,
+              artifacts,
+              sandbox,
+            }),
+          ),
+        signal,
+      );
+      const failed = results.filter((r) => r.outcome === 'failed');
+      const retry =
+        failed.length > 0 && round < this.options.maxVerificationRounds;
+      await this.executions.recordVerification(source, round, results, retry);
+
+      if (failed.length === 0) {
+        return this.executions.complete(
+          source,
+          result.summary,
+          task.review.artifactKinds,
+        );
+      }
+      if (!retry) {
+        return this.executions.fail(
+          executionId,
+          'verification_failed',
+          `Acceptance criteria still failing after ${round} rounds: ${failed.map((r) => r.key).join(', ')}`,
+        );
+      }
+      failedChecks = failed.map((r) => ({
+        key: r.key,
+        description: descriptionOf(task.acceptanceCriteria, r.key),
+        output: r.output,
+      }));
     }
   }
 
@@ -321,7 +370,7 @@ export class TaskRunner
     sandbox: Sandbox | null,
   ): Promise<void> {
     try {
-      await this.provisioner.destroy({
+      await this.preparer.release({
         organizationId,
         executionId,
         reference: sandbox?.reference ?? null,
@@ -374,4 +423,13 @@ export class TaskRunner
     }
     return result;
   }
+}
+
+function descriptionOf(
+  criteria: ApiTypes.AcceptanceCriterion[],
+  key: string,
+): string {
+  return (
+    criteria.find((criterion) => criterion.key === key)?.description ?? key
+  );
 }

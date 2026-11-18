@@ -8,6 +8,7 @@ import {
   mapPage,
   OnDomainEvent,
   Transactional,
+  type ApiTypes,
   type DomainEvent,
   type HephaestusEventTypes,
   type Page,
@@ -44,6 +45,19 @@ export type NewArtifact = NewArtifactBase &
     | { kind: 'text'; format: 'markdown' | 'plain'; content: string }
     | { kind: 'json'; schema?: string | null; content: unknown }
   );
+
+/** A round of checks, recorded by Hephaestus (never by the agent). */
+export interface NewVerification {
+  kind: 'verification';
+  title: string;
+  primary?: false;
+  metadata?: Record<string, string>;
+  round: number;
+  results: ApiTypes.CriterionResult[];
+}
+
+/** Marks the text artifact made from the agent's final answer. */
+const FINAL_ANSWER = 'aether-os.final-answer';
 
 /** What a completed execution produced (one review round). */
 export interface ArtifactOutcome {
@@ -145,11 +159,57 @@ export class ArtifactsService {
   }
 
   /**
+   * Makes sure the execution has its outcome: one primary artifact. The one
+   * the agent marked; else its final answer, as a text artifact (`Answer`;
+   * a later answer replaces an earlier one, which becomes `partial`); else
+   * its latest artifact. False when there is nothing at all. Verification
+   * artifacts are never the outcome.
+   */
+  @Transactional()
+  async settle(source: ArtifactSource, finalAnswer: string): Promise<boolean> {
+    const outcomes = (await this.pendingOf(source.executionId)).filter(
+      (artifact) => artifact.kind !== 'verification',
+    );
+    const primary = outcomes.find((artifact) => artifact.primary);
+    const isAnswer = primary?.metadata[FINAL_ANSWER] === 'true';
+    if (primary && !isAnswer) {
+      return true;
+    }
+    if (finalAnswer.trim()) {
+      if (primary) {
+        if ((primary.body as { content?: unknown }).content === finalAnswer) {
+          return true;
+        }
+        primary.primary = false;
+        await this.setStatus(primary, 'partial');
+      }
+      await this.record(source, {
+        kind: 'text',
+        format: 'markdown',
+        title: 'Answer',
+        content: finalAnswer,
+        primary: true,
+        metadata: { [FINAL_ANSWER]: 'true' },
+      });
+      return true;
+    }
+    if (primary) {
+      return true;
+    }
+    const latest = outcomes.at(-1);
+    if (!latest) {
+      return false;
+    }
+    latest.primary = true;
+    await this.artifacts.save(latest);
+    return true;
+  }
+
+  /**
    * The execution completed: its pending artifacts become `draft` if their
-   * kind needs approval (`reviewKinds`, `*` for all), else `final`, with one
-   * primary. Without one marked primary, the agent's final answer becomes
-   * the primary text artifact; without an answer, its latest artifact. Null
-   * when it produced nothing at all (no outcome).
+   * kind needs approval (`reviewKinds`, `*` for all; never verification
+   * artifacts), else `final`. Settles the outcome first (`settle`); null
+   * when there is none.
    */
   @Transactional()
   async complete(
@@ -157,25 +217,13 @@ export class ArtifactsService {
     finalAnswer: string,
     reviewKinds: string[] = [],
   ): Promise<ArtifactOutcome | null> {
-    let pending = await this.pendingOf(source.executionId);
-    if (!pending.some((artifact) => artifact.primary)) {
-      if (finalAnswer.trim()) {
-        await this.record(source, {
-          kind: 'text',
-          format: 'markdown',
-          title: 'Answer',
-          content: finalAnswer,
-          primary: true,
-        });
-        pending = await this.pendingOf(source.executionId);
-      } else if (pending.length > 0) {
-        pending.at(-1)!.primary = true;
-      } else {
-        return null;
-      }
+    if (!(await this.settle(source, finalAnswer))) {
+      return null;
     }
+    const pending = await this.pendingOf(source.executionId);
     const needsReview = (kind: string) =>
-      reviewKinds.includes('*') || reviewKinds.includes(kind);
+      kind !== 'verification' &&
+      (reviewKinds.includes('*') || reviewKinds.includes(kind));
     for (const artifact of pending) {
       await this.setStatus(
         artifact,
@@ -191,6 +239,63 @@ export class ArtifactsService {
         .filter((artifact) => artifact.status === 'draft')
         .map((artifact) => artifact.id),
     };
+  }
+
+  /** Records a round of checks (`pending`, like the run's other artifacts). */
+  @Transactional()
+  async recordVerification(
+    source: ArtifactSource,
+    round: number,
+    results: ApiTypes.CriterionResult[],
+  ): Promise<string> {
+    const entity = this.mapper.toEntity(
+      source,
+      {
+        kind: 'verification',
+        title: `Verification, round ${round}`,
+        round,
+        results,
+      },
+      new Date(),
+    );
+    await this.artifacts.insert(
+      entity as Parameters<Repository<ArtifactEntity>['insert']>[0],
+    );
+    await this.events.emit({
+      eventType: 'artifact.created',
+      aggregateId: entity.id,
+      aggregateVersion: entity.version,
+      organizationId: entity.organizationId,
+      projectId: entity.projectId,
+      payload: {
+        artifactId: entity.id,
+        taskId: entity.taskId,
+        executionId: entity.executionId,
+        kind: entity.kind,
+        status: entity.status,
+        primary: false,
+      },
+    });
+    return entity.id;
+  }
+
+  /**
+   * What checks look at: the execution's pending artifacts and the task's
+   * final ones (e.g. approved in an earlier review round), without
+   * verification artifacts.
+   */
+  async forVerification(
+    taskId: string,
+    executionId: string,
+  ): Promise<ArtifactResponse[]> {
+    const found = await this.artifacts.find({
+      where: [
+        { executionId, status: 'pending', kind: Not('verification') },
+        { taskId, status: 'final', kind: Not('verification') },
+      ],
+      order: { createdAt: 'ASC', id: 'ASC' },
+    });
+    return found.map((artifact) => this.mapper.toResponse(artifact));
   }
 
   /** Every final artifact of the task, oldest first (its outcome's list). */

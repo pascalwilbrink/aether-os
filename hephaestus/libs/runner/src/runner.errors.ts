@@ -4,7 +4,8 @@ export type ExecutionFailureReason =
   | 'timeout'
   | 'infrastructure'
   | 'access_denied'
-  | 'interrupted';
+  | 'interrupted'
+  | 'verification_failed';
 
 /**
  * An execution failure with its reason, thrown by the ports. `infrastructure`

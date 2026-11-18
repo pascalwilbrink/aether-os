@@ -23,7 +23,7 @@ export const ACTIVE_EXECUTION: readonly ExecutionStatus[] = [
 )
 @Check(
   'ck_executions_failure_reason',
-  `failure_reason IS NULL OR failure_reason IN ('agent_failed', 'timeout', 'infrastructure', 'access_denied', 'interrupted')`,
+  `failure_reason IS NULL OR failure_reason IN ('agent_failed', 'timeout', 'infrastructure', 'access_denied', 'interrupted', 'verification_failed')`,
 )
 // One active execution per task, whatever the runners do.
 @Index('uq_executions_active_task_id', ['taskId'], {

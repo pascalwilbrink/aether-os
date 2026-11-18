@@ -26,10 +26,22 @@ export interface AgentRunInput {
    */
   revisions: ApiTypes.ArtifactResponse[];
   /**
+   * After a verification round with failures: the criteria that failed and
+   * what their checks said. The agent fixes them (in the same sandbox, with
+   * its earlier artifacts kept). Empty on a first run.
+   */
+  failedChecks: FailedCheck[];
+  /**
    * Aborted when the execution must stop (cancelled, timed out, lost, or
    * Hephaestus shutting down): save what's needed and return quickly.
    */
   signal: AbortSignal;
+}
+
+export interface FailedCheck {
+  key: string;
+  description: string;
+  output: string;
 }
 
 /**

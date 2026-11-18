@@ -244,7 +244,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
       await moduleRef
         .get(ArtifactsService)
         .list(organizationId, projectId, created.id, { limit: 10 })
-    ).items;
+    ).items.filter((artifact) => artifact.kind !== 'verification');
     expect(artifacts).toEqual([
       expect.objectContaining({
         kind: 'json',

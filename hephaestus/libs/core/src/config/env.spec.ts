@@ -30,6 +30,7 @@ describe('zEnv', () => {
       RUNNER_MAX_INFRASTRUCTURE_FAILURES: 3,
       RUNNER_RETRY_BACKOFF_MS: 10_000,
       REVIEW_MAX_ROUNDS: 3,
+      VERIFICATION_MAX_ROUNDS: 3,
       OPENBAO_KV_MOUNT: 'secret',
       PLATFORM_MODEL_KEYS: false,
       SANDBOX_DRIVER: 'none',

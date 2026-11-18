@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.10.0
+  version: 0.11.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -751,6 +751,7 @@ components:
         - ARTIFACT_NOT_DRAFT
         - ORGANIZATION_SUSPENDED
         - PROJECT_ARCHIVED
+        - TASK_CRITERIA_INVALID
         - TASK_DEPENDENCY_INVALID
         - TASK_INVALID_TRANSITION
         - TASK_PARENT_FINISHED
@@ -1041,6 +1042,70 @@ components:
           items: { type: string, format: uuid }
           description: Tasks under the same top-level task that must succeed first.
         review: { $ref: '#/components/schemas/TaskReviewSettings' }
+        acceptanceCriteria:
+          type: array
+          maxItems: 50
+          description: The definition of done (docs/tasks.md); checked after every run. Keys are unique.
+          items: { $ref: '#/components/schemas/AcceptanceCriterionRequest' }
+    AcceptanceCriterionRequest:
+      type: object
+      additionalProperties: false
+      required: [key, description, check]
+      properties:
+        key: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$' }
+        description: { type: string, minLength: 1, maxLength: 2000 }
+        check: { $ref: '#/components/schemas/CriterionCheck' }
+    AcceptanceCriterion:
+      allOf:
+        - $ref: '#/components/schemas/AcceptanceCriterionRequest'
+        - type: object
+          required: [source]
+          properties:
+            source:
+              type: string
+              enum: [task]
+              description: Where it came from (templates and spec requirements later).
+    CriterionCheck:
+      description: How a criterion is checked; by Hephaestus, never by the agent's word.
+      oneOf:
+        - $ref: '#/components/schemas/CommandCheck'
+        - $ref: '#/components/schemas/ArtifactCheck'
+        - $ref: '#/components/schemas/ManualCheck'
+      discriminator:
+        propertyName: type
+        mapping:
+          command: '#/components/schemas/CommandCheck'
+          artifact: '#/components/schemas/ArtifactCheck'
+          manual: '#/components/schemas/ManualCheck'
+    CommandCheck:
+      type: object
+      additionalProperties: false
+      required: [type, command]
+      description: Run in the task's sandbox (the agent version must need one); exit code 0 passes.
+      properties:
+        type: { type: string, const: command }
+        command: { type: string, minLength: 1, maxLength: 4000 }
+        timeoutSeconds: { type: integer, minimum: 1, maximum: 900, description: '300 if left out.' }
+    ArtifactCheck:
+      type: object
+      additionalProperties: false
+      required: [type]
+      description: A structural check on the run's artifacts; every given condition must hold.
+      properties:
+        type: { type: string, const: artifact }
+        primaryKind: { type: string, minLength: 1, description: The primary artifact's kind. }
+        titles:
+          type: array
+          maxItems: 20
+          items: { type: string, minLength: 1 }
+          description: Artifacts with these titles exist.
+    ManualCheck:
+      type: object
+      additionalProperties: false
+      required: [type]
+      description: Left to the reviewer; approving the draft confirms it.
+      properties:
+        type: { type: string, const: manual }
     TaskReviewSettings:
       type: object
       additionalProperties: false
@@ -1058,7 +1123,7 @@ components:
           items: { type: string, minLength: 1, maxLength: 50 }
     TaskResponse:
       type: object
-      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, dependsOn, attempt, primaryArtifactId, review, reviewRound, createdAt, updatedAt, finishedAt, version]
+      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, createdAt, updatedAt, finishedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -1095,6 +1160,9 @@ components:
           type: integer
           minimum: 0
           description: How many times the task has waited for review (0 before the first).
+        acceptanceCriteria:
+          type: array
+          items: { $ref: '#/components/schemas/AcceptanceCriterion' }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         finishedAt: { type: [string, 'null'], format: date-time }
@@ -1161,16 +1229,37 @@ components:
               type: [string, 'null']
               description: An optional identifier of the content's schema.
             content: {}
+    VerificationArtifact:
+      allOf:
+        - $ref: '#/components/schemas/ArtifactBase'
+        - type: object
+          required: [kind, round, results]
+          properties:
+            kind: { type: string, const: verification }
+            round: { type: integer, minimum: 1, description: 'Within its execution: 1, plus one per run after failed checks.' }
+            results:
+              type: array
+              items: { $ref: '#/components/schemas/CriterionResult' }
+    CriterionResult:
+      type: object
+      additionalProperties: false
+      required: [key, outcome, output]
+      properties:
+        key: { type: string }
+        outcome: { type: string, enum: [passed, failed, manual] }
+        output: { type: string, description: 'What the check said: a command''s output (its last 16 KiB), or why it failed.' }
     ArtifactResponse:
       description: One artifact; `kind` says which (an open set).
       oneOf:
         - $ref: '#/components/schemas/TextArtifact'
         - $ref: '#/components/schemas/JsonArtifact'
+        - $ref: '#/components/schemas/VerificationArtifact'
       discriminator:
         propertyName: kind
         mapping:
           text: '#/components/schemas/TextArtifact'
           json: '#/components/schemas/JsonArtifact'
+          verification: '#/components/schemas/VerificationArtifact'
     ArtifactReview:
       type: object
       additionalProperties: false
@@ -1221,7 +1310,7 @@ components:
       enum: [provisioning, running, completed, failed, cancelled]
     ExecutionFailureReason:
       type: string
-      enum: [agent_failed, timeout, infrastructure, access_denied, interrupted]
+      enum: [agent_failed, timeout, infrastructure, access_denied, interrupted, verification_failed]
       description: |
         `infrastructure` (a crash, a missed heartbeat, a provisioning timeout,
         an unreachable dependency) is retried automatically, up to a limit;
