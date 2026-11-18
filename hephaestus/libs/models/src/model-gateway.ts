@@ -21,6 +21,8 @@ export interface ModelCallContext {
   organizationId: string;
   projectId: string;
   taskId: string;
+  /** The task tree it's part of (budgets: docs/models.md). */
+  topLevelTaskId: string;
   executionId: string;
   agentVersionId: string;
 }
@@ -121,6 +123,29 @@ export class ModelGateway {
       finishReason: usage.finishReason ?? null,
       createdAt: new Date(),
     });
+  }
+
+  /**
+   * What calls cost in total (US dollars, 6 decimals): an organization's, a
+   * project's or a task tree's, from `since` (all of them when null).
+   * Unpriced calls count as nothing.
+   */
+  async spent(
+    scope:
+      | { organizationId: string }
+      | { projectId: string }
+      | { topLevelTaskId: string },
+    since: Date | null,
+  ): Promise<string> {
+    const query = this.calls
+      .createQueryBuilder('call')
+      .select('coalesce(sum(call.costUsd), 0)::numeric(18, 6)::text', 'spent')
+      .where(scope);
+    if (since) {
+      query.andWhere('call.createdAt >= :since', { since });
+    }
+    const row = (await query.getRawOne()) as { spent: string } | undefined;
+    return row?.spent ?? '0.000000';
   }
 
   /** Calls, tokens and cost per execution. */

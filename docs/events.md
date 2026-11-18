@@ -114,7 +114,7 @@ Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created` (with
 | `artifact.deleted` | `artifactId` | Iris, Kriterion |
 | `document.version-published` | document reference (`documentId`, `version`, `objectKey`, `sha256`) | Seshat (index), Iris |
 | `document.deleted` | `documentId` | Seshat, Loculus cleanup |
-| `budget.threshold-reached` | `scope` (task tree / project / organization), `budgetUsd`, `spentUsd` | Kerykes, Iris |
+| `budget.threshold-reached` | `budgetId`, `scope` (task tree / project / organization), `scopeId`, `limitUsd`, `spentUsd`, `windowStart` | Kerykes, Iris |
 
 ### Seshat (`seshat.events`)
 

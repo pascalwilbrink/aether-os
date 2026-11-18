@@ -31,3 +31,13 @@ export class InvalidTaskCriteriaError extends DomainError {
     super(message, 'TASK_CRITERIA_INVALID');
   }
 }
+
+/** A budget for a task tree is set on its top-level task. */
+export class TaskBudgetInvalidError extends DomainError {
+  constructor() {
+    super(
+      "A task tree's budget is set on its top-level task, not on a subtask.",
+      'TASK_BUDGET_INVALID',
+    );
+  }
+}

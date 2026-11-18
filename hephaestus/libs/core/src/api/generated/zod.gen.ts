@@ -8,6 +8,7 @@ export const zDomainErrorCode = z.enum([
     'AGENT_VERSION_CONFLICT',
     'AGENT_VERSION_INVALID_TRANSITION',
     'ARTIFACT_NOT_DRAFT',
+    'TASK_BUDGET_INVALID',
     'MODEL_ALREADY_EXISTS',
     'MODEL_NOT_AVAILABLE',
     'MODEL_PRICE_INVALID',
@@ -296,18 +297,6 @@ export const zTaskReviewSettings = z.object({
     artifactKinds: z.array(z.string().min(1).max(50)).max(20)
 });
 
-export const zCreateTaskRequest = z.object({
-    title: z.string().min(1).max(200),
-    instructions: z.string().min(1).max(100000),
-    agentId: z.uuid(),
-    serviceAccountId: z.uuid(),
-    parentTaskId: z.uuid().nullish(),
-    dependsOn: z.array(z.uuid()).max(50).optional(),
-    review: zTaskReviewSettings.optional(),
-    acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional(),
-    repository: zTaskRepository.nullish()
-});
-
 /**
  * One version of a template. A project template that `extends` an
  * organization template inherits its agent, title, inputs, criteria
@@ -361,35 +350,6 @@ export const zCreateTaskFromTemplateRequest = z.object({
     acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional(),
     review: zTaskReviewSettings.optional(),
     repository: zTaskRepository.optional()
-});
-
-export const zTaskResponse = z.object({
-    id: z.uuid(),
-    organizationId: z.uuid(),
-    projectId: z.uuid(),
-    parentTaskId: z.uuid().nullable(),
-    topLevelTaskId: z.uuid(),
-    title: z.string(),
-    instructions: z.string(),
-    agentId: z.uuid(),
-    agentVersionId: z.uuid(),
-    serviceAccountId: z.uuid(),
-    requestedBy: z.string(),
-    status: zTaskStatus,
-    failureReason: zTaskFailureReason.nullable(),
-    dependsOn: z.array(z.uuid()),
-    attempt: z.int().gte(1),
-    primaryArtifactId: z.uuid().nullable(),
-    review: zTaskReviewSettings,
-    reviewRound: z.int().gte(0),
-    acceptanceCriteria: z.array(zAcceptanceCriterion),
-    repository: zTaskRepository.nullable(),
-    taskTemplateId: z.uuid().nullable(),
-    taskTemplateVersion: z.int().gte(1).nullable(),
-    createdAt: z.iso.datetime(),
-    updatedAt: z.iso.datetime(),
-    finishedAt: z.iso.datetime().nullable(),
-    version: z.int().gte(1)
 });
 
 /**
@@ -515,12 +475,16 @@ export const zRequestChangesRequest = z.object({
     comments: z.array(zReviewComment).min(1).max(100)
 });
 
+/**
+ * `paused`: a budget ran out (docs/models.md); the task resumes in a new execution.
+ */
 export const zExecutionStatus = z.enum([
     'provisioning',
     'running',
     'completed',
     'failed',
-    'cancelled'
+    'cancelled',
+    'paused'
 ]);
 
 /**
@@ -587,6 +551,19 @@ export const zModelStatus = z.enum([
  * US dollars as a decimal string, at most 6 decimals (`../docs/api.md`).
  */
 export const zUsd = z.string().regex(/^\d{1,9}(\.\d{1,6})?$/);
+
+export const zCreateTaskRequest = z.object({
+    title: z.string().min(1).max(200),
+    instructions: z.string().min(1).max(100000),
+    agentId: z.uuid(),
+    serviceAccountId: z.uuid(),
+    parentTaskId: z.uuid().nullish(),
+    dependsOn: z.array(z.uuid()).max(50).optional(),
+    review: zTaskReviewSettings.optional(),
+    acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional(),
+    repository: zTaskRepository.nullish(),
+    budgetUsd: zUsd.nullish()
+});
 
 /**
  * The model calls the execution made through the model gateway, and
@@ -695,6 +672,62 @@ export const zModelResponse = z.object({
     version: z.int().gte(1),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime()
+});
+
+/**
+ * What a budget limits (docs/models.md, Budgets): an organization's or
+ * a project's model calls per calendar month (UTC), or a task tree's
+ * over its whole life.
+ *
+ */
+export const zBudgetScope = z.enum([
+    'organization',
+    'project',
+    'task_tree'
+]);
+
+export const zTaskResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    parentTaskId: z.uuid().nullable(),
+    topLevelTaskId: z.uuid(),
+    title: z.string(),
+    instructions: z.string(),
+    agentId: z.uuid(),
+    agentVersionId: z.uuid(),
+    serviceAccountId: z.uuid(),
+    requestedBy: z.string(),
+    status: zTaskStatus,
+    pausedFor: zBudgetScope.nullable(),
+    failureReason: zTaskFailureReason.nullable(),
+    dependsOn: z.array(z.uuid()),
+    attempt: z.int().gte(1),
+    primaryArtifactId: z.uuid().nullable(),
+    review: zTaskReviewSettings,
+    reviewRound: z.int().gte(0),
+    acceptanceCriteria: z.array(zAcceptanceCriterion),
+    repository: zTaskRepository.nullable(),
+    taskTemplateId: z.uuid().nullable(),
+    taskTemplateVersion: z.int().gte(1).nullable(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+    finishedAt: z.iso.datetime().nullable(),
+    version: z.int().gte(1)
+});
+
+export const zSetBudgetRequest = z.object({
+    limitUsd: zUsd.nullable()
+});
+
+export const zBudgetResponse = z.object({
+    scope: zBudgetScope,
+    scopeId: z.uuid(),
+    limitUsd: zUsd.nullable(),
+    spentUsd: zUsd,
+    windowStart: z.iso.datetime().nullable(),
+    thresholdPercent: z.int(),
+    updatedAt: z.iso.datetime().nullable()
 });
 
 /**
@@ -1326,3 +1359,69 @@ export const zAddModelPricePath = z.object({
  * Created
  */
 export const zAddModelPriceResponse = zModelPriceResponse;
+
+export const zGetOrganizationBudgetPath = z.object({
+    organizationId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetOrganizationBudgetResponse = zBudgetResponse;
+
+export const zSetOrganizationBudgetBody = zSetBudgetRequest;
+
+export const zSetOrganizationBudgetPath = z.object({
+    organizationId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zSetOrganizationBudgetResponse = zBudgetResponse;
+
+export const zGetProjectBudgetPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetProjectBudgetResponse = zBudgetResponse;
+
+export const zSetProjectBudgetBody = zSetBudgetRequest;
+
+export const zSetProjectBudgetPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zSetProjectBudgetResponse = zBudgetResponse;
+
+export const zGetTaskTreeBudgetPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    taskId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetTaskTreeBudgetResponse = zBudgetResponse;
+
+export const zSetTaskTreeBudgetBody = zSetBudgetRequest;
+
+export const zSetTaskTreeBudgetPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    taskId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zSetTaskTreeBudgetResponse = zBudgetResponse;

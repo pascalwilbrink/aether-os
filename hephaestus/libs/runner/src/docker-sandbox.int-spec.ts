@@ -5,7 +5,11 @@ import { DataSource } from 'typeorm';
 import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
 import { AgentsService, AgentVersionsService } from '@hephaestus/agents';
 import { SecretStore } from '@hephaestus/core';
-import { LanguageModels, ModelGateway } from '@hephaestus/models';
+import {
+  LanguageModels,
+  BudgetsService,
+  ModelGateway,
+} from '@hephaestus/models';
 import { TasksService } from '@hephaestus/tasks';
 import { WorkspacesService } from '@hephaestus/workspaces';
 
@@ -205,8 +209,9 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
           .useValue(testRunnerOptions({ maxExecutions: 1 }))
           .overrideProvider(AgentRuntime)
           .useFactory({
-            factory: (gateway: ModelGateway) => new MastraAgentRuntime(gateway),
-            inject: [ModelGateway],
+            factory: (gateway: ModelGateway, budgets: BudgetsService) =>
+              new MastraAgentRuntime(gateway, budgets),
+            inject: [ModelGateway, BudgetsService],
           })
           .overrideProvider(SANDBOX_OPTIONS)
           .useValue(sandboxOptions)

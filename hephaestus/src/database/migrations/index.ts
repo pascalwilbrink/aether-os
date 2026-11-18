@@ -13,6 +13,7 @@ import { PullRequestArtifacts1795030000000 } from './1795030000000-PullRequestAr
 import { Deliveries1795031000000 } from './1795031000000-Deliveries.js';
 import { ModelCatalog1795038150208 } from './1795038150208-ModelCatalog.js';
 import { ModelCatalogSeed1795038150209 } from './1795038150209-ModelCatalogSeed.js';
+import { Budgets1795041939868 } from './1795041939868-Budgets.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -36,4 +37,5 @@ export const migrations = [
   Deliveries1795031000000,
   ModelCatalog1795038150208,
   ModelCatalogSeed1795038150209,
+  Budgets1795041939868,
 ];

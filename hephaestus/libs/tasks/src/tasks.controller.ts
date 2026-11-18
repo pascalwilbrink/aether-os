@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Put,
   Query,
   Res,
 } from '@nestjs/common';
@@ -18,19 +19,26 @@ import {
   ZodSerializerDto,
 } from '@hephaestus/core';
 
+import { BudgetResponse, SetBudgetRequest } from '@hephaestus/models';
+
 import { CreateTaskRequest } from './dto/create-task.request.js';
+import { TaskBudgetParams } from './dto/task-budget.params.js';
 import { ListTasksQuery } from './dto/list-tasks.query.js';
 import { TaskPage } from './dto/task-page.response.js';
 import { TaskParams } from './dto/task.params.js';
 import { TaskResponse } from './dto/task.response.js';
 import { TasksParams } from './dto/tasks.params.js';
+import { TaskBudgetsService } from './task-budgets.service.js';
 import { TasksService } from './tasks.service.js';
 
 const IN_PROJECT = { project: 'projectId' };
 
 @Controller('organizations/:organizationId/projects/:projectId/tasks')
 export class TasksController {
-  constructor(private readonly tasks: TasksService) {}
+  constructor(
+    private readonly tasks: TasksService,
+    private readonly taskBudgets: TaskBudgetsService,
+  ) {}
 
   /** 201 for a new task, 200 for the one this `Idempotency-Key` created before. */
   @Post()
@@ -53,7 +61,7 @@ export class TasksController {
         },
       ]);
     }
-    const { task, created } = await this.tasks.create(
+    const { task, created } = await this.taskBudgets.create(
       organizationId,
       projectId,
       body,
@@ -86,6 +94,24 @@ export class TasksController {
   @ZodSerializerDto(TaskResponse)
   cancel(@Param() { organizationId, projectId, taskId }: TaskParams) {
     return this.tasks.cancel(organizationId, projectId, taskId);
+  }
+
+  /** The task tree's budget (its top-level task's). */
+  @Get(':taskId/budget')
+  @RequirePermission('task:read', IN_PROJECT)
+  @ZodSerializerDto(BudgetResponse)
+  getBudget(@Param() { organizationId, projectId, taskId }: TaskBudgetParams) {
+    return this.taskBudgets.get(organizationId, projectId, taskId);
+  }
+
+  @Put(':taskId/budget')
+  @RequirePermission('task:create', IN_PROJECT)
+  @ZodSerializerDto(BudgetResponse)
+  setBudget(
+    @Param() { organizationId, projectId, taskId }: TaskBudgetParams,
+    @Body() { limitUsd }: SetBudgetRequest,
+  ) {
+    return this.taskBudgets.set(organizationId, projectId, taskId, limitUsd);
   }
 
   @Post(':taskId/retry')

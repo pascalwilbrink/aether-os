@@ -2,7 +2,7 @@
 
 How agents reach LLM providers, whose keys they use, and how usage and cost are measured and limited.
 
-Status: agreed design. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/models`, used by the Mastra runtime): the gateway resolving an agent version's model with the organization's key, else the platform's if allowed (`PLATFORM_MODEL_KEYS`), from OpenBao; calls through Mastra's model router with retries on 429/5xx; metering of every call (tokens, cache reads and writes, key source, attribution) in `model_calls`, totalled per execution; and the **model catalogue** (`/v1/models`: models and their versioned prices; agent versions must name an active model, and every call is priced). Not yet: policy checks, budgets and reservations, fallback models, the gateway's HTTP endpoint, and LLM spans to Langfuse.
+Status: agreed design. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/models`, used by the Mastra runtime): the gateway resolving an agent version's model with the organization's key, else the platform's if allowed (`PLATFORM_MODEL_KEYS`), from OpenBao; calls through Mastra's model router with retries on 429/5xx; metering of every call (tokens, cache reads and writes, key source, attribution) in `model_calls`, totalled per execution; and the **model catalogue** (`/v1/models`: models and their versioned prices; agent versions must name an active model, and every call is priced). and **budgets** (below, Built so far). Not yet: policy checks, fallback models, the gateway's HTTP endpoint, and LLM spans to Langfuse.
 
 ## Decisions
 
@@ -72,6 +72,14 @@ Each call records:
 - Proposal: with BYOK, cost is shown for information only (the organization pays its provider directly); with platform keys, the same records are the basis for billing.
 
 ## Budgets
+
+**Built so far** (Hephaestus `libs/models` and the runner), with these differences from the design below:
+
+- **Where they're set:** an organization's and a project's monthly budget through `PUT /v1/organizations/{id}/budget` (`org:manage`) and `…/projects/{id}/budget` (`project:manage`); a task tree's on its top-level task, when it's created (`budgetUsd`) or later (`PUT …/tasks/{taskId}/budget`, `task:create`, through any task of the tree). Not yet: `maxCostUsd` on templates and automations, the project maximum and the project default; a tree without a budget has no tree limit.
+- **Checked after each call, without reservations:** what a scope spent is summed from the calls the gateway recorded; the runner checks before an execution starts, and after each model call (a run whose budget ran out makes no further call). Calls already in flight can overshoot by at most one call per running execution of that scope. Reservations need each call's maximum cost up front, which the gateway can't know for input; they can replace this check later without changing anything else.
+- **Pausing doesn't save the run's state yet:** the execution ends `paused`, its pending artifacts become `partial` and the task resumes in a new execution, as revision runs do today. Saving the agent's state across waits (Tasks: Sandboxes across long waits) will apply here too.
+- **Windows:** calendar months in UTC; a task tree's over its life. `budget.threshold-reached` at 80%, once per window (again after the limit changes). Each runner round resumes paused tasks whose budgets have room (raised, or a new month).
+- Not yet: `pausedTimeoutDays`, budgets in Iris, and Kerykes notifying (the events are published).
 
 | Budget | Set on | Window | Default |
 |---|---|---|---|

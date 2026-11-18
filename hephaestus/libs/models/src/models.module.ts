@@ -10,6 +10,12 @@ import {
 } from '@hephaestus/core';
 
 import { LanguageModels, MastraModelRouter } from './language-models.js';
+import { TenancyModule } from '@hephaestus/tenancy';
+
+import { BudgetEntity } from './budget.entity.js';
+import { BudgetMapper } from './budget.mapper.js';
+import { BudgetsController } from './budgets.controller.js';
+import { BudgetsService } from './budgets.service.js';
 import { ModelCallEntity } from './model-call.entity.js';
 import { ModelCatalogService } from './model-catalog.service.js';
 import { ModelGateway } from './model-gateway.js';
@@ -18,12 +24,18 @@ import { ModelEntity } from './model.entity.js';
 import { ModelMapper } from './model.mapper.js';
 import { ModelsController } from './models.controller.js';
 
-/** The model catalogue, the gateway, OpenBao and metering (docs/models.md). */
+/** The model catalogue, the gateway, OpenBao, metering and budgets (docs/models.md). */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ModelCallEntity, ModelEntity, ModelPriceEntity]),
+    TypeOrmModule.forFeature([
+      ModelCallEntity,
+      ModelEntity,
+      ModelPriceEntity,
+      BudgetEntity,
+    ]),
+    TenancyModule,
   ],
-  controllers: [ModelsController],
+  controllers: [ModelsController, BudgetsController],
   providers: [
     {
       provide: SecretStore,
@@ -44,7 +56,9 @@ import { ModelsController } from './models.controller.js';
     ModelMapper,
     ModelCatalogService,
     ModelGateway,
+    BudgetMapper,
+    BudgetsService,
   ],
-  exports: [ModelGateway, ModelCatalogService],
+  exports: [ModelGateway, ModelCatalogService, BudgetsService],
 })
 export class ModelsModule {}
