@@ -16,6 +16,13 @@ export type ApiOperations = operations;
 export type Agent = ApiSchema<"AgentResponse">;
 export type AgentVersion = ApiSchema<"AgentVersionResponse">;
 export type Workspace = ApiSchema<"WorkspaceResponse">;
+export type Task = ApiSchema<"TaskResponse">;
+export type TaskStatus = ApiSchema<"TaskStatus">;
+export type Execution = ApiSchema<"ExecutionResponse">;
+export type Artifact = ApiSchema<"ArtifactResponse">;
+export type AcceptanceCriterion = ApiSchema<"AcceptanceCriterion">;
+export type TaskTemplate = ApiSchema<"TaskTemplateResponse">;
+export type TaskTemplateVersion = ApiSchema<"TaskTemplateVersionResponse">;
 /** Problem details (RFC 9457): every error response. */
 export type Problem = ApiSchema<"Problem">;
 /** Problem details for a business-rule violation, with a typed `code`. */

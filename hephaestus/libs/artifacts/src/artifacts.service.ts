@@ -161,7 +161,8 @@ export class ArtifactsService {
   /**
    * Makes sure the execution has its outcome: one primary artifact. The one
    * the agent marked; else its final answer, as a text artifact (`Answer`;
-   * a later answer replaces an earlier one, which becomes `partial`); else
+   * a later answer replaces an earlier one, which becomes `partial`; in a
+   * revision run it revises the `Answer` a reviewer sent back); else
    * its latest artifact. False when there is nothing at all. Verification
    * artifacts are never the outcome.
    */
@@ -183,6 +184,10 @@ export class ArtifactsService {
         primary.primary = false;
         await this.setStatus(primary, 'partial');
       }
+      // A revision run's answer revises the answer a reviewer sent back.
+      const sentBack = (await this.revisionRequests(source.taskId)).find(
+        (artifact) => artifact.metadata[FINAL_ANSWER] === 'true',
+      );
       await this.record(source, {
         kind: 'text',
         format: 'markdown',
@@ -190,6 +195,7 @@ export class ArtifactsService {
         content: finalAnswer,
         primary: true,
         metadata: { [FINAL_ANSWER]: 'true' },
+        revisionOf: sentBack?.id,
       });
       return true;
     }

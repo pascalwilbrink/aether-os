@@ -51,7 +51,10 @@ async function Overview({ params }: Pick<PageProps<"/orgs/[organizationId]">, "p
           <ul className="list-inside list-disc text-sm">
             {projects.items.map((project) => (
               <li key={project.id}>
-                {project.name} <span className="text-zinc-500">({project.slug})</span>
+                <Link href={`/orgs/${organizationId}/projects/${project.id}`} className="underline">
+                  {project.name}
+                </Link>{" "}
+                <span className="text-zinc-500">({project.slug})</span>
               </li>
             ))}
           </ul>

@@ -1,0 +1,96 @@
+import Link from "next/link";
+import { Suspense } from "react";
+
+import { getTaskTemplate, getTaskTemplateVersion } from "@/lib/api/hephaestus";
+import { ApiError } from "@/lib/api/http";
+import { listServiceAccounts } from "@/lib/api/pistis";
+import { getProject } from "@/lib/api/polis";
+import { requireOrganization } from "@/lib/auth/current";
+
+import { TemplateTaskForm } from "../../template-task-form";
+
+type Props = PageProps<"/orgs/[organizationId]/projects/[projectId]/templates/[templateId]">;
+
+/** A template's latest version as this project would use it, and a task from it. */
+export default function TemplatePage({ params }: Props) {
+  return (
+    <Suspense fallback={<p>Loading…</p>}>
+      <Template params={params} />
+    </Suspense>
+  );
+}
+
+async function Template({ params }: Pick<Props, "params">) {
+  const { organizationId, projectId, templateId } = await params;
+  const projectPath = `/orgs/${organizationId}/projects/${projectId}`;
+  const session = await requireOrganization(organizationId, `${projectPath}/templates/${templateId}`);
+  const token = session.accessToken;
+  const [project, template, serviceAccounts] = await Promise.all([
+    getProject(token, organizationId, projectId),
+    getTaskTemplate(token, organizationId, templateId),
+    listServiceAccounts(token, organizationId).catch((error: unknown) => {
+      if (error instanceof ApiError && error.status === 403) return { items: [], nextCursor: null };
+      throw error;
+    }),
+  ]);
+  const version = await getTaskTemplateVersion(token, organizationId, templateId, template.latestVersion);
+  const { effective } = version;
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          <Link href={projectPath} className="underline">
+            {project.name}
+          </Link>
+        </p>
+        <h1 className="text-2xl font-semibold">{template.name}</h1>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          {template.projectId ? "This project's template" : "Organization-wide template"} · version{" "}
+          {version.version}
+          {version.content.extends
+            ? ` · extends an organization template (v${version.content.extends.version})`
+            : ""}
+        </p>
+        {template.description ? <p className="mt-2 text-sm">{template.description}</p> : null}
+      </div>
+
+      <section className="space-y-2">
+        <h2 className="font-medium">What a task gets</h2>
+        <p className="text-sm">
+          <span className="text-zinc-500">Title: </span>
+          {effective.title}
+        </p>
+        <pre className="whitespace-pre-wrap rounded-md bg-zinc-100 p-3 text-sm dark:bg-zinc-900">
+          {effective.instructions}
+        </pre>
+        {effective.acceptanceCriteria.length > 0 ? (
+          <ul className="list-inside list-disc text-sm">
+            {effective.acceptanceCriteria.map((criterion) => (
+              <li key={criterion.key}>
+                <span className="font-mono text-xs">{criterion.key}</span> {criterion.description}{" "}
+                <span className="text-xs text-zinc-500">({criterion.check.type})</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
+      {template.status === "archived" ? (
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">Archived: no new tasks from it.</p>
+      ) : (
+        <section className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+          <h2 className="font-medium">New task from this template</h2>
+          <TemplateTaskForm
+            template={{ organizationId, projectId, templateId, version: version.version }}
+            version={version}
+            serviceAccounts={serviceAccounts.items
+              .filter((account) => account.status === "active")
+              .map(({ id, name }) => ({ id, name }))}
+            idempotencyKey={crypto.randomUUID()}
+          />
+        </section>
+      )}
+    </div>
+  );
+}
