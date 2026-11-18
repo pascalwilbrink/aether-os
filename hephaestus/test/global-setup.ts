@@ -19,6 +19,8 @@ import { ArtifactEntity } from '../libs/artifacts/src/artifact.entity.js';
 import { TaskTemplateVersionEntity } from '../libs/templates/src/task-template-version.entity.js';
 import { TaskTemplateEntity } from '../libs/templates/src/task-template.entity.js';
 import { ModelCallEntity } from '../libs/models/src/model-call.entity.js';
+import { ModelEntity } from '../libs/models/src/model.entity.js';
+import { ModelPriceEntity } from '../libs/models/src/model-price.entity.js';
 import { ExecutionEntity } from '../libs/runner/src/execution.entity.js';
 import { TaskEntity } from '../libs/tasks/src/task.entity.js';
 import { WorkspaceEntity } from '../libs/workspaces/src/workspace.entity.js';
@@ -56,6 +58,8 @@ export default async function setup(project: TestProject) {
         TaskEntity,
         ExecutionEntity,
         ModelCallEntity,
+        ModelEntity,
+        ModelPriceEntity,
         ArtifactEntity,
         TaskTemplateEntity,
         TaskTemplateVersionEntity,
@@ -66,6 +70,7 @@ export default async function setup(project: TestProject) {
   await dataSource.runMigrations();
 
   const pending = await dataSource.driver.createSchemaBuilder().log();
+  await seedTestModels(dataSource);
   await dataSource.destroy();
   if (pending.upQueries.length > 0) {
     await Promise.all([postgres.stop(), rabbitmq.stop()]);
@@ -81,4 +86,29 @@ export default async function setup(project: TestProject) {
   return async () => {
     await Promise.all([postgres.stop(), rabbitmq.stop()]);
   };
+}
+
+/**
+ * The models the tests' agent versions name, in the catalogue for the whole
+ * run (tests don't empty it): `anthropic/claude`, and `scripted/scripted-model`
+ * (`test/fake-models.ts`) with a price, so metered calls have a cost.
+ */
+async function seedTestModels(dataSource: DataSource): Promise<void> {
+  for (const [provider, model, price] of [
+    ['anthropic', 'claude', null],
+    ['scripted', 'scripted-model', ['3', '15', '0.3', '3.75']],
+  ] as const) {
+    const [{ id }] = (await dataSource.query(
+      `INSERT INTO models (id, provider, model, name, status, version, created_by, created_at, updated_at)
+       VALUES (gen_random_uuid(), $1, $2, $2, 'active', 1, 'test', now(), now()) RETURNING id`,
+      [provider, model],
+    )) as { id: string }[];
+    if (price) {
+      await dataSource.query(
+        `INSERT INTO model_prices (id, model_id, effective_from, input_per_m_tok, output_per_m_tok, cache_read_per_m_tok, cache_write_per_m_tok, created_by, created_at)
+         VALUES (gen_random_uuid(), $1, '2000-01-01', $2, $3, $4, $5, 'test', now())`,
+        [id, ...price],
+      );
+    }
+  }
 }

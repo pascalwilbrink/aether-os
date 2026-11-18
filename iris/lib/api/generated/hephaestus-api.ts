@@ -72,7 +72,11 @@ export interface paths {
         };
         get: operations["listAgentVersions"];
         put?: never;
-        /** @description Creates a draft version; the version number is assigned by the server. */
+        /**
+         * @description Creates a draft version; the version number is assigned by the
+         *     server. Its model must be an `active` model of the catalogue
+         *     (`MODEL_NOT_AVAILABLE` otherwise).
+         */
         post: operations["createAgentVersion"];
         delete?: never;
         options?: never;
@@ -636,6 +640,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The model catalogue (`../docs/models.md`, Models): the models agent
+         *     versions can name, by name, each with the price in force now.
+         */
+        get: operations["listModels"];
+        put?: never;
+        /** @description Adds a model to the catalogue, with its first price. */
+        post: operations["createModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/models/{modelId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: components["parameters"]["ModelId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getModel"];
+        /**
+         * @description Replaces the model's editable fields. `provider` and `model` never
+         *     change (agent versions name them); prices change with
+         *     `POST …/prices`. `deprecated`: new agent versions can't choose it;
+         *     `retired`: the gateway refuses to call it.
+         */
+        put: operations["updateModel"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/models/{modelId}/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: components["parameters"]["ModelId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listModelPrices"];
+        put?: never;
+        /**
+         * @description A new price from `effectiveFrom` (now if absent). Prices never
+         *     change once recorded, so past calls keep the cost they had; a price
+         *     must start after the model's latest one (`MODEL_PRICE_INVALID`).
+         */
+        post: operations["addModelPrice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -672,7 +744,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "MODEL_ALREADY_EXISTS" | "MODEL_NOT_AVAILABLE" | "MODEL_PRICE_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -1297,14 +1369,127 @@ export interface components {
          */
         ExecutionUsage: {
             modelCalls: number;
+            /** @description Every input token, cache reads and writes included. */
             inputTokens: number;
             outputTokens: number;
+            cacheReadTokens: number;
+            cacheWriteTokens: number;
+            /**
+             * @description The calls' cost at the prices in force when they were made;
+             *     null when none of them had a price (a model outside the
+             *     catalogue).
+             */
+            costUsd: components["schemas"]["Usd"] | null;
         };
         ExecutionPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["ExecutionResponse"][];
         };
         PageMeta: {
             nextCursor: components["schemas"]["NextCursor"];
+        };
+        /**
+         * @description Providers the model gateway can call: each needs code (Mastra's
+         *     model router) and a key in OpenBao (`orgs/{organizationId}/llm/{provider}`
+         *     or `platform/llm/{provider}`), so this list only changes with a release.
+         * @enum {string}
+         */
+        ModelProvider: "anthropic" | "openai" | "google" | "mistral";
+        /**
+         * @description `active`: new agent versions can choose it. `deprecated`: versions
+         *     that already have it keep running, new ones can't choose it.
+         *     `retired`: the gateway refuses to call it.
+         * @enum {string}
+         */
+        ModelStatus: "active" | "deprecated" | "retired";
+        /** @description US dollars as a decimal string, at most 6 decimals (`../docs/api.md`). */
+        Usd: string;
+        /** @description US dollars per million tokens, a decimal string with at most 6 decimals. */
+        PricePerMTok: string;
+        /**
+         * @description Prices per million tokens. Cache reads and writes without a price
+         *     cost what other input does (e.g. OpenAI doesn't charge for writing
+         *     its cache).
+         */
+        ModelRates: {
+            inputPerMTok: components["schemas"]["PricePerMTok"];
+            outputPerMTok: components["schemas"]["PricePerMTok"];
+            cacheReadPerMTok?: components["schemas"]["PricePerMTok"] | null;
+            /** @description Writing to the provider's shortest-lived cache (Anthropic's 5 minutes). */
+            cacheWritePerMTok?: components["schemas"]["PricePerMTok"] | null;
+        };
+        /**
+         * @description Higher prices for a call whose input (cache reads and writes
+         *     included) is over `aboveInputTokens`: the whole call is priced at
+         *     these rates (e.g. Claude Haiku 5.5 above 100,000 tokens).
+         */
+        LongContextRates: components["schemas"]["ModelRates"] & {
+            aboveInputTokens: number;
+        };
+        ModelPriceInput: components["schemas"]["ModelRates"] & {
+            longContext?: components["schemas"]["LongContextRates"] | null;
+        };
+        AddModelPriceRequest: components["schemas"]["ModelPriceInput"] & {
+            /**
+             * Format: date-time
+             * @description When the price starts; now if absent. After the model's latest price.
+             */
+            effectiveFrom?: string;
+        };
+        ModelPriceResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            modelId: string;
+            /** Format: date-time */
+            effectiveFrom: string;
+            inputPerMTok: components["schemas"]["PricePerMTok"];
+            outputPerMTok: components["schemas"]["PricePerMTok"];
+            cacheReadPerMTok: components["schemas"]["PricePerMTok"] | null;
+            cacheWritePerMTok: components["schemas"]["PricePerMTok"] | null;
+            longContext: components["schemas"]["LongContextRates"] | null;
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ModelPricePage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["ModelPriceResponse"][];
+        };
+        CreateModelRequest: {
+            provider: components["schemas"]["ModelProvider"];
+            /** @description The provider's API model ID (`claude-sonnet-5-5`), as agent versions name it. */
+            model: string;
+            /** @description For people (`Claude Sonnet 5.5`). */
+            name: string;
+            contextWindow?: number | null;
+            maxOutputTokens?: number | null;
+            price: components["schemas"]["ModelPriceInput"];
+        };
+        UpdateModelRequest: {
+            name: string;
+            status: components["schemas"]["ModelStatus"];
+            contextWindow: number | null;
+            maxOutputTokens: number | null;
+        };
+        ModelResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @description A `ModelProvider` (a string here, so a provider removed from the list still reads). */
+            provider: string;
+            model: string;
+            name: string;
+            status: components["schemas"]["ModelStatus"];
+            contextWindow: number | null;
+            maxOutputTokens: number | null;
+            /** @description The price in force now; null before its first one starts. */
+            price: components["schemas"]["ModelPriceResponse"] | null;
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ModelPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["ModelResponse"][];
         };
         /** @description Pass as `cursor` to get the next page; `null` on the last page. */
         NextCursor: string | null;
@@ -1412,6 +1597,7 @@ export interface components {
         TaskId: string;
         TemplateId: string;
         ArtifactId: string;
+        ModelId: string;
         /** @description Page size. */
         Limit: number;
         /**
@@ -2518,6 +2704,187 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listModels: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ModelStatus"];
+                provider?: components["schemas"]["ModelProvider"];
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description By name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    getModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: components["parameters"]["ModelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: components["parameters"]["ModelId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listModelPrices: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                modelId: components["parameters"]["ModelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest `effectiveFrom` first, including scheduled ones */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelPricePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    addModelPrice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: components["parameters"]["ModelId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddModelPriceRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelPriceResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
         };
     };
 }

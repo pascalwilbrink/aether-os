@@ -8,6 +8,7 @@ import { SecretStoreUnavailableError } from '@hephaestus/core';
 import {
   ModelGateway,
   ModelKeyMissingError,
+  ModelRetiredError,
   type ModelCallContext,
   type ResolvedModel,
 } from '@hephaestus/models';
@@ -108,6 +109,13 @@ export class MastraAgentRuntime extends AgentRuntime {
               this.gateway.record(context, resolved, {
                 inputTokens: step.usage?.inputTokens,
                 outputTokens: step.usage?.outputTokens,
+                // Mastra's normalized usage: reads and writes of the
+                // provider's prompt cache, both part of inputTokens.
+                cacheReadTokens: step.usage?.cachedInputTokens,
+                cacheWriteTokens: (
+                  step.usage as
+                    { cacheCreationInputTokens?: number } | undefined
+                )?.cacheCreationInputTokens,
                 finishReason: step.finishReason,
               }),
             );
@@ -132,8 +140,11 @@ export class MastraAgentRuntime extends AgentRuntime {
     try {
       return await this.gateway.resolve(context, model);
     } catch (error) {
-      if (error instanceof ModelKeyMissingError) {
-        // A configuration problem: retrying won't add a key.
+      if (
+        error instanceof ModelKeyMissingError ||
+        error instanceof ModelRetiredError
+      ) {
+        // Configuration problems: retrying won't add a key or revive a model.
         throw new RunnerFailure(error.message, 'infrastructure', false);
       }
       if (error instanceof SecretStoreUnavailableError) {

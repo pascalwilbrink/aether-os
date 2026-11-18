@@ -9,7 +9,12 @@ import { SecretStore, type ApiTypes, type Env } from '@hephaestus/core';
 
 import { LanguageModels } from './language-models.js';
 import { ModelCallEntity, type KeySource } from './model-call.entity.js';
-import { ModelKeyMissingError } from './model.errors.js';
+import {
+  ModelCatalogService,
+  type CatalogEntry,
+} from './model-catalog.service.js';
+import { costOf } from './model-cost.js';
+import { ModelKeyMissingError, ModelRetiredError } from './model.errors.js';
 
 /** Who a model call is for: every call is attributed (docs/models.md). */
 export interface ModelCallContext {
@@ -26,11 +31,16 @@ export interface ResolvedModel {
   provider: string;
   modelId: string;
   keySource: KeySource;
+  /** The catalogue's price in force when resolved; null: calls aren't priced. */
+  price: CatalogEntry['price'];
 }
 
+/** One call's usage, as Mastra reports it (input includes cache reads and writes). */
 export interface ModelCallUsage {
   inputTokens?: number;
   outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
   finishReason?: string;
 }
 
@@ -52,12 +62,15 @@ export class ModelGateway {
     private readonly secrets: SecretStore,
     private readonly languageModels: LanguageModels,
     private readonly config: ConfigService<Env, true>,
+    private readonly catalog: ModelCatalogService,
   ) {}
 
   /**
-   * The model to call for an agent version. Throws `ModelKeyMissingError`
-   * when there's no key, and `SecretStoreUnavailableError` when OpenBao
-   * can't answer.
+   * The model to call for an agent version, with the catalogue's price in
+   * force now (a model outside the catalogue, from a version older than it,
+   * is called unpriced). Throws `ModelRetiredError` for a retired model,
+   * `ModelKeyMissingError` when there's no key, and
+   * `SecretStoreUnavailableError` when OpenBao can't answer.
    */
   async resolve(
     context: ModelCallContext,
@@ -67,36 +80,50 @@ export class ModelGateway {
     if (!PROVIDER.test(provider)) {
       throw new ModelKeyMissingError(provider);
     }
+    const entry = await this.catalog.entryFor(provider, modelId, new Date());
+    if (entry?.status === 'retired') {
+      throw new ModelRetiredError(provider, modelId);
+    }
     const key = await this.keyFor(context.organizationId, provider);
     return {
       model: this.languageModels.create(`${provider}/${modelId}`, key.apiKey),
       provider,
       modelId,
       keySource: key.source,
+      price: entry?.price ?? null,
     };
   }
 
-  /** Records one call (one step of the agent loop). */
+  /**
+   * Records one call (one step of the agent loop), priced at the price
+   * resolved with the model: a run that spans a price change keeps one price.
+   */
   async record(
     context: ModelCallContext,
     resolved: ResolvedModel,
     usage: ModelCallUsage,
   ): Promise<void> {
+    const counted = {
+      inputTokens: tokens(usage.inputTokens),
+      outputTokens: tokens(usage.outputTokens),
+      cacheReadTokens: tokens(usage.cacheReadTokens),
+      cacheWriteTokens: tokens(usage.cacheWriteTokens),
+    };
     await this.calls.insert({
       id: uuidv7(),
       ...context,
       provider: resolved.provider,
       model: resolved.modelId,
       keySource: resolved.keySource,
-      inputTokens: tokens(usage.inputTokens),
-      outputTokens: tokens(usage.outputTokens),
-      costUsd: null,
+      ...counted,
+      costUsd: resolved.price ? costOf(resolved.price, counted) : null,
+      priceId: resolved.price?.id ?? null,
       finishReason: usage.finishReason ?? null,
       createdAt: new Date(),
     });
   }
 
-  /** Calls and tokens per execution. */
+  /** Calls, tokens and cost per execution. */
   async usageOf(
     executionIds: string[],
   ): Promise<Map<string, ApiTypes.ExecutionUsage>> {
@@ -110,6 +137,16 @@ export class ModelGateway {
       .addSelect('count(*)::int', 'modelCalls')
       .addSelect('coalesce(sum(call.inputTokens), 0)::int', 'inputTokens')
       .addSelect('coalesce(sum(call.outputTokens), 0)::int', 'outputTokens')
+      .addSelect(
+        'coalesce(sum(call.cacheReadTokens), 0)::int',
+        'cacheReadTokens',
+      )
+      .addSelect(
+        'coalesce(sum(call.cacheWriteTokens), 0)::int',
+        'cacheWriteTokens',
+      )
+      // Null when no call had a price.
+      .addSelect('sum(call.costUsd)::numeric(14, 6)::text', 'costUsd')
       .where({ executionId: In(executionIds) })
       .groupBy('call.executionId')
       .getRawMany()) as ({ executionId: string } & ApiTypes.ExecutionUsage)[];

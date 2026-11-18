@@ -11,11 +11,19 @@ import {
 
 import { LanguageModels, MastraModelRouter } from './language-models.js';
 import { ModelCallEntity } from './model-call.entity.js';
+import { ModelCatalogService } from './model-catalog.service.js';
 import { ModelGateway } from './model-gateway.js';
+import { ModelPriceEntity } from './model-price.entity.js';
+import { ModelEntity } from './model.entity.js';
+import { ModelMapper } from './model.mapper.js';
+import { ModelsController } from './models.controller.js';
 
-/** The model gateway, OpenBao and metering (docs/models.md). */
+/** The model catalogue, the gateway, OpenBao and metering (docs/models.md). */
 @Module({
-  imports: [TypeOrmModule.forFeature([ModelCallEntity])],
+  imports: [
+    TypeOrmModule.forFeature([ModelCallEntity, ModelEntity, ModelPriceEntity]),
+  ],
+  controllers: [ModelsController],
   providers: [
     {
       provide: SecretStore,
@@ -33,8 +41,10 @@ import { ModelGateway } from './model-gateway.js';
       },
     },
     { provide: LanguageModels, useClass: MastraModelRouter },
+    ModelMapper,
+    ModelCatalogService,
     ModelGateway,
   ],
-  exports: [ModelGateway],
+  exports: [ModelGateway, ModelCatalogService],
 })
 export class ModelsModule {}

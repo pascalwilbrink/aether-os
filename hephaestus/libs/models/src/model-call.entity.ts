@@ -47,16 +47,29 @@ export class ModelCallEntity {
   @Column({ type: 'text' })
   keySource: KeySource;
 
-  /** As the provider reported them; null when it didn't. */
+  /**
+   * As the provider reported them; null when it didn't. Input counts every
+   * input token, cache reads and writes included.
+   */
   @Column({ type: 'integer', nullable: true })
   inputTokens: number | null;
 
   @Column({ type: 'integer', nullable: true })
   outputTokens: number | null;
 
-  /** Null until there's a price catalogue (docs/models.md, Models). */
+  @Column({ type: 'integer', nullable: true })
+  cacheReadTokens: number | null;
+
+  @Column({ type: 'integer', nullable: true })
+  cacheWriteTokens: number | null;
+
+  /** At `priceId`; null for a model without a price (outside the catalogue). */
   @Column({ type: 'numeric', precision: 14, scale: 6, nullable: true })
   costUsd: string | null;
+
+  /** The catalogue price the cost was computed with (docs/models.md: versioned). */
+  @Column({ type: 'uuid', nullable: true })
+  priceId: string | null;
 
   @Column({ type: 'text', nullable: true })
   finishReason: string | null;

@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ARTIFACT_NOT_DRAFT' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'TASK_TEMPLATE_ARCHIVED' | 'TASK_TEMPLATE_INPUTS_INVALID' | 'TASK_TEMPLATE_INVALID' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
+export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ARTIFACT_NOT_DRAFT' | 'MODEL_ALREADY_EXISTS' | 'MODEL_NOT_AVAILABLE' | 'MODEL_PRICE_INVALID' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'TASK_TEMPLATE_ARCHIVED' | 'TASK_TEMPLATE_INPUTS_INVALID' | 'TASK_TEMPLATE_INVALID' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
 
 /**
  * Problem details for a business-rule violation.
@@ -703,8 +703,20 @@ export type ExecutionRepository = {
  */
 export type ExecutionUsage = {
     modelCalls: number;
+    /**
+     * Every input token, cache reads and writes included.
+     */
     inputTokens: number;
     outputTokens: number;
+    cacheReadTokens: number;
+    cacheWriteTokens: number;
+    /**
+     * The calls' cost at the prices in force when they were made;
+     * null when none of them had a price (a model outside the
+     * catalogue).
+     *
+     */
+    costUsd: Usd | null;
 };
 
 export type ExecutionPage = PageMeta & {
@@ -713,6 +725,132 @@ export type ExecutionPage = PageMeta & {
 
 export type PageMeta = {
     nextCursor: NextCursor;
+};
+
+/**
+ * Providers the model gateway can call: each needs code (Mastra's
+ * model router) and a key in OpenBao (`orgs/{organizationId}/llm/{provider}`
+ * or `platform/llm/{provider}`), so this list only changes with a release.
+ *
+ */
+export type ModelProvider = 'anthropic' | 'openai' | 'google' | 'mistral';
+
+/**
+ * `active`: new agent versions can choose it. `deprecated`: versions
+ * that already have it keep running, new ones can't choose it.
+ * `retired`: the gateway refuses to call it.
+ *
+ */
+export type ModelStatus = 'active' | 'deprecated' | 'retired';
+
+/**
+ * US dollars as a decimal string, at most 6 decimals (`../docs/api.md`).
+ */
+export type Usd = string;
+
+/**
+ * US dollars per million tokens, a decimal string with at most 6 decimals.
+ */
+export type PricePerMTok = string;
+
+/**
+ * Prices per million tokens. Cache reads and writes without a price
+ * cost what other input does (e.g. OpenAI doesn't charge for writing
+ * its cache).
+ *
+ */
+export type ModelRates = {
+    inputPerMTok: PricePerMTok;
+    outputPerMTok: PricePerMTok;
+    cacheReadPerMTok?: PricePerMTok | null;
+    /**
+     * Writing to the provider's shortest-lived cache (Anthropic's 5 minutes).
+     */
+    cacheWritePerMTok?: PricePerMTok | null;
+};
+
+/**
+ * Higher prices for a call whose input (cache reads and writes
+ * included) is over `aboveInputTokens`: the whole call is priced at
+ * these rates (e.g. Claude Haiku 5.5 above 100,000 tokens).
+ *
+ */
+export type LongContextRates = ModelRates & {
+    aboveInputTokens: number;
+};
+
+export type ModelPriceInput = ModelRates & {
+    longContext?: LongContextRates | null;
+};
+
+export type AddModelPriceRequest = ModelPriceInput & {
+    /**
+     * When the price starts; now if absent. After the model's latest price.
+     */
+    effectiveFrom?: string;
+};
+
+export type ModelPriceResponse = {
+    id: string;
+    modelId: string;
+    effectiveFrom: string;
+    inputPerMTok: PricePerMTok;
+    outputPerMTok: PricePerMTok;
+    cacheReadPerMTok: PricePerMTok | null;
+    cacheWritePerMTok: PricePerMTok | null;
+    longContext: LongContextRates | null;
+    createdBy: string;
+    createdAt: string;
+};
+
+export type ModelPricePage = PageMeta & {
+    items: Array<ModelPriceResponse>;
+};
+
+export type CreateModelRequest = {
+    provider: ModelProvider;
+    /**
+     * The provider's API model ID (`claude-sonnet-5-5`), as agent versions name it.
+     */
+    model: string;
+    /**
+     * For people (`Claude Sonnet 5.5`).
+     */
+    name: string;
+    contextWindow?: number | null;
+    maxOutputTokens?: number | null;
+    price: ModelPriceInput;
+};
+
+export type UpdateModelRequest = {
+    name: string;
+    status: ModelStatus;
+    contextWindow: number | null;
+    maxOutputTokens: number | null;
+};
+
+export type ModelResponse = {
+    id: string;
+    /**
+     * A `ModelProvider` (a string here, so a provider removed from the list still reads).
+     */
+    provider: string;
+    model: string;
+    name: string;
+    status: ModelStatus;
+    contextWindow: number | null;
+    maxOutputTokens: number | null;
+    /**
+     * The price in force now; null before its first one starts.
+     */
+    price: ModelPriceResponse | null;
+    version: number;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type ModelPage = PageMeta & {
+    items: Array<ModelResponse>;
 };
 
 /**
@@ -796,6 +934,8 @@ export type TaskId = string;
 export type TemplateId = string;
 
 export type ArtifactId = string;
+
+export type ModelId = string;
 
 /**
  * Page size.
@@ -2782,3 +2922,280 @@ export type ListTaskExecutionsResponses = {
 };
 
 export type ListTaskExecutionsResponse = ListTaskExecutionsResponses[keyof ListTaskExecutionsResponses];
+
+export type ListModelsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        status?: ModelStatus;
+        provider?: ModelProvider;
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/models';
+};
+
+export type ListModelsErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+};
+
+export type ListModelsError = ListModelsErrors[keyof ListModelsErrors];
+
+export type ListModelsResponses = {
+    /**
+     * By name
+     */
+    200: ModelPage;
+};
+
+export type ListModelsResponse = ListModelsResponses[keyof ListModelsResponses];
+
+export type CreateModelData = {
+    body: CreateModelRequest;
+    path?: never;
+    query?: never;
+    url: '/v1/models';
+};
+
+export type CreateModelErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type CreateModelError = CreateModelErrors[keyof CreateModelErrors];
+
+export type CreateModelResponses = {
+    /**
+     * Created
+     */
+    201: ModelResponse;
+};
+
+export type CreateModelResponse = CreateModelResponses[keyof CreateModelResponses];
+
+export type GetModelData = {
+    body?: never;
+    path: {
+        modelId: string;
+    };
+    query?: never;
+    url: '/v1/models/{modelId}';
+};
+
+export type GetModelErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type GetModelError = GetModelErrors[keyof GetModelErrors];
+
+export type GetModelResponses = {
+    /**
+     * OK
+     */
+    200: ModelResponse;
+};
+
+export type GetModelResponse = GetModelResponses[keyof GetModelResponses];
+
+export type UpdateModelData = {
+    body: UpdateModelRequest;
+    path: {
+        modelId: string;
+    };
+    query?: never;
+    url: '/v1/models/{modelId}';
+};
+
+export type UpdateModelErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type UpdateModelError = UpdateModelErrors[keyof UpdateModelErrors];
+
+export type UpdateModelResponses = {
+    /**
+     * Updated
+     */
+    200: ModelResponse;
+};
+
+export type UpdateModelResponse = UpdateModelResponses[keyof UpdateModelResponses];
+
+export type ListModelPricesData = {
+    body?: never;
+    path: {
+        modelId: string;
+    };
+    query?: {
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/models/{modelId}/prices';
+};
+
+export type ListModelPricesErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListModelPricesError = ListModelPricesErrors[keyof ListModelPricesErrors];
+
+export type ListModelPricesResponses = {
+    /**
+     * Newest `effectiveFrom` first, including scheduled ones
+     */
+    200: ModelPricePage;
+};
+
+export type ListModelPricesResponse = ListModelPricesResponses[keyof ListModelPricesResponses];
+
+export type AddModelPriceData = {
+    body: AddModelPriceRequest;
+    path: {
+        modelId: string;
+    };
+    query?: never;
+    url: '/v1/models/{modelId}/prices';
+};
+
+export type AddModelPriceErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type AddModelPriceError = AddModelPriceErrors[keyof AddModelPriceErrors];
+
+export type AddModelPriceResponses = {
+    /**
+     * Created
+     */
+    201: ModelPriceResponse;
+};
+
+export type AddModelPriceResponse = AddModelPriceResponses[keyof AddModelPriceResponses];

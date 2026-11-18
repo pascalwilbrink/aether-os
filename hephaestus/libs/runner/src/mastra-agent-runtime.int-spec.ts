@@ -157,6 +157,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
         text: 'Lowercased emails at sign-in.',
         inputTokens: 120,
         outputTokens: 9,
+        cachedInputTokens: 100,
       },
     ];
     const { task: created, versionId } = await taskFor();
@@ -170,7 +171,16 @@ describe('MastraAgentRuntime (Postgres)', () => {
     expect(execution).toMatchObject({
       status: 'completed',
       summary: 'Lowercased emails at sign-in.',
-      usage: { modelCalls: 1, inputTokens: 120, outputTokens: 9 },
+      // At the test catalogue's price ($3 in, $0.30 cache reads, $15 out):
+      // 20 × 3 + 100 × 0.3 + 9 × 15 = 225 millionths of a dollar.
+      usage: {
+        modelCalls: 1,
+        inputTokens: 120,
+        outputTokens: 9,
+        cacheReadTokens: 100,
+        cacheWriteTokens: 0,
+        costUsd: '0.000225',
+      },
     });
 
     // The pinned version's model, settings and instructions, with the key.
@@ -201,7 +211,9 @@ describe('MastraAgentRuntime (Postgres)', () => {
       key_source: 'organization',
       input_tokens: 120,
       output_tokens: 9,
-      cost_usd: null,
+      cache_read_tokens: 100,
+      cache_write_tokens: null,
+      cost_usd: '0.000225',
       finish_reason: 'stop',
     });
   });

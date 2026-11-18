@@ -7,6 +7,7 @@ import type {
   ApiSchema,
   Artifact,
   Execution,
+  Model,
   Task,
   TaskStatus,
   TaskTemplate,
@@ -36,7 +37,9 @@ export const createAgent = (token: string, organizationId: string, body: ApiSche
   hephaestus<Agent>(agentsOf(organizationId), token, { method: "POST", body });
 
 export const archiveAgent = (token: string, organizationId: string, agentId: string) =>
-  hephaestus<Agent>(`${agentsOf(organizationId)}/${agentId}/archive`, token, { method: "POST" });
+  hephaestus<Agent>(`${agentsOf(organizationId)}/${agentId}/archive`, token, {
+    method: "POST",
+  });
 
 /** Newest first. */
 export const listAgentVersions = (token: string, organizationId: string, agentId: string) =>
@@ -53,6 +56,11 @@ export const publishAgentVersion = (token: string, organizationId: string, agent
   hephaestus<AgentVersion>(`${agentsOf(organizationId)}/${agentId}/versions/${versionId}/publish`, token, {
     method: "POST",
   });
+
+// --- The model catalogue (the platform's, the same for every organization) ---
+
+/** Active models, by name, each with its current price (the first 100). */
+export const listActiveModels = (token: string) => hephaestus<Page<Model>>("/v1/models?status=active&limit=100", token);
 
 // --- Tasks ---
 
