@@ -12,6 +12,7 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 | `hephaestus.openapi.yaml` | Hephaestus | Iris |
 | `pistis.openapi.yaml` | Pistis | (operators and Iris, once wired) |
 | `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Hephaestus (organization and project events); later Pistis and others |
+| `hephaestus.asyncapi.yaml` | Hephaestus (task events on `hephaestus.events`) | later Kairos, Kriterion, Kerykes, Iris |
 
 ## Authentication in the specs
 

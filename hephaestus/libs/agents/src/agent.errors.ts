@@ -29,3 +29,9 @@ export class InvalidAgentVersionTransitionError extends DomainError {
     );
   }
 }
+
+export class AgentNotPublishedError extends DomainError {
+  constructor(agentId: string) {
+    super(`Agent ${agentId} has no published version.`, 'AGENT_NOT_PUBLISHED');
+  }
+}

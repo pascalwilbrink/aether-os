@@ -2,7 +2,7 @@
 
 How Hephaestus models the work it runs and what that work produces.
 
-Status: design in progress, documentation only. Sections marked **Proposal** are not agreed yet.
+Status: design in progress. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/tasks`): tasks and subtasks, `dependsOn` within a tree, the lifecycle states as a transition table, the agent version pinned at creation, an idempotency key, cancellation of a whole subtree and retries of failed tasks, and the `task.*` events below. Not yet: the runner (executions, sandboxes, timeouts, concurrency), artifacts, templates, verification and approval.
 
 ## Decisions
 

@@ -3,6 +3,8 @@ import { Test, type TestingModule } from '@nestjs/testing';
 
 import {
   AuthModule,
+  HEPHAESTUS_PUBLISHED_EVENTS,
+  HephaestusEventsModule,
   DatabaseModule,
   EventsModule,
   hephaestusConfigModule,
@@ -29,11 +31,12 @@ export async function createTestingModule(
       DatabaseModule,
       EventsModule.forRoot({
         service: 'hephaestus',
-        publish: [],
+        publish: HEPHAESTUS_PUBLISHED_EVENTS,
         subscribe: { polis: POLIS_SUBSCRIPTIONS },
       }),
       // AccessControl; tests act as a principal with actingAs().
       AuthModule.forRoot({ issuer: tokens.issuer, jwks: tokens.jwks }),
+      HephaestusEventsModule,
       ...modules,
     ],
   })

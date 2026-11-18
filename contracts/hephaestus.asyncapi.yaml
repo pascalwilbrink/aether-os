@@ -1,0 +1,201 @@
+asyncapi: 3.0.0
+info:
+  title: Hephaestus events
+  version: 0.1.0
+  description: |
+    Events Hephaestus publishes to the `hephaestus.events` topic exchange on
+    RabbitMQ; the routing key is the event type. Every message is the Krepis
+    `DomainEvent` envelope (see `../docs/events.md`), JSON, persistent, with
+    the event ID as AMQP `messageId` and the event type as `type`.
+
+    Delivery is at least once (transactional outbox and relay): deduplicate on
+    `eventId`, and ignore an event whose `aggregateVersion` (the task's
+    `version`) is not newer than the one already applied for that task.
+
+    Every task event has the task's `projectId` in the envelope. More events
+    (`task.awaiting-review`, `task.verified`, `task.paused` / `task.resumed`)
+    come with the parts of the lifecycle that produce them.
+
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:5672
+    protocol: amqp
+    description: RabbitMQ from ../docker-compose.yml
+
+channels:
+  hephaestusEvents:
+    address: hephaestus.events
+    description: Topic exchange; consumers bind their own durable queue (`<consumer>.hephaestus-events`) to the routing keys they need.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: hephaestus.events
+          type: topic
+          durable: true
+          autoDelete: false
+    messages:
+      taskCreated: { $ref: '#/components/messages/taskCreated' }
+      taskStatusChanged: { $ref: '#/components/messages/taskStatusChanged' }
+      taskSucceeded: { $ref: '#/components/messages/taskSucceeded' }
+      taskFailed: { $ref: '#/components/messages/taskFailed' }
+      taskCancelled: { $ref: '#/components/messages/taskCancelled' }
+
+operations:
+  publishHephaestusEvents:
+    action: send
+    channel: { $ref: '#/channels/hephaestusEvents' }
+    messages:
+      - $ref: '#/channels/hephaestusEvents/messages/taskCreated'
+      - $ref: '#/channels/hephaestusEvents/messages/taskStatusChanged'
+      - $ref: '#/channels/hephaestusEvents/messages/taskSucceeded'
+      - $ref: '#/channels/hephaestusEvents/messages/taskFailed'
+      - $ref: '#/channels/hephaestusEvents/messages/taskCancelled'
+
+components:
+  messages:
+    taskCreated:
+      name: task.created
+      summary: A task (or subtask) was created; its agent version is pinned.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: task.created }
+              payload: { $ref: '#/components/schemas/TaskCreated' }
+    taskStatusChanged:
+      name: task.status-changed
+      summary: A task moved from one state to another.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: task.status-changed }
+              payload: { $ref: '#/components/schemas/TaskStatusChanged' }
+    taskSucceeded:
+      name: task.succeeded
+      summary: A task succeeded (terminal).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: task.succeeded }
+              payload: { $ref: '#/components/schemas/TaskSucceeded' }
+    taskFailed:
+      name: task.failed
+      summary: A task failed (terminal; it can be retried).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: task.failed }
+              payload: { $ref: '#/components/schemas/TaskFailed' }
+    taskCancelled:
+      name: task.cancelled
+      summary: A task was cancelled (terminal).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: task.cancelled }
+              payload: { $ref: '#/components/schemas/TaskCancelled' }
+
+  schemas:
+    Uuid: { type: string, format: uuid }
+    Envelope:
+      type: object
+      description: Krepis's `DomainEvent`.
+      required: [eventId, eventType, schemaVersion, aggregateId, aggregateVersion, occurredAt, organizationId, projectId, actor, payload]
+      properties:
+        eventId: { $ref: '#/components/schemas/Uuid', description: 'UUIDv7; the deduplication key.' }
+        eventType: { type: string }
+        schemaVersion: { type: integer, const: 1 }
+        aggregateId: { $ref: '#/components/schemas/Uuid' }
+        aggregateVersion: { type: integer, minimum: 1 }
+        occurredAt: { type: string, format: date-time }
+        organizationId: { $ref: '#/components/schemas/Uuid' }
+        projectId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        actor:
+          description: The caller whose request caused the event (from its Pistis token); null for system work.
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [sub, sub_type]
+              properties:
+                sub: { type: string }
+                sub_type: { enum: [user, service_account, service] }
+                act:
+                  type: object
+                  properties:
+                    sub: { type: string }
+        payload: { type: object }
+    # ---------- event payloads (the envelope's `payload`) ----------
+    TaskCreated:
+      type: object
+      additionalProperties: false
+      required: [taskId, parentTaskId, topLevelTaskId, agentId, agentVersionId, serviceAccountId, requestedBy, idempotencyKey, status]
+      properties:
+        taskId: { $ref: '#/components/schemas/Uuid' }
+        parentTaskId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        topLevelTaskId: { $ref: '#/components/schemas/Uuid' }
+        agentId: { $ref: '#/components/schemas/Uuid' }
+        agentVersionId: { $ref: '#/components/schemas/Uuid' }
+        serviceAccountId: { $ref: '#/components/schemas/Uuid' }
+        requestedBy: { type: string }
+        idempotencyKey: { type: string }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+    TaskStatusChanged:
+      type: object
+      additionalProperties: false
+      required: [taskId, from, to, reason]
+      properties:
+        taskId: { $ref: '#/components/schemas/Uuid' }
+        from: { $ref: '#/components/schemas/TaskStatus' }
+        to: { $ref: '#/components/schemas/TaskStatus' }
+        reason:
+          type: [string, 'null']
+          description: Why, when there is one (a failure reason, `retry`, `cancelled-with-parent`, `dependencies-met`).
+    TaskSucceeded:
+      type: object
+      additionalProperties: false
+      required: [taskId, topLevelTaskId, requestedBy]
+      properties:
+        taskId: { $ref: '#/components/schemas/Uuid' }
+        topLevelTaskId: { $ref: '#/components/schemas/Uuid' }
+        requestedBy: { type: string }
+    TaskFailed:
+      type: object
+      additionalProperties: false
+      required: [taskId, topLevelTaskId, requestedBy, failureReason]
+      properties:
+        taskId: { $ref: '#/components/schemas/Uuid' }
+        topLevelTaskId: { $ref: '#/components/schemas/Uuid' }
+        requestedBy: { type: string }
+        failureReason: { $ref: '#/components/schemas/TaskFailureReason' }
+    TaskCancelled:
+      type: object
+      additionalProperties: false
+      required: [taskId, topLevelTaskId, cancelledBy]
+      properties:
+        taskId: { $ref: '#/components/schemas/Uuid' }
+        topLevelTaskId: { $ref: '#/components/schemas/Uuid' }
+        cancelledBy:
+          type: [string, 'null']
+          description: The `sub` of whoever cancelled it (the task itself or an ancestor); null when the system did.
+    TaskStatus:
+      enum: [blocked, queued, provisioning, running, verifying, awaiting_review, waiting, paused, delivering, succeeded, failed, cancelled]
+    TaskFailureReason:
+      enum: [agent_failed, verification_failed, rejected, timeout, budget_exceeded, infrastructure, subtask_failed]

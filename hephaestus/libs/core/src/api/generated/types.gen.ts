@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
+export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
 
 /**
  * Problem details for a business-rule violation.
@@ -167,6 +167,75 @@ export type WorkspacePage = PageMeta & {
     items: Array<WorkspaceResponse>;
 };
 
+/**
+ * The lifecycle in `docs/tasks.md` (Task lifecycle).
+ */
+export type TaskStatus = 'blocked' | 'queued' | 'provisioning' | 'running' | 'verifying' | 'awaiting_review' | 'waiting' | 'paused' | 'delivering' | 'succeeded' | 'failed' | 'cancelled';
+
+export type TaskFailureReason = 'agent_failed' | 'verification_failed' | 'rejected' | 'timeout' | 'budget_exceeded' | 'infrastructure' | 'subtask_failed';
+
+export type CreateTaskRequest = {
+    title: string;
+    instructions: string;
+    /**
+     * Its published version is pinned when the task is created.
+     */
+    agentId: string;
+    /**
+     * The Pistis service account the task runs as.
+     */
+    serviceAccountId: string;
+    /**
+     * Makes this a subtask (in the same project).
+     */
+    parentTaskId?: string | null;
+    /**
+     * Tasks under the same top-level task that must succeed first.
+     */
+    dependsOn?: Array<string>;
+};
+
+export type TaskResponse = {
+    id: string;
+    organizationId: string;
+    projectId: string;
+    parentTaskId: string | null;
+    /**
+     * The tree's root (its own ID for a top-level task).
+     */
+    topLevelTaskId: string;
+    title: string;
+    instructions: string;
+    agentId: string;
+    /**
+     * The agent version pinned when the task was created.
+     */
+    agentVersionId: string;
+    serviceAccountId: string;
+    /**
+     * The `sub` of whoever created the task.
+     */
+    requestedBy: string;
+    status: TaskStatus;
+    failureReason: TaskFailureReason | null;
+    dependsOn: Array<string>;
+    /**
+     * 1, plus one per retry.
+     */
+    attempt: number;
+    createdAt: string;
+    updatedAt: string;
+    finishedAt: string | null;
+    /**
+     * The `aggregateVersion` of its latest event.
+     */
+    version: number;
+};
+
+export type TaskPage = PageMeta & {
+    items: Array<TaskResponse>;
+};
+
 export type PageMeta = {
     nextCursor: NextCursor;
 };
@@ -244,6 +313,10 @@ export type AgentId = string;
 export type VersionId = string;
 
 export type WorkspaceId = string;
+
+export type ProjectId = string;
+
+export type TaskId = string;
 
 /**
  * Page size.
@@ -1192,3 +1265,283 @@ export type DestroyWorkspaceResponses = {
 };
 
 export type DestroyWorkspaceResponse = DestroyWorkspaceResponses[keyof DestroyWorkspaceResponses];
+
+export type ListTasksData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+    };
+    query?: {
+        /**
+         * Only the subtasks of this task.
+         */
+        parentTaskId?: string;
+        status?: TaskStatus;
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/tasks';
+};
+
+export type ListTasksErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListTasksError = ListTasksErrors[keyof ListTasksErrors];
+
+export type ListTasksResponses = {
+    /**
+     * Newest first
+     */
+    200: TaskPage;
+};
+
+export type ListTasksResponse = ListTasksResponses[keyof ListTasksResponses];
+
+export type CreateTaskData = {
+    body: CreateTaskRequest;
+    headers: {
+        'Idempotency-Key': string;
+    };
+    path: {
+        organizationId: string;
+        projectId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/tasks';
+};
+
+export type CreateTaskErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type CreateTaskError = CreateTaskErrors[keyof CreateTaskErrors];
+
+export type CreateTaskResponses = {
+    /**
+     * Already created with this `Idempotency-Key`
+     */
+    200: TaskResponse;
+    /**
+     * Created
+     */
+    201: TaskResponse;
+};
+
+export type CreateTaskResponse = CreateTaskResponses[keyof CreateTaskResponses];
+
+export type GetTaskData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+        taskId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}';
+};
+
+export type GetTaskErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type GetTaskError = GetTaskErrors[keyof GetTaskErrors];
+
+export type GetTaskResponses = {
+    /**
+     * OK
+     */
+    200: TaskResponse;
+};
+
+export type GetTaskResponse = GetTaskResponses[keyof GetTaskResponses];
+
+export type CancelTaskData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+        taskId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/cancel';
+};
+
+export type CancelTaskErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type CancelTaskError = CancelTaskErrors[keyof CancelTaskErrors];
+
+export type CancelTaskResponses = {
+    /**
+     * Cancelled (or already cancelled)
+     */
+    200: TaskResponse;
+};
+
+export type CancelTaskResponse = CancelTaskResponses[keyof CancelTaskResponses];
+
+export type RetryTaskData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+        taskId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/retry';
+};
+
+export type RetryTaskErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type RetryTaskError = RetryTaskErrors[keyof RetryTaskErrors];
+
+export type RetryTaskResponses = {
+    /**
+     * Queued again (or blocked on its dependencies)
+     */
+    200: TaskResponse;
+};
+
+export type RetryTaskResponse = RetryTaskResponses[keyof RetryTaskResponses];

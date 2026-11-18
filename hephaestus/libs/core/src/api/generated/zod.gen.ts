@@ -4,10 +4,14 @@ import * as z from 'zod';
 
 export const zDomainErrorCode = z.enum([
     'AGENT_ARCHIVED',
+    'AGENT_NOT_PUBLISHED',
     'AGENT_VERSION_CONFLICT',
     'AGENT_VERSION_INVALID_TRANSITION',
     'ORGANIZATION_SUSPENDED',
     'PROJECT_ARCHIVED',
+    'TASK_DEPENDENCY_INVALID',
+    'TASK_INVALID_TRANSITION',
+    'TASK_PARENT_FINISHED',
     'WORKSPACE_INVALID_EXPIRY',
     'WORKSPACE_INVALID_TRANSITION'
 ]);
@@ -164,6 +168,65 @@ export const zWorkspaceResponse = z.object({
 });
 
 /**
+ * The lifecycle in `docs/tasks.md` (Task lifecycle).
+ */
+export const zTaskStatus = z.enum([
+    'blocked',
+    'queued',
+    'provisioning',
+    'running',
+    'verifying',
+    'awaiting_review',
+    'waiting',
+    'paused',
+    'delivering',
+    'succeeded',
+    'failed',
+    'cancelled'
+]);
+
+export const zTaskFailureReason = z.enum([
+    'agent_failed',
+    'verification_failed',
+    'rejected',
+    'timeout',
+    'budget_exceeded',
+    'infrastructure',
+    'subtask_failed'
+]);
+
+export const zCreateTaskRequest = z.object({
+    title: z.string().min(1).max(200),
+    instructions: z.string().min(1).max(100000),
+    agentId: z.uuid(),
+    serviceAccountId: z.uuid(),
+    parentTaskId: z.uuid().nullish(),
+    dependsOn: z.array(z.uuid()).max(50).optional()
+});
+
+export const zTaskResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    parentTaskId: z.uuid().nullable(),
+    topLevelTaskId: z.uuid(),
+    title: z.string(),
+    instructions: z.string(),
+    agentId: z.uuid(),
+    agentVersionId: z.uuid(),
+    serviceAccountId: z.uuid(),
+    requestedBy: z.string(),
+    status: zTaskStatus,
+    failureReason: zTaskFailureReason.nullable(),
+    dependsOn: z.array(z.uuid()),
+    attempt: z.int().gte(1),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+    finishedAt: z.iso.datetime().nullable(),
+    version: z.int().gte(1)
+});
+
+/**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
 export const zNextCursor = z.string().nullable();
@@ -182,6 +245,10 @@ export const zAgentVersionPage = zPageMeta.and(z.object({
 
 export const zWorkspacePage = zPageMeta.and(z.object({
     items: z.array(zWorkspaceResponse)
+}));
+
+export const zTaskPage = zPageMeta.and(z.object({
+    items: z.array(zTaskResponse)
 }));
 
 /**
@@ -231,6 +298,10 @@ export const zAgentId = z.uuid();
 export const zVersionId = z.uuid();
 
 export const zWorkspaceId = z.uuid();
+
+export const zProjectId = z.uuid();
+
+export const zTaskId = z.uuid();
 
 /**
  * Page size.
@@ -436,3 +507,69 @@ export const zDestroyWorkspacePath = z.object({
  * Transition applied
  */
 export const zDestroyWorkspaceResponse = zWorkspaceResponse;
+
+export const zListTasksPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid()
+});
+
+export const zListTasksQuery = z.object({
+    parentTaskId: z.uuid().optional(),
+    status: zTaskStatus.optional(),
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListTasksResponse = zTaskPage;
+
+export const zCreateTaskBody = zCreateTaskRequest;
+
+export const zCreateTaskHeaders = z.object({
+    'Idempotency-Key': z.string().min(1).max(200)
+});
+
+export const zCreateTaskPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid()
+});
+
+/**
+ * Already created with this `Idempotency-Key`
+ */
+export const zCreateTaskResponse = zTaskResponse;
+
+export const zGetTaskPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    taskId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetTaskResponse = zTaskResponse;
+
+export const zCancelTaskPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    taskId: z.uuid()
+});
+
+/**
+ * Cancelled (or already cancelled)
+ */
+export const zCancelTaskResponse = zTaskResponse;
+
+export const zRetryTaskPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    taskId: z.uuid()
+});
+
+/**
+ * Queued again (or blocked on its dependencies)
+ */
+export const zRetryTaskResponse = zTaskResponse;
