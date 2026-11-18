@@ -2,6 +2,50 @@
 // (@aether-os/contracts). Do not edit it by hand; run `pnpm generate:api`.
 
 /**
+ * Payload of `artifact.created`.
+ */
+export interface ArtifactCreated {
+  artifactId: string;
+  taskId: string;
+  executionId: string;
+  /**
+   * An open set: `text`, `json` so far.
+   */
+  kind: string;
+  status:
+    | 'pending'
+    | 'draft'
+    | 'final'
+    | 'rejected'
+    | 'changes_requested'
+    | 'partial';
+  primary: boolean;
+}
+
+/**
+ * Payload of `artifact.status-changed`.
+ */
+export interface ArtifactStatusChanged {
+  artifactId: string;
+  taskId: string;
+  from:
+    | 'pending'
+    | 'draft'
+    | 'final'
+    | 'rejected'
+    | 'changes_requested'
+    | 'partial';
+  to:
+    | 'pending'
+    | 'draft'
+    | 'final'
+    | 'rejected'
+    | 'changes_requested'
+    | 'partial';
+  revisionOf: string | null;
+}
+
+/**
  * Payload of `task.cancelled`.
  */
 export interface TaskCancelled {
@@ -102,10 +146,17 @@ export interface TaskSucceeded {
   taskId: string;
   topLevelTaskId: string;
   requestedBy: string;
+  primaryArtifactId: string;
+  /**
+   * Every `final` artifact of the task, the primary one included.
+   */
+  artifactIds: string[];
 }
 
 /** Every Hephaestus event type, mapped to its payload. */
 export interface HephaestusEventPayloads {
+  'artifact.created': ArtifactCreated;
+  'artifact.status-changed': ArtifactStatusChanged;
   'task.cancelled': TaskCancelled;
   'task.created': TaskCreated;
   'task.failed': TaskFailed;
@@ -117,6 +168,8 @@ export type HephaestusEventType = keyof HephaestusEventPayloads;
 
 /** Every Hephaestus event type in the spec. */
 export const HEPHAESTUS_EVENT_TYPES = [
+  'artifact.created',
+  'artifact.status-changed',
   'task.cancelled',
   'task.created',
   'task.failed',

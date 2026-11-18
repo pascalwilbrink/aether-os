@@ -154,4 +154,63 @@ describe('Running tasks (e2e)', () => {
       )
       .expect(404);
   });
+
+  it('lists and reads the artifacts a task produced', async () => {
+    const taskId = await queuedTask();
+    const runner = app.get(TaskRunner);
+    await runner.tick();
+    await runner.drain();
+
+    const task = await owner.get(`${base}/${taskId}`).expect(200);
+    const list = await owner.get(`${base}/${taskId}/artifacts`).expect(200);
+    expect(list.body).toEqual({
+      items: [
+        {
+          id: task.body.primaryArtifactId,
+          organizationId: orgId,
+          projectId,
+          taskId,
+          executionId: expect.any(String),
+          agentVersionId: task.body.agentVersionId,
+          kind: 'text',
+          status: 'final',
+          primary: true,
+          revisionOf: null,
+          title: 'Answer',
+          metadata: {},
+          format: 'markdown',
+          content: 'Done.',
+          createdAt: expect.any(String),
+          updatedAt: expect.any(String),
+          version: 2,
+        },
+      ],
+      nextCursor: null,
+    });
+    await owner
+      .get(`${base}/${taskId}/artifacts`)
+      .query({ status: 'partial' })
+      .expect(200)
+      .expect(({ body }) => expect(body.items).toEqual([]));
+
+    const artifactPath = `${base}/${taskId}/artifacts/${task.body.primaryArtifactId}`;
+    const one = await owner.get(artifactPath).expect(200);
+    expect(one.body).toEqual(list.body.items[0]);
+
+    // Task permissions in the project; another task's or project's is a 404.
+    await (
+      await asMember(app, orgId, ['member'])
+    )
+      .get(artifactPath)
+      .expect(404);
+    await (
+      await asMember(app, orgId, ['member'], { [projectId]: 'viewer' })
+    )
+      .get(artifactPath)
+      .expect(200);
+    await owner.get(`${base}/${taskId}/artifacts/${MISSING_ID}`).expect(404);
+    await owner
+      .get(`${base}/${MISSING_ID}/artifacts/${task.body.primaryArtifactId}`)
+      .expect(404);
+  });
 });

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.8.0
+  version: 0.9.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -503,6 +503,58 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
+  /v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      tags: [artifacts]
+      operationId: listTaskArtifacts
+      x-permission: '`task:read` in the project'
+      description: |
+        What the task produced (docs/tasks.md, Artifacts), across its
+        executions: the primary artifact and others once it succeeded,
+        `partial` ones from failed executions, `pending` ones while it runs.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/ArtifactStatus' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ArtifactPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TaskId'
+      - $ref: '#/components/parameters/ArtifactId'
+    get:
+      tags: [artifacts]
+      operationId: getTaskArtifact
+      x-permission: '`task:read` in the project'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ArtifactResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/executions:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
@@ -559,6 +611,11 @@ components:
       schema: { type: string, format: uuid }
     TaskId:
       name: taskId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ArtifactId:
+      name: artifactId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -890,7 +947,7 @@ components:
           description: Tasks under the same top-level task that must succeed first.
     TaskResponse:
       type: object
-      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, dependsOn, attempt, createdAt, updatedAt, finishedAt, version]
+      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, dependsOn, attempt, primaryArtifactId, createdAt, updatedAt, finishedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -918,6 +975,10 @@ components:
           type: array
           items: { type: string, format: uuid }
         attempt: { type: integer, minimum: 1, description: '1, plus one per retry.' }
+        primaryArtifactId:
+          type: [string, 'null']
+          format: uuid
+          description: The outcome of a succeeded task (docs/tasks.md, Primary artifact); null otherwise.
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         finishedAt: { type: [string, 'null'], format: date-time }
@@ -931,6 +992,73 @@ components:
             items:
               type: array
               items: { $ref: '#/components/schemas/TaskResponse' }
+    ArtifactStatus:
+      type: string
+      enum: [pending, draft, final, rejected, changes_requested, partial]
+      description: |
+        `pending`: recorded while its execution runs; becomes `final` when
+        the task succeeds, `partial` when the execution fails. `draft`,
+        `rejected` and `changes_requested` come with reviews.
+    ArtifactBase:
+      type: object
+      required: [id, organizationId, projectId, taskId, executionId, agentVersionId, kind, status, primary, revisionOf, title, metadata, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        taskId: { type: string, format: uuid }
+        executionId: { type: string, format: uuid }
+        agentVersionId: { type: string, format: uuid }
+        kind: { type: string }
+        status: { $ref: '#/components/schemas/ArtifactStatus' }
+        primary: { type: boolean }
+        revisionOf: { type: [string, 'null'], format: uuid }
+        title: { type: string }
+        metadata:
+          type: object
+          additionalProperties: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+    TextArtifact:
+      allOf:
+        - $ref: '#/components/schemas/ArtifactBase'
+        - type: object
+          required: [kind, format, content]
+          properties:
+            kind: { type: string, const: text }
+            format: { type: string, enum: [markdown, plain] }
+            content: { type: string }
+    JsonArtifact:
+      allOf:
+        - $ref: '#/components/schemas/ArtifactBase'
+        - type: object
+          required: [kind, schema, content]
+          properties:
+            kind: { type: string, const: json }
+            schema:
+              type: [string, 'null']
+              description: An optional identifier of the content's schema.
+            content: {}
+    ArtifactResponse:
+      description: One artifact; `kind` says which (an open set).
+      oneOf:
+        - $ref: '#/components/schemas/TextArtifact'
+        - $ref: '#/components/schemas/JsonArtifact'
+      discriminator:
+        propertyName: kind
+        mapping:
+          text: '#/components/schemas/TextArtifact'
+          json: '#/components/schemas/JsonArtifact'
+    ArtifactPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/ArtifactResponse' }
     ExecutionStatus:
       type: string
       enum: [provisioning, running, completed, failed, cancelled]

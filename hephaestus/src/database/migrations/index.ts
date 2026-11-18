@@ -4,6 +4,7 @@ import { Tasks1794781888697 } from './1794781888697-Tasks.js';
 import { Executions1794997258610 } from './1794997258610-Executions.js';
 import { ModelCalls1794998423374 } from './1794998423374-ModelCalls.js';
 import { WorkspaceWithoutRepository1795001165465 } from './1795001165465-WorkspaceWithoutRepository.js';
+import { Artifacts1795002247274 } from './1795002247274-Artifacts.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -18,4 +19,5 @@ export const migrations = [
   Executions1794997258610,
   ModelCalls1794998423374,
   WorkspaceWithoutRepository1795001165465,
+  Artifacts1795002247274,
 ];

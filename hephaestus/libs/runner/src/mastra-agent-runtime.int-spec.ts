@@ -3,6 +3,7 @@ import { DataSource } from 'typeorm';
 
 import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
 import { AgentsService, AgentVersionsService } from '@hephaestus/agents';
+import { ArtifactsService } from '@hephaestus/artifacts';
 import { LanguageModels, ModelGateway, SecretStore } from '@hephaestus/models';
 import { TasksService } from '@hephaestus/tasks';
 
@@ -201,6 +202,62 @@ describe('MastraAgentRuntime (Postgres)', () => {
       output_tokens: 9,
       cost_usd: null,
       finish_reason: 'stop',
+    });
+  });
+
+  it('records what the agent submits with submit_artifact', async () => {
+    secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
+      apiKey: 'sk-organization',
+    });
+    models.replies = [
+      {
+        toolCall: {
+          tool: 'submit_artifact',
+          input: {
+            kind: 'json',
+            title: 'Fix',
+            content: '{"fixed":true}',
+            primary: true,
+          },
+        },
+      },
+      {
+        toolCall: {
+          tool: 'submit_artifact',
+          input: { kind: 'json', title: 'Broken', content: 'not json' },
+        },
+      },
+      { text: 'All done.' },
+    ];
+    const { task: created } = await taskFor();
+
+    await runOnce();
+
+    await expect(task(created.id)).resolves.toMatchObject({
+      status: 'succeeded',
+    });
+    // The invalid one went back to the agent as a tool error.
+    expect(JSON.stringify(models.calls[2].prompt.at(-1))).toContain(
+      'content is not valid JSON',
+    );
+    const artifacts = (
+      await moduleRef
+        .get(ArtifactsService)
+        .list(organizationId, projectId, created.id, { limit: 10 })
+    ).items;
+    expect(artifacts).toEqual([
+      expect.objectContaining({
+        kind: 'json',
+        title: 'Fix',
+        content: { fixed: true },
+        status: 'final',
+        primary: true,
+      }),
+    ]);
+    const [execution] = await executionsOf(created.id);
+    expect(execution).toMatchObject({
+      summary: 'All done.',
+      usage: { modelCalls: 3 },
     });
   });
 

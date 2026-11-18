@@ -3,6 +3,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, LessThan, type Repository } from 'typeorm';
 
 import { findPage, mapPage, Transactional, type Page } from '@hephaestus/core';
+import {
+  ArtifactRejectedError,
+  ArtifactsService,
+  type ArtifactSource,
+  type NewArtifact,
+} from '@hephaestus/artifacts';
 import { ModelGateway } from '@hephaestus/models';
 import {
   InvalidTaskTransitionError,
@@ -62,6 +68,7 @@ export class ExecutionsService {
     private readonly tasks: TasksService,
     private readonly queue: TaskQueue,
     private readonly gateway: ModelGateway,
+    private readonly artifacts: ArtifactsService,
     @Inject(RUNNER_OPTIONS) private readonly options: RunnerOptions,
   ) {}
 
@@ -149,17 +156,54 @@ export class ExecutionsService {
    * goes straight through `verifying` and `delivering` to `succeeded`.
    */
   @Transactional()
-  async complete(executionId: string, summary: string): Promise<void> {
-    const execution = await this.lock(executionId);
+  async complete(source: ArtifactSource, summary: string): Promise<void> {
+    const execution = await this.lock(source.executionId);
     if (execution?.status !== 'running') {
       return;
     }
+    const outcome = await this.artifacts.complete(source, summary);
+    if (!outcome) {
+      // Finished without anything to show for it.
+      await this.end(execution, 'failed', {
+        failureReason: 'agent_failed',
+        error:
+          'The agent finished without an outcome (no answer, no artifacts)',
+      });
+      await this.moveTask(execution, [['fail', 'agent_failed']], {
+        failureReason: 'agent_failed',
+      });
+      return;
+    }
     await this.end(execution, 'completed', { summary });
-    await this.moveTask(execution, [
-      ['verify', 'agent-finished'],
-      ['deliver', 'nothing-to-verify'],
-      ['succeed', 'nothing-to-deliver'],
-    ]);
+    await this.moveTask(
+      execution,
+      [
+        ['verify', 'agent-finished'],
+        ['deliver', 'nothing-to-verify'],
+        ['succeed', 'nothing-to-deliver'],
+      ],
+      { outcome },
+    );
+  }
+
+  /**
+   * Records an artifact the agent produced, while its execution runs
+   * (`ArtifactRejectedError` once it ended: nothing is recorded for an
+   * execution that's over).
+   */
+  @Transactional()
+  async recordArtifact(
+    source: ArtifactSource,
+    input: NewArtifact,
+  ): Promise<string> {
+    const execution = await this.executions.findOne({
+      where: { id: source.executionId },
+      lock: { mode: 'pessimistic_read' },
+    });
+    if (execution?.status !== 'running') {
+      throw new ArtifactRejectedError('The execution has ended');
+    }
+    return (await this.artifacts.record(source, input)).id;
   }
 
   /**
@@ -180,6 +224,7 @@ export class ExecutionsService {
       return;
     }
     await this.end(execution, 'failed', { failureReason: reason, error });
+    await this.artifacts.abandon(execution.id);
 
     if (reason === 'interrupted') {
       await this.moveTask(execution, [['requeue', 'interrupted']]);
@@ -212,6 +257,7 @@ export class ExecutionsService {
     const execution = await this.lock(executionId);
     if (execution && ACTIVE_EXECUTION.includes(execution.status)) {
       await this.end(execution, 'cancelled', {});
+      await this.artifacts.abandon(execution.id);
     }
   }
 
@@ -304,7 +350,11 @@ export class ExecutionsService {
   private async moveTask(
     execution: ExecutionEntity,
     steps: [Parameters<TasksService['transition']>[2], string][],
-    options: { notBefore?: Date; failureReason?: TaskFailureReason } = {},
+    options: {
+      notBefore?: Date;
+      failureReason?: TaskFailureReason;
+      outcome?: { primaryArtifactId: string; artifactIds: string[] };
+    } = {},
   ): Promise<boolean> {
     try {
       for (const [action, reason] of steps) {
@@ -313,7 +363,7 @@ export class ExecutionsService {
           execution.taskId,
           action,
           options.failureReason ?? null,
-          { notBefore: options.notBefore, reason },
+          { notBefore: options.notBefore, reason, outcome: options.outcome },
         );
       }
       return true;

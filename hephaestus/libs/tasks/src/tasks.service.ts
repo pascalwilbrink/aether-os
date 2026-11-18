@@ -252,7 +252,12 @@ export class TasksService {
     taskId: string,
     action: Exclude<TaskAction, 'cancel' | 'retry'>,
     failureReason: TaskFailureReason | null = null,
-    options: { notBefore?: Date; reason?: string } = {},
+    options: {
+      notBefore?: Date;
+      reason?: string;
+      /** Required to `succeed`: the artifacts it produced. */
+      outcome?: { primaryArtifactId: string; artifactIds: string[] };
+    } = {},
   ): Promise<TaskResponse> {
     const task = await this.tasks.findOne({
       where: { id: taskId, organizationId },
@@ -268,6 +273,12 @@ export class TasksService {
     if (next === 'failed' && !failureReason) {
       throw new Error('A failed task needs a failure reason');
     }
+    if (next === 'succeeded') {
+      if (!options.outcome) {
+        throw new Error('A succeeded task needs its primary artifact');
+      }
+      task.primaryArtifactId = options.outcome.primaryArtifactId;
+    }
     // Only a requeued task waits (backoff); anything else starts afresh.
     task.nextAttemptAt =
       action === 'requeue' ? (options.notBefore ?? null) : null;
@@ -277,6 +288,7 @@ export class TasksService {
       options.reason ?? failureReason ?? action,
       next === 'failed' ? failureReason : null,
       null,
+      options.outcome?.artifactIds ?? [],
     );
     if (next === 'succeeded') {
       await this.unblockDependents(task);
@@ -303,6 +315,7 @@ export class TasksService {
     reason: string | null,
     failureReason: TaskFailureReason | null,
     cancelledBy: string | null,
+    artifactIds: string[] = [],
   ): Promise<void> {
     const from = task.status;
     const now = new Date();
@@ -334,6 +347,8 @@ export class TasksService {
           taskId: task.id,
           topLevelTaskId: task.topLevelTaskId,
           requestedBy: task.requestedBy,
+          primaryArtifactId: task.primaryArtifactId!,
+          artifactIds,
         },
       });
     } else if (to === 'failed' && failureReason) {

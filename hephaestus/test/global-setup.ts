@@ -15,6 +15,7 @@ import { AgentVersionEntity } from '../libs/agents/src/agent-version.entity.js';
 import { AgentEntity } from '../libs/agents/src/agent.entity.js';
 import { OrganizationStateEntity } from '../libs/tenancy/src/organization-state.entity.js';
 import { ProjectStateEntity } from '../libs/tenancy/src/project-state.entity.js';
+import { ArtifactEntity } from '../libs/artifacts/src/artifact.entity.js';
 import { ModelCallEntity } from '../libs/models/src/model-call.entity.js';
 import { ExecutionEntity } from '../libs/runner/src/execution.entity.js';
 import { TaskEntity } from '../libs/tasks/src/task.entity.js';
@@ -53,6 +54,7 @@ export default async function setup(project: TestProject) {
         TaskEntity,
         ExecutionEntity,
         ModelCallEntity,
+        ArtifactEntity,
       ],
     }),
   );

@@ -327,7 +327,10 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
     await expect(
       tasks.findById(organizationId, projectId, task.id),
     ).resolves.toMatchObject({ status: 'succeeded' });
-    expect(models.calls[0].tools ?? []).toEqual([]);
+    // Only its own tool for recording artifacts.
+    expect((models.calls[0].tools ?? []).map((tool) => tool.name)).toEqual([
+      'submit_artifact',
+    ]);
     expect(await workspaces()).toEqual([]);
   });
 });

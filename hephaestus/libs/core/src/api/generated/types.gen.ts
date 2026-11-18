@@ -232,6 +232,10 @@ export type TaskResponse = {
      * 1, plus one per retry.
      */
     attempt: number;
+    /**
+     * The outcome of a succeeded task (docs/tasks.md, Primary artifact); null otherwise.
+     */
+    primaryArtifactId: string | null;
     createdAt: string;
     updatedAt: string;
     finishedAt: string | null;
@@ -243,6 +247,62 @@ export type TaskResponse = {
 
 export type TaskPage = PageMeta & {
     items: Array<TaskResponse>;
+};
+
+/**
+ * `pending`: recorded while its execution runs; becomes `final` when
+ * the task succeeds, `partial` when the execution fails. `draft`,
+ * `rejected` and `changes_requested` come with reviews.
+ *
+ */
+export type ArtifactStatus = 'pending' | 'draft' | 'final' | 'rejected' | 'changes_requested' | 'partial';
+
+export type ArtifactBase = {
+    id: string;
+    organizationId: string;
+    projectId: string;
+    taskId: string;
+    executionId: string;
+    agentVersionId: string;
+    kind: string;
+    status: ArtifactStatus;
+    primary: boolean;
+    revisionOf: string | null;
+    title: string;
+    metadata: {
+        [key: string]: string;
+    };
+    createdAt: string;
+    updatedAt: string;
+    version: number;
+};
+
+export type TextArtifact = ArtifactBase & {
+    kind: 'text';
+    format: 'markdown' | 'plain';
+    content: string;
+};
+
+export type JsonArtifact = ArtifactBase & {
+    kind: 'json';
+    /**
+     * An optional identifier of the content's schema.
+     */
+    schema: string | null;
+    content: unknown;
+};
+
+/**
+ * One artifact; `kind` says which (an open set).
+ */
+export type ArtifactResponse = ({
+    kind: 'text';
+} & TextArtifact) | ({
+    kind: 'json';
+} & JsonArtifact);
+
+export type ArtifactPage = PageMeta & {
+    items: Array<ArtifactResponse>;
 };
 
 export type ExecutionStatus = 'provisioning' | 'running' | 'completed' | 'failed' | 'cancelled';
@@ -379,6 +439,8 @@ export type WorkspaceId = string;
 export type ProjectId = string;
 
 export type TaskId = string;
+
+export type ArtifactId = string;
 
 /**
  * Page size.
@@ -1607,6 +1669,116 @@ export type RetryTaskResponses = {
 };
 
 export type RetryTaskResponse = RetryTaskResponses[keyof RetryTaskResponses];
+
+export type ListTaskArtifactsData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+        taskId: string;
+    };
+    query?: {
+        status?: ArtifactStatus;
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts';
+};
+
+export type ListTaskArtifactsErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListTaskArtifactsError = ListTaskArtifactsErrors[keyof ListTaskArtifactsErrors];
+
+export type ListTaskArtifactsResponses = {
+    /**
+     * Oldest first
+     */
+    200: ArtifactPage;
+};
+
+export type ListTaskArtifactsResponse = ListTaskArtifactsResponses[keyof ListTaskArtifactsResponses];
+
+export type GetTaskArtifactData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+        taskId: string;
+        artifactId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}';
+};
+
+export type GetTaskArtifactErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type GetTaskArtifactError = GetTaskArtifactErrors[keyof GetTaskArtifactErrors];
+
+export type GetTaskArtifactResponses = {
+    /**
+     * OK
+     */
+    200: ArtifactResponse;
+};
+
+export type GetTaskArtifactResponse = GetTaskArtifactResponses[keyof GetTaskArtifactResponses];
 
 export type ListTaskExecutionsData = {
     body?: never;

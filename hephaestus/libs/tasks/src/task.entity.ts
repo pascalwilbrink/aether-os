@@ -83,6 +83,10 @@ export class TaskEntity {
   @Column({ type: 'text' })
   idempotencyKey: string;
 
+  /** A succeeded task's outcome (docs/tasks.md, Primary artifact). */
+  @Column({ type: 'uuid', nullable: true })
+  primaryArtifactId: string | null;
+
   /** A queued task isn't started before this (backoff after a failure). */
   @Column({ type: 'timestamptz', nullable: true })
   nextAttemptAt: Date | null;

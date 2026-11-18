@@ -223,6 +223,13 @@ export class TaskRunner
       }
       timers.push(stopAfter(deadline.getTime() - Date.now(), 'timeout'));
 
+      const source = {
+        organizationId: task.organizationId,
+        projectId: task.projectId,
+        taskId: task.id,
+        executionId,
+        agentVersionId: task.agentVersionId,
+      };
       const result = await this.untilStopped(
         this.runtime.run({
           task,
@@ -230,12 +237,20 @@ export class TaskRunner
           agentVersion,
           sandbox,
           token,
+          artifacts: {
+            submit: async (artifact) => ({
+              artifactId: await this.executions.recordArtifact(
+                source,
+                artifact,
+              ),
+            }),
+          },
           signal,
         }),
         signal,
       );
       if (result.outcome === 'completed') {
-        await this.executions.complete(executionId, result.summary);
+        await this.executions.complete(source, result.summary);
       } else {
         await this.executions.fail(executionId, 'agent_failed', result.error);
       }

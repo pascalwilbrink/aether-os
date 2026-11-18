@@ -2,7 +2,7 @@
 
 How Hephaestus models the work it runs and what that work produces.
 
-Status: design in progress. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/tasks`): tasks and subtasks, `dependsOn` within a tree, the lifecycle states as a transition table, the agent version pinned at creation, an idempotency key, cancellation of a whole subtree and retries of failed tasks, and the `task.*` events below; and the runner (Hephaestus `libs/runner`): executions, claiming queued tasks within the concurrency limits, heartbeats, the provisioning, heartbeat and run timeouts, stopping cancelled executions, and automatic retries of infrastructure failures, with the agent runtime and sandbox provisioner as ports (no Mastra runtime or real sandboxes yet). Not yet: sandboxes across long waits, pausing, artifacts, templates, verification and approval.
+Status: design in progress. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/tasks`): tasks and subtasks, `dependsOn` within a tree, the lifecycle states as a transition table, the agent version pinned at creation, an idempotency key, cancellation of a whole subtree and retries of failed tasks, and the `task.*` events below; and the runner (Hephaestus `libs/runner`): executions, claiming queued tasks within the concurrency limits, heartbeats, the provisioning, heartbeat and run timeouts, stopping cancelled executions, and automatic retries of infrastructure failures, with a Mastra agent runtime and Docker sandboxes behind ports; and artifacts (Hephaestus `libs/artifacts`): `text` and `json` (inline, up to 256 KiB), recorded by the agent while it runs (`pending`), `final` with one primary artifact when the task succeeds, `partial` when the execution fails. Not yet: other kinds (`file` needs Loculus), drafts and approval, sandboxes across long waits, pausing, templates and verification.
 
 ## Decisions
 
@@ -205,13 +205,14 @@ Rules:
 
 | `status` | Meaning |
 |---|---|
+| `pending` | Recorded while its execution runs; nothing has decided yet what it is. Becomes `final` (or `draft`, if it needs approval) when the task's run completes, or `partial` when the execution fails. Pending artifacts are never delivered. |
 | `draft` | Prepared but not delivered, waiting for approval. For an artifact with an external side effect, nothing has happened outside Aether-os yet: a `pull_request` draft is a pushed branch plus the prepared title and description, not an opened PR. |
 | `final` | The outcome. Delivered if it has an external side effect (the PR is opened, the comment posted). |
 | `rejected` | A draft that was rejected at approval. Never delivered. |
 | `changes_requested` | A draft a reviewer sent back with comments. Never delivered; superseded by a revised draft. |
 | `partial` | Produced by a task that failed. Kept for inspection; never delivered and never primary. |
 
-Transitions: `draft` → `final` when someone with `task:approve` approves (Hephaestus then delivers it), `draft` → `rejected` when they reject it, `draft` → `changes_requested` when they request changes. An artifact that needs no approval is recorded directly as `final`. A failed task's artifacts are recorded as `partial`, including any drafts it left behind. 
+Transitions: `pending` → `final` (or `draft`) when the run completes and `pending` → `partial` when the execution fails; `draft` → `final` when someone with `task:approve` approves (Hephaestus then delivers it), `draft` → `rejected` when they reject it, `draft` → `changes_requested` when they request changes. An artifact that needs no approval is recorded directly as `final`. A failed task's artifacts are recorded as `partial`, including any drafts it left behind. 
 
 ### What needs approval
 

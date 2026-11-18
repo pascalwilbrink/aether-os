@@ -1,4 +1,5 @@
 import type { ApiTypes } from '@hephaestus/core';
+import type { NewArtifact } from '@hephaestus/artifacts';
 import type { TaskResponse } from '@hephaestus/tasks';
 
 import type { Sandbox } from './sandbox-provisioner.js';
@@ -16,6 +17,8 @@ export interface AgentRunInput {
    * stored.
    */
   token: string;
+  /** Where the agent records what it produces (docs/tasks.md, Artifacts). */
+  artifacts: ArtifactSink;
   /**
    * Aborted when the execution must stop (cancelled, timed out, lost, or
    * Hephaestus shutting down): save what's needed and return quickly.
@@ -23,8 +26,19 @@ export interface AgentRunInput {
   signal: AbortSignal;
 }
 
+/**
+ * Records an artifact for the running execution (`pending` until it ends).
+ * Rejects with `ArtifactRejectedError` past a limit or once it ended.
+ */
+export interface ArtifactSink {
+  submit(artifact: NewArtifact): Promise<{ artifactId: string }>;
+}
+
 export type AgentRunResult =
-  /** The agent finished; what it reported. */
+  /**
+   * The agent finished, with its final answer (the primary artifact unless
+   * it recorded one).
+   */
   | { outcome: 'completed'; summary: string }
   /** The agent gave up (not an infrastructure problem: not retried). */
   | { outcome: 'failed'; error: string };
