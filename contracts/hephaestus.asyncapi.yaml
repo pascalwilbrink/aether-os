@@ -275,7 +275,7 @@ components:
         artifactId: { $ref: '#/components/schemas/Uuid' }
         taskId: { $ref: '#/components/schemas/Uuid' }
         executionId: { $ref: '#/components/schemas/Uuid' }
-        kind: { type: string, description: 'An open set: `text`, `json` so far.' }
+        kind: { type: string, description: 'An open set: `text`, `json`, `verification`, `pull_request` so far.' }
         status: { $ref: '#/components/schemas/ArtifactStatus' }
         primary: { type: boolean }
     ArtifactStatusChanged:

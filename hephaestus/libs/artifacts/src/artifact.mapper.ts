@@ -5,12 +5,14 @@ import type { ArtifactResponse } from './dto/artifact.response.js';
 import {
   ArtifactEntity,
   type JsonContent,
+  type PullRequestContent,
   type TextContent,
   type VerificationContent,
 } from './artifact.entity.js';
 import type {
   ArtifactSource,
   NewArtifact,
+  NewPullRequest,
   NewVerification,
 } from './artifacts.service.js';
 
@@ -19,7 +21,7 @@ export class ArtifactMapper {
   /** A new `pending` artifact; its ID (UUIDv7) is generated here. */
   toEntity(
     source: ArtifactSource,
-    input: NewArtifact | NewVerification,
+    input: NewArtifact | NewPullRequest | NewVerification,
     now: Date,
   ): ArtifactEntity {
     return Object.assign(new ArtifactEntity(), {
@@ -67,6 +69,20 @@ export class ArtifactMapper {
         content: body.content,
       };
     }
+    if (entity.kind === 'pull_request') {
+      const body = entity.body as PullRequestContent;
+      return {
+        ...base,
+        kind: 'pull_request',
+        linkId: body.linkId,
+        repository: body.repository,
+        branch: body.branch,
+        baseBranch: body.baseBranch,
+        headSha: body.headSha,
+        description: body.description,
+        pullRequest: body.pullRequest,
+      };
+    }
     if (entity.kind === 'verification') {
       const body = entity.body as VerificationContent;
       return {
@@ -87,9 +103,19 @@ export class ArtifactMapper {
 }
 
 function bodyOf(
-  input: NewArtifact | NewVerification,
-): TextContent | JsonContent | VerificationContent {
+  input: NewArtifact | NewPullRequest | NewVerification,
+): TextContent | JsonContent | VerificationContent | PullRequestContent {
   switch (input.kind) {
+    case 'pull_request':
+      return {
+        linkId: input.linkId,
+        repository: input.repository,
+        branch: input.branch,
+        baseBranch: input.baseBranch,
+        headSha: input.headSha,
+        description: input.description,
+        pullRequest: null,
+      };
     case 'text':
       return { format: input.format, content: input.content };
     case 'json':

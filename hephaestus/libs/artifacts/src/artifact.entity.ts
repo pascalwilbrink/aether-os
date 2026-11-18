@@ -3,7 +3,7 @@ import { Check, Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import type { ApiTypes } from '@hephaestus/core';
 
 export type ArtifactStatus = ApiTypes.ArtifactStatus;
-export type ArtifactKind = 'text' | 'json' | 'verification';
+export type ArtifactKind = 'text' | 'json' | 'verification' | 'pull_request';
 
 /** A `text` artifact's content. */
 export interface TextContent {
@@ -15,6 +15,25 @@ export interface TextContent {
 export interface VerificationContent {
   round: number;
   results: ApiTypes.CriterionResult[];
+}
+
+/**
+ * A `pull_request` artifact's content (docs/git.md): pushed commits as a
+ * pull request to be. `pullRequest` is set when delivery opened it, and
+ * follows its state on GitHub: the one part that changes.
+ */
+export interface PullRequestContent {
+  linkId: string;
+  repository: string;
+  branch: string;
+  baseBranch: string;
+  headSha: string;
+  description: string;
+  pullRequest: {
+    number: number;
+    url: string;
+    state: 'open' | 'merged' | 'closed';
+  } | null;
 }
 
 /** The decision on a draft (docs/tasks.md, Request changes). */
@@ -35,7 +54,10 @@ export interface JsonContent {
   'ck_artifacts_status',
   `status IN ('pending', 'draft', 'final', 'rejected', 'changes_requested', 'partial')`,
 )
-@Check('ck_artifacts_kind', `kind IN ('text', 'json', 'verification')`)
+@Check(
+  'ck_artifacts_kind',
+  `kind IN ('text', 'json', 'verification', 'pull_request')`,
+)
 // A task's artifacts in order (keyset pagination).
 @Index('ix_artifacts_task_id_created_at_id', ['taskId', 'createdAt', 'id'])
 @Index('ix_artifacts_execution_id', ['executionId'])
@@ -87,7 +109,7 @@ export class ArtifactEntity {
 
   /** The kind's own fields (`TextContent`, `JsonContent`). */
   @Column({ type: 'jsonb' })
-  body: TextContent | JsonContent | VerificationContent;
+  body: TextContent | JsonContent | VerificationContent | PullRequestContent;
 
   /** Set when someone decided on it as a draft. */
   @Column({ type: 'jsonb', nullable: true })

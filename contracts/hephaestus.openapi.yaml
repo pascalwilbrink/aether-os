@@ -1614,6 +1614,36 @@ components:
             results:
               type: array
               items: { $ref: '#/components/schemas/CriterionResult' }
+    PullRequestArtifact:
+      allOf:
+        - $ref: '#/components/schemas/ArtifactBase'
+        - type: object
+          required: [kind, linkId, repository, branch, baseBranch, headSha, description, pullRequest]
+          description: |
+            The task's commits, pushed to its tree's branch, as a pull
+            request to be (docs/git.md, Branches and pull requests): the
+            branch at `headSha` with its title (the artifact's) and
+            description. Delivery opens the pull request (or updates the
+            tree's open one); a revision is a new artifact at a newer head.
+          properties:
+            kind: { type: string, const: pull_request }
+            linkId: { type: string, format: uuid, description: The repository link (Proxenos). }
+            repository: { type: string, description: '`owner/name`.' }
+            branch: { type: string, description: '`aether/<top-level task ID>`.' }
+            baseBranch: { type: string, description: What the pull request goes into (the default branch). }
+            headSha: { type: string, description: The branch's head when it was pushed. }
+            description: { type: string, description: The pull request's body (Markdown). }
+            pullRequest:
+              description: The pull request on GitHub, once delivered; null before.
+              oneOf:
+                - type: object
+                  additionalProperties: false
+                  required: [number, url, state]
+                  properties:
+                    number: { type: integer, minimum: 1 }
+                    url: { type: string, format: uri }
+                    state: { type: string, enum: [open, merged, closed] }
+                - { type: 'null' }
     CriterionResult:
       type: object
       additionalProperties: false
@@ -1628,12 +1658,14 @@ components:
         - $ref: '#/components/schemas/TextArtifact'
         - $ref: '#/components/schemas/JsonArtifact'
         - $ref: '#/components/schemas/VerificationArtifact'
+        - $ref: '#/components/schemas/PullRequestArtifact'
       discriminator:
         propertyName: kind
         mapping:
           text: '#/components/schemas/TextArtifact'
           json: '#/components/schemas/JsonArtifact'
           verification: '#/components/schemas/VerificationArtifact'
+          pull_request: '#/components/schemas/PullRequestArtifact'
     ArtifactReview:
       type: object
       additionalProperties: false
@@ -1724,8 +1756,9 @@ components:
         The repository the execution worked in (`docs/git.md`, Inside the
         sandbox): checked out at `branch` from `baseSha`, and, once the run
         succeeded, what the agent committed on top (taken out of the sandbox
-        as a bundle). Null for `headSha` and `commits` until then.
-      required: [linkId, fullName, branch, baseSha, headSha, commits, uncommittedChanges]
+        as a bundle) and the branch's head once they were pushed (rebased
+        onto whatever the branch had by then). Null until then.
+      required: [linkId, fullName, branch, baseSha, headSha, commits, uncommittedChanges, pushedSha]
       properties:
         linkId: { type: string, format: uuid }
         fullName: { type: string, description: '`owner/name`.' }
@@ -1736,6 +1769,9 @@ components:
         uncommittedChanges:
           type: [boolean, 'null']
           description: Changes left uncommitted in the sandbox; they're not kept.
+        pushedSha:
+          type: [string, 'null']
+          description: The branch's head after the push (differs from `headSha` when the commits were rebased); null when nothing was pushed.
     ExecutionUsage:
       type: object
       additionalProperties: false

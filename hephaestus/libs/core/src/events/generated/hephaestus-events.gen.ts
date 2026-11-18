@@ -9,7 +9,7 @@ export interface ArtifactCreated {
   taskId: string;
   executionId: string;
   /**
-   * An open set: `text`, `json` so far.
+   * An open set: `text`, `json`, `verification`, `pull_request` so far.
    */
   kind: string;
   status:

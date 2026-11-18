@@ -220,6 +220,7 @@ export class TaskRunner
           headSha: null,
           commits: null,
           uncommittedChanges: null,
+          pushedSha: null,
         });
       }
       clearTimeout(timers[0]);
@@ -326,18 +327,15 @@ export class TaskRunner
 
       if (failed.length === 0) {
         if (checkout && sandbox) {
-          // While the sandbox is still there: what the agent committed.
-          const collected = await this.untilStopped(
-            this.preparer.collect(checkout, sandbox),
+          await this.deliverCommits(
+            task,
+            source,
+            input,
+            checkout,
+            sandbox,
+            result.summary,
             signal,
           );
-          await this.executions.recordRepository(executionId, {
-            linkId: checkout.linkId,
-            fullName: checkout.fullName,
-            branch: checkout.branch,
-            baseSha: checkout.baseSha,
-            ...collected,
-          });
         }
         return this.executions.complete(
           source,
@@ -358,6 +356,56 @@ export class TaskRunner
         output: r.output,
       }));
     }
+  }
+
+  /**
+   * While the sandbox is still there: what the agent committed comes out,
+   * is pushed to the task tree's branch (docs/git.md), and becomes the
+   * execution's `pull_request` artifact, its outcome (in a revision run,
+   * revising the one a reviewer sent back).
+   */
+  private async deliverCommits(
+    task: TaskResponse,
+    source: Parameters<ExecutionsService['complete']>[0],
+    input: AgentRunInput,
+    checkout: Checkout,
+    sandbox: Sandbox,
+    summary: string,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const collected = await this.untilStopped(
+      this.preparer.collect(checkout, sandbox),
+      signal,
+    );
+    const repository = {
+      linkId: checkout.linkId,
+      fullName: checkout.fullName,
+      branch: checkout.branch,
+      baseSha: checkout.baseSha,
+      ...collected,
+      pushedSha: null as string | null,
+    };
+    if (collected.commits && collected.headSha) {
+      repository.pushedSha = await this.untilStopped(
+        this.preparer.push(checkout, task, input.token, collected.headSha),
+        signal,
+      );
+      await this.executions.recordPullRequest(source, {
+        kind: 'pull_request',
+        title: task.title,
+        primary: true,
+        revisionOf: input.revisions.find(
+          (artifact) => artifact.kind === 'pull_request',
+        )?.id,
+        linkId: checkout.linkId,
+        repository: checkout.fullName,
+        branch: checkout.branch,
+        baseBranch: checkout.baseBranch,
+        headSha: repository.pushedSha,
+        description: `${summary.trim()}\n\n---\nAether-Task: ${task.id}`,
+      });
+    }
+    await this.executions.recordRepository(source.executionId, repository);
   }
 
   /** Records why an execution ended early. */

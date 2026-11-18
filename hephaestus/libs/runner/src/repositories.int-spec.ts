@@ -8,6 +8,7 @@ import Docker from 'dockerode';
 
 import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
 import { AgentsService, AgentVersionsService } from '@hephaestus/agents';
+import { ArtifactsService } from '@hephaestus/artifacts';
 import { TasksService, type TaskResponse } from '@hephaestus/tasks';
 import { WorkspacesService } from '@hephaestus/workspaces';
 
@@ -181,6 +182,7 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
       sandboxRequired?: boolean;
       repository?: boolean;
       parentTaskId?: string;
+      review?: string[];
     } = {},
   ) {
     const agents = actingAs(moduleRef.get(AgentsService), owner());
@@ -211,6 +213,7 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
           agentId,
           serviceAccountId: SERVICE_ACCOUNT,
           parentTaskId: options.parentTaskId,
+          review: { artifactKinds: options.review ?? [] },
           repository:
             options.repository === false ? undefined : { linkId: LINK },
         },
@@ -235,6 +238,12 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
   }
 
   const task = (id: string) => tasks.findById(organizationId, projectId, id);
+  const artifacts = async (taskId: string) =>
+    (
+      await moduleRef
+        .get(ArtifactsService)
+        .list(organizationId, projectId, taskId, { limit: 100 })
+    ).items;
   const execution = async (taskId: string) =>
     (
       await moduleRef
@@ -286,14 +295,14 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
       branch: `aether/${created.topLevelTaskId}`,
       startedFrom: 'main',
     });
-    // A read token, asked for with the task's own token.
-    expect(repositoryTokens.issued).toEqual([
-      {
+    // Read to check out, write to push, both asked for with the task's own token.
+    expect(repositoryTokens.issued).toEqual(
+      ['read', 'write'].map((access) => ({
         taskId: created.id,
         taskToken: `task-token-for-${created.id}`,
-        access: 'read',
-      },
-    ]);
+        access,
+      })),
+    );
 
     const { repository } = await execution(created.id);
     expect(repository).toEqual({
@@ -304,8 +313,178 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
       headSha: expect.stringMatching(/^[0-9a-f]{40}$/),
       commits: 1,
       uncommittedChanges: true,
+      // Nothing else on the branch: pushed as committed.
+      pushedSha: repository!.headSha,
     });
     expect(repository!.headSha).not.toBe(mainSha);
+
+    // On "GitHub": the task tree's branch, at the pushed commit, on main.
+    expect(git(origin, 'rev-parse', `aether/${created.topLevelTaskId}`)).toBe(
+      repository!.pushedSha,
+    );
+    expect(git(origin, 'rev-parse', `aether/${created.topLevelTaskId}~1`)).toBe(
+      mainSha,
+    );
+    expect(git(origin, 'rev-parse', 'main')).toBe(mainSha);
+
+    // The outcome is a pull request to be.
+    const pullRequest = (await artifacts(created.id)).find(
+      (a) => a.kind === 'pull_request',
+    );
+    expect(pullRequest).toMatchObject({
+      kind: 'pull_request',
+      status: 'final',
+      primary: true,
+      title: 'Add a changelog',
+      linkId: LINK,
+      repository: 'acme/api',
+      branch: `aether/${created.topLevelTaskId}`,
+      baseBranch: 'main',
+      headSha: repository!.pushedSha,
+      description: `Added CHANGELOG.md.\n\n---\nAether-Task: ${created.id}`,
+      pullRequest: null,
+    });
+    await expect(task(created.id)).resolves.toMatchObject({
+      primaryArtifactId: pullRequest!.id,
+    });
+  });
+
+  it('rebases onto a branch that moved meanwhile, never forcing', async () => {
+    let sibling = '';
+    runtime.behaviour = async (input) => {
+      await shell(
+        input,
+        'cd /workspace/repo && echo mine > mine.txt && git add . && git commit -q -m "Mine"',
+      );
+      // A sibling subtask pushes to the tree's branch while this one runs.
+      const seed = join(root, 'seed');
+      git(seed, 'checkout', '--quiet', '-B', input.repository!.branch, 'main');
+      writeFileSync(join(seed, 'theirs.txt'), 'theirs\n');
+      git(seed, 'add', '.');
+      git(seed, 'commit', '--quiet', '-m', 'Theirs');
+      git(
+        seed,
+        'push',
+        '--quiet',
+        'origin',
+        `HEAD:${input.repository!.branch}`,
+      );
+      sibling = git(seed, 'rev-parse', 'HEAD');
+      return { outcome: 'completed', summary: 'Mine.' };
+    };
+    const created = await taskFor();
+
+    await runOnce();
+
+    await expect(task(created.id)).resolves.toMatchObject({
+      status: 'succeeded',
+    });
+    const { repository } = await execution(created.id);
+    const branch = `aether/${created.topLevelTaskId}`;
+    // Rebased: a new commit on top of the sibling's, linear history.
+    expect(repository!.pushedSha).not.toBe(repository!.headSha);
+    expect(git(origin, 'rev-parse', branch)).toBe(repository!.pushedSha);
+    expect(git(origin, 'rev-parse', `${branch}~1`)).toBe(sibling);
+    expect(git(origin, 'log', '--format=%s', branch)).toBe(
+      'Mine\nTheirs\nInitial commit',
+    );
+    expect(
+      git(
+        origin,
+        'log',
+        '-1',
+        '--format=%cn <%ce>%n%(trailers:key=Aether-Task,valueonly)',
+        branch,
+      ),
+    ).toBe(`Aether-os <aether-os@users.noreply.github.com>\n${created.id}`);
+  });
+
+  it('runs a conflicting task again from the new head', async () => {
+    runtime.behaviour = async (input) => {
+      await shell(
+        input,
+        'cd /workspace/repo && echo mine > README.md && git commit -qam "Mine"',
+      );
+      const seed = join(root, 'seed');
+      git(seed, 'checkout', '--quiet', '-B', input.repository!.branch, 'main');
+      writeFileSync(join(seed, 'README.md'), 'theirs\n');
+      git(seed, 'commit', '--quiet', '-am', 'Theirs');
+      git(
+        seed,
+        'push',
+        '--quiet',
+        'origin',
+        `HEAD:${input.repository!.branch}`,
+      );
+      return { outcome: 'completed', summary: 'Mine.' };
+    };
+    const created = await taskFor();
+
+    await runOnce();
+
+    // Retried (infrastructure): the next execution starts from the branch.
+    await expect(task(created.id)).resolves.toMatchObject({
+      status: 'queued',
+      attempt: 1,
+    });
+    expect((await execution(created.id)).error).toMatch(
+      /conflict with aether\/.* runs again from its head/,
+    );
+    expect(
+      git(origin, 'log', '--format=%s', `aether/${created.topLevelTaskId}`),
+    ).toBe('Theirs\nInitial commit');
+    expect(
+      (await artifacts(created.id)).filter((a) => a.kind === 'pull_request'),
+    ).toEqual([]);
+  });
+
+  it('never pushes changes to CI workflows', async () => {
+    runtime.behaviour = async (input) => {
+      await shell(
+        input,
+        'cd /workspace/repo && mkdir -p .github/workflows && echo "on: push" > .github/workflows/ci.yml && git add . && git commit -q -m "CI"',
+      );
+      return { outcome: 'completed', summary: 'Added CI.' };
+    };
+    const created = await taskFor();
+
+    await runOnce();
+
+    await expect(task(created.id)).resolves.toMatchObject({
+      status: 'failed',
+      failureReason: 'agent_failed',
+    });
+    expect((await execution(created.id)).error).toMatch(
+      /change CI workflows \(\.github\/workflows\/ci\.yml\)/,
+    );
+    expect(git(origin, 'branch', '--list', 'aether/*')).toBe('');
+  });
+
+  it('puts the pull request up for review when it needs approval', async () => {
+    runtime.behaviour = async (input) => {
+      await shell(
+        input,
+        'cd /workspace/repo && echo x > x.txt && git add . && git commit -q -m "X"',
+      );
+      return { outcome: 'completed', summary: 'X.' };
+    };
+    const created = await taskFor({ review: ['pull_request'] });
+
+    await runOnce();
+
+    await expect(task(created.id)).resolves.toMatchObject({
+      status: 'awaiting_review',
+    });
+    const drafts = (await artifacts(created.id)).filter(
+      (a) => a.status === 'draft',
+    );
+    expect(drafts.map((a) => [a.kind, a.primary])).toEqual([
+      ['pull_request', true],
+    ]);
+    // Pushed already: the draft is the branch at its head.
+    expect(git(origin, 'rev-parse', `aether/${created.topLevelTaskId}`)).toBe(
+      (drafts[0] as { headSha: string }).headSha,
+    );
   });
 
   it('commits as the Aether-os bot, naming the task', async () => {

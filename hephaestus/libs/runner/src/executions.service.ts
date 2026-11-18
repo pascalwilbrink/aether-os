@@ -14,6 +14,7 @@ import {
   ArtifactsService,
   type ArtifactSource,
   type NewArtifact,
+  type NewPullRequest,
 } from '@hephaestus/artifacts';
 import { ModelGateway } from '@hephaestus/models';
 import {
@@ -285,6 +286,14 @@ export class ExecutionsService {
     if (execution?.status !== 'running') {
       throw new ArtifactRejectedError('The execution has ended');
     }
+    return (await this.artifacts.record(source, input)).id;
+  }
+
+  /** Records the pushed commits as a `pull_request` artifact (Hephaestus's own). */
+  async recordPullRequest(
+    source: ArtifactSource,
+    input: NewPullRequest,
+  ): Promise<string> {
     return (await this.artifacts.record(source, input)).id;
   }
 
