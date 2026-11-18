@@ -6,7 +6,9 @@ import { listAgents, listTasks, listTaskTemplates } from "@/lib/api/hephaestus";
 import { ApiError } from "@/lib/api/http";
 import { listOrganizationUsers, listServiceAccounts } from "@/lib/api/pistis";
 import { getOrganization, getProject, listMemberships, listProjectMemberships } from "@/lib/api/polis";
+import { listRepositories, listRepositoryLinks, orUnavailable } from "@/lib/api/proxenos";
 import { requireOrganization } from "@/lib/auth/current";
+import { linkableRepositories, repositoryChoices } from "@/lib/github";
 import {
   people,
   PROJECT_ROLES,
@@ -22,7 +24,8 @@ import { formatTime, isTaskStatus, statusLabel, TASK_STATUSES } from "@/lib/task
 import { ActionButton, RoleForm } from "@/app/components/action-forms";
 
 import { GrantAccessForm } from "./access-form";
-import { changeProjectRoleAction, removeProjectRoleAction } from "./actions";
+import { changeProjectRoleAction, removeProjectRoleAction, unlinkRepositoryAction } from "./actions";
+import { LinkRepositoryForm } from "./link-repository-form";
 import { NewTaskForm } from "./new-task-form";
 
 type Props = PageProps<"/orgs/[organizationId]/projects/[projectId]">;
@@ -61,6 +64,8 @@ async function Project({ params, searchParams }: Props) {
     userMemberships,
     accountMemberships,
     users,
+    links,
+    repositories,
   ] = await Promise.all([
     getOrganization(token, organizationId),
     getProject(token, organizationId, projectId),
@@ -72,6 +77,8 @@ async function Project({ params, searchParams }: Props) {
     orEmpty(listMemberships(token, organizationId, "user")),
     orEmpty(listMemberships(token, organizationId, "service_account")),
     orEmpty(listOrganizationUsers(token, organizationId)),
+    orUnavailable(listRepositoryLinks(token, organizationId, projectId)),
+    orUnavailable(listRepositories(token, organizationId)),
   ]);
   const runnable = agents.items.filter((agent) => agent.status === "active" && agent.latestVersionId);
   // Only service accounts with a role here can run its tasks.
@@ -86,6 +93,7 @@ async function Project({ params, searchParams }: Props) {
     label: `${member.name}${member.subjectType === "service_account" ? " (service account)" : ""}`,
   }));
   const accessRef = (membershipId: string) => ({ organizationId, projectId, membershipId });
+  const linkable = linkableRepositories(repositories.items, links.items);
 
   return (
     <div className="space-y-10">
@@ -219,12 +227,63 @@ async function Project({ params, searchParams }: Props) {
         <GrantAccessForm project={{ organizationId, projectId }} candidates={candidates} />
       </section>
 
+      <section id="repositories" className="space-y-3">
+        <div>
+          <h2 className="font-medium">Repositories</h2>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            Repositories this project&apos;s tasks can work in: the agent commits in a copy, and its work arrives as a
+            pull request. They come from the organization&apos;s{" "}
+            <Link href={`/orgs/${organizationId}/github`} className="underline">
+              GitHub
+            </Link>{" "}
+            connection.
+          </p>
+        </div>
+        {links.unavailable ? (
+          <p className="text-sm text-amber-700 dark:text-amber-300">
+            Repositories can&apos;t be shown right now (Proxenos isn&apos;t answering, or no GitHub App is set up yet).
+          </p>
+        ) : (
+          <>
+            {links.items.length === 0 ? (
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">No repositories linked yet.</p>
+            ) : (
+              <ul className="divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
+                {links.items.map((link) => (
+                  <li key={link.id} className="flex flex-wrap items-baseline justify-between gap-2 py-2">
+                    <div>
+                      <span className="font-medium">{link.repository.fullName}</span>{" "}
+                      <span className="text-xs text-zinc-500">
+                        pull requests into <span className="font-mono">{link.repository.defaultBranch}</span>
+                      </span>
+                    </div>
+                    <ActionButton
+                      action={unlinkRepositoryAction.bind(null, { organizationId, projectId, linkId: link.id })}
+                      label="Unlink"
+                      pendingLabel="Unlinking…"
+                      confirmText={`Unlink ${link.repository.fullName} from ${project.name}? New tasks can't use it; tasks already running keep their copy.`}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+            <LinkRepositoryForm
+              project={{ organizationId, projectId }}
+              repositories={linkable.map(({ id, fullName }) => ({ id, name: fullName }))}
+              connectHref={`/orgs/${organizationId}/github`}
+              unavailable={repositories.unavailable}
+            />
+          </>
+        )}
+      </section>
+
       <section className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
         <h2 className="font-medium">New task</h2>
         <NewTaskForm
           project={{ organizationId, projectId }}
           agents={runnable.map(({ id, name }) => ({ id, name }))}
           serviceAccounts={accounts.map(({ id, name }) => ({ id, name }))}
+          repositories={repositoryChoices(links.items)}
           idempotencyKey={crypto.randomUUID()}
         />
       </section>

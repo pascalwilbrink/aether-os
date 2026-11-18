@@ -6,17 +6,21 @@ import { buttonClass, FormError, inputClass } from "@/app/components/form";
 import type { TaskTemplateVersion } from "@/lib/api";
 
 import { createTaskFromTemplateAction, type FormState, type ProjectRef } from "./actions";
+import { RepositorySelect } from "./new-task-form";
 
 /** A task from a template version: its inputs, and the service account to run as. */
 export function TemplateTaskForm({
   template,
   version,
   serviceAccounts,
+  repositories,
   idempotencyKey,
 }: {
   template: ProjectRef & { templateId: string; version: number };
   version: TaskTemplateVersion;
   serviceAccounts: { id: string; name: string }[];
+  /** The project's repository links. */
+  repositories: { id: string; name: string }[];
   idempotencyKey: string;
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(
@@ -56,6 +60,7 @@ export function TemplateTaskForm({
           ))}
         </select>
       </label>
+      <RepositorySelect repositories={repositories} value={state.values?.repositoryLinkId} />
       <button type="submit" disabled={pending || serviceAccounts.length === 0} className={buttonClass}>
         {pending ? "Creating…" : "Create task"}
       </button>

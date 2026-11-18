@@ -12,8 +12,10 @@ import {
   reviewArtifact,
   type ReviewDecision,
 } from "@/lib/api/hephaestus";
+import { ApiError } from "@/lib/api/http";
 import { messageOf as baseMessageOf } from "@/lib/api/messages";
 import { createProjectMembership, deleteProjectMembership, updateProjectMembership } from "@/lib/api/polis";
+import { linkRepository, unlinkRepository } from "@/lib/api/proxenos";
 import { requireOrganization } from "@/lib/auth/current";
 import { valuesOf } from "@/lib/forms";
 import { isProjectRole } from "@/lib/members";
@@ -58,6 +60,7 @@ export async function createTaskAction(ref: ProjectRef, _state: FormState, form:
           agentId: text(form, "agentId"),
           serviceAccountId: text(form, "serviceAccountId"),
           review: { artifactKinds: form.get("review") === "all" ? ["*"] : [] },
+          ...repositoryOf(form),
         },
         text(form, "idempotencyKey"),
       )
@@ -67,6 +70,12 @@ export async function createTaskAction(ref: ProjectRef, _state: FormState, form:
   }
   redirect(`${projectPath(ref)}/tasks/${taskId}`);
 }
+
+/** The repository link a task works in (`repositoryLinkId`), when one was chosen. */
+const repositoryOf = (form: FormData) => {
+  const linkId = text(form, "repositoryLinkId");
+  return linkId ? { repository: { linkId } } : {};
+};
 
 /** Creates a task from a template version, with its inputs. */
 export async function createTaskFromTemplateAction(
@@ -85,6 +94,7 @@ export async function createTaskFromTemplateAction(
     version: ref.version,
     inputs,
     serviceAccountId: text(form, "serviceAccountId"),
+    ...repositoryOf(form),
   };
   let taskId: string;
   try {
@@ -218,6 +228,50 @@ export async function removeProjectRoleAction(ref: ProjectRef & { membershipId: 
     await deleteProjectMembership(session.accessToken, ref.organizationId, ref.projectId, ref.membershipId);
   } catch (error) {
     return { error: accessMessageOf(error) };
+  }
+  refresh();
+  return {};
+}
+
+// --- The project's repositories (Proxenos; `project:manage` to change them) ---
+
+function repositoryMessageOf(error: unknown): string {
+  if (!(error instanceof ApiError) || error.status >= 500) {
+    return "GitHub connections can't be changed right now. Try again later.";
+  }
+  return messageOf(error, {
+    FORBIDDEN: "Only the project's admins link and unlink repositories.",
+    REPOSITORY_ALREADY_LINKED: "That repository is linked to this project already.",
+    REPOSITORY_UNAVAILABLE: "The GitHub App doesn't cover that repository any more. Sync on the GitHub page.",
+    INSTALLATION_NOT_ACTIVE: "That repository's GitHub installation is suspended or uninstalled.",
+    PROJECT_ARCHIVED: "The project is archived.",
+    ORGANIZATION_SUSPENDED: "The organization is suspended.",
+  });
+}
+
+/** Links one of the organization's repositories to the project. */
+export async function linkRepositoryAction(ref: ProjectRef, _state: FormState, form: FormData): Promise<FormState> {
+  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+  const repositoryId = text(form, "repositoryId");
+  if (!repositoryId) {
+    return { error: "Choose a repository." };
+  }
+  try {
+    await linkRepository(session.accessToken, ref.organizationId, ref.projectId, repositoryId);
+  } catch (error) {
+    return { error: repositoryMessageOf(error), values: valuesOf(form) };
+  }
+  refresh();
+  return {};
+}
+
+/** Unlinks a repository: new tasks can't use it; running ones keep their checkout. */
+export async function unlinkRepositoryAction(ref: ProjectRef & { linkId: string }): Promise<FormState> {
+  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+  try {
+    await unlinkRepository(session.accessToken, ref.organizationId, ref.projectId, ref.linkId);
+  } catch (error) {
+    return { error: repositoryMessageOf(error) };
   }
   refresh();
   return {};

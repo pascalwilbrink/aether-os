@@ -54,6 +54,10 @@ export const config = {
   get hephaestusUrl() {
     return value("HEPHAESTUS_URL", "http://localhost:3002");
   },
+  /** Connections to external systems: the GitHub App, its repositories, project links. */
+  get proxenosUrl() {
+    return value("PROXENOS_URL", "http://localhost:3004");
+  },
   get secureCookies() {
     return production();
   },
