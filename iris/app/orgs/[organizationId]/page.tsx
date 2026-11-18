@@ -37,7 +37,10 @@ async function Overview({ params }: Pick<PageProps<"/orgs/[organizationId]">, "p
         <div>
           <h1 className="text-2xl font-semibold">{organization.name}</h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Signed in as {session.name} · <Link href="/orgs" className="underline">Switch organization</Link>
+            Signed in as {session.name} ·{" "}
+            <Link href="/orgs" className="underline">
+              Switch organization
+            </Link>
           </p>
         </div>
         <SignOutButton />
@@ -62,14 +65,30 @@ async function Overview({ params }: Pick<PageProps<"/orgs/[organizationId]">, "p
       </section>
 
       <section>
-        <h2 className="mb-2 font-medium">Agents</h2>
+        <div className="mb-2 flex items-baseline justify-between">
+          <h2 className="font-medium">Agents</h2>
+          <Link href={`/orgs/${organizationId}/agents/new`} className="text-sm underline">
+            New agent
+          </Link>
+        </div>
         {agents.items.length === 0 ? (
           <p className="text-sm text-zinc-600 dark:text-zinc-400">No agents yet.</p>
         ) : (
           <ul className="list-inside list-disc text-sm">
             {agents.items.map((agent) => (
               <li key={agent.id}>
-                {agent.name} <span className="text-zinc-500">({agent.status})</span>
+                <Link href={`/orgs/${organizationId}/agents/${agent.id}`} className="underline">
+                  {agent.name}
+                </Link>{" "}
+                <span className="text-zinc-500">
+                  (
+                  {agent.status === "archived"
+                    ? "archived"
+                    : agent.latestVersionId
+                      ? "published"
+                      : "no published version"}
+                  )
+                </span>
               </li>
             ))}
           </ul>

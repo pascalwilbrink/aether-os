@@ -3,6 +3,7 @@ import "server-only";
 import { config } from "../config";
 import type {
   Agent,
+  AgentVersion,
   ApiSchema,
   Artifact,
   Execution,
@@ -21,8 +22,37 @@ const hephaestus = <T>(path: string, token: string, init?: Parameters<typeof cal
 const tasksOf = (organizationId: string, projectId: string) =>
   `/v1/organizations/${organizationId}/projects/${projectId}/tasks`;
 
+// --- Agents and their versions ---
+
+const agentsOf = (organizationId: string) => `/v1/organizations/${organizationId}/agents`;
+
 export const listAgents = (token: string, organizationId: string) =>
-  hephaestus<Page<Agent>>(`/v1/organizations/${organizationId}/agents?limit=100`, token);
+  hephaestus<Page<Agent>>(`${agentsOf(organizationId)}?limit=100`, token);
+
+export const getAgent = (token: string, organizationId: string, agentId: string) =>
+  hephaestus<Agent>(`${agentsOf(organizationId)}/${agentId}`, token);
+
+export const createAgent = (token: string, organizationId: string, body: ApiSchema<"CreateAgentRequest">) =>
+  hephaestus<Agent>(agentsOf(organizationId), token, { method: "POST", body });
+
+export const archiveAgent = (token: string, organizationId: string, agentId: string) =>
+  hephaestus<Agent>(`${agentsOf(organizationId)}/${agentId}/archive`, token, { method: "POST" });
+
+/** Newest first. */
+export const listAgentVersions = (token: string, organizationId: string, agentId: string) =>
+  hephaestus<Page<AgentVersion>>(`${agentsOf(organizationId)}/${agentId}/versions?limit=100`, token);
+
+export const createAgentVersion = (
+  token: string,
+  organizationId: string,
+  agentId: string,
+  body: ApiSchema<"CreateAgentVersionRequest">,
+) => hephaestus<AgentVersion>(`${agentsOf(organizationId)}/${agentId}/versions`, token, { method: "POST", body });
+
+export const publishAgentVersion = (token: string, organizationId: string, agentId: string, versionId: string) =>
+  hephaestus<AgentVersion>(`${agentsOf(organizationId)}/${agentId}/versions/${versionId}/publish`, token, {
+    method: "POST",
+  });
 
 // --- Tasks ---
 

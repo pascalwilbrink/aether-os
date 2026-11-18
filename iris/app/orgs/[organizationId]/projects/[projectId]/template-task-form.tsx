@@ -32,12 +32,23 @@ export function TemplateTaskForm({
           {input.name}
           {input.required === false ? <span className="text-zinc-500"> (optional)</span> : null}
           {input.description ? <span className="block text-xs text-zinc-500">{input.description}</span> : null}
-          <input name={`input:${input.name}`} required={input.required !== false} className={inputClass} />
+          <input
+            name={`input:${input.name}`}
+            required={input.required !== false}
+            defaultValue={state.values?.[`input:${input.name}`]}
+            className={inputClass}
+          />
         </label>
       ))}
       <label className="block text-sm">
         Runs as
-        <select name="serviceAccountId" required className={inputClass}>
+        <select
+          key={state.values?.serviceAccountId}
+          name="serviceAccountId"
+          required
+          defaultValue={state.values?.serviceAccountId}
+          className={inputClass}
+        >
           {serviceAccounts.map((account) => (
             <option key={account.id} value={account.id}>
               {account.name}

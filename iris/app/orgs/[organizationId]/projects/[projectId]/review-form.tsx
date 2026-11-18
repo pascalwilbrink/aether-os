@@ -18,6 +18,7 @@ export function ReviewForm({ artifact }: { artifact: ProjectRef & { taskId: stri
           name="comment"
           rows={2}
           placeholder="Required when requesting changes"
+          defaultValue={state.values?.comment}
           className={inputClass}
         />
       </label>

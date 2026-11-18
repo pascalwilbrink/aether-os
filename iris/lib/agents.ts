@@ -1,0 +1,116 @@
+import type { AgentVersion, ApiSchema } from "./api";
+
+export type AgentVersionStatus = ApiSchema<"AgentVersionStatus">;
+export type NewAgentVersion = ApiSchema<"CreateAgentVersionRequest">;
+
+/** Model providers to suggest; any lowercase name with a key in OpenBao works. */
+export const MODEL_PROVIDERS = ["anthropic", "openai", "google", "mistral"] as const;
+
+/** The runtime new versions get; Hephaestus runs every version with its configured runtime. */
+export const DEFAULT_RUNTIME_PROVIDER = "mastra";
+
+const VERSION_STATUS: Record<AgentVersionStatus, { label: string; classes: string }> = {
+  draft: {
+    label: "Draft",
+    classes: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+  },
+  published: {
+    label: "Published",
+    classes: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+  },
+  deprecated: {
+    label: "Deprecated",
+    classes: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+  },
+};
+
+export const versionStatusLabel = (status: AgentVersionStatus) => VERSION_STATUS[status].label;
+export const versionStatusClasses = (status: AgentVersionStatus) => VERSION_STATUS[status].classes;
+
+/** Only a draft can be published (publishing the published one changes nothing). */
+export const canPublish = (version: Pick<AgentVersion, "status">) => version.status === "draft";
+
+/**
+ * The version form's fields for a version (the next one starts from it),
+ * or a first version's defaults.
+ */
+export function fieldsOf(version: AgentVersion | undefined): Record<string, string> {
+  return {
+    instructions: version?.instructions ?? "",
+    provider: version?.model.provider ?? "anthropic",
+    model: version?.model.model ?? "",
+    temperature: version?.model.temperature?.toString() ?? "",
+    maxTokens: version?.model.maxTokens?.toString() ?? "",
+    executionMode: version?.runtime.executionMode ?? "standard",
+    capabilities: version?.capabilities.join(", ") ?? "",
+    sandboxRequired: version?.runtime.sandboxRequired ? "on" : "",
+    runtimeProvider: version?.runtime.provider ?? DEFAULT_RUNTIME_PROVIDER,
+    tools: JSON.stringify(version?.tools ?? []),
+    skills: JSON.stringify(version?.skills ?? []),
+  };
+}
+
+/** Field values as a form sends them. */
+export type FormFields = Record<string, string | undefined>;
+
+/**
+ * The request for a new version from the form's fields, or what's wrong
+ * with them. Tools and skills come as JSON from the version the form
+ * started from: Iris doesn't edit them yet.
+ */
+export function versionFromForm(fields: FormFields): { body: NewAgentVersion } | { error: string } {
+  const value = (name: string) => (fields[name] ?? "").trim();
+  const instructions = value("instructions");
+  const provider = value("provider").toLowerCase();
+  const model = value("model");
+  if (!instructions) return { error: "Write the agent's instructions." };
+  if (!provider || !model) return { error: "Choose a model provider and a model." };
+
+  const body: NewAgentVersion = {
+    instructions,
+    model: { provider, model },
+    capabilities: value("capabilities")
+      .split(",")
+      .map((capability) => capability.trim())
+      .filter((capability, index, all) => capability && all.indexOf(capability) === index),
+    tools: [],
+    skills: [],
+    runtime: {
+      provider: value("runtimeProvider") || DEFAULT_RUNTIME_PROVIDER,
+      executionMode: value("executionMode") === "coding" ? "coding" : "standard",
+      sandboxRequired: value("sandboxRequired") === "on",
+    },
+  };
+
+  const temperature = value("temperature");
+  if (temperature) {
+    const number = Number(temperature);
+    if (!Number.isFinite(number) || number < 0 || number > 2) {
+      return { error: "Temperature is a number from 0 to 2." };
+    }
+    body.model.temperature = number;
+  }
+  const maxTokens = value("maxTokens");
+  if (maxTokens) {
+    const number = Number(maxTokens);
+    if (!Number.isInteger(number) || number < 1) {
+      return { error: "Max tokens is a whole number above 0." };
+    }
+    body.model.maxTokens = number;
+  }
+
+  for (const name of ["tools", "skills"] as const) {
+    const json = value(name);
+    if (!json) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(json);
+    } catch {
+      return { error: `The carried-over ${name} aren't valid.` };
+    }
+    if (!Array.isArray(parsed)) return { error: `The carried-over ${name} aren't valid.` };
+    // Validated by Hephaestus against the spec.
+    (body[name] as unknown[]) = parsed;
+  }
+  return { body };
+}
