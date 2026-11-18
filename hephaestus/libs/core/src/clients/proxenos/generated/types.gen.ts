@@ -149,6 +149,27 @@ export type RepositoryTokenResponse = {
   };
 };
 
+export type WebhookDeliveryResponse = {
+  id: string;
+  organizationId: string;
+  /**
+   * GitHub's `X-GitHub-Delivery`.
+   */
+  deliveryId: string;
+  /**
+   * GitHub's `X-GitHub-Event` (`issues`, `issue_comment`, …).
+   */
+  event: string;
+  action: string | null;
+  receivedAt: Timestamp;
+  /**
+   * As GitHub sent it.
+   */
+  payload: {
+    [key: string]: unknown;
+  };
+};
+
 /**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
@@ -868,3 +889,55 @@ export type CreateRepositoryTokenResponses = {
 
 export type CreateRepositoryTokenResponse =
   CreateRepositoryTokenResponses[keyof CreateRepositoryTokenResponses];
+
+export type GetWebhookDeliveryData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    /**
+     * The stored delivery's ID (an event's `webhookDeliveryId`), not GitHub's.
+     */
+    deliveryId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/webhook-deliveries/{deliveryId}';
+};
+
+export type GetWebhookDeliveryErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type GetWebhookDeliveryError =
+  GetWebhookDeliveryErrors[keyof GetWebhookDeliveryErrors];
+
+export type GetWebhookDeliveryResponses = {
+  /**
+   * OK
+   */
+  200: WebhookDeliveryResponse;
+};
+
+export type GetWebhookDeliveryResponse =
+  GetWebhookDeliveryResponses[keyof GetWebhookDeliveryResponses];

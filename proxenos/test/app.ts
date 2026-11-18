@@ -73,6 +73,12 @@ export const asMember = async (
     }),
   );
 
+/** A platform service with its own token (no organization), e.g. Kairos. */
+export const asPlatform = async (
+  app: INestApplication<App>,
+  scopes: string[],
+) => client(app, await tokens.service('kairos', scopes));
+
 /** A task token, as Pistis exchanges it for Hephaestus (docs/identity.md). */
 export const asTask = async (
   app: INestApplication<App>,

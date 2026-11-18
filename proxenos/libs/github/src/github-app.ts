@@ -16,6 +16,10 @@ export interface GitHubRepository {
   private: boolean;
 }
 
+/** Someone's role on a repository, from GitHub; `none` without access. */
+export type RepositoryPermission =
+  'admin' | 'maintain' | 'write' | 'triage' | 'read' | 'none';
+
 /** GitHub's per-token permissions (docs/git.md: never `workflows`). */
 export type GitHubPermissions = Partial<
   Record<
@@ -69,6 +73,17 @@ export abstract class GitHubApp {
    * the app.
    */
   abstract botIdentity(): Promise<{ name: string; email: string }>;
+
+  /**
+   * `login`'s role on the repository (docs/git.md, Untrusted input):
+   * GitHub's collaborator permission, as an installation; `none` for
+   * someone without access.
+   */
+  abstract repositoryPermission(
+    installationId: string,
+    repository: string,
+    login: string,
+  ): Promise<RepositoryPermission>;
 
   /** Whether `signature` (`X-Hub-Signature-256`) is the app's for `body`. */
   abstract verifyWebhook(body: Buffer, signature: string): Promise<boolean>;

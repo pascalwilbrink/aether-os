@@ -11,6 +11,7 @@ import {
   type GitHubInstallation,
   type GitHubPermissions,
   type GitHubRepository,
+  type RepositoryPermission,
 } from './github-app.js';
 import { isValidWebhookSignature } from './webhook-signature.js';
 
@@ -201,6 +202,37 @@ export class HttpGitHubApp extends GitHubApp {
     return this.bot;
   }
 
+  async repositoryPermission(
+    installationId: string,
+    repository: string,
+    login: string,
+  ): Promise<RepositoryPermission> {
+    const { token } = await this.installationToken(installationId, {
+      permissions: { metadata: 'read' },
+    });
+    const [owner, name] = repository.split('/');
+    const response = await this.api(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/collaborators/${encodeURIComponent(login)}/permission`,
+      `Bearer ${token}`,
+      { allow404: true },
+    );
+    if (response.status === 404) {
+      // Not a collaborator, or no such user.
+      return 'none';
+    }
+    const { permission, role_name } = (await this.json(response)) as {
+      permission?: string;
+      role_name?: string;
+    };
+    // `role_name` tells maintain and triage apart; `permission` doesn't.
+    for (const role of [role_name, permission]) {
+      if (role && PERMISSIONS.includes(role as RepositoryPermission)) {
+        return role as RepositoryPermission;
+      }
+    }
+    return 'none';
+  }
+
   async verifyWebhook(body: Buffer, signature: string): Promise<boolean> {
     const secrets = await this.appSecrets();
     return isValidWebhookSignature(secrets.webhookSecret, body, signature);
@@ -341,6 +373,15 @@ export class HttpGitHubApp extends GitHubApp {
     return value;
   }
 }
+
+const PERMISSIONS: RepositoryPermission[] = [
+  'admin',
+  'maintain',
+  'write',
+  'triage',
+  'read',
+  'none',
+];
 
 /** So `new URL('x', base)` keeps a base path (GitHub Enterprise's `/api/v3`). */
 const withSlash = (url: string) => (url.endsWith('/') ? url : `${url}/`);

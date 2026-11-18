@@ -16,6 +16,10 @@ export class WebhookDeliveryEntity {
   @Column({ type: 'text' })
   provider: 'github';
 
+  /** The organization of the installation it's for; null when none connected it. */
+  @Column({ type: 'uuid', nullable: true })
+  organizationId: string | null;
+
   /** `X-GitHub-Delivery`. */
   @Column({ type: 'text' })
   deliveryId: string;

@@ -4,7 +4,7 @@ import { ConnectRequestEntity } from '../../libs/installations/src/connect-reque
 import { InstallationEntity } from '../../libs/installations/src/installation.entity.js';
 import { PullRequestEntity } from '../../libs/installations/src/pull-request.entity.js';
 import { RepositoryEntity } from '../../libs/installations/src/repository.entity.js';
-import { WebhookDeliveryEntity } from '../../libs/installations/src/webhook-delivery.entity.js';
+import { WebhookDeliveryEntity } from '../../libs/webhooks/src/webhook-delivery.entity.js';
 import { RepositoryLinkEntity } from '../../libs/repositories/src/repository-link.entity.js';
 
 /** Every entity, for the TypeORM CLI and the tests' schema check. */

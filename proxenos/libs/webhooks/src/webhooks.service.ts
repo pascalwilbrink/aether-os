@@ -1,16 +1,26 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { isUniqueViolation } from '@proxenos/core';
+import { isUniqueViolation, type ApiTypes } from '@proxenos/core';
 import { GitHubApp, GitHubNotConfiguredError } from '@proxenos/github';
 
-import { InstallationsService } from './installations.service.js';
 import {
+  InstallationsService,
   PullRequestsService,
   type GitHubPullRequestPayload,
-} from './pull-requests.service.js';
+} from '@proxenos/installations';
+
+import {
+  IssueEventsService,
+  type GitHubIssuePayload,
+} from './issue-events.service.js';
 import { WebhookDeliveryEntity } from './webhook-delivery.entity.js';
 
 export interface GitHubDelivery {
@@ -24,8 +34,11 @@ export interface GitHubDelivery {
 /**
  * GitHub's webhook deliveries (docs/git.md, Webhooks): verified before
  * anything else, stored once (GitHub redelivers), then handled.
- * Installation events keep installations and repositories in step; others
- * are only stored for now (Kairos's triggers come later). A delivery whose
+ * Installation events keep installations and repositories in step, pull
+ * request events the pull requests, and issues and their comments become
+ * events for Kairos (`IssueEventsService`); others are only stored. Each
+ * delivery records its installation's organization, so its members (and
+ * Kairos) can read its payload. A delivery whose
  * handling failed (GitHub unreachable during a sync) keeps the error and
  * is still acknowledged: GitHub doesn't redeliver on its own, and a sync
  * (`POST …/installations/{id}/sync`) catches up.
@@ -39,8 +52,29 @@ export class WebhooksService {
     private readonly deliveries: Repository<WebhookDeliveryEntity>,
     private readonly installations: InstallationsService,
     private readonly pullRequests: PullRequestsService,
+    private readonly issueEvents: IssueEventsService,
     private readonly github: GitHubApp,
   ) {}
+
+  /** A delivery of the organization's, with its payload (404 otherwise). */
+  async findById(
+    organizationId: string,
+    id: string,
+  ): Promise<ApiTypes.WebhookDeliveryResponse> {
+    const entity = await this.deliveries.findOneBy({ id, organizationId });
+    if (!entity?.organizationId) {
+      throw new NotFoundException(`Webhook delivery ${id} not found`);
+    }
+    return {
+      id: entity.id,
+      organizationId: entity.organizationId,
+      deliveryId: entity.deliveryId,
+      event: entity.event,
+      action: entity.action,
+      receivedAt: entity.receivedAt.toISOString(),
+      payload: entity.payload,
+    };
+  }
 
   async receive(delivery: GitHubDelivery): Promise<void> {
     if (!this.github.configured) {
@@ -63,6 +97,7 @@ export class WebhooksService {
     const entity = Object.assign(new WebhookDeliveryEntity(), {
       id: uuidv7(),
       provider: 'github',
+      organizationId: null,
       deliveryId: delivery.deliveryId,
       event: delivery.event,
       action: typeof payload.action === 'string' ? payload.action : null,
@@ -81,7 +116,7 @@ export class WebhooksService {
     }
 
     try {
-      await this.handle(entity.event, entity.action, payload);
+      await this.handle(entity, payload);
       await this.deliveries.update(entity.id, { processedAt: new Date() });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -93,15 +128,21 @@ export class WebhooksService {
   }
 
   private async handle(
-    event: string,
-    action: string | null,
+    delivery: WebhookDeliveryEntity,
     payload: Record<string, unknown>,
   ): Promise<void> {
+    const { event, action } = delivery;
     const installation = payload.installation as { id?: number } | undefined;
     if (installation?.id === undefined) {
       return;
     }
     const externalId = String(installation.id);
+    const connected = await this.installations.findByExternalId(externalId);
+    if (connected) {
+      await this.deliveries.update(delivery.id, {
+        organizationId: connected.organizationId,
+      });
+    }
     if (event === 'installation') {
       switch (action) {
         case 'deleted':
@@ -121,6 +162,9 @@ export class WebhooksService {
     }
     if (event === 'pull_request') {
       await this.pullRequests.received(payload as GitHubPullRequestPayload);
+    }
+    if (this.issueEvents.eventTypeOf(event, action)) {
+      await this.issueEvents.received(delivery, payload as GitHubIssuePayload);
     }
   }
 }

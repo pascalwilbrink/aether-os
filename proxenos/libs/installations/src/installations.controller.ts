@@ -7,12 +7,9 @@ import {
   Param,
   Post,
   Query,
-  Req,
   Res,
-  UnauthorizedException,
-  type RawBodyRequest,
 } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 
 import { Public, RequirePermission, ZodSerializerDto } from '@proxenos/core';
 
@@ -31,7 +28,6 @@ import { RepositoriesParams } from './dto/repositories.params.js';
 import { RepositoryPage } from './dto/repository-page.response.js';
 import { InstallationsService } from './installations.service.js';
 import { RepositoriesService } from './repositories.service.js';
-import { WebhooksService } from './webhooks.service.js';
 
 @Controller('organizations/:organizationId')
 export class InstallationsController {
@@ -97,32 +93,5 @@ export class GitHubController {
   @Public()
   async setup(@Query() query: GitHubSetupQuery, @Res() response: Response) {
     response.redirect(HttpStatus.SEE_OTHER, await this.connect.complete(query));
-  }
-}
-
-@Controller('webhooks')
-export class WebhooksController {
-  constructor(private readonly webhooks: WebhooksService) {}
-
-  @Post('github')
-  @Public()
-  @HttpCode(HttpStatus.ACCEPTED)
-  async github(@Req() request: RawBodyRequest<Request>): Promise<void> {
-    const header = (name: string) => {
-      const value = request.headers[name];
-      return typeof value === 'string' && value.length <= 200 ? value : null;
-    };
-    const event = header('x-github-event');
-    const deliveryId = header('x-github-delivery');
-    const signature = header('x-hub-signature-256');
-    if (!event || !deliveryId || !signature || !request.rawBody) {
-      throw new UnauthorizedException('Not a signed GitHub delivery');
-    }
-    await this.webhooks.receive({
-      event,
-      deliveryId,
-      signature,
-      rawBody: request.rawBody,
-    });
   }
 }

@@ -52,6 +52,12 @@
       ],
       "@proxenos/repositories/*": [
         "./libs/repositories/src/*"
+      ],
+      "@proxenos/webhooks": [
+        "./libs/webhooks/src/index.ts"
+      ],
+      "@proxenos/webhooks/*": [
+        "./libs/webhooks/src/*"
       ]
     },
     "rewriteRelativeImportExtensions": true

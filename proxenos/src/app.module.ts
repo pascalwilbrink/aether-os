@@ -12,6 +12,7 @@ import {
 } from '@proxenos/core';
 import { InstallationsModule } from '@proxenos/installations';
 import { RepositoriesModule } from '@proxenos/repositories';
+import { WebhooksModule } from '@proxenos/webhooks';
 
 // Validation, the /v1 prefix and problem details: configureHttpApp (main.ts).
 @Module({
@@ -43,6 +44,7 @@ import { RepositoriesModule } from '@proxenos/repositories';
     ProxenosEventsModule,
     InstallationsModule,
     RepositoriesModule,
+    WebhooksModule,
   ],
 })
 export class AppModule {}
