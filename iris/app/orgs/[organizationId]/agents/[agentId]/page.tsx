@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 import type { AgentVersion } from "@/lib/api";
 import { canPublish, versionStatusClasses, versionStatusLabel } from "@/lib/agents";
-import { getAgent, listAgentVersions } from "@/lib/api/hephaestus";
+import { getAgent, listActiveModels, listAgentVersions } from "@/lib/api/hephaestus";
 import { getOrganization } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
 import { formatTime } from "@/lib/tasks";
@@ -25,10 +25,11 @@ async function AgentDetails({ params }: Props) {
   const { organizationId, agentId } = await params;
   const session = await requireOrganization(organizationId, `/orgs/${organizationId}/agents/${agentId}`);
   const token = session.accessToken;
-  const [organization, agent, versions] = await Promise.all([
+  const [organization, agent, versions, models] = await Promise.all([
     getOrganization(token, organizationId),
     getAgent(token, organizationId, agentId),
     listAgentVersions(token, organizationId, agentId),
+    listActiveModels(token),
   ]);
   const ref = { organizationId, agentId };
   const [latest] = versions.items;
@@ -85,7 +86,7 @@ async function AgentDetails({ params }: Props) {
         <section className="space-y-3">
           <h2 className="font-medium">{latest ? `New version, from version ${latest.version}` : "First version"}</h2>
           {/* After a save, React resets the form to its defaults: the new latest version. */}
-          <VersionForm agent={ref} from={latest} />
+          <VersionForm agent={ref} from={latest} models={models.items} />
         </section>
       ) : null}
     </div>

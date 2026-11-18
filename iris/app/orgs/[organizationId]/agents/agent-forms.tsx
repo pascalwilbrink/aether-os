@@ -3,8 +3,8 @@
 import { useActionState } from "react";
 
 import { buttonClass, FormError, inputClass, secondaryButtonClass } from "@/app/components/form";
-import type { AgentVersion } from "@/lib/api";
-import { fieldsOf, MODEL_PROVIDERS } from "@/lib/agents";
+import type { AgentVersion, Model } from "@/lib/api";
+import { fieldsOf, modelChoices } from "@/lib/agents";
 
 import {
   archiveAgentAction,
@@ -49,11 +49,21 @@ export function NewAgentForm({ organizationId }: { organizationId: string }) {
  * A new version, starting from `from` (the latest one) when there is one:
  * versions never change, so editing an agent is writing its next version.
  */
-export function VersionForm({ agent, from }: { agent: AgentRef; from: AgentVersion | undefined }) {
+export function VersionForm({
+  agent,
+  from,
+  models,
+}: {
+  agent: AgentRef;
+  from: AgentVersion | undefined;
+  /** The catalogue's active models. */
+  models: Model[];
+}) {
   const [state, action, pending] = useActionState<FormState, FormData>(createVersionAction.bind(null, agent), {});
   const carried = (from?.tools.length ?? 0) + (from?.skills.length ?? 0);
   // A refused submit starts from what was sent; otherwise from `from`.
   const start = state.values ?? fieldsOf(from);
+  const choices = modelChoices(models, start.model ?? "");
   return (
     <form action={action} className="space-y-3">
       <FormError error={state.error} />
@@ -73,18 +83,39 @@ export function VersionForm({ agent, from }: { agent: AgentRef; from: AgentVersi
         />
       </label>
       <div className="grid gap-3 sm:grid-cols-4">
-        <label className="block text-sm">
-          Provider
-          <input name="provider" required list="model-providers" defaultValue={start.provider} className={inputClass} />
-          <datalist id="model-providers">
-            {MODEL_PROVIDERS.map((provider) => (
-              <option key={provider} value={provider} />
-            ))}
-          </datalist>
-        </label>
-        <label className="block text-sm sm:col-span-3">
+        <label className="block text-sm sm:col-span-4">
           Model
-          <input name="model" required defaultValue={start.model} className={inputClass} />
+          {/* Keyed: a form reset doesn't move a select to a new defaultValue. */}
+          <select
+            key={start.model}
+            name="model"
+            required
+            defaultValue={choices.unavailable ? "" : start.model}
+            disabled={choices.groups.length === 0}
+            className={inputClass}
+          >
+            <option value="" disabled>
+              Choose a model
+            </option>
+            {choices.groups.map((group) => (
+              <optgroup key={group.provider} label={group.label}>
+                {group.options.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          {choices.groups.length === 0 ? (
+            <span className="mt-1 block text-xs text-amber-700 dark:text-amber-300">
+              The model catalogue has no active models yet; a platform operator adds them.
+            </span>
+          ) : choices.unavailable ? (
+            <span className="mt-1 block text-xs text-amber-700 dark:text-amber-300">
+              {choices.unavailable} is no longer available for new versions: choose another model.
+            </span>
+          ) : null}
         </label>
         <label className="block text-sm">
           Temperature

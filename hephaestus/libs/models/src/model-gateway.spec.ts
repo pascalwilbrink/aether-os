@@ -6,8 +6,12 @@ import {
   FakeSecretStore,
   ScriptedLanguageModels,
 } from '../../../test/fake-models.js';
+import type {
+  CatalogEntry,
+  ModelCatalogService,
+} from './model-catalog.service.js';
 import { ModelGateway, type ModelCallContext } from './model-gateway.js';
-import { ModelKeyMissingError } from './model.errors.js';
+import { ModelKeyMissingError, ModelRetiredError } from './model.errors.js';
 
 const context: ModelCallContext = {
   organizationId: 'org-1',
@@ -21,16 +25,26 @@ const model = { provider: 'anthropic', model: 'claude-sonnet' };
 describe('ModelGateway keys', () => {
   let secrets: FakeSecretStore;
   let models: ScriptedLanguageModels;
+  let entry: CatalogEntry | null;
 
   const gateway = (platformKeys: boolean) =>
-    new ModelGateway(null as never, secrets, models, {
-      get: (key: keyof Env) =>
-        key === 'PLATFORM_MODEL_KEYS' ? platformKeys : undefined,
-    } as unknown as ConfigService<Env, true>);
+    new ModelGateway(
+      null as never,
+      secrets,
+      models,
+      {
+        get: (key: keyof Env) =>
+          key === 'PLATFORM_MODEL_KEYS' ? platformKeys : undefined,
+      } as unknown as ConfigService<Env, true>,
+      {
+        entryFor: () => Promise.resolve(entry),
+      } as unknown as ModelCatalogService,
+    );
 
   beforeEach(() => {
     secrets = new FakeSecretStore();
     models = new ScriptedLanguageModels();
+    entry = null;
     secrets.secrets.set('platform/llm/anthropic', { apiKey: 'platform-key' });
   });
 
@@ -66,6 +80,31 @@ describe('ModelGateway keys', () => {
     await expect(
       gateway(true).resolve(context, { provider: '../platform', model: 'x' }),
     ).rejects.toBeInstanceOf(ModelKeyMissingError);
+    expect(secrets.reads).toEqual([]);
+  });
+
+  it("resolves with the catalogue's current price", async () => {
+    const price = {
+      id: 'price-1',
+      inputPerMTok: '2.000000',
+      outputPerMTok: '10.000000',
+      cacheReadPerMTok: null,
+      cacheWritePerMTok: null,
+      longContext: null,
+    };
+    entry = { status: 'deprecated', price };
+
+    await expect(gateway(true).resolve(context, model)).resolves.toMatchObject({
+      price,
+    });
+  });
+
+  it('refuses a retired model before reading any key', async () => {
+    entry = { status: 'retired', price: null };
+
+    await expect(gateway(true).resolve(context, model)).rejects.toBeInstanceOf(
+      ModelRetiredError,
+    );
     expect(secrets.reads).toEqual([]);
   });
 });

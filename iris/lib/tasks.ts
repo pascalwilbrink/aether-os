@@ -56,7 +56,10 @@ export function failureLabel(reason: Task["failureReason"]): string | null {
 }
 
 /** What people can do with a task in its current state (the API decides too). */
-export function taskActions(task: Pick<Task, "status">): { cancel: boolean; retry: boolean } {
+export function taskActions(task: Pick<Task, "status">): {
+  cancel: boolean;
+  retry: boolean;
+} {
   const finished = ["succeeded", "failed", "cancelled"].includes(task.status);
   return { cancel: !finished, retry: task.status === "failed" };
 }
@@ -69,6 +72,18 @@ export function drafts(artifacts: Artifact[]): Artifact[] {
 /** `1,234` style, for token counts. */
 export function formatCount(value: number): string {
   return new Intl.NumberFormat("en").format(value);
+}
+
+/**
+ * A cost in US dollars (a 6-decimal string from the API): cents above a
+ * dollar, up to 4 decimals below it (`$0.0023`), `—` when unpriced.
+ */
+export function formatCost(usd: string | null): string {
+  if (usd === null) return "—";
+  const value = Number(usd);
+  if (value === 0) return "$0";
+  if (value < 0.0001) return "< $0.0001";
+  return `$${value.toFixed(value >= 1 ? 2 : 4)}`;
 }
 
 /** A timestamp as people read it (UTC, so server and browser agree). */

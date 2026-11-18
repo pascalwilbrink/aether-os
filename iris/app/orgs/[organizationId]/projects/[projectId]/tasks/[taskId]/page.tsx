@@ -6,7 +6,7 @@ import { StatusBadge } from "@/app/components/status-badge";
 import { getTask, listArtifacts, listExecutions } from "@/lib/api/hephaestus";
 import { getProject } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
-import { artifactsByExecution, failureLabel, formatCount, formatTime, taskActions } from "@/lib/tasks";
+import { artifactsByExecution, failureLabel, formatCost, formatCount, formatTime, taskActions } from "@/lib/tasks";
 
 import { ReviewForm } from "../../review-form";
 import { TaskActions } from "../../task-actions";
@@ -166,6 +166,7 @@ async function TaskView({ params }: Pick<Props, "params">) {
                 <th className="py-1 font-normal">Status</th>
                 <th className="py-1 font-normal">Model calls</th>
                 <th className="py-1 font-normal">Tokens in / out</th>
+                <th className="py-1 font-normal">Cost</th>
                 <th className="py-1 font-normal">Started</th>
               </tr>
             </thead>
@@ -183,6 +184,7 @@ async function TaskView({ params }: Pick<Props, "params">) {
                   <td className="py-2 pr-2">
                     {formatCount(execution.usage.inputTokens)} / {formatCount(execution.usage.outputTokens)}
                   </td>
+                  <td className="py-2 pr-2">{formatCost(execution.usage.costUsd)}</td>
                   <td className="py-2 text-zinc-600 dark:text-zinc-400">{formatTime(execution.startedAt)}</td>
                 </tr>
               ))}

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.12.0
+  version: 0.13.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -24,6 +24,8 @@ info:
     (`Authorization: Bearer`); `x-permission` names what it requires
     (`../docs/identity.md`). Another organization's `{organizationId}`, and a
     project the caller can't read, are 404. `createdBy` is the caller's `sub`.
+    The model catalogue (`/v1/models`) is the platform's: any valid token
+    reads it, and only platform services with `platform:manage` change it.
 
 security:
   - pistis: []
@@ -34,6 +36,7 @@ tags:
   - name: workspaces
   - name: tasks
   - name: task-templates
+  - name: models
 
 paths:
   /v1/organizations/{organizationId}/agents:
@@ -128,7 +131,10 @@ paths:
       tags: [agent-versions]
       operationId: createAgentVersion
       x-permission: '`agent:write`'
-      description: Creates a draft version; the version number is assigned by the server.
+      description: |
+        Creates a draft version; the version number is assigned by the
+        server. Its model must be an `active` model of the catalogue
+        (`MODEL_NOT_AVAILABLE` otherwise).
       requestBody:
         required: true
         content:
@@ -873,6 +879,137 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1/models:
+    get:
+      tags: [models]
+      operationId: listModels
+      x-permission: any valid token (the catalogue is the platform's, the same for every organization)
+      description: |
+        The model catalogue (`../docs/models.md`, Models): the models agent
+        versions can name, by name, each with the price in force now.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/ModelStatus' }
+        - name: provider
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/ModelProvider' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: By name
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+    post:
+      tags: [models]
+      operationId: createModel
+      x-permission: '`platform:manage` (platform services only)'
+      description: Adds a model to the catalogue, with its first price.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateModelRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/DomainError' }
+  /v1/models/{modelId}:
+    parameters:
+      - $ref: '#/components/parameters/ModelId'
+    get:
+      tags: [models]
+      operationId: getModel
+      x-permission: any valid token
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [models]
+      operationId: updateModel
+      x-permission: '`platform:manage` (platform services only)'
+      description: |
+        Replaces the model's editable fields. `provider` and `model` never
+        change (agent versions name them); prices change with
+        `POST …/prices`. `deprecated`: new agent versions can't choose it;
+        `retired`: the gateway refuses to call it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateModelRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/models/{modelId}/prices:
+    parameters:
+      - $ref: '#/components/parameters/ModelId'
+    get:
+      tags: [models]
+      operationId: listModelPrices
+      x-permission: any valid token
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: Newest `effectiveFrom` first, including scheduled ones
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelPricePage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [models]
+      operationId: addModelPrice
+      x-permission: '`platform:manage` (platform services only)'
+      description: |
+        A new price from `effectiveFrom` (now if absent). Prices never
+        change once recorded, so past calls keep the cost they had; a price
+        must start after the model's latest one (`MODEL_PRICE_INVALID`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddModelPriceRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelPriceResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
 components:
   parameters:
     OrganizationId:
@@ -915,6 +1052,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    ModelId:
+      name: modelId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     Limit: { $ref: './common.openapi.yaml#/components/parameters/Limit' }
     Cursor: { $ref: './common.openapi.yaml#/components/parameters/Cursor' }
 
@@ -952,6 +1094,9 @@ components:
         - AGENT_VERSION_CONFLICT
         - AGENT_VERSION_INVALID_TRANSITION
         - ARTIFACT_NOT_DRAFT
+        - MODEL_ALREADY_EXISTS
+        - MODEL_NOT_AVAILABLE
+        - MODEL_PRICE_INVALID
         - ORGANIZATION_SUSPENDED
         - PROJECT_ARCHIVED
         - TASK_CRITERIA_INVALID
@@ -1779,11 +1924,24 @@ components:
         The model calls the execution made through the model gateway, and
         their tokens (docs/models.md, Metering). Tokens a provider didn't
         report count as 0.
-      required: [modelCalls, inputTokens, outputTokens]
+      required: [modelCalls, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, costUsd]
       properties:
         modelCalls: { type: integer, minimum: 0 }
-        inputTokens: { type: integer, minimum: 0 }
+        inputTokens:
+          type: integer
+          minimum: 0
+          description: Every input token, cache reads and writes included.
         outputTokens: { type: integer, minimum: 0 }
+        cacheReadTokens: { type: integer, minimum: 0 }
+        cacheWriteTokens: { type: integer, minimum: 0 }
+        costUsd:
+          description: |
+            The calls' cost at the prices in force when they were made;
+            null when none of them had a price (a model outside the
+            catalogue).
+          oneOf:
+            - $ref: '#/components/schemas/Usd'
+            - type: 'null'
     ExecutionPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'
@@ -1800,3 +1958,164 @@ components:
       required: [nextCursor]
       properties:
         nextCursor: { $ref: './common.openapi.yaml#/components/schemas/NextCursor' }
+
+    # ---------- models ----------
+    ModelProvider:
+      type: string
+      description: |
+        Providers the model gateway can call: each needs code (Mastra's
+        model router) and a key in OpenBao (`orgs/{organizationId}/llm/{provider}`
+        or `platform/llm/{provider}`), so this list only changes with a release.
+      enum: [anthropic, openai, google, mistral]
+    ModelStatus:
+      type: string
+      description: |
+        `active`: new agent versions can choose it. `deprecated`: versions
+        that already have it keep running, new ones can't choose it.
+        `retired`: the gateway refuses to call it.
+      enum: [active, deprecated, retired]
+    Usd:
+      type: string
+      description: US dollars as a decimal string, at most 6 decimals (`../docs/api.md`).
+      pattern: '^\d{1,9}(\.\d{1,6})?$'
+    PricePerMTok:
+      type: string
+      description: US dollars per million tokens, a decimal string with at most 6 decimals.
+      pattern: '^\d{1,6}(\.\d{1,6})?$'
+    ModelRates:
+      type: object
+      description: |
+        Prices per million tokens. Cache reads and writes without a price
+        cost what other input does (e.g. OpenAI doesn't charge for writing
+        its cache).
+      required: [inputPerMTok, outputPerMTok]
+      properties:
+        inputPerMTok: { $ref: '#/components/schemas/PricePerMTok' }
+        outputPerMTok: { $ref: '#/components/schemas/PricePerMTok' }
+        cacheReadPerMTok:
+          oneOf:
+            - $ref: '#/components/schemas/PricePerMTok'
+            - type: 'null'
+        cacheWritePerMTok:
+          description: Writing to the provider's shortest-lived cache (Anthropic's 5 minutes).
+          oneOf:
+            - $ref: '#/components/schemas/PricePerMTok'
+            - type: 'null'
+    LongContextRates:
+      description: |
+        Higher prices for a call whose input (cache reads and writes
+        included) is over `aboveInputTokens`: the whole call is priced at
+        these rates (e.g. Claude Haiku 5.5 above 100,000 tokens).
+      allOf:
+        - $ref: '#/components/schemas/ModelRates'
+        - type: object
+          required: [aboveInputTokens]
+          properties:
+            aboveInputTokens: { type: integer, minimum: 1 }
+    ModelPriceInput:
+      allOf:
+        - $ref: '#/components/schemas/ModelRates'
+        - type: object
+          properties:
+            longContext:
+              oneOf:
+                - $ref: '#/components/schemas/LongContextRates'
+                - type: 'null'
+    AddModelPriceRequest:
+      allOf:
+        - $ref: '#/components/schemas/ModelPriceInput'
+        - type: object
+          properties:
+            effectiveFrom:
+              type: string
+              format: date-time
+              description: When the price starts; now if absent. After the model's latest price.
+    ModelPriceResponse:
+      type: object
+      required: [id, modelId, effectiveFrom, inputPerMTok, outputPerMTok, cacheReadPerMTok, cacheWritePerMTok, longContext, createdBy, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        modelId: { type: string, format: uuid }
+        effectiveFrom: { type: string, format: date-time }
+        inputPerMTok: { $ref: '#/components/schemas/PricePerMTok' }
+        outputPerMTok: { $ref: '#/components/schemas/PricePerMTok' }
+        cacheReadPerMTok:
+          oneOf:
+            - $ref: '#/components/schemas/PricePerMTok'
+            - type: 'null'
+        cacheWritePerMTok:
+          oneOf:
+            - $ref: '#/components/schemas/PricePerMTok'
+            - type: 'null'
+        longContext:
+          oneOf:
+            - $ref: '#/components/schemas/LongContextRates'
+            - type: 'null'
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+    ModelPricePage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/ModelPriceResponse' }
+    CreateModelRequest:
+      type: object
+      additionalProperties: false
+      required: [provider, model, name, price]
+      properties:
+        provider: { $ref: '#/components/schemas/ModelProvider' }
+        model:
+          type: string
+          description: The provider's API model ID (`claude-sonnet-5-5`), as agent versions name it.
+          pattern: '^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: For people (`Claude Sonnet 5.5`).
+        contextWindow: { type: [integer, 'null'], minimum: 1 }
+        maxOutputTokens: { type: [integer, 'null'], minimum: 1 }
+        price: { $ref: '#/components/schemas/ModelPriceInput' }
+    UpdateModelRequest:
+      type: object
+      additionalProperties: false
+      required: [name, status, contextWindow, maxOutputTokens]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        status: { $ref: '#/components/schemas/ModelStatus' }
+        contextWindow: { type: [integer, 'null'], minimum: 1 }
+        maxOutputTokens: { type: [integer, 'null'], minimum: 1 }
+    ModelResponse:
+      type: object
+      required: [id, provider, model, name, status, contextWindow, maxOutputTokens, price, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        provider:
+          type: string
+          description: A `ModelProvider` (a string here, so a provider removed from the list still reads).
+        model: { type: string }
+        name: { type: string }
+        status: { $ref: '#/components/schemas/ModelStatus' }
+        contextWindow: { type: [integer, 'null'] }
+        maxOutputTokens: { type: [integer, 'null'] }
+        price:
+          description: The price in force now; null before its first one starts.
+          oneOf:
+            - $ref: '#/components/schemas/ModelPriceResponse'
+            - type: 'null'
+        version: { type: integer, minimum: 1 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ModelPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/ModelResponse' }

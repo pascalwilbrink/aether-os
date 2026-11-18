@@ -8,6 +8,9 @@ export const zDomainErrorCode = z.enum([
     'AGENT_VERSION_CONFLICT',
     'AGENT_VERSION_INVALID_TRANSITION',
     'ARTIFACT_NOT_DRAFT',
+    'MODEL_ALREADY_EXISTS',
+    'MODEL_NOT_AVAILABLE',
+    'MODEL_PRICE_INVALID',
     'ORGANIZATION_SUSPENDED',
     'PROJECT_ARCHIVED',
     'TASK_CRITERIA_INVALID',
@@ -556,6 +559,36 @@ export const zExecutionRepository = z.object({
 });
 
 /**
+ * Providers the model gateway can call: each needs code (Mastra's
+ * model router) and a key in OpenBao (`orgs/{organizationId}/llm/{provider}`
+ * or `platform/llm/{provider}`), so this list only changes with a release.
+ *
+ */
+export const zModelProvider = z.enum([
+    'anthropic',
+    'openai',
+    'google',
+    'mistral'
+]);
+
+/**
+ * `active`: new agent versions can choose it. `deprecated`: versions
+ * that already have it keep running, new ones can't choose it.
+ * `retired`: the gateway refuses to call it.
+ *
+ */
+export const zModelStatus = z.enum([
+    'active',
+    'deprecated',
+    'retired'
+]);
+
+/**
+ * US dollars as a decimal string, at most 6 decimals (`../docs/api.md`).
+ */
+export const zUsd = z.string().regex(/^\d{1,9}(\.\d{1,6})?$/);
+
+/**
  * The model calls the execution made through the model gateway, and
  * their tokens (docs/models.md, Metering). Tokens a provider didn't
  * report count as 0.
@@ -564,7 +597,10 @@ export const zExecutionRepository = z.object({
 export const zExecutionUsage = z.object({
     modelCalls: z.int().gte(0),
     inputTokens: z.int().gte(0),
-    outputTokens: z.int().gte(0)
+    outputTokens: z.int().gte(0),
+    cacheReadTokens: z.int().gte(0),
+    cacheWriteTokens: z.int().gte(0),
+    costUsd: zUsd.nullable()
 });
 
 export const zExecutionResponse = z.object({
@@ -580,6 +616,85 @@ export const zExecutionResponse = z.object({
     repository: zExecutionRepository.nullable(),
     startedAt: z.iso.datetime(),
     endedAt: z.iso.datetime().nullable()
+});
+
+/**
+ * US dollars per million tokens, a decimal string with at most 6 decimals.
+ */
+export const zPricePerMTok = z.string().regex(/^\d{1,6}(\.\d{1,6})?$/);
+
+/**
+ * Prices per million tokens. Cache reads and writes without a price
+ * cost what other input does (e.g. OpenAI doesn't charge for writing
+ * its cache).
+ *
+ */
+export const zModelRates = z.object({
+    inputPerMTok: zPricePerMTok,
+    outputPerMTok: zPricePerMTok,
+    cacheReadPerMTok: zPricePerMTok.nullish(),
+    cacheWritePerMTok: zPricePerMTok.nullish()
+});
+
+/**
+ * Higher prices for a call whose input (cache reads and writes
+ * included) is over `aboveInputTokens`: the whole call is priced at
+ * these rates (e.g. Claude Haiku 5.5 above 100,000 tokens).
+ *
+ */
+export const zLongContextRates = zModelRates.and(z.object({
+    aboveInputTokens: z.int().gte(1)
+}));
+
+export const zModelPriceInput = zModelRates.and(z.object({
+    longContext: zLongContextRates.nullish()
+}));
+
+export const zAddModelPriceRequest = zModelPriceInput.and(z.object({
+    effectiveFrom: z.iso.datetime().optional()
+}));
+
+export const zModelPriceResponse = z.object({
+    id: z.uuid(),
+    modelId: z.uuid(),
+    effectiveFrom: z.iso.datetime(),
+    inputPerMTok: zPricePerMTok,
+    outputPerMTok: zPricePerMTok,
+    cacheReadPerMTok: zPricePerMTok.nullable(),
+    cacheWritePerMTok: zPricePerMTok.nullable(),
+    longContext: zLongContextRates.nullable(),
+    createdBy: z.string(),
+    createdAt: z.iso.datetime()
+});
+
+export const zCreateModelRequest = z.object({
+    provider: zModelProvider,
+    model: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/),
+    name: z.string().min(1).max(200),
+    contextWindow: z.int().gte(1).nullish(),
+    maxOutputTokens: z.int().gte(1).nullish(),
+    price: zModelPriceInput
+});
+
+export const zUpdateModelRequest = z.object({
+    name: z.string().min(1).max(200),
+    status: zModelStatus,
+    contextWindow: z.int().gte(1).nullable(),
+    maxOutputTokens: z.int().gte(1).nullable()
+});
+
+export const zModelResponse = z.object({
+    id: z.uuid(),
+    provider: z.string(),
+    model: z.string(),
+    name: z.string(),
+    status: zModelStatus,
+    contextWindow: z.int().nullable(),
+    maxOutputTokens: z.int().nullable(),
+    price: zModelPriceResponse.nullable(),
+    version: z.int().gte(1),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime()
 });
 
 /**
@@ -621,6 +736,14 @@ export const zArtifactPage = zPageMeta.and(z.object({
 
 export const zExecutionPage = zPageMeta.and(z.object({
     items: z.array(zExecutionResponse)
+}));
+
+export const zModelPricePage = zPageMeta.and(z.object({
+    items: z.array(zModelPriceResponse)
+}));
+
+export const zModelPage = zPageMeta.and(z.object({
+    items: z.array(zModelResponse)
 }));
 
 /**
@@ -678,6 +801,8 @@ export const zTaskId = z.uuid();
 export const zTemplateId = z.uuid();
 
 export const zArtifactId = z.uuid();
+
+export const zModelId = z.uuid();
 
 /**
  * Page size.
@@ -1137,3 +1262,67 @@ export const zListTaskExecutionsQuery = z.object({
  * Newest first
  */
 export const zListTaskExecutionsResponse = zExecutionPage;
+
+export const zListModelsQuery = z.object({
+    status: zModelStatus.optional(),
+    provider: zModelProvider.optional(),
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * By name
+ */
+export const zListModelsResponse = zModelPage;
+
+export const zCreateModelBody = zCreateModelRequest;
+
+/**
+ * Created
+ */
+export const zCreateModelResponse = zModelResponse;
+
+export const zGetModelPath = z.object({
+    modelId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetModelResponse = zModelResponse;
+
+export const zUpdateModelBody = zUpdateModelRequest;
+
+export const zUpdateModelPath = z.object({
+    modelId: z.uuid()
+});
+
+/**
+ * Updated
+ */
+export const zUpdateModelResponse = zModelResponse;
+
+export const zListModelPricesPath = z.object({
+    modelId: z.uuid()
+});
+
+export const zListModelPricesQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest `effectiveFrom` first, including scheduled ones
+ */
+export const zListModelPricesResponse = zModelPricePage;
+
+export const zAddModelPriceBody = zAddModelPriceRequest;
+
+export const zAddModelPricePath = z.object({
+    modelId: z.uuid()
+});
+
+/**
+ * Created
+ */
+export const zAddModelPriceResponse = zModelPriceResponse;

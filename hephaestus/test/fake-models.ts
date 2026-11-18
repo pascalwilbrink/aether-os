@@ -16,7 +16,13 @@ export class FakeSecretStore extends SecretStore {
 
 /** What a scripted model call returns, or the provider error it throws. */
 export type ScriptedReply =
-  | { text: string; inputTokens?: number; outputTokens?: number }
+  | {
+      text: string;
+      inputTokens?: number;
+      outputTokens?: number;
+      /** Of the input, read from the provider's prompt cache. */
+      cachedInputTokens?: number;
+    }
   /** Calls the first offered tool whose name contains `tool`. */
   | { toolCall: { tool: string; input: Record<string, unknown> } }
   | { error: { message: string; statusCode: number } };
@@ -94,6 +100,7 @@ export class ScriptedLanguageModels extends LanguageModels {
     const usage = {
       inputTokens: reply.inputTokens,
       outputTokens: reply.outputTokens,
+      cachedInputTokens: reply.cachedInputTokens,
       totalTokens:
         reply.inputTokens !== undefined && reply.outputTokens !== undefined
           ? reply.inputTokens + reply.outputTokens

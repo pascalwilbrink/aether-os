@@ -5,6 +5,7 @@ import {
   artifactsByExecution,
   drafts,
   failureLabel,
+  formatCost,
   formatCount,
   formatTime,
   isTaskStatus,
@@ -31,9 +32,18 @@ describe("task helpers", () => {
   });
 
   it("offers cancel until a task is finished, and retry only after a failure", () => {
-    expect(taskActions({ status: "running" })).toEqual({ cancel: true, retry: false });
-    expect(taskActions({ status: "failed" })).toEqual({ cancel: false, retry: true });
-    expect(taskActions({ status: "succeeded" })).toEqual({ cancel: false, retry: false });
+    expect(taskActions({ status: "running" })).toEqual({
+      cancel: true,
+      retry: false,
+    });
+    expect(taskActions({ status: "failed" })).toEqual({
+      cancel: false,
+      retry: true,
+    });
+    expect(taskActions({ status: "succeeded" })).toEqual({
+      cancel: false,
+      retry: false,
+    });
   });
 
   it("explains failures", () => {
@@ -48,6 +58,11 @@ describe("task helpers", () => {
 
   it("formats counts and times the same everywhere", () => {
     expect(formatCount(12345)).toBe("12,345");
+    expect(formatCost(null)).toBe("—");
+    expect(formatCost("0.000000")).toBe("$0");
+    expect(formatCost("0.000040")).toBe("< $0.0001");
+    expect(formatCost("0.002260")).toBe("$0.0023");
+    expect(formatCost("12.345600")).toBe("$12.35");
     expect(formatTime("2026-11-18T09:05:12.000Z")).toBe("2026-11-18 09:05 UTC");
     expect(formatTime(null)).toBe("—");
   });

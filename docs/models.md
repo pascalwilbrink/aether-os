@@ -2,7 +2,7 @@
 
 How agents reach LLM providers, whose keys they use, and how usage and cost are measured and limited.
 
-Status: agreed design. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/models`, used by the Mastra runtime): the gateway resolving an agent version's model with the organization's key, else the platform's if allowed (`PLATFORM_MODEL_KEYS`), from OpenBao; calls through Mastra's model router with retries on 429/5xx; and metering of every call (tokens, key source, attribution) in `model_calls`, totalled per execution. Not yet: policy checks, budgets and reservations, prices (cost stays null until the model catalogue), fallback models, the gateway's HTTP endpoint, and LLM spans to Langfuse.
+Status: agreed design. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/models`, used by the Mastra runtime): the gateway resolving an agent version's model with the organization's key, else the platform's if allowed (`PLATFORM_MODEL_KEYS`), from OpenBao; calls through Mastra's model router with retries on 429/5xx; metering of every call (tokens, cache reads and writes, key source, attribution) in `model_calls`, totalled per execution; and the **model catalogue** (`/v1/models`: models and their versioned prices; agent versions must name an active model, and every call is priced). Not yet: policy checks, budgets and reservations, fallback models, the gateway's HTTP endpoint, and LLM spans to Langfuse.
 
 ## Decisions
 
@@ -48,7 +48,11 @@ Why a gateway instead of each component calling providers: one place for keys, b
 
 - An agent version names its model (`provider/model`, e.g. `anthropic/claude-sonnet-5-5`), optional fallbacks, and default parameters. Pinned with the version, like everything else.
 - Themis policy decides what's allowed: e.g. "only models hosted in the EU", "no model from provider X in this project". A denied model fails the call (closed), it is never silently replaced.
-- Proposal: a platform **model catalogue** (provider, model, context window, capabilities, region, prices) that Agora uses to validate agent versions and the gateway uses for pricing.
+- The platform's **model catalogue** (Hephaestus `libs/models` for now, with Agora later): the models agent versions can name, and their prices.
+  - A **model** is a provider (a fixed list in code, `ModelProvider`, since each needs gateway support and a key path), the provider's API model ID (`claude-sonnet-5-5`, what agent versions name), a display name, `contextWindow` and `maxOutputTokens`, and a status: `active` (new agent versions can choose it), `deprecated` (versions that have it keep running, new ones can't choose it), `retired` (the gateway refuses to call it).
+  - A **price** is US dollars per million tokens for input, output, cache reads and cache writes (decimal strings; an empty cache price costs what other input does), plus optional long-context rates above an input size (e.g. Claude Haiku 5.5 above 100,000 tokens). Prices are rows with `effectiveFrom`, never changed: a new price starts after the latest one, so past costs never move.
+  - Anyone with a token reads it (`GET /v1/models`, Iris's model picker); platform services with `platform:manage` add models, change their status and add prices. It starts with Anthropic's current models (a migration); everything after goes through the API.
+  - Proposal, later: capabilities and regions (for Themis policy), and per-organization negotiated prices.
 
 ## Metering
 
@@ -58,8 +62,8 @@ Each call records:
 |---|---|
 | `organizationId`, `projectId`, `taskId`, `executionId`, `agentVersionId`, `taskTemplateVersion` | Attribution |
 | `provider`, `model`, `keySource` (`organization` / `platform`) | What was used and who pays the provider |
-| `inputTokens`, `outputTokens`, `cachedInputTokens` | Usage, as reported by the provider |
-| `costUsd`, `priceVersion` | Cost at the price in force at that moment |
+| `inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheWriteTokens` | Usage, as reported by the provider; input includes cache reads and writes |
+| `costUsd`, `priceId` | Cost at the price in force when the run resolved its model |
 | `purpose` | `agent`, `judge`, `planning`, … |
 
 - Prices come from the model catalogue and are **versioned**: a price change never rewrites past costs.

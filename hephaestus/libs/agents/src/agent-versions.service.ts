@@ -11,6 +11,7 @@ import {
   type PageRequest,
   Transactional,
 } from '@hephaestus/core';
+import { ModelCatalogService } from '@hephaestus/models';
 
 import { nextAgentVersionStatus } from './agent-transitions.js';
 import { AgentVersionEntity } from './agent-version.entity.js';
@@ -36,6 +37,7 @@ export class AgentVersionsService {
     private readonly mapper: AgentVersionMapper,
     private readonly agents: AgentsService,
     private readonly access: AccessControl,
+    private readonly models: ModelCatalogService,
   ) {}
 
   @Transactional()
@@ -45,6 +47,7 @@ export class AgentVersionsService {
     dto: CreateAgentVersionRequest,
   ): Promise<AgentVersionResponse> {
     await this.agents.lockForVersionChange(organizationId, agentId);
+    await this.models.assertAvailable(dto.model.provider, dto.model.model);
 
     const current = await this.versions.maximum('version', { agentId });
     const entity = this.mapper.toEntity(

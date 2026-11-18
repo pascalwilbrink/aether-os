@@ -1,10 +1,62 @@
-import type { AgentVersion, ApiSchema } from "./api";
+import type { AgentVersion, ApiSchema, Model } from "./api";
 
 export type AgentVersionStatus = ApiSchema<"AgentVersionStatus">;
 export type NewAgentVersion = ApiSchema<"CreateAgentVersionRequest">;
 
-/** Model providers to suggest; any lowercase name with a key in OpenBao works. */
-export const MODEL_PROVIDERS = ["anthropic", "openai", "google", "mistral"] as const;
+const PROVIDER_NAMES: Record<string, string> = {
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+  google: "Google",
+  mistral: "Mistral",
+};
+
+/** A model as the version form's `model` field holds it: `provider/model`. */
+export const modelValue = (model: { provider: string; model: string }) => `${model.provider}/${model.model}`;
+
+/** `"2.500000"` → `"2.5"`: a price per million tokens, as people read it. */
+export function formatPrice(price: string): string {
+  return price.includes(".") ? price.replace(/\.?0+$/, "") : price;
+}
+
+export interface ModelChoice {
+  value: string;
+  label: string;
+}
+
+export interface ModelGroup {
+  provider: string;
+  label: string;
+  options: ModelChoice[];
+}
+
+/**
+ * The catalogue's active models for the version form: one group per
+ * provider (by its name), each model by name with its price per million
+ * tokens (input / output). `unavailable` is the starting model when it isn't
+ * one of them (deprecated or retired since): the form can't offer it.
+ */
+export function modelChoices(models: Model[], current: string): { groups: ModelGroup[]; unavailable: string | null } {
+  const groups = new Map<string, ModelChoice[]>();
+  for (const model of models) {
+    const price = model.price
+      ? ` · $${formatPrice(model.price.inputPerMTok)} / $${formatPrice(model.price.outputPerMTok)} per M tokens`
+      : "";
+    const options = groups.get(model.provider) ?? [];
+    options.push({ value: modelValue(model), label: `${model.name}${price}` });
+    groups.set(model.provider, options);
+  }
+  const label = (provider: string) => PROVIDER_NAMES[provider] ?? provider;
+  return {
+    groups: [...groups.entries()]
+      .map(([provider, options]) => ({
+        provider,
+        label: label(provider),
+        options,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+    unavailable: current && !models.some((model) => modelValue(model) === current) ? current : null,
+  };
+}
 
 /** The runtime new versions get; Hephaestus runs every version with its configured runtime. */
 export const DEFAULT_RUNTIME_PROVIDER = "mastra";
@@ -37,8 +89,7 @@ export const canPublish = (version: Pick<AgentVersion, "status">) => version.sta
 export function fieldsOf(version: AgentVersion | undefined): Record<string, string> {
   return {
     instructions: version?.instructions ?? "",
-    provider: version?.model.provider ?? "anthropic",
-    model: version?.model.model ?? "",
+    model: version ? modelValue(version.model) : "",
     temperature: version?.model.temperature?.toString() ?? "",
     maxTokens: version?.model.maxTokens?.toString() ?? "",
     executionMode: version?.runtime.executionMode ?? "standard",
@@ -61,10 +112,13 @@ export type FormFields = Record<string, string | undefined>;
 export function versionFromForm(fields: FormFields): { body: NewAgentVersion } | { error: string } {
   const value = (name: string) => (fields[name] ?? "").trim();
   const instructions = value("instructions");
-  const provider = value("provider").toLowerCase();
-  const model = value("model");
+  // `provider/model` (from the catalogue): the provider has no slash, a model ID might.
+  const chosen = value("model");
+  const slash = chosen.indexOf("/");
+  const provider = chosen.slice(0, slash);
+  const model = chosen.slice(slash + 1);
   if (!instructions) return { error: "Write the agent's instructions." };
-  if (!provider || !model) return { error: "Choose a model provider and a model." };
+  if (slash < 1 || !model) return { error: "Choose a model." };
 
   const body: NewAgentVersion = {
     instructions,
