@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { BudgetForm, BudgetMeter } from "@/app/components/budget";
 import { StatusBadge } from "@/app/components/status-badge";
-import { listAgents, listTasks, listTaskTemplates } from "@/lib/api/hephaestus";
+import { getProjectBudget, listAgents, listTasks, listTaskTemplates } from "@/lib/api/hephaestus";
 import { ApiError } from "@/lib/api/http";
 import { listOrganizationUsers, listServiceAccounts } from "@/lib/api/pistis";
 import { getOrganization, getProject, listMemberships, listProjectMemberships } from "@/lib/api/polis";
@@ -24,7 +25,12 @@ import { formatTime, isTaskStatus, statusLabel, TASK_STATUSES } from "@/lib/task
 import { ActionButton, RoleForm } from "@/app/components/action-forms";
 
 import { GrantAccessForm } from "./access-form";
-import { changeProjectRoleAction, removeProjectRoleAction, unlinkRepositoryAction } from "./actions";
+import {
+  changeProjectRoleAction,
+  removeProjectRoleAction,
+  setProjectBudgetAction,
+  unlinkRepositoryAction,
+} from "./actions";
 import { LinkRepositoryForm } from "./link-repository-form";
 import { NewTaskForm } from "./new-task-form";
 
@@ -66,6 +72,7 @@ async function Project({ params, searchParams }: Props) {
     users,
     links,
     repositories,
+    budget,
   ] = await Promise.all([
     getOrganization(token, organizationId),
     getProject(token, organizationId, projectId),
@@ -79,6 +86,7 @@ async function Project({ params, searchParams }: Props) {
     orEmpty(listOrganizationUsers(token, organizationId)),
     orUnavailable(listRepositoryLinks(token, organizationId, projectId)),
     orUnavailable(listRepositories(token, organizationId)),
+    getProjectBudget(token, organizationId, projectId),
   ]);
   const runnable = agents.items.filter((agent) => agent.status === "active" && agent.latestVersionId);
   // Only service accounts with a role here can run its tasks.
@@ -178,6 +186,22 @@ async function Project({ params, searchParams }: Props) {
               ))}
           </ul>
         )}
+      </section>
+
+      <section id="budget" className="space-y-3">
+        <div>
+          <h2 className="font-medium">Budget</h2>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            What this project&apos;s model calls cost this month; at its limit, its tasks pause until it&apos;s raised
+            or the next month starts. The organization has{" "}
+            <Link href={`/orgs/${organizationId}/budget`} className="underline">
+              a budget
+            </Link>{" "}
+            too.
+          </p>
+        </div>
+        <BudgetMeter budget={budget} />
+        <BudgetForm budget={budget} action={setProjectBudgetAction.bind(null, { organizationId, projectId })} />
       </section>
 
       <section id="access" className="space-y-3">

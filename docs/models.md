@@ -79,7 +79,8 @@ Each call records:
 - **Checked after each call, without reservations:** what a scope spent is summed from the calls the gateway recorded; the runner checks before an execution starts, and after each model call (a run whose budget ran out makes no further call). Calls already in flight can overshoot by at most one call per running execution of that scope. Reservations need each call's maximum cost up front, which the gateway can't know for input; they can replace this check later without changing anything else.
 - **Pausing doesn't save the run's state yet:** the execution ends `paused`, its pending artifacts become `partial` and the task resumes in a new execution, as revision runs do today. Saving the agent's state across waits (Tasks: Sandboxes across long waits) will apply here too.
 - **Windows:** calendar months in UTC; a task tree's over its life. `budget.threshold-reached` at 80%, once per window (again after the limit changes). Each runner round resumes paused tasks whose budgets have room (raised, or a new month).
-- Not yet: `pausedTimeoutDays`, budgets in Iris, and Kerykes notifying (the events are published).
+- Iris shows and sets them: the organization's budget page (with each project's spend), a project's on its page, a tree's on its tasks' pages (a paused task says which budget ran out), and a budget when creating a task.
+- Not yet: `pausedTimeoutDays`, and Kerykes notifying (the events are published).
 
 | Budget | Set on | Window | Default |
 |---|---|---|---|
