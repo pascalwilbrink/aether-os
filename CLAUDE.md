@@ -134,6 +134,7 @@ pnpm format:check          # prettier, as CI runs it (`pnpm format` in a package
 `docker-compose.yml` at this root runs the shared infrastructure; the app services run outside it with `pnpm` from their own directories.
 
 ```bash
+pnpm start:dev             # everything: infra, Krepis build, then every service and Iris (on 3010, or IRIS_PORT) in watch mode
 docker compose up -d       # Postgres, RabbitMQ, OpenBao, OPA, OTel Collector, Jaeger, Langfuse, Loki, Grafana, Mailpit
 docker compose down -v     # stop and wipe all data
 ```

@@ -9,7 +9,8 @@
     "test:e2e": "pnpm -r --if-present test:e2e",
     "generate:api": "pnpm -r --if-present generate:api",
     "infra:up": "docker compose up -d",
-    "infra:down": "docker compose down"
+    "infra:down": "docker compose down",
+    "start:dev": "pnpm infra:up && pnpm --filter @aether-os/krepis build && pnpm -r --parallel --no-bail --if-present start:dev"
   },
   "packageManager": "pnpm@10.34.9"
 }
