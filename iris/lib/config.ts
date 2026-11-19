@@ -66,6 +66,17 @@ export const config = {
   get kerykesUrl() {
     return value("KERYKES_URL", "http://localhost:3006");
   },
+  /**
+   * Where people browse traces (optional; no links without them): Jaeger's
+   * UI, and Langfuse's with the project the Collector sends to.
+   */
+  get traceViewers() {
+    return {
+      jaegerUrl: process.env.JAEGER_URL || null,
+      langfuseUrl: process.env.LANGFUSE_URL || null,
+      langfuseProjectId: process.env.LANGFUSE_PROJECT_ID || null,
+    };
+  },
   get secureCookies() {
     return production();
   },

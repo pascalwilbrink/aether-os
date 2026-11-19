@@ -9,6 +9,8 @@ import {
   type OnApplicationShutdown,
 } from '@nestjs/common';
 
+import { SpanStatusCode, trace } from '@opentelemetry/api';
+
 import type { ApiTypes } from '@hephaestus/core';
 import type { TaskResponse } from '@hephaestus/tasks';
 
@@ -25,11 +27,15 @@ import { Housekeeping } from './housekeeping.js';
 import { ExecutionPreparer } from './execution-preparer.js';
 import { ExecutionReaper, seconds } from './execution-reaper.js';
 import { ExecutionsService } from './executions.service.js';
+import { executionAttributes, recordedTraceId } from './execution-tracing.js';
 import { RunnerFailure } from './runner.errors.js';
 import { BranchConflictError, type Checkout } from './repository-checkouts.js';
 import { RUNNER_OPTIONS, type RunnerOptions } from './runner.options.js';
 import type { Sandbox } from './sandbox-provisioner.js';
 import { Verifier } from './verifier.js';
+
+/** Hephaestus's own spans (no-ops while no OpenTelemetry SDK runs). */
+const tracer = trace.getTracer('hephaestus');
 
 /** Why the runner stops an execution before it ends by itself. */
 type StopReason =
@@ -178,7 +184,35 @@ export class TaskRunner
     this.running.set(executionId, { taskId: task.id, controller, done });
   }
 
-  private async execute(
+  /**
+   * Each execution is a trace of its own (a root span, `task.execution`):
+   * its preparation, the agent's runs (Mastra's spans, model and tool
+   * calls), verification and delivery of commits, with the tenant, task and
+   * agent version on it. The execution records its trace ID.
+   */
+  private execute(
+    task: TaskResponse,
+    executionId: string,
+    controller: AbortController,
+  ): Promise<void> {
+    return tracer.startActiveSpan(
+      'task.execution',
+      { root: true, attributes: executionAttributes(task, executionId) },
+      async (span) => {
+        try {
+          const traceId = recordedTraceId(span.spanContext());
+          if (traceId) {
+            await this.executions.recordTrace(executionId, traceId);
+          }
+          await this.executeInSpan(task, executionId, controller);
+        } finally {
+          span.end();
+        }
+      },
+    );
+  }
+
+  private async executeInSpan(
     task: TaskResponse,
     executionId: string,
     controller: AbortController,
@@ -443,6 +477,21 @@ export class TaskRunner
 
   /** Records why an execution ended early. */
   private async failed(executionId: string, error: unknown): Promise<void> {
+    // On the execution's span: how it ended (messages are for people, never
+    // secrets). A pause for a budget or a cancellation isn't an error.
+    const span = trace.getActiveSpan();
+    const reason =
+      error instanceof Stopped
+        ? error.reason
+        : error instanceof BudgetExceededError
+          ? 'paused'
+          : error instanceof Error
+            ? error.message
+            : String(error);
+    span?.setAttribute('aether.execution.ended', reason.slice(0, 200));
+    if (reason !== 'cancelled' && reason !== 'paused') {
+      span?.setStatus({ code: SpanStatusCode.ERROR, message: reason });
+    }
     if (error instanceof Stopped) {
       switch (error.reason) {
         case 'cancelled':
