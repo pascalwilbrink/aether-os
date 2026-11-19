@@ -13,6 +13,7 @@ import { runWithTraceContext } from '../telemetry/trace-context.js';
 import { InvalidEventError, parseEventEnvelope } from './event-envelope.js';
 import { EventInbox } from './event-inbox.js';
 import {
+  COMMANDS_SOURCE,
   EVENTS_OPTIONS,
   RABBITMQ_OPTIONS,
   type EventsOptions,
@@ -27,10 +28,13 @@ const ATTEMPT_HEADER = 'x-attempt';
 const ERROR_HEADER = 'x-last-error';
 
 /**
- * Consumes the events a service subscribes to (docs/events.md). Per producer:
+ * Consumes the events a service subscribes to and the commands it accepts
+ * (docs/events.md). Per producer, and once for commands:
  *
- * - `<service>.<producer>-events`, durable, bound to `<producer>.events` with
- *   the subscribed routing keys;
+ * - the queue: `<service>.<producer>-events`, durable, bound to the topic
+ *   exchange `<producer>.events` with the subscribed routing keys; for
+ *   commands `<service>.commands`, bound to the service's own direct
+ *   exchange `<service>.commands` with the command names;
  * - `<queue>.retry`: a failed message waits here (per-message TTL, doubling
  *   from `retryDelayMs`) and then dead-letters back into the queue;
  * - `<queue>.dead`: after `maxAttempts`, or at once for a message that isn't
@@ -74,14 +78,33 @@ export class EventConsumer implements OnApplicationBootstrap, OnModuleDestroy {
     return `${this.events.service}.${source}-events`;
   }
 
+  /** The queue this service's commands arrive in. */
+  commandQueue(): string {
+    return `${this.events.service}.commands`;
+  }
+
   private async setup(channel: ConfirmChannel): Promise<void> {
     await channel.prefetch(this.options.prefetch ?? 10);
-    for (const [source, eventTypes] of Object.entries(
-      this.events.subscribe ?? {},
-    )) {
-      const exchange = `${source}.events`;
-      const queue = this.queueFor(source);
-      await channel.assertExchange(exchange, 'topic', { durable: true });
+    const sources = Object.entries(this.events.subscribe ?? {}).map(
+      ([source, keys]) => ({
+        source,
+        exchange: `${source}.events`,
+        type: 'topic',
+        queue: this.queueFor(source),
+        keys,
+      }),
+    );
+    if (this.events.commands?.length) {
+      sources.push({
+        source: COMMANDS_SOURCE,
+        exchange: `${this.events.service}.commands`,
+        type: 'direct',
+        queue: this.commandQueue(),
+        keys: this.events.commands,
+      });
+    }
+    for (const { source, exchange, type, queue, keys } of sources) {
+      await channel.assertExchange(exchange, type, { durable: true });
       await channel.assertQueue(queue, { durable: true });
       await channel.assertQueue(`${queue}.retry`, {
         durable: true,
@@ -89,8 +112,8 @@ export class EventConsumer implements OnApplicationBootstrap, OnModuleDestroy {
         deadLetterRoutingKey: queue,
       });
       await channel.assertQueue(`${queue}.dead`, { durable: true });
-      for (const eventType of eventTypes) {
-        await channel.bindQueue(queue, exchange, eventType);
+      for (const key of keys) {
+        await channel.bindQueue(queue, exchange, key);
       }
       await channel.consume(queue, (message) => {
         if (message) {

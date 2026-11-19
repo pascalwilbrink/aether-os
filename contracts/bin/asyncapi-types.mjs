@@ -7,8 +7,12 @@
 // `payload`, named after the event: `organization.created` →
 // `OrganizationCreated`), a map from event type to payload
 // (`PolisEventPayloads`), the `PolisEventType` union and the list of event
-// types (`POLIS_EVENT_TYPES`). The spec is validated with the official
-// AsyncAPI parser first; any error fails the run.
+// types (`POLIS_EVENT_TYPES`). Messages of `receive` operations are the
+// commands the service accepts (docs/events.md, Commands): they get the same
+// payload interfaces, but their own map, union and list
+// (`HephaestusCommandPayloads`, `HEPHAESTUS_COMMAND_TYPES`), never the
+// event ones. The spec is validated with the official AsyncAPI parser
+// first; any error fails the run.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, basename } from 'node:path';
 
@@ -66,6 +70,13 @@ function clean(value) {
   return value;
 }
 
+const received = new Set();
+for (const operation of document.operations()) {
+  if (operation.action() === 'receive') {
+    for (const message of operation.messages()) received.add(message.name());
+  }
+}
+
 const events = [];
 for (const message of document.allMessages()) {
   const eventType = message.name();
@@ -74,7 +85,12 @@ for (const message of document.allMessages()) {
     console.error(`Message ${message.id()} needs a name and an envelope with a payload.`);
     process.exit(1);
   }
-  events.push({ eventType, typeName: pascal(eventType), schema: clean(payload) });
+  events.push({
+    eventType,
+    typeName: pascal(eventType),
+    schema: clean(payload),
+    command: received.has(eventType),
+  });
 }
 events.sort((a, b) => a.eventType.localeCompare(b.eventType));
 
@@ -95,7 +111,26 @@ for (const { eventType, typeName, schema } of events) {
   parts.push(ts.trim());
 }
 
-const constName = `${name.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase()}_EVENT_TYPES`;
+const upper = name.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase();
+const constName = `${upper}_EVENT_TYPES`;
+const published = events.filter((e) => !e.command);
+const commands = events.filter((e) => e.command);
+const commandTypes = commands.length
+  ? `
+
+/** Every command ${name} accepts, mapped to its payload. */
+export interface ${name}CommandPayloads {
+${commands.map((e) => `  '${e.eventType}': ${e.typeName};`).join('\n')}
+}
+
+export type ${name}CommandType = keyof ${name}CommandPayloads;
+
+/** Every command ${name} accepts (on \`${name.toLowerCase()}.commands\`). */
+export const ${upper}_COMMAND_TYPES = [
+${commands.map((e) => `  '${e.eventType}',`).join('\n')}
+] as const satisfies readonly ${name}CommandType[];
+`
+  : '\n';
 const output = `// This file is generated from ${basename(specPath)} by aether-asyncapi-types
 // (@aether-os/contracts). Do not edit it by hand; run \`pnpm generate:api\`.
 
@@ -103,17 +138,18 @@ ${parts.join('\n\n')}
 
 /** Every ${name} event type, mapped to its payload. */
 export interface ${name}EventPayloads {
-${events.map((e) => `  '${e.eventType}': ${e.typeName};`).join('\n')}
+${published.map((e) => `  '${e.eventType}': ${e.typeName};`).join('\n')}
 }
 
 export type ${name}EventType = keyof ${name}EventPayloads;
 
 /** Every ${name} event type in the spec. */
 export const ${constName} = [
-${events.map((e) => `  '${e.eventType}',`).join('\n')}
-] as const satisfies readonly ${name}EventType[];
-`;
+${published.map((e) => `  '${e.eventType}',`).join('\n')}
+] as const satisfies readonly ${name}EventType[];${commandTypes}`;
 
 mkdirSync(dirname(outPath), { recursive: true });
 writeFileSync(outPath, output);
-console.log(`${specPath} → ${outPath} (${events.length} events)`);
+console.log(
+  `${specPath} → ${outPath} (${published.length} events, ${commands.length} commands)`,
+);

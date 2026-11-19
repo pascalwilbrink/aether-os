@@ -131,13 +131,16 @@ Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created` (with
 
 ## Commands
 
+**Built:** Hephaestus accepts `task.create` on `hephaestus.commands` (`../contracts/hephaestus.asyncapi.yaml`, the `receive` operation; Krepis's `EventsModule` `commands` option), with `task` (a `CreateTaskRequest`) or `template` (`templateId` plus a `CreateTaskFromTemplateRequest`) and `automationId`. Only platform services (`actor.sub_type: service`) may send it. Differences from the table below: no `concurrencyKey` yet (it comes with Kairos and the concurrency policies of `tasks.md`), no `automationId` on the task itself, and `task.cancel` isn't built. Nothing sends commands yet: Kairos will, with an outbox row for `hephaestus.commands`.
+
 | Command | Receiver | Payload | Outcome events |
 |---|---|---|---|
 | `task.create` | Hephaestus (`hephaestus.commands`) | `projectId`, `agentId` or `templateId` + version, `inputs`, `automationId`, `concurrencyKey`; `eventId` is the idempotency key | `task.created` or `task.create-rejected` |
 | `task.cancel` | Hephaestus | `taskId`, `reason` | `task.cancelled` |
 
 - The same application service handles a command and the matching HTTP endpoint, so both paths validate the same way (see `../CLAUDE.md`).
-- A redelivered `task.create` with an `eventId` Hephaestus has seen returns the same outcome again (re-publishes `task.created` for the existing task) instead of creating a second task.
+- A redelivered `task.create` with an `eventId` Hephaestus has seen returns the same outcome again (re-publishes `task.created` for the existing task) instead of creating a second task. Krepis's inbox hands commands to their handler every time for this (events it skips).
+- A command that can never succeed gets `task.create-rejected` with the code the HTTP API would give (`VALIDATION_FAILED`, `AGENT_NOT_PUBLISHED`, `PROJECT_ARCHIVED`, `NOT_FOUND`, `FORBIDDEN`, …) and isn't retried; a failure that may pass (a dependency down) is retried and then dead-lettered like an event.
 
 ## Open questions
 

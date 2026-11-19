@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
-  title: Hephaestus events
-  version: 0.8.0
+  title: Hephaestus events and commands
+  version: 0.9.0
   description: |
     Events Hephaestus publishes to the `hephaestus.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -16,6 +16,13 @@ info:
     artifact events have the artifact as their aggregate;
     `budget.threshold-reached` has the budget as its aggregate (its
     `projectId` is the budget's project, if any).
+
+    Hephaestus also **receives commands** on its own direct exchange,
+    `hephaestus.commands` (routing key = the command name), from other
+    platform services (Kairos). A command is the same envelope; its
+    `eventId` is its idempotency key, its `organizationId` and `projectId`
+    say where, and its `actor` (required) who sent it. The outcome comes
+    back as events, never as a reply.
 
 defaultContentType: application/json
 
@@ -39,6 +46,7 @@ channels:
           autoDelete: false
     messages:
       taskCreated: { $ref: '#/components/messages/taskCreated' }
+      taskCreateRejected: { $ref: '#/components/messages/taskCreateRejected' }
       taskStatusChanged: { $ref: '#/components/messages/taskStatusChanged' }
       taskSucceeded: { $ref: '#/components/messages/taskSucceeded' }
       taskFailed: { $ref: '#/components/messages/taskFailed' }
@@ -51,12 +59,32 @@ channels:
       artifactCreated: { $ref: '#/components/messages/artifactCreated' }
       artifactStatusChanged: { $ref: '#/components/messages/artifactStatusChanged' }
 
+  hephaestusCommands:
+    address: hephaestus.commands
+    description: Direct exchange owned by Hephaestus; it consumes its own durable queue `hephaestus.commands`, bound to the command names.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: hephaestus.commands
+          type: direct
+          durable: true
+          autoDelete: false
+    messages:
+      taskCreate: { $ref: '#/components/messages/taskCreate' }
+
 operations:
+  receiveHephaestusCommands:
+    action: receive
+    channel: { $ref: '#/channels/hephaestusCommands' }
+    messages:
+      - $ref: '#/channels/hephaestusCommands/messages/taskCreate'
   publishHephaestusEvents:
     action: send
     channel: { $ref: '#/channels/hephaestusEvents' }
     messages:
       - $ref: '#/channels/hephaestusEvents/messages/taskCreated'
+      - $ref: '#/channels/hephaestusEvents/messages/taskCreateRejected'
       - $ref: '#/channels/hephaestusEvents/messages/taskStatusChanged'
       - $ref: '#/channels/hephaestusEvents/messages/taskSucceeded'
       - $ref: '#/channels/hephaestusEvents/messages/taskFailed'
@@ -71,6 +99,37 @@ operations:
 
 components:
   messages:
+    taskCreate:
+      name: task.create
+      summary: A command to create a task (docs/events.md, Commands); answered with `task.created` or `task.create-rejected`.
+      description: |
+        Handled like `POST …/tasks` or, with `template`, `POST
+        …/task-templates/{templateId}/tasks`, by the same services, with the
+        envelope's `eventId` as the idempotency key: a redelivered or resent
+        command never creates a second task, and `task.created` is published
+        again for the task it created. The task's `requestedBy` is the
+        envelope's `actor.sub`. A command that can't become a task (an
+        unpublished agent, an archived project, invalid fields) is answered
+        with `task.create-rejected` and not retried.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            required: [projectId, actor]
+            properties:
+              eventType: { const: task.create }
+              projectId: { $ref: '#/components/schemas/Uuid' }
+              payload: { $ref: '#/components/schemas/TaskCreate' }
+    taskCreateRejected:
+      name: task.create-rejected
+      summary: A `task.create` command couldn't become a task; its aggregate is the command (`aggregateId` = its `eventId`).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: task.create-rejected }
+              payload: { $ref: '#/components/schemas/TaskCreateRejected' }
     taskPaused:
       name: task.paused
       summary: A budget ran out (docs/models.md); the task resumes when it's raised or renewed (Kerykes tells the budget's admins).
@@ -193,6 +252,48 @@ components:
               payload: { $ref: '#/components/schemas/TaskCancelled' }
 
   schemas:
+    # ---------- command payloads ----------
+    TaskCreate:
+      type: object
+      additionalProperties: false
+      description: Exactly one of `task` and `template`.
+      properties:
+        automationId:
+          description: The Kairos automation that sent it, echoed in `task.create-rejected`.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        task:
+          type: object
+          description: |
+            A `CreateTaskRequest` of `hephaestus.openapi.yaml` (title,
+            instructions, agentId, serviceAccountId, and the optional
+            fields), validated against that schema. Not repeated here: the
+            HTTP API's schema is the one definition.
+        template:
+          type: object
+          description: |
+            A task from a template: `templateId` (UUID) plus a
+            `CreateTaskFromTemplateRequest` of `hephaestus.openapi.yaml`
+            (serviceAccountId, version, inputs, and the optional fields),
+            validated against that schema.
+    TaskCreateRejected:
+      type: object
+      additionalProperties: false
+      required: [idempotencyKey, automationId, code, message]
+      properties:
+        idempotencyKey:
+          type: string
+          description: The command's `eventId`.
+        automationId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        code:
+          type: string
+          description: The problem's code, as the HTTP API would give it (`VALIDATION_FAILED`, `AGENT_NOT_PUBLISHED`, `PROJECT_ARCHIVED`, `NOT_FOUND`, …).
+        message: { type: string }
+    # ---------- event payloads ----------
     Uuid: { type: string, format: uuid }
     Envelope:
       type: object

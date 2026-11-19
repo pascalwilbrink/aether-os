@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 
 import {
   AuthModule,
+  HEPHAESTUS_COMMAND_TYPES,
   HEPHAESTUS_PUBLISHED_EVENTS,
   HephaestusEventsModule,
   DatabaseModule,
@@ -45,6 +46,8 @@ export const PROXENOS_SUBSCRIPTIONS = ['git.pull-request.updated'] as const;
         polis: POLIS_SUBSCRIPTIONS,
         proxenos: PROXENOS_SUBSCRIPTIONS,
       },
+      // task.create from Kairos (docs/events.md, Commands).
+      commands: HEPHAESTUS_COMMAND_TYPES,
       rabbitmq: {
         inject: [ConfigService],
         useFactory: (config: ConfigService<Env, true>) => ({

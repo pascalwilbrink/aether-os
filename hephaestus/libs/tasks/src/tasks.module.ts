@@ -21,6 +21,6 @@ import { TasksService } from './tasks.service.js';
   ],
   controllers: [TasksController],
   providers: [TasksService, TaskMapper, TaskQueue, TaskBudgetsService],
-  exports: [TasksService, TaskQueue],
+  exports: [TaskBudgetsService, TasksService, TaskQueue],
 })
 export class TasksModule {}
