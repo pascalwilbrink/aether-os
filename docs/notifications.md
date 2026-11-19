@@ -2,7 +2,7 @@
 
 How Aether-os tells people that something needs them or happened: a draft waiting for approval, a failed task, a paused task tree, a budget running out. **Kerykes** owns this; the *kērykes* were the heralds of ancient Greece, who carried announcements.
 
-Status: agreed design; built in its first form (`../kerykes/CLAUDE.md`): the notifications in the table below except watchers, each user's inbox (in Iris: an Inbox link with the unread count on every organization page, and the inbox page; refreshed on each page load, no live updates yet), and email over SMTP (Mailpit locally) with retries. Not built yet: preferences, digests, rate limits, watchers, Slack and Teams, bounce handling, and inbox retention. Sections marked **Proposal** are not agreed yet.
+Status: agreed design; built in its first form (`../kerykes/CLAUDE.md`): the notifications in the table below except watchers, each user's inbox (in Iris: the Inbox item of the sidebar with the unread count, and the inbox page; refreshed on each page load, no live updates yet), and email over SMTP (Mailpit locally) with retries. Not built yet: preferences, digests, rate limits, watchers, Slack and Teams, bounce handling, and inbox retention. Sections marked **Proposal** are not agreed yet.
 
 What the first form decided where this document left room:
 

@@ -4,18 +4,21 @@ import { myMemberships } from "@/lib/api/polis";
 import { requireSession } from "@/lib/auth/current";
 
 import { Notice } from "../components/notice";
+import { PublicShell } from "../components/public-shell";
 import { SignOutButton } from "../components/sign-out";
 import { CreateOrganizationForm } from "./create-organization-form";
 
 /** Choosing an organization: each is a sign-in for a token scoped to it. */
 export default function Organizations({ searchParams }: PageProps<"/orgs">) {
   return (
-    <section className="space-y-6">
-      <h1 className="text-2xl font-semibold">Your organizations</h1>
-      <Suspense fallback={<p>Loading your organizations…</p>}>
-        <OrganizationList searchParams={searchParams} />
-      </Suspense>
-    </section>
+    <PublicShell>
+      <section className="space-y-6">
+        <h1 className="text-2xl font-semibold">Your organizations</h1>
+        <Suspense fallback={<p>Loading your organizations…</p>}>
+          <OrganizationList searchParams={searchParams} />
+        </Suspense>
+      </section>
+    </PublicShell>
   );
 }
 

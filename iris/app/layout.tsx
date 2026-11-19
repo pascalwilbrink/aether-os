@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import "./globals.css";
 
@@ -8,18 +7,20 @@ export const metadata: Metadata = {
   description: "Build, run and support AI agents",
 };
 
+/**
+ * Sets the stored theme (light, dark or the system's) on <html> before the
+ * first paint, so a dark page never flashes light. `ThemeSwitch` changes it.
+ */
+const THEME_SCRIPT = `try{var t=localStorage.getItem("iris-theme");document.documentElement.className=t==="light"||t==="dark"?t:"system"}catch(e){}`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
-        <header className="border-b border-zinc-200 dark:border-zinc-800">
-          <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
-            <Link href="/" className="font-semibold">
-              Aether-os
-            </Link>
-          </div>
-        </header>
-        <main className="mx-auto max-w-4xl px-4 py-8">{children}</main>
+    <html lang="en" className="system" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
+      <body className="min-h-screen bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100">
+        {children}
       </body>
     </html>
   );
