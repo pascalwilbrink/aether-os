@@ -40,11 +40,24 @@ const failures = { remaining: 0 };
 @Injectable()
 class ThingHandlers {
   readonly traces: (string | null)[] = [];
+  commands = 0;
 
   constructor(
     @InjectRepository(SeenThingEntity)
     private readonly seen: Repository<SeenThingEntity>,
   ) {}
+
+  @OnDomainEvent('commands.thing.do')
+  async onDo(event: DomainEvent<{ name: string }>): Promise<void> {
+    // Idempotent on the command's ID, as a command handler must be.
+    await this.seen
+      .createQueryBuilder()
+      .insert()
+      .values({ eventId: event.eventId, name: `command:${event.payload.name}` })
+      .orIgnore()
+      .execute();
+    this.commands++;
+  }
 
   @OnDomainEvent('producer.thing.created')
   async onCreated(event: DomainEvent<{ name: string }>): Promise<void> {
@@ -66,11 +79,12 @@ describe('Event consumer (Postgres + RabbitMQ)', () => {
   let connection: amqp.ChannelModel;
   let channel: amqp.Channel;
   let queue: string;
+  let service: string;
 
   beforeEach(async () => {
     failures.remaining = 0;
     // A fresh consumer (and so fresh queues) per test.
-    const service = `consumer-${randomUUID().slice(0, 8)}`;
+    service = `consumer-${randomUUID().slice(0, 8)}`;
     const moduleRef = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRootAsync({
@@ -94,6 +108,7 @@ describe('Event consumer (Postgres + RabbitMQ)', () => {
           service,
           publish: [],
           subscribe: { producer: ['thing.created'] },
+          commands: ['thing.do'],
           rabbitmq: {
             useFactory: () => ({
               url: inject('rabbitmqUrl'),
@@ -179,6 +194,25 @@ describe('Event consumer (Postgres + RabbitMQ)', () => {
       .get(DataSource)
       .query('SELECT count(*)::int AS count FROM inbox');
     expect(count).toBe(2);
+  });
+
+  it("hands every copy of a command sent to the service's own exchange to its handler", async () => {
+    const command = { ...event(), eventType: 'thing.do' };
+    for (const body of [command, command]) {
+      channel.publish(
+        `${service}.commands`,
+        'thing.do',
+        Buffer.from(JSON.stringify(body)),
+        { persistent: true, contentType: 'application/json' },
+      );
+    }
+
+    await waitFor(async () => handlers.commands === 2);
+    const rows: { name: string }[] = await app
+      .get(DataSource)
+      .query('SELECT name FROM seen_things');
+    expect(rows).toEqual([{ name: 'command:one' }]);
+    expect(app.get(EventConsumer).commandQueue()).toBe(`${service}.commands`);
   });
 
   it('restores the trace context for the handlers', async () => {

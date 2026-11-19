@@ -11,6 +11,7 @@ import { TaskTemplateMapper } from './task-template.mapper.js';
 import { TaskTemplatesController } from './task-templates.controller.js';
 import { TaskTemplatesService } from './task-templates.service.js';
 import { TemplatedTasksController } from './templated-tasks.controller.js';
+import { TaskCommands } from './task-commands.js';
 import { TemplatedTasksService } from './templated-tasks.service.js';
 
 @Module({
@@ -21,7 +22,12 @@ import { TemplatedTasksService } from './templated-tasks.service.js';
     TenancyModule,
   ],
   controllers: [TaskTemplatesController, TemplatedTasksController],
-  providers: [TaskTemplatesService, TemplatedTasksService, TaskTemplateMapper],
+  providers: [
+    TaskTemplatesService,
+    TemplatedTasksService,
+    TaskTemplateMapper,
+    TaskCommands,
+  ],
   exports: [TaskTemplatesService, TemplatedTasksService],
 })
 export class TemplatesModule {}

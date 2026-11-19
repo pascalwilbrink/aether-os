@@ -93,6 +93,48 @@ export interface TaskCancelled {
 }
 
 /**
+ * Payload of `task.create`.
+ */
+export interface TaskCreate {
+  /**
+   * The Kairos automation that sent it, echoed in `task.create-rejected`.
+   */
+  automationId?: string | null;
+  /**
+   * A `CreateTaskRequest` of `hephaestus.openapi.yaml` (title,
+   * instructions, agentId, serviceAccountId, and the optional
+   * fields), validated against that schema. Not repeated here: the
+   * HTTP API's schema is the one definition.
+   *
+   */
+  task?: {};
+  /**
+   * A task from a template: `templateId` (UUID) plus a
+   * `CreateTaskFromTemplateRequest` of `hephaestus.openapi.yaml`
+   * (serviceAccountId, version, inputs, and the optional fields),
+   * validated against that schema.
+   *
+   */
+  template?: {};
+}
+
+/**
+ * Payload of `task.create-rejected`.
+ */
+export interface TaskCreateRejected {
+  /**
+   * The command's `eventId`.
+   */
+  idempotencyKey: string;
+  automationId: string | null;
+  /**
+   * The problem's code, as the HTTP API would give it (`VALIDATION_FAILED`, `AGENT_NOT_PUBLISHED`, `PROJECT_ARCHIVED`, `NOT_FOUND`, …).
+   */
+  code: string;
+  message: string;
+}
+
+/**
  * Payload of `task.created`.
  */
 export interface TaskCreated {
@@ -233,6 +275,7 @@ export interface HephaestusEventPayloads {
   'budget.threshold-reached': BudgetThresholdReached;
   'task.awaiting-review': TaskAwaitingReview;
   'task.cancelled': TaskCancelled;
+  'task.create-rejected': TaskCreateRejected;
   'task.created': TaskCreated;
   'task.failed': TaskFailed;
   'task.paused': TaskPaused;
@@ -251,6 +294,7 @@ export const HEPHAESTUS_EVENT_TYPES = [
   'budget.threshold-reached',
   'task.awaiting-review',
   'task.cancelled',
+  'task.create-rejected',
   'task.created',
   'task.failed',
   'task.paused',
@@ -259,3 +303,15 @@ export const HEPHAESTUS_EVENT_TYPES = [
   'task.succeeded',
   'task.verified',
 ] as const satisfies readonly HephaestusEventType[];
+
+/** Every command Hephaestus accepts, mapped to its payload. */
+export interface HephaestusCommandPayloads {
+  'task.create': TaskCreate;
+}
+
+export type HephaestusCommandType = keyof HephaestusCommandPayloads;
+
+/** Every command Hephaestus accepts (on `hephaestus.commands`). */
+export const HEPHAESTUS_COMMAND_TYPES = [
+  'task.create',
+] as const satisfies readonly HephaestusCommandType[];

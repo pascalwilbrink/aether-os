@@ -24,7 +24,7 @@ import { RabbitMqMessagePublisher } from './rabbitmq-message.publisher.js';
  * - Outbound: `DomainEvents` (local events and the transactional outbox)
  *   and, with `rabbitmq`, the relay that publishes the outbox to
  *   `<service>.events`.
- * - Inbound, with `subscribe`: `EventInbox` (exactly-once handling per
+ * - Inbound, with `subscribe` or `commands`: `EventInbox` (exactly-once handling per
  *   `eventId`) and, with `rabbitmq`, the consumers that feed it.
  *
  * Import it once, in the app module; it's global. No service code depends on
@@ -34,7 +34,9 @@ import { RabbitMqMessagePublisher } from './rabbitmq-message.publisher.js';
 export class EventsModule {
   static forRoot(options: EventsModuleOptions): DynamicModule {
     const { rabbitmq, ...events } = options;
-    const subscribes = Object.keys(events.subscribe ?? {}).length > 0;
+    const subscribes =
+      Object.keys(events.subscribe ?? {}).length > 0 ||
+      (events.commands?.length ?? 0) > 0;
     const exchange = `${events.service}.events`;
 
     const brokerProviders: Provider[] = rabbitmq

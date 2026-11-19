@@ -14,7 +14,7 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 | `proxenos.openapi.yaml` | Proxenos (the GitHub App, repository links, tokens, webhooks) | later Hephaestus (repository tokens) and Iris |
 | `proxenos.asyncapi.yaml` | Proxenos (events on `proxenos.events`) | later Hephaestus, Kairos |
 | `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Hephaestus (organization and project events); later Pistis and others |
-| `hephaestus.asyncapi.yaml` | Hephaestus (task events on `hephaestus.events`) | later Kairos, Kriterion, Kerykes, Iris |
+| `hephaestus.asyncapi.yaml` | Hephaestus (task events on `hephaestus.events`; the `task.create` command it receives on `hephaestus.commands`) | later Kairos, Kriterion, Kerykes, Iris |
 
 ## Authentication in the specs
 
@@ -22,7 +22,7 @@ Every service spec declares the `pistis` bearer scheme (a Pistis access token) a
 
 ## Event types (AsyncAPI)
 
-`*.asyncapi.yaml` describe the events a service publishes. Give each message a `name` (the event type) and an envelope whose `payload` refers to a named schema. The package's `aether-asyncapi-types` command (`bin/asyncapi-types.mjs`) validates a spec with the official AsyncAPI parser and generates, with `json-schema-to-typescript`, an interface per event payload (`organization.created` → `OrganizationCreated`), the `<Service>EventPayloads` map, the `<Service>EventType` union and `<SERVICE>_EVENT_TYPES`:
+`*.asyncapi.yaml` describe the events a service publishes. Give each message a `name` (the event type) and an envelope whose `payload` refers to a named schema. The package's `aether-asyncapi-types` command (`bin/asyncapi-types.mjs`) validates a spec with the official AsyncAPI parser and generates, with `json-schema-to-typescript`, an interface per event payload (`organization.created` → `OrganizationCreated`), the `<Service>EventPayloads` map, the `<Service>EventType` union and `<SERVICE>_EVENT_TYPES`. Messages of `receive` operations are commands the service accepts: they get their own `<Service>CommandPayloads`, `<Service>CommandType` and `<SERVICE>_COMMAND_TYPES`, and stay out of the event types:
 
 ```bash
 aether-asyncapi-types node_modules/@aether-os/contracts/polis.asyncapi.yaml libs/core/src/events/generated/polis-events.gen.ts --name Polis
