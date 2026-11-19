@@ -8,6 +8,8 @@ import { getTask, getTaskTreeBudget, listArtifacts, listExecutions } from "@/lib
 import { getProject } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
 import { pausedMessage } from "@/lib/budgets";
+import { config } from "@/lib/config";
+import { traceLinks } from "@/lib/traces";
 import {
   artifactsByExecution,
   blockedHosts,
@@ -48,6 +50,7 @@ async function TaskView({ params }: Pick<Props, "params">) {
   ]);
   const actions = taskActions(task);
   const refused = blockedHosts(executions.items);
+  const viewers = config.traceViewers;
   const ref = { organizationId, projectId, taskId };
   const groups = artifactsByExecution(executions.items, artifacts.items);
   const who = (sub: string) => (sub === session.sub ? "you" : sub);
@@ -219,6 +222,7 @@ async function TaskView({ params }: Pick<Props, "params">) {
                 <th className="py-1 font-normal">Cost</th>
                 <th className="py-1 font-normal">Network</th>
                 <th className="py-1 font-normal">Started</th>
+                {viewers.jaegerUrl || viewers.langfuseUrl ? <th className="py-1 font-normal">Trace</th> : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -240,6 +244,18 @@ async function TaskView({ params }: Pick<Props, "params">) {
                     {networkLabel(execution)}
                   </td>
                   <td className="py-2 text-zinc-600 dark:text-zinc-400">{formatTime(execution.startedAt)}</td>
+                  {viewers.jaegerUrl || viewers.langfuseUrl ? (
+                    <td className="py-2 pl-2">
+                      {traceLinks(execution.traceId, viewers).map((link, index) => (
+                        <span key={link.label}>
+                          {index > 0 ? " · " : null}
+                          <a href={link.href} target="_blank" rel="noreferrer" className="underline">
+                            {link.label}
+                          </a>
+                        </span>
+                      ))}
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
