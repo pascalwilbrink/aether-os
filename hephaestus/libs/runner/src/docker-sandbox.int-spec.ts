@@ -49,8 +49,14 @@ const sandboxOptions: SandboxOptions = {
   memoryMb: 256,
   pidsLimit: 64,
   workspaceMb: 64,
+  allowedHosts: [],
   lifetimeMs: 600_000,
 };
+
+const noNetwork = { access: 'none' as const };
+
+/** For proxies and the test's upstream: Docker Hub's mirror, which doesn't rate-limit CI. */
+const NODE_IMAGE = 'mirror.gcr.io/library/node:22-alpine';
 
 /** The test's sandbox containers (labelled by the driver). */
 async function sandboxContainers(executionId?: string) {
@@ -63,6 +69,21 @@ async function sandboxContainers(executionId?: string) {
       ],
     },
   });
+}
+
+async function pull(image: string): Promise<void> {
+  try {
+    await docker.getImage(image).inspect();
+    return;
+  } catch {
+    // Not there yet.
+  }
+  const stream = await docker.pull(image);
+  await new Promise<void>((resolve, reject) =>
+    docker.modem.followProgress(stream, (error) =>
+      error ? reject(error) : resolve(),
+    ),
+  );
 }
 
 afterAll(async () => {
@@ -84,6 +105,7 @@ describe('DockerSandboxDriver (Docker)', () => {
       ...sandboxOptions,
       workingDirectory: '/workspace',
       labels: { 'aether-os.execution-id': sandboxId },
+      network: noNetwork,
     };
     const created = await driver.create(spec, new AbortController().signal);
 
@@ -132,6 +154,7 @@ describe('DockerSandboxDriver (Docker)', () => {
       ...sandboxOptions,
       workingDirectory: '/workspace',
       labels: { 'aether-os.execution-id': sandboxId },
+      network: noNetwork,
     };
     await driver.create(spec, new AbortController().signal);
     try {
@@ -174,6 +197,111 @@ describe('DockerSandboxDriver (Docker)', () => {
     }
   });
 
+  it('reaches only allowed hosts, through its own proxy, and records the rest', async () => {
+    const egress = `aether-test-egress-${Date.now()}`;
+    await pull(NODE_IMAGE);
+    await docker.createNetwork({ Name: egress, Driver: 'bridge' });
+    // A stand-in for a package registry, reachable only on the egress network.
+    const upstream = await docker.createContainer({
+      name: `${egress}-upstream`,
+      Image: NODE_IMAGE,
+      Cmd: [
+        'node',
+        '-e',
+        "require('http').createServer((q, r) => r.end('registry ok')).listen(80)",
+      ],
+      HostConfig: { NetworkMode: egress },
+      NetworkingConfig: {
+        EndpointsConfig: { [egress]: { Aliases: ['registry.test'] } },
+      },
+    });
+    await upstream.start();
+    const restricted = new DockerSandboxDriver(docker, {
+      proxyImage: NODE_IMAGE,
+      egressNetwork: egress,
+      // The stand-in's address is a private one.
+      blockPrivateAddresses: false,
+    });
+    const id = '0193a1b2-c3d4-7e5f-8a9b-00000000d0c9';
+    try {
+      const created = await restricted.create(
+        {
+          sandboxId: id,
+          ...sandboxOptions,
+          workingDirectory: '/workspace',
+          labels: { 'aether-os.execution-id': id },
+          network: { access: 'restricted', allowedHosts: ['registry.test'] },
+        },
+        new AbortController().signal,
+      );
+      const info = await docker.getContainer(created.resourceId).inspect();
+      expect(info.HostConfig.NetworkMode).toBe(`aether-sandbox-net-${id}`);
+      expect(info.Config.Env).toContain('HTTPS_PROXY=http://proxy:3128');
+      const proxy = await docker
+        .getContainer(`aether-sandbox-proxy-${id}`)
+        .inspect();
+      expect(proxy.Config.User).toBe('1000:1000');
+      expect(proxy.HostConfig).toMatchObject({
+        ReadonlyRootfs: true,
+        CapDrop: ['ALL'],
+        SecurityOpt: ['no-new-privileges:true'],
+      });
+
+      // Through the proxy (wget reads http_proxy) to the allowed host.
+      let reached = '';
+      for (let i = 0; i < 50 && !reached.includes('registry ok'); i++) {
+        reached = (
+          await restricted.exec(id, [
+            'wget',
+            '-q',
+            '-O',
+            '-',
+            'http://registry.test/pkg',
+          ])
+        ).stdout.toString();
+        if (!reached) await new Promise((r) => setTimeout(r, 200));
+      }
+      expect(reached).toBe('registry ok');
+
+      // Anything else is refused by the proxy, and there's no way around it.
+      const refused = await restricted.exec(id, [
+        'wget',
+        '-q',
+        '-O',
+        '-',
+        'http://example.com/',
+      ]);
+      expect(refused.exitCode).not.toBe(0);
+      expect(refused.stderr).toContain('403');
+      const direct = await restricted.exec(id, [
+        'wget',
+        '-q',
+        '-T',
+        '2',
+        '-Y',
+        'off',
+        '-O',
+        '-',
+        'http://registry.test/pkg',
+      ]);
+      expect(direct.exitCode).not.toBe(0);
+
+      expect(await restricted.blockedHosts(id)).toEqual(['example.com']);
+    } finally {
+      await restricted.remove(id);
+      await upstream.remove({ force: true });
+      await docker.getNetwork(egress).remove();
+    }
+    // The proxy and the sandbox's network went with it.
+    await expect(
+      docker.getContainer(`aether-sandbox-proxy-${id}`).inspect(),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    await expect(
+      docker.getNetwork(`aether-sandbox-net-${id}`).inspect(),
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(await restricted.blockedHosts(id)).toEqual([]);
+  });
+
   it('refuses to run as root', async () => {
     await expect(
       driver.create(
@@ -183,6 +311,7 @@ describe('DockerSandboxDriver (Docker)', () => {
           user: '0:0',
           workingDirectory: '/workspace',
           labels: {},
+          network: noNetwork,
         },
         new AbortController().signal,
       ),
@@ -254,7 +383,7 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
     });
 
   async function taskFor(
-    sandboxRequired: boolean,
+    sandboxRequired: boolean | Record<string, unknown>,
     acceptanceCriteria: {
       key: string;
       description: string;
@@ -275,7 +404,9 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
       runtime: {
         provider: 'mastra',
         executionMode: 'standard',
-        sandboxRequired,
+        ...(typeof sandboxRequired === 'boolean'
+          ? { sandboxRequired }
+          : { sandboxRequired: true, ...sandboxRequired }),
       },
     });
     await versions.publish(organizationId, agentId, version.id);
@@ -300,7 +431,7 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
     (await moduleRef
       .get(DataSource)
       .query(
-        'SELECT execution_id, status, repository, sandbox, sandbox_reference, working_directory, destroyed_at FROM workspaces',
+        'SELECT execution_id, status, repository, sandbox, sandbox_reference, working_directory, blocked_hosts, destroyed_at FROM workspaces',
       )) as Record<string, unknown>[];
   const executionOf = async (taskId: string) =>
     (
@@ -353,6 +484,41 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
       }),
     ]);
     expect(await sandboxContainers(executionId)).toEqual([]);
+  });
+
+  it('gives a restricted agent a proxy, and records the hosts it was refused', async () => {
+    models.replies = [
+      {
+        toolCall: {
+          tool: 'execute_command',
+          input: { command: 'wget -q -O - http://example.com/ 2>&1; true' },
+        },
+      },
+      { text: 'Blocked.' },
+    ];
+    const task = await taskFor({
+      networkAccess: 'restricted',
+      allowedHosts: ['*.internal.test'],
+    });
+
+    await runner().tick();
+    await runner().drain();
+
+    await expect(
+      tasks.findById(organizationId, projectId, task.id),
+    ).resolves.toMatchObject({ status: 'succeeded' });
+    expect(JSON.stringify(models.calls[1].prompt.at(-1))).toContain('403');
+    expect(await workspaces()).toEqual([
+      expect.objectContaining({
+        status: 'destroyed',
+        sandbox: expect.objectContaining({
+          networkAccess: 'restricted',
+          // The platform's (none in this test) and the version's.
+          allowedHosts: ['*.internal.test'],
+        }),
+        blocked_hosts: ['example.com'],
+      }),
+    ]);
   });
 
   it('checks command criteria in the sandbox, after the agent worked in it', async () => {

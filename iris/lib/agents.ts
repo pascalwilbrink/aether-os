@@ -58,6 +58,9 @@ export function modelChoices(models: Model[], current: string): { groups: ModelG
   };
 }
 
+/** A host an agent's sandbox may reach (the API's `HostPattern`). */
+const HOST = /^(\*\.)?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
+
 /** The runtime new versions get; Hephaestus runs every version with its configured runtime. */
 export const DEFAULT_RUNTIME_PROVIDER = "mastra";
 
@@ -95,6 +98,8 @@ export function fieldsOf(version: AgentVersion | undefined): Record<string, stri
     executionMode: version?.runtime.executionMode ?? "standard",
     capabilities: version?.capabilities.join(", ") ?? "",
     sandboxRequired: version?.runtime.sandboxRequired ? "on" : "",
+    networkAccess: version?.runtime.networkAccess ?? "none",
+    allowedHosts: (version?.runtime.allowedHosts ?? []).join("\n"),
     runtimeProvider: version?.runtime.provider ?? DEFAULT_RUNTIME_PROVIDER,
     tools: JSON.stringify(version?.tools ?? []),
     skills: JSON.stringify(version?.skills ?? []),
@@ -135,6 +140,21 @@ export function versionFromForm(fields: FormFields): { body: NewAgentVersion } |
       sandboxRequired: value("sandboxRequired") === "on",
     },
   };
+
+  if (value("networkAccess") === "restricted") {
+    const hosts = [
+      ...new Set(
+        value("allowedHosts")
+          .split(/[\s,]+/)
+          .map((host) => host.toLowerCase())
+          .filter(Boolean),
+      ),
+    ];
+    const invalid = hosts.find((host) => !HOST.test(host));
+    if (invalid) return { error: `"${invalid}" isn't a host name (e.g. api.example.com, or *.example.com).` };
+    body.runtime.networkAccess = "restricted";
+    body.runtime.allowedHosts = hosts;
+  }
 
   const temperature = value("temperature");
   if (temperature) {

@@ -108,6 +108,26 @@ export const zEnv = z
     SANDBOX_MEMORY_MB: z.coerce.number().int().min(64).default(2048),
     SANDBOX_PIDS_LIMIT: z.coerce.number().int().min(16).default(256),
     /** Size of the writable working directory, /workspace (a tmpfs). */
+    /**
+     * Hosts every `restricted` sandbox may reach through its proxy, besides
+     * its agent version's own (comma-separated; `*.example.com` for
+     * subdomains): the package registries.
+     */
+    SANDBOX_ALLOWED_HOSTS: z
+      .string()
+      .default(
+        'registry.npmjs.org,registry.yarnpkg.com,pypi.org,files.pythonhosted.org,proxy.golang.org,sum.golang.org,index.crates.io,static.crates.io,repo.maven.apache.org,repo1.maven.org,rubygems.org',
+      )
+      .transform((value) =>
+        value
+          .split(',')
+          .map((host) => host.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    /** The image of a `restricted` sandbox's proxy; anything with `node`. */
+    SANDBOX_PROXY_IMAGE: z.string().min(1).default('node:22-alpine'),
+    /** The Docker network the proxy reaches the internet on. */
+    SANDBOX_EGRESS_NETWORK: z.string().min(1).default('bridge'),
     SANDBOX_WORKSPACE_MB: z.coerce.number().int().min(16).default(1024),
     /**
      * Proxenos's API (docs/git.md): repository tokens for tasks that work in

@@ -36,7 +36,7 @@ Status: agreed design, being built. Proxenos (`../proxenos`) connects the GitHub
 
 | Operation | How |
 |---|---|
-| Clone, fetch | Through the sandbox's egress proxy. The proxy adds a **read-only** credential for the task's repository only; the sandbox never sees a token. **Built so far, until the proxy exists:** Hephaestus clones with a read token on its own side and moves the repository into the sandbox as a git bundle, so the sandbox has no network at all. |
+| Clone, fetch | Through the sandbox's egress proxy. The proxy adds a **read-only** credential for the task's repository only; the sandbox never sees a token. **Built so far:** Hephaestus clones with a read token on its own side and moves the repository into the sandbox as a git bundle, so the sandbox never needs GitHub. The egress proxy exists now (`restricted` network access, for package registries and an agent version's allowed hosts) but adds no credentials, and GitHub isn't on its default list. |
 | Commit | The agent commits locally in the sandbox. Author: the Aether-os app's bot identity; every commit gets an `Aether-Task: <task ID>` trailer (and `Co-authored-by:` the requesting user, when there is one). |
 | Push | **Hephaestus**, not the sandbox: at the end of a run it takes the new commits out of the sandbox (a `git bundle`; built) and pushes them to the task tree's branch with its own token. It refuses to push anything but `aether/*` branches, and refuses force-pushes to branches it didn't create. |
 | Pull request, comments | Hephaestus calls the provider API at **delivery**, never the agent directly. |

@@ -14,7 +14,15 @@ export interface SandboxSpec {
   workspaceMb: number;
   workingDirectory: string;
   labels: Record<string, string>;
+  /**
+   * `none`: no network at all. `restricted`: only these hosts (ports 80 and
+   * 443), through an allowlisting proxy (../CLAUDE.md, sandboxes).
+   */
+  network: SandboxNetwork;
 }
+
+export type SandboxNetwork =
+  { access: 'none' } | { access: 'restricted'; allowedHosts: string[] };
 
 export interface CreatedSandbox {
   /** The driver's own ID for it (a container ID). */
@@ -50,8 +58,14 @@ export abstract class SandboxDriver {
     signal: AbortSignal,
   ): Promise<CreatedSandbox>;
 
-  /** Removes it if it exists. */
+  /** Removes it (and its proxy and network) if it exists. */
   abstract remove(sandboxId: string): Promise<void>;
+
+  /**
+   * The hosts a `restricted` sandbox tried to reach and its proxy refused,
+   * so far; none for a sandbox without a network. Read before `remove`.
+   */
+  abstract blockedHosts(sandboxId: string): Promise<string[]>;
 
   /**
    * Runs a command in the sandbox, with bytes in and out. How Hephaestus

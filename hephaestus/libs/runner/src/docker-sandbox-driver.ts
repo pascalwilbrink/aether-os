@@ -4,6 +4,7 @@ import Docker from 'dockerode';
 
 import { PassThrough } from 'node:stream';
 
+import { blockedHostsIn, EGRESS_PROXY_SOURCE } from './egress-proxy.js';
 import {
   SandboxDriver,
   type CreatedSandbox,
@@ -13,6 +14,24 @@ import {
 } from './sandbox-driver.js';
 
 const SANDBOX_LABEL = 'aether-os.sandbox';
+const PROXY_LABEL = 'aether-os.sandbox-proxy';
+const PROXY_PORT = 3128;
+
+/** How `restricted` sandboxes reach the allowed hosts. */
+export interface DockerNetworkOptions {
+  /** The proxy's image: anything with `node` (it runs a script, `egress-proxy.ts`). */
+  proxyImage: string;
+  /** The network the proxy reaches the internet on (Docker's `bridge`). */
+  egressNetwork: string;
+  /** Refuse allowed hosts resolving to private addresses (off only in tests). */
+  blockPrivateAddresses: boolean;
+}
+
+const DEFAULT_NETWORK_OPTIONS: DockerNetworkOptions = {
+  proxyImage: 'node:22-alpine',
+  egressNetwork: 'bridge',
+  blockPrivateAddresses: true,
+};
 
 /**
  * Sandboxes as Docker containers (`SANDBOX_DRIVER=docker`, for local
@@ -20,16 +39,22 @@ const SANDBOX_LABEL = 'aether-os.sandbox';
  * container is created here, hardened (../CLAUDE.md): a non-root user, all
  * capabilities dropped, no new privileges, a read-only root filesystem with
  * only the working directory and /tmp writable (tmpfs), PID, memory and CPU
- * limits, an init process, and no network at all (`restricted` access needs
- * the allowlisting proxy, which doesn't exist yet). Mastra's `DockerSandbox`
- * then attaches to it by its label (it can't set the user itself), and is
- * what the agent's workspace tools run commands through.
+ * limits, an init process, and no network at all, or for `restricted`
+ * access only an internal network of its own (no route out) whose one other
+ * member is its proxy (`egress-proxy.ts`, as hardened, also on the egress
+ * network): the sandbox reaches allowed hosts through `HTTP(S)_PROXY` and
+ * nothing else. Mastra's `DockerSandbox` then attaches to it by its label
+ * (it can't set the user itself), and is what the agent's workspace tools
+ * run commands through.
  */
 export class DockerSandboxDriver extends SandboxDriver {
   readonly provider = 'docker';
   private readonly logger = new Logger(DockerSandboxDriver.name);
 
-  constructor(private readonly docker: Docker = new Docker()) {
+  constructor(
+    private readonly docker: Docker = new Docker(),
+    private readonly networkOptions: DockerNetworkOptions = DEFAULT_NETWORK_OPTIONS,
+  ) {
     super();
   }
 
@@ -42,6 +67,10 @@ export class DockerSandboxDriver extends SandboxDriver {
     }
     await this.ensureImage(spec.image);
     signal.throwIfAborted();
+    const restricted = spec.network.access === 'restricted';
+    if (spec.network.access === 'restricted') {
+      await this.startProxy(spec, spec.network.allowedHosts, signal);
+    }
 
     const name = containerName(spec.sandboxId);
     let container: Docker.Container;
@@ -54,8 +83,12 @@ export class DockerSandboxDriver extends SandboxDriver {
         Cmd: ['sleep', 'infinity'],
         User: spec.user,
         WorkingDir: spec.workingDirectory,
-        // Nothing from Hephaestus's environment, and no secrets as env vars.
-        Env: [`HOME=${spec.workingDirectory}`],
+        // Nothing from Hephaestus's environment, and no secrets as env vars:
+        // only where its proxy is.
+        Env: [
+          `HOME=${spec.workingDirectory}`,
+          ...(restricted ? proxyEnv() : []),
+        ],
         Labels: {
           ...spec.labels,
           [SANDBOX_LABEL]: 'true',
@@ -63,9 +96,9 @@ export class DockerSandboxDriver extends SandboxDriver {
           'mastra.sandbox': 'true',
           'mastra.sandbox.id': spec.sandboxId,
         },
-        NetworkDisabled: true,
+        NetworkDisabled: !restricted,
         HostConfig: {
-          NetworkMode: 'none',
+          NetworkMode: restricted ? networkName(spec.sandboxId) : 'none',
           ReadonlyRootfs: true,
           CapDrop: ['ALL'],
           SecurityOpt: ['no-new-privileges:true'],
@@ -110,7 +143,7 @@ export class DockerSandboxDriver extends SandboxDriver {
         capDrop: ['ALL'],
         securityOpt: ['no-new-privileges:true'],
         init: true,
-        network: 'none',
+        network: restricted ? networkName(spec.sandboxId) : 'none',
       });
       await agentSandbox.start();
       return { resourceId: info.Id, agentSandbox };
@@ -121,14 +154,108 @@ export class DockerSandboxDriver extends SandboxDriver {
   }
 
   async remove(sandboxId: string): Promise<void> {
+    for (const name of [containerName(sandboxId), proxyName(sandboxId)]) {
+      await ignoreMissing(() =>
+        this.docker.getContainer(name).remove({ force: true }),
+      );
+    }
+    await ignoreMissing(() =>
+      this.docker.getNetwork(networkName(sandboxId)).remove(),
+    );
+  }
+
+  async blockedHosts(sandboxId: string): Promise<string[]> {
+    let logs: Buffer;
     try {
-      await this.docker
-        .getContainer(containerName(sandboxId))
-        .remove({ force: true });
+      logs = (await this.docker
+        .getContainer(proxyName(sandboxId))
+        .logs({ stdout: true, stderr: false, follow: false })) as Buffer;
     } catch (error) {
-      if ((error as { statusCode?: number }).statusCode !== 404) {
+      if ((error as { statusCode?: number }).statusCode === 404) return [];
+      throw error;
+    }
+    return blockedHostsIn(demux(logs));
+  }
+
+  /**
+   * The sandbox's internal network and its proxy, idempotently: the proxy
+   * is on the egress network and on the internal one (as `proxy`), and is
+   * running and listening when this returns.
+   */
+  private async startProxy(
+    spec: SandboxSpec,
+    allowedHosts: string[],
+    signal: AbortSignal,
+  ): Promise<void> {
+    const { proxyImage, egressNetwork, blockPrivateAddresses } =
+      this.networkOptions;
+    await this.ensureImage(proxyImage);
+    const network = networkName(spec.sandboxId);
+    try {
+      await this.docker.getNetwork(network).inspect();
+    } catch {
+      await this.docker.createNetwork({
+        Name: network,
+        Driver: 'bridge',
+        // No route out: the proxy is the only way.
+        Internal: true,
+        Labels: { ...spec.labels, [SANDBOX_LABEL]: 'true' },
+      });
+    }
+
+    const name = proxyName(spec.sandboxId);
+    let proxy: Docker.Container;
+    try {
+      proxy = await this.docker.createContainer({
+        name,
+        Image: proxyImage,
+        Entrypoint: [''],
+        Cmd: ['node', '-e', EGRESS_PROXY_SOURCE],
+        User: spec.user,
+        Env: [
+          `ALLOWED_HOSTS=${allowedHosts.join(',')}`,
+          'ALLOWED_PORTS=80,443',
+          `PORT=${PROXY_PORT}`,
+          `BLOCK_PRIVATE=${blockPrivateAddresses}`,
+        ],
+        Labels: { ...spec.labels, [PROXY_LABEL]: 'true' },
+        HostConfig: {
+          NetworkMode: egressNetwork,
+          ReadonlyRootfs: true,
+          CapDrop: ['ALL'],
+          SecurityOpt: ['no-new-privileges:true'],
+          PidsLimit: 64,
+          Memory: 128 * 1024 * 1024,
+          MemorySwap: 128 * 1024 * 1024,
+          NanoCpus: 500_000_000,
+          Init: true,
+          Privileged: false,
+        },
+      });
+      await this.docker.getNetwork(network).connect({
+        Container: name,
+        EndpointConfig: { Aliases: ['proxy'] },
+      });
+    } catch (error) {
+      if ((error as { statusCode?: number }).statusCode !== 409) {
         throw error;
       }
+      proxy = this.docker.getContainer(name);
+    }
+    if (!(await proxy.inspect()).State.Running) {
+      await proxy.start();
+    }
+    const deadline = Date.now() + 15_000;
+    while (
+      !demux(
+        (await proxy.logs({ stdout: true, follow: false })) as Buffer,
+      ).includes('"event":"ready"')
+    ) {
+      signal.throwIfAborted();
+      if (Date.now() > deadline) {
+        throw new Error("The sandbox's network proxy didn't start");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
 
@@ -206,6 +333,49 @@ export class DockerSandboxDriver extends SandboxDriver {
 
 function containerName(sandboxId: string): string {
   return `aether-sandbox-${sandboxId}`;
+}
+
+function proxyName(sandboxId: string): string {
+  return `aether-sandbox-proxy-${sandboxId}`;
+}
+
+function networkName(sandboxId: string): string {
+  return `aether-sandbox-net-${sandboxId}`;
+}
+
+/** Where a `restricted` sandbox's proxy is, for the tools that read these. */
+function proxyEnv(): string[] {
+  const url = `http://proxy:${PROXY_PORT}`;
+  return [
+    `HTTP_PROXY=${url}`,
+    `HTTPS_PROXY=${url}`,
+    `http_proxy=${url}`,
+    `https_proxy=${url}`,
+    'NO_PROXY=localhost,127.0.0.1',
+    'no_proxy=localhost,127.0.0.1',
+  ];
+}
+
+async function ignoreMissing(action: () => Promise<unknown>): Promise<void> {
+  try {
+    await action();
+  } catch (error) {
+    if ((error as { statusCode?: number }).statusCode !== 404) {
+      throw error;
+    }
+  }
+}
+
+/** A container's log without Docker's stream headers (8 bytes per frame). */
+function demux(log: Buffer): string {
+  const parts: Buffer[] = [];
+  let offset = 0;
+  while (offset + 8 <= log.length) {
+    const size = log.readUInt32BE(offset + 4);
+    parts.push(log.subarray(offset + 8, offset + 8 + size));
+    offset += 8 + size;
+  }
+  return Buffer.concat(parts).toString('utf8');
 }
 
 /** Docker mounts tmpfs `noexec` unless told otherwise. */

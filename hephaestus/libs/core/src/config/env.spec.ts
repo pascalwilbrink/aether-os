@@ -40,7 +40,21 @@ describe('zEnv', () => {
       SANDBOX_MEMORY_MB: 2048,
       SANDBOX_PIDS_LIMIT: 256,
       SANDBOX_WORKSPACE_MB: 1024,
+      SANDBOX_ALLOWED_HOSTS: expect.arrayContaining([
+        'registry.npmjs.org',
+        'pypi.org',
+      ]),
+      SANDBOX_PROXY_IMAGE: 'node:22-alpine',
+      SANDBOX_EGRESS_NETWORK: 'bridge',
     });
+    // The package registries, as a list.
+    expect(zEnv.parse(valid).SANDBOX_ALLOWED_HOSTS).toContain(
+      'registry.npmjs.org',
+    );
+    expect(
+      zEnv.parse({ ...valid, SANDBOX_ALLOWED_HOSTS: ' a.test, *.B.test ,' })
+        .SANDBOX_ALLOWED_HOSTS,
+    ).toEqual(['a.test', '*.b.test']);
     expect(zEnv.safeParse({ ...valid, AGENT_RUNTIME: 'other' }).success).toBe(
       false,
     );

@@ -46,6 +46,13 @@ export class WorkspaceEntity {
   @Column({ type: 'text' })
   workingDirectory: string;
 
+  /**
+   * Hosts a `restricted` sandbox tried to reach and its proxy refused,
+   * recorded when it's destroyed.
+   */
+  @Column({ type: 'jsonb' })
+  blockedHosts: string[];
+
   @Column({ type: 'text', nullable: true })
   failureReason: string | null;
 

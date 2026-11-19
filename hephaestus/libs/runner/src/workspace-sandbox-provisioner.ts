@@ -21,6 +21,8 @@ export interface SandboxOptions {
   memoryMb: number;
   pidsLimit: number;
   workspaceMb: number;
+  /** Hosts every `restricted` sandbox may reach (`SANDBOX_ALLOWED_HOSTS`). */
+  allowedHosts: string[];
   /** How long a sandbox may live: provisioning plus run timeouts. */
   lifetimeMs: number;
 }
@@ -58,6 +60,15 @@ export class WorkspaceSandboxProvisioner extends SandboxProvisioner {
       return null;
     }
     const { organizationId } = task;
+    const restricted = agentVersion.runtime.networkAccess === 'restricted';
+    const allowedHosts = restricted
+      ? [
+          ...new Set([
+            ...this.options.allowedHosts,
+            ...(agentVersion.runtime.allowedHosts ?? []),
+          ]),
+        ]
+      : [];
     const workspace = await this.workspaces.createForExecution(organizationId, {
       projectId: task.projectId,
       executionId,
@@ -66,7 +77,8 @@ export class WorkspaceSandboxProvisioner extends SandboxProvisioner {
         image: this.options.image,
         cpuLimit: this.options.cpus,
         memoryLimitMb: this.options.memoryMb,
-        networkAccess: 'none',
+        networkAccess: restricted ? 'restricted' : 'none',
+        ...(restricted ? { allowedHosts } : {}),
       },
       workingDirectory: WORKING_DIRECTORY,
       expiresAt: new Date(Date.now() + this.options.lifetimeMs).toISOString(),
@@ -91,6 +103,9 @@ export class WorkspaceSandboxProvisioner extends SandboxProvisioner {
             'aether-os.execution-id': executionId,
             'aether-os.workspace-id': workspace.id,
           },
+          network: restricted
+            ? { access: 'restricted', allowedHosts }
+            : { access: 'none' },
         },
         signal,
       );
@@ -134,8 +149,22 @@ export class WorkspaceSandboxProvisioner extends SandboxProvisioner {
       // Never got as far as a workspace (or already destroyed).
       return;
     }
+    // What it tried to reach and wasn't allowed to, before the proxy goes.
+    const blockedHosts = await this.driver
+      .blockedHosts(executionId)
+      .catch((error: unknown) => {
+        this.logger.warn(`Blocked hosts unknown: ${String(error)}`);
+        return [];
+      });
     await this.driver.remove(executionId);
     for (const workspace of workspaces) {
+      if (blockedHosts.length > 0) {
+        await this.workspaces.recordBlockedHosts(
+          organizationId,
+          workspace.id,
+          blockedHosts,
+        );
+      }
       try {
         if (workspace.status !== 'stopping') {
           await this.workspaces.destroyForExecution(
