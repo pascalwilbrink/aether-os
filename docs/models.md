@@ -77,16 +77,18 @@ Each call records:
 
 **Built so far** (Hephaestus `libs/models` and the runner), with these differences from the design below:
 
-- **Where they're set:** an organization's and a project's monthly budget through `PUT /v1/organizations/{id}/budget` (`org:manage`) and `…/projects/{id}/budget` (`project:manage`); a task tree's on its top-level task, when it's created (`budgetUsd`) or later (`PUT …/tasks/{taskId}/budget`, `task:create`, through any task of the tree). Not yet: `maxCostUsd` on templates and automations, the project maximum and the project default; a tree without a budget has no tree limit.
+- **Where they're set:** an organization's, a project's and an agent's monthly budget through `PUT /v1/organizations/{id}/budget` (`org:manage`), `…/projects/{id}/budget` (`project:manage`) and `…/agents/{id}/budget` (`org:manage`; read with `agent:read`); a task tree's on its top-level task, when it's created (`budgetUsd`) or later (`PUT …/tasks/{taskId}/budget`, `task:create`, through any task of the tree). Not yet: `maxCostUsd` on templates and automations, the project maximum and the project default; a tree without a budget has no tree limit.
 - **Checked after each call, without reservations:** what a scope spent is summed from the calls the gateway recorded; the runner checks before an execution starts, and after each model call (a run whose budget ran out makes no further call). Calls already in flight can overshoot by at most one call per running execution of that scope. Reservations need each call's maximum cost up front, which the gateway can't know for input; they can replace this check later without changing anything else.
 - **Pausing doesn't save the run's state yet:** the execution ends `paused`, its pending artifacts become `partial` and the task resumes in a new execution, as revision runs do today. Saving the agent's state across waits (Tasks: Sandboxes across long waits) will apply here too.
 - **Windows:** calendar months in UTC; a task tree's over its life. `budget.threshold-reached` at 80%, once per window (again after the limit changes). Each runner round resumes paused tasks whose budgets have room (raised, or a new month).
-- Iris shows and sets them: the organization's budget page (with each project's spend), a project's on its page, a tree's on its tasks' pages (a paused task says which budget ran out), and a budget when creating a task.
+- **An agent's budget** counts its calls in every project, whichever version made them (`model_calls.agent_id`). It's set by the organization's owners and admins rather than whoever edits the agent, since it caps the organization's spending, as keys do. Checked narrowest first: task tree, agent, project, organization; the one that ran out is the `pausedFor` named on the task.
+- Iris shows and sets them: the organization's budget page (with each project's and agent's spend), an agent's on its page, a project's on its page, a tree's on its tasks' pages (a paused task says which budget ran out), and a budget when creating a task.
 - Not yet: `pausedTimeoutDays`, and Kerykes notifying (the events are published).
 
 | Budget | Set on | Window | Default |
 |---|---|---|---|
 | Task tree | Template or automation (`maxCostUsd`), capped by a project maximum | The tree's lifetime | Project default |
+| Agent | Agent setting | Calendar month | None |
 | Project | Project setting | Calendar month | None |
 | Organization | Organization setting, or the plan | Calendar month | Plan |
 
@@ -97,7 +99,7 @@ Enforcement:
 - **Soft limit:** at 80% (configurable), `budget.threshold-reached` is published and the project's admins are notified.
 - **Hard limit: tasks pause.** When a call is refused for budget, the execution saves its state (as when waiting for review: branch pushed, agent state stored), gives up its sandbox, and the task goes to `paused` with the budget that ran out. Nothing is lost and no artifact becomes `partial`.
   - task tree budget → that tree's running tasks pause; a person with `task:create` raises the tree's budget (up to the project maximum) to resume them;
-  - project or organization budget → every running task under it pauses at its next call, and queued tasks don't start; they resume when an admin raises the budget, or automatically when the next budget window (month) starts.
+  - agent, project or organization budget → every running task under it pauses at its next call, and queued tasks don't start; they resume when an admin raises the budget, or automatically when the next budget window (month) starts.
 - **Resuming** puts paused tasks back in `queued`, so they restart through the normal concurrency and fair-queueing rules.
 - `task.paused` is published, and the project's admins are notified, so a paused tree doesn't go unnoticed.
 - Proposal: a project setting `pausedTimeoutDays` (default 14) after which a paused task fails with `budget_exceeded`, so trees don't stay paused forever.

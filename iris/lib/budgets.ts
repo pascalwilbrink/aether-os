@@ -53,6 +53,7 @@ export function budgetSummary(budget: Budget): {
 const SCOPE: Record<BudgetScope, { name: string; window: string }> = {
   organization: { name: "the organization's budget", window: "this month" },
   project: { name: "the project's budget", window: "this month" },
+  agent: { name: "the agent's budget", window: "this month" },
   task_tree: { name: "this task tree's budget", window: "so far" },
 };
 

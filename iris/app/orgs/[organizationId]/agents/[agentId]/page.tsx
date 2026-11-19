@@ -2,16 +2,18 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { ActionButton } from "@/app/components/action-forms";
+import { BudgetForm, BudgetMeter } from "@/app/components/budget";
 import { ModelKeyForm } from "@/app/components/model-key-form";
 import type { AgentVersion } from "@/lib/api";
 import { canPublish, versionStatusClasses, versionStatusLabel } from "@/lib/agents";
-import { getAgent, listActiveModels, listAgentVersions, listModelKeys } from "@/lib/api/hephaestus";
+import { getAgent, getAgentBudget, listActiveModels, listAgentVersions, listModelKeys } from "@/lib/api/hephaestus";
 import { getOrganization } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
 import { keyInUse, providerName, type ModelKey } from "@/lib/model-keys";
 import { formatTime } from "@/lib/tasks";
 
 import { ArchiveButton, PublishButton, VersionForm } from "../agent-forms";
+import { setAgentBudgetAction } from "../../budget/actions";
 import { deleteModelKeyAction, setModelKeyAction } from "../../model-keys/actions";
 
 type Props = PageProps<"/orgs/[organizationId]/agents/[agentId]">;
@@ -29,13 +31,14 @@ async function AgentDetails({ params }: Props) {
   const { organizationId, agentId } = await params;
   const session = await requireOrganization(organizationId, `/orgs/${organizationId}/agents/${agentId}`);
   const token = session.accessToken;
-  const [organization, agent, versions, models, organizationKeys, agentKeys] = await Promise.all([
+  const [organization, agent, versions, models, organizationKeys, agentKeys, budget] = await Promise.all([
     getOrganization(token, organizationId),
     getAgent(token, organizationId, agentId),
     listAgentVersions(token, organizationId, agentId),
     listActiveModels(token),
     listModelKeys(token, organizationId),
     listModelKeys(token, organizationId, agentId),
+    getAgentBudget(token, organizationId, agentId),
   ]);
   const ref = { organizationId, agentId };
   const [latest] = versions.items;
@@ -97,6 +100,20 @@ async function AgentDetails({ params }: Props) {
           agentKeys={agentKeys.items}
         />
       ) : null}
+
+      <section id="budget" className="space-y-3">
+        <div>
+          <h2 className="font-medium">Budget</h2>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            What this agent&apos;s model calls cost this month, in every project. When its limit is used up, its tasks
+            pause until it&apos;s raised or the next month starts. Owners and admins set it.
+          </p>
+        </div>
+        <BudgetMeter budget={budget} />
+        {agent.status === "active" ? (
+          <BudgetForm budget={budget} action={setAgentBudgetAction.bind(null, ref)} />
+        ) : null}
+      </section>
 
       {agent.status === "active" ? (
         <section className="space-y-3">

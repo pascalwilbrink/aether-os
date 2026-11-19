@@ -74,7 +74,13 @@ async function TaskView({ params }: Pick<Props, "params">) {
               </a>
             ) : (
               <Link
-                href={task.pausedFor === "project" ? `${projectPath}#budget` : `/orgs/${organizationId}/budget`}
+                href={
+                  task.pausedFor === "project"
+                    ? `${projectPath}#budget`
+                    : task.pausedFor === "agent"
+                      ? `/orgs/${organizationId}/agents/${task.agentId}#budget`
+                      : `/orgs/${organizationId}/budget`
+                }
                 className="underline"
               >
                 See the budget
@@ -87,7 +93,9 @@ async function TaskView({ params }: Pick<Props, "params">) {
 
       <section className="space-y-2">
         <h2 className="font-medium">Instructions</h2>
-        <pre className="whitespace-pre-wrap rounded-md bg-zinc-100 p-3 text-sm dark:bg-zinc-900">{task.instructions}</pre>
+        <pre className="whitespace-pre-wrap rounded-md bg-zinc-100 p-3 text-sm dark:bg-zinc-900">
+          {task.instructions}
+        </pre>
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
           <Fact label="Attempt">{task.attempt}</Fact>
           <Fact label="Review round">{task.reviewRound}</Fact>
@@ -165,9 +173,7 @@ async function TaskView({ params }: Pick<Props, "params">) {
                         : ""}
                     </p>
                   ) : null}
-                  {artifact.status === "draft" ? (
-                    <ReviewForm artifact={{ ...ref, artifactId: artifact.id }} />
-                  ) : null}
+                  {artifact.status === "draft" ? <ReviewForm artifact={{ ...ref, artifactId: artifact.id }} /> : null}
                 </article>
               ))}
             </div>

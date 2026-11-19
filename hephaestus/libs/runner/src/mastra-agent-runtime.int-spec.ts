@@ -493,6 +493,47 @@ describe('MastraAgentRuntime (Postgres)', () => {
       });
     });
 
+    it("pauses an agent's tasks in every project once it spent its month", async () => {
+      const { task: first } = await taskFor();
+      await budgets().setAgent(organizationId, first.agentId, '0.00001');
+      models.replies = [{ text: 'Done.', inputTokens: 1, outputTokens: 1 }];
+
+      await runOnce();
+
+      // The first run used the month up: its answer stays, the next pauses.
+      await expect(task(first.id)).resolves.toMatchObject({
+        status: 'succeeded',
+      });
+      await expect(
+        budgets().getAgent(organizationId, first.agentId),
+      ).resolves.toMatchObject({ scope: 'agent', spentUsd: '0.000018' });
+      // Another task of the same agent, in another project.
+      const otherProject = polis.project(organizationId);
+      const { task: second } = await tasks.create(
+        organizationId,
+        otherProject,
+        {
+          title: 'Fix another bug',
+          instructions: 'Please.',
+          agentId: first.agentId,
+          serviceAccountId: SERVICE_ACCOUNT,
+        },
+        `key-${++key}`,
+      );
+      await runOnce();
+      expect(models.calls).toHaveLength(1);
+      await expect(
+        tasks.findById(organizationId, otherProject, second.id),
+      ).resolves.toMatchObject({ status: 'paused', pausedFor: 'agent' });
+
+      await budgets().setAgent(organizationId, first.agentId, '1');
+      models.replies = [{ text: 'Done again.' }];
+      await runOnce();
+      await expect(
+        tasks.findById(organizationId, otherProject, second.id),
+      ).resolves.toMatchObject({ status: 'succeeded', pausedFor: null });
+    });
+
     it("keeps a run's answer when its last call used up the budget", async () => {
       models.replies = [{ text: 'Fixed.', inputTokens: 10, outputTokens: 2 }];
       await budgets().setProject(organizationId, projectId, '0.00001');
@@ -508,6 +549,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
         budgets().exceeded({
           organizationId,
           projectId,
+          agentId: created.agentId,
           topLevelTaskId: created.id,
         }),
       ).resolves.toBe('project');

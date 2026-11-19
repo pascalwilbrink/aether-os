@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.15.0
+  version: 0.16.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -1196,6 +1196,50 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '204': { description: Removed (also when there was none) }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/agents/{agentId}/budget:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/AgentId'
+    get:
+      tags: [budgets]
+      operationId: getAgentBudget
+      x-permission: '`agent:read`'
+      description: The agent's monthly budget for model calls (all its versions, in every project), and what this month's calls cost so far.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [budgets]
+      operationId: setAgentBudget
+      x-permission: '`org:manage`'
+      description: |
+        Sets (or, with `limitUsd: null`, removes) the agent's monthly limit.
+        Tasks it paused resume within a runner round once it has room.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetBudgetRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BudgetResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
@@ -2396,10 +2440,10 @@ components:
     BudgetScope:
       type: string
       description: |
-        What a budget limits (docs/models.md, Budgets): an organization's or
-        a project's model calls per calendar month (UTC), or a task tree's
-        over its whole life.
-      enum: [organization, project, task_tree]
+        What a budget limits (docs/models.md, Budgets): an organization's,
+        a project's or an agent's model calls per calendar month (UTC), or a
+        task tree's over its whole life.
+      enum: [organization, project, agent, task_tree]
     SetBudgetRequest:
       type: object
       additionalProperties: false
@@ -2418,7 +2462,7 @@ components:
         scopeId:
           type: string
           format: uuid
-          description: The organization, project or top-level task.
+          description: The organization, project, agent or top-level task.
         limitUsd:
           oneOf:
             - $ref: '#/components/schemas/Usd'

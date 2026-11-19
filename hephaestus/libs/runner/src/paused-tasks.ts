@@ -28,6 +28,7 @@ export class PausedTasks {
       const scope = await this.budgets.exceeded({
         organizationId: task.organizationId,
         projectId: task.projectId,
+        agentId: task.agentId,
         topLevelTaskId: task.topLevelTaskId,
       });
       if (scope) {

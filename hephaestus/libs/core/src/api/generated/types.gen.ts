@@ -868,12 +868,12 @@ export type ModelPage = PageMeta & {
 };
 
 /**
- * What a budget limits (docs/models.md, Budgets): an organization's or
- * a project's model calls per calendar month (UTC), or a task tree's
- * over its whole life.
+ * What a budget limits (docs/models.md, Budgets): an organization's,
+ * a project's or an agent's model calls per calendar month (UTC), or a
+ * task tree's over its whole life.
  *
  */
-export type BudgetScope = 'organization' | 'project' | 'task_tree';
+export type BudgetScope = 'organization' | 'project' | 'agent' | 'task_tree';
 
 export type SetBudgetRequest = {
     /**
@@ -885,7 +885,7 @@ export type SetBudgetRequest = {
 export type BudgetResponse = {
     scope: BudgetScope;
     /**
-     * The organization, project or top-level task.
+     * The organization, project, agent or top-level task.
      */
     scopeId: string;
     limitUsd: Usd | null;
@@ -3744,6 +3744,110 @@ export type SetOrganizationModelKeyResponses = {
 };
 
 export type SetOrganizationModelKeyResponse = SetOrganizationModelKeyResponses[keyof SetOrganizationModelKeyResponses];
+
+export type GetAgentBudgetData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        agentId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/agents/{agentId}/budget';
+};
+
+export type GetAgentBudgetErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type GetAgentBudgetError = GetAgentBudgetErrors[keyof GetAgentBudgetErrors];
+
+export type GetAgentBudgetResponses = {
+    /**
+     * OK
+     */
+    200: BudgetResponse;
+};
+
+export type GetAgentBudgetResponse = GetAgentBudgetResponses[keyof GetAgentBudgetResponses];
+
+export type SetAgentBudgetData = {
+    body: SetBudgetRequest;
+    path: {
+        organizationId: string;
+        agentId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/agents/{agentId}/budget';
+};
+
+export type SetAgentBudgetErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type SetAgentBudgetError = SetAgentBudgetErrors[keyof SetAgentBudgetErrors];
+
+export type SetAgentBudgetResponses = {
+    /**
+     * OK
+     */
+    200: BudgetResponse;
+};
+
+export type SetAgentBudgetResponse = SetAgentBudgetResponses[keyof SetAgentBudgetResponses];
 
 export type ListAgentModelKeysData = {
     body?: never;

@@ -21,7 +21,7 @@ import type { TaskFailureReason, TaskStatus } from './task-transitions.js';
 )
 @Check(
   'ck_tasks_paused_for',
-  `paused_for IS NULL OR paused_for IN ('organization', 'project', 'task_tree')`,
+  `paused_for IS NULL OR paused_for IN ('organization', 'project', 'agent', 'task_tree')`,
 )
 @Check(
   'ck_tasks_failure_reason',

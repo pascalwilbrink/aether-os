@@ -675,14 +675,15 @@ export const zModelResponse = z.object({
 });
 
 /**
- * What a budget limits (docs/models.md, Budgets): an organization's or
- * a project's model calls per calendar month (UTC), or a task tree's
- * over its whole life.
+ * What a budget limits (docs/models.md, Budgets): an organization's,
+ * a project's or an agent's model calls per calendar month (UTC), or a
+ * task tree's over its whole life.
  *
  */
 export const zBudgetScope = z.enum([
     'organization',
     'project',
+    'agent',
     'task_tree'
 ]);
 
@@ -1475,6 +1476,28 @@ export const zSetOrganizationModelKeyPath = z.object({
  * Stored in OpenBao; never returned
  */
 export const zSetOrganizationModelKeyResponse = zModelKeyResponse;
+
+export const zGetAgentBudgetPath = z.object({
+    organizationId: z.uuid(),
+    agentId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetAgentBudgetResponse = zBudgetResponse;
+
+export const zSetAgentBudgetBody = zSetBudgetRequest;
+
+export const zSetAgentBudgetPath = z.object({
+    organizationId: z.uuid(),
+    agentId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zSetAgentBudgetResponse = zBudgetResponse;
 
 export const zListAgentModelKeysPath = z.object({
     organizationId: z.uuid(),

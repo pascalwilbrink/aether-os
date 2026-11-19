@@ -50,7 +50,7 @@ export interface ArtifactStatusChanged {
  */
 export interface BudgetThresholdReached {
   budgetId: string;
-  scope: 'organization' | 'project' | 'task_tree';
+  scope: 'organization' | 'project' | 'agent' | 'task_tree';
   scopeId: string;
   /**
    * US dollars
@@ -146,7 +146,7 @@ export interface TaskPaused {
   taskId: string;
   topLevelTaskId: string;
   requestedBy: string;
-  scope: 'organization' | 'project' | 'task_tree';
+  scope: 'organization' | 'project' | 'agent' | 'task_tree';
 }
 
 /**

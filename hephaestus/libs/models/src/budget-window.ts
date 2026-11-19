@@ -12,7 +12,7 @@ export interface BudgetWindow {
 
 /**
  * The window a budget counts over (docs/models.md, Budgets): the calendar
- * month in UTC for an organization's or a project's, the whole life of a
+ * month in UTC for an organization's, a project's or an agent's, the whole life of a
  * task tree's.
  */
 export function windowOf(scope: BudgetScope, at: Date): BudgetWindow {
