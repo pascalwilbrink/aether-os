@@ -16,6 +16,7 @@ import { ModelCatalogSeed1795038150209 } from './1795038150209-ModelCatalogSeed.
 import { Budgets1795041939868 } from './1795041939868-Budgets.js';
 import { ModelKeys1795045800295 } from './1795045800295-ModelKeys.js';
 import { AgentBudgets1795070345258 } from './1795070345258-AgentBudgets.js';
+import { TaskConcurrency1795082757713 } from './1795082757713-TaskConcurrency.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -42,4 +43,5 @@ export const migrations = [
   Budgets1795041939868,
   ModelKeys1795045800295,
   AgentBudgets1795070345258,
+  TaskConcurrency1795082757713,
 ];

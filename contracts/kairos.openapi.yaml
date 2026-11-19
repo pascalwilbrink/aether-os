@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Kairos API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Automations (`../docs/automations.md`): a **trigger** (for now a GitHub
     issue event from Proxenos) bound to a **task** an agent runs in
@@ -349,6 +349,21 @@ components:
         workInRepository:
           type: boolean
           description: The task works in the repository the event came from (its link in this project). Defaults to true.
+        concurrency:
+          description: |
+            A concurrency key for its tasks (docs/tasks.md, Concurrency): the
+            key can use the event's fields (e.g. `{{repository}}#{{issue.number}}`)
+            and is the automation's own (two automations never share one).
+            `queue` (the new task waits for the earlier ones), `cancel-previous`
+            or `skip` (the run is `skipped`). Null or left out for none.
+          oneOf:
+            - type: 'null'
+            - type: object
+              additionalProperties: false
+              required: [key, policy]
+              properties:
+                key: { type: string, minLength: 1, maxLength: 150 }
+                policy: { type: string, enum: [queue, cancel-previous, skip] }
         reviewArtifactKinds:
           type: array
           description: Artifact kinds that need approval before delivery (`*` for all), as a task's `review.artifactKinds`.
@@ -391,8 +406,8 @@ components:
     # ---------- runs ----------
     AutomationRunStatus:
       type: string
-      description: '`requested`: the command is sent, Hephaestus hasn''t answered; `created`: a task was created; `rejected`: Hephaestus refused it.'
-      enum: [requested, created, rejected]
+      description: '`requested`: the command is sent, Hephaestus hasn''t answered; `created`: a task was created; `skipped`: its concurrency key''s task was still unfinished (policy `skip`); `rejected`: Hephaestus refused it.'
+      enum: [requested, created, skipped, rejected]
     AutomationRunResponse:
       type: object
       required: [id, automationId, status, event, taskId, rejection, createdAt, updatedAt]
@@ -419,7 +434,7 @@ components:
           type: [string, 'null']
           format: uuid
         rejection:
-          description: Hephaestus's reason, for a `rejected` run.
+          description: Hephaestus's reason, for a `rejected` or `skipped` run.
           oneOf:
             - type: 'null'
             - type: object

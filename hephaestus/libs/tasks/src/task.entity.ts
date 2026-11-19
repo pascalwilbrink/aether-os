@@ -10,6 +10,8 @@ import type { TaskFailureReason, TaskStatus } from './task-transitions.js';
  * a parent, a subtask; runs as a service account, with the agent version
  * pinned when it was created.
  */
+export type ConcurrencyPolicy = ApiTypes.TaskConcurrency['policy'];
+
 @Entity({ name: 'tasks' })
 @Unique('uq_tasks_organization_id_idempotency_key', [
   'organizationId',
@@ -24,6 +26,10 @@ import type { TaskFailureReason, TaskStatus } from './task-transitions.js';
   `paused_for IS NULL OR paused_for IN ('organization', 'project', 'agent', 'task_tree')`,
 )
 @Check(
+  'ck_tasks_concurrency_policy',
+  `concurrency_policy IS NULL OR concurrency_policy IN ('queue', 'cancel-previous', 'skip')`,
+)
+@Check(
   'ck_tasks_failure_reason',
   `failure_reason IS NULL OR failure_reason IN ('agent_failed', 'verification_failed', 'rejected', 'timeout', 'budget_exceeded', 'infrastructure', 'subtask_failed', 'access_denied')`,
 )
@@ -34,6 +40,10 @@ import type { TaskFailureReason, TaskStatus } from './task-transitions.js';
 @Index('ix_tasks_top_level_task_id', ['topLevelTaskId'])
 // The queue (TaskQueue) and the concurrency counts.
 @Index('ix_tasks_status_organization_id', ['status', 'organizationId'])
+// A project's tasks with a concurrency key (docs/tasks.md, Concurrency).
+@Index('ix_tasks_project_id_concurrency_key', ['projectId', 'concurrencyKey'], {
+  where: 'concurrency_key IS NOT NULL',
+})
 export class TaskEntity {
   @PrimaryColumn({ type: 'uuid' })
   id: string;
@@ -112,6 +122,17 @@ export class TaskEntity {
    */
   @Column({ type: 'uuid', nullable: true })
   repositoryLinkId: string | null;
+
+  /**
+   * Its concurrency key and policy (docs/tasks.md, Concurrency), on a
+   * top-level task: with `queue`, it isn't started while an older
+   * unfinished task of its project has the same key.
+   */
+  @Column({ type: 'text', nullable: true })
+  concurrencyKey: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  concurrencyPolicy: ConcurrencyPolicy | null;
 
   /** The template version it was created from (docs/tasks.md), if any. */
   @Column({ type: 'uuid', nullable: true })

@@ -101,6 +101,7 @@ describe('Tasks (e2e)', () => {
       taskTemplateId: null,
       taskTemplateVersion: null,
       repository: null,
+      concurrency: null,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
       finishedAt: null,

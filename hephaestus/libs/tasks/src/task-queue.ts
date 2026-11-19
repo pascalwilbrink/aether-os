@@ -64,6 +64,14 @@ export class TaskQueue {
             AND (t.next_attempt_at IS NULL OR t.next_attempt_at <= now())
             AND NOT (t.organization_id = ANY($1::uuid[]))
             AND NOT (t.project_id = ANY($2::uuid[]))
+            -- A concurrency key (docs/tasks.md): older unfinished tasks
+            -- with it go first.
+            AND (t.concurrency_key IS NULL OR NOT EXISTS (
+                  SELECT 1 FROM tasks k
+                   WHERE k.project_id = t.project_id
+                     AND k.concurrency_key = t.concurrency_key
+                     AND (k.created_at, k.id) < (t.created_at, t.id)
+                     AND k.status NOT IN ('succeeded', 'failed', 'cancelled')))
           ORDER BY (SELECT count(*) FROM tasks c
                      WHERE c.organization_id = t.organization_id
                        AND c.status = ANY($3::text[])),

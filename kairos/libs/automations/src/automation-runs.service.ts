@@ -20,7 +20,7 @@ import { AutomationRunEntity } from './automation-run.entity.js';
 import type { AutomationEntity } from './automation.entity.js';
 import { AutomationMapper } from './automation.mapper.js';
 import { AutomationsService } from './automations.service.js';
-import { fieldsOf, match, render } from './triggers.js';
+import { concurrencyKey, fieldsOf, match, render } from './triggers.js';
 
 type IssueEvent = ProxenosEvents.GithubIssueOpened;
 type TaskCreate = HephaestusEvents.TaskCreate;
@@ -92,14 +92,17 @@ export class AutomationRunsService {
     });
   }
 
-  /** Hephaestus refused a run's command; it's never retried. */
+  /**
+   * Hephaestus refused a run's command; it's never retried. Refused for its
+   * concurrency key (policy `skip`), the run is `skipped`.
+   */
   @OnDomainEvent('hephaestus.task.create-rejected')
   async onTaskCreateRejected(
     event: DomainEvent<HephaestusEvents.TaskCreateRejected>,
   ): Promise<void> {
     const { idempotencyKey, code, message } = event.payload;
     await this.answer(event.organizationId, idempotencyKey, {
-      status: 'rejected',
+      status: code === 'TASK_CONCURRENCY_SKIPPED' ? 'skipped' : 'rejected',
       taskId: null,
       rejection: { code, message },
     });
@@ -219,6 +222,14 @@ function taskCreate(
     ...(action.workInRepository ? { repository: { linkId } } : {}),
     ...(action.reviewArtifactKinds.length > 0
       ? { review: { artifactKinds: action.reviewArtifactKinds } }
+      : {}),
+    ...(action.concurrency
+      ? {
+          concurrency: {
+            key: concurrencyKey(automation.id, action.concurrency.key, fields),
+            policy: action.concurrency.policy,
+          },
+        }
       : {}),
   };
   if (action.task) {

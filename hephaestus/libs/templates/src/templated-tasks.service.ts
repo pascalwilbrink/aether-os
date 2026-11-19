@@ -56,6 +56,7 @@ export class TemplatedTasksService {
         dependsOn: request.dependsOn,
         acceptanceCriteria: request.acceptanceCriteria,
         repository: request.repository,
+        concurrency: request.concurrency,
         review: {
           artifactKinds: [
             ...new Set([

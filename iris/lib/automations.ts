@@ -13,6 +13,14 @@ export const EVENTS: { value: IssueEvent; label: string }[] = [
   { value: "github.issue-comment.created", label: "Someone comments on an issue" },
 ];
 
+export type ConcurrencyPolicy = "queue" | "cancel-previous" | "skip";
+
+export const CONCURRENCY_POLICIES: { value: ConcurrencyPolicy; label: string }[] = [
+  { value: "queue", label: "Wait for the earlier task to finish" },
+  { value: "cancel-previous", label: "Cancel the earlier task" },
+  { value: "skip", label: "Don't start a new task" },
+];
+
 export const PERMISSIONS: { value: Permission; label: string }[] = [
   { value: "admin", label: "Admin" },
   { value: "maintain", label: "Maintain" },
@@ -36,6 +44,8 @@ export function fieldsOf(automation?: Automation): AutomationFields {
       event: "github.issue.opened",
       minimumPermission: "write",
       workInRepository: "on",
+      concurrencyKey: "{{repository}}#{{issue.number}}",
+      concurrencyPolicy: "queue",
       title: "Fix #{{issue.number}}: {{issue.title}}",
       instructions: "Fix the issue {{issue.url}} in {{repository}}, reported by {{author}}.",
     };
@@ -62,6 +72,8 @@ export function fieldsOf(automation?: Automation): AutomationFields {
     serviceAccountId: action.serviceAccountId,
     workInRepository: action.workInRepository === false ? "" : "on",
     review: (action.reviewArtifactKinds ?? []).length > 0 ? "all" : "",
+    concurrencyKey: action.concurrency?.key ?? "",
+    concurrencyPolicy: action.concurrency?.policy ?? "queue",
   };
 }
 
@@ -95,6 +107,10 @@ export function requestOf(fields: AutomationFields): { request: AutomationReques
     if (!value("title") || !value("instructions")) return { error: "Give the task a title and instructions." };
     task = { agentId: value("agentId"), title: value("title"), instructions: value("instructions") };
   }
+  const concurrencyPolicy = (value("concurrencyPolicy") || "queue") as ConcurrencyPolicy;
+  if (!CONCURRENCY_POLICIES.some((entry) => entry.value === concurrencyPolicy)) {
+    return { error: "Choose what happens to a second task with the same key." };
+  }
   return {
     request: {
       name: value("name"),
@@ -113,6 +129,7 @@ export function requestOf(fields: AutomationFields): { request: AutomationReques
         serviceAccountId: value("serviceAccountId"),
         workInRepository: on("workInRepository"),
         reviewArtifactKinds: value("review") === "all" ? ["*"] : [],
+        concurrency: value("concurrencyKey") ? { key: value("concurrencyKey"), policy: concurrencyPolicy } : null,
       },
     },
   };
@@ -145,6 +162,7 @@ export const automationStatus = (status: Automation["status"]) => STATUS[status]
 const RUN: Record<AutomationRun["status"], string> = {
   requested: "Requested",
   created: "Task created",
+  skipped: "Skipped (one already running)",
   rejected: "Refused",
 };
 export const runStatusLabel = (status: AutomationRun["status"]) => RUN[status];

@@ -224,6 +224,22 @@ describe('task.create commands (e2e)', () => {
     );
   });
 
+  it('answers a skipped concurrency key with task.create-rejected', async () => {
+    const withKey = () =>
+      command(task({ concurrency: { key: 'acme/api#12', policy: 'skip' } }));
+    await deliver(withKey());
+    const second = withKey();
+    await deliver(second);
+
+    expect(await tasks()).toHaveLength(1);
+    expect(await published('task.create-rejected')).toEqual([
+      expect.objectContaining({
+        idempotencyKey: second.eventId,
+        code: 'TASK_CONCURRENCY_SKIPPED',
+      }),
+    ]);
+  });
+
   it('takes commands from RabbitMQ (hephaestus.commands)', async () => {
     const connection = await amqp.connect(inject('rabbitmqUrl'));
     try {

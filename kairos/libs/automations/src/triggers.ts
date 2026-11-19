@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import type { ApiTypes, ProxenosEvents } from '@kairos/core';
 
 import type { StoredAction, StoredTrigger } from './automation.entity.js';
@@ -42,6 +44,7 @@ export function storedAction(action: ApiTypes.AutomationAction): StoredAction {
     ...action,
     workInRepository: action.workInRepository ?? true,
     reviewArtifactKinds: action.reviewArtifactKinds ?? [],
+    concurrency: action.concurrency ?? null,
   };
 }
 
@@ -67,6 +70,12 @@ export function actionProblems(
       ([name, value]) =>
         [`/action/template/inputs/${name}`, value] as [string, string],
     ),
+    ...(action.concurrency
+      ? ([['/action/concurrency/key', action.concurrency.key]] as [
+          string,
+          string,
+        ][])
+      : []),
   ];
   for (const [pointer, text] of texts) {
     const unknown = placeholdersIn(text).filter(
@@ -145,4 +154,22 @@ export function render(text: string, fields: Record<string, string>): string {
   return text.replace(PLACEHOLDER, (whole, name: string) =>
     name in fields ? fields[name] : whole,
   );
+}
+
+/**
+ * The concurrency key sent to Hephaestus: the automation's own (two
+ * automations never share one), with the event's fields filled in, at most
+ * 200 characters (a long one is hashed).
+ */
+export function concurrencyKey(
+  automationId: string,
+  key: string,
+  fields: Record<string, string>,
+): string {
+  const rendered = render(key, fields);
+  return `${automationId}:${
+    rendered.length <= 160
+      ? rendered
+      : createHash('sha256').update(rendered).digest('hex')
+  }`;
 }

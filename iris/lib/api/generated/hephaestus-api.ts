@@ -920,7 +920,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "MODEL_ALREADY_EXISTS" | "MODEL_NOT_AVAILABLE" | "MODEL_PRICE_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "MODEL_ALREADY_EXISTS" | "MODEL_NOT_AVAILABLE" | "MODEL_PRICE_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -1121,6 +1121,7 @@ export interface components {
              *     Raise it later with `PUT …/tasks/{taskId}/budget`.
              */
             budgetUsd?: components["schemas"]["Usd"] | null;
+            concurrency?: components["schemas"]["TaskConcurrency"] | null;
         };
         TaskRepository: {
             /**
@@ -1274,6 +1275,20 @@ export interface components {
             review?: components["schemas"]["TaskReviewSettings"];
             /** @description The repository the task works in, as for a task written by hand. */
             repository?: components["schemas"]["TaskRepository"];
+            concurrency?: components["schemas"]["TaskConcurrency"] | null;
+        };
+        /**
+         * @description A concurrency key (docs/tasks.md, Concurrency): what to do with a new
+         *     top-level task while an unfinished one with the same key exists in
+         *     the project. `queue`: it waits until those have finished (the
+         *     runner doesn't start it before); `cancel-previous`: they're
+         *     cancelled; `skip`: it isn't created (`TASK_CONCURRENCY_SKIPPED`).
+         *     Only on top-level tasks (`TASK_CONCURRENCY_INVALID`).
+         */
+        TaskConcurrency: {
+            key: string;
+            /** @enum {string} */
+            policy: "queue" | "cancel-previous" | "skip";
         };
         /**
          * @description Which of the task's artifacts need approval before they're final
@@ -1329,6 +1344,7 @@ export interface components {
             acceptanceCriteria: components["schemas"]["AcceptanceCriterion"][];
             /** @description The repository it works in (its own, or its parent's), if any. */
             repository: components["schemas"]["TaskRepository"] | null;
+            concurrency: components["schemas"]["TaskConcurrency"] | null;
             /**
              * Format: uuid
              * @description The template it was created from, if any.

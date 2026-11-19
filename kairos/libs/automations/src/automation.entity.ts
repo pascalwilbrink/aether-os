@@ -10,7 +10,10 @@ export type StoredTrigger = Required<ApiTypes.AutomationTrigger>;
 /** The action as stored: every optional field filled in. */
 export type StoredAction = ApiTypes.AutomationAction &
   Required<
-    Pick<ApiTypes.AutomationAction, 'workInRepository' | 'reviewArtifactKinds'>
+    Pick<
+      ApiTypes.AutomationAction,
+      'workInRepository' | 'reviewArtifactKinds' | 'concurrency'
+    >
   >;
 
 /**

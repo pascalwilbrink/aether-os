@@ -244,6 +244,18 @@ export interface components {
             serviceAccountId: string;
             /** @description The task works in the repository the event came from (its link in this project). Defaults to true. */
             workInRepository?: boolean;
+            /**
+             * @description A concurrency key for its tasks (docs/tasks.md, Concurrency): the
+             *     key can use the event's fields (e.g. `{{repository}}#{{issue.number}}`)
+             *     and is the automation's own (two automations never share one).
+             *     `queue` (the new task waits for the earlier ones), `cancel-previous`
+             *     or `skip` (the run is `skipped`). Null or left out for none.
+             */
+            concurrency?: null | {
+                key: string;
+                /** @enum {string} */
+                policy: "queue" | "cancel-previous" | "skip";
+            };
             /** @description Artifact kinds that need approval before delivery (`*` for all), as a task's `review.artifactKinds`. */
             reviewArtifactKinds?: string[];
         };
@@ -277,10 +289,10 @@ export interface components {
             nextCursor: components["schemas"]["NextCursor"];
         };
         /**
-         * @description `requested`: the command is sent, Hephaestus hasn't answered; `created`: a task was created; `rejected`: Hephaestus refused it.
+         * @description `requested`: the command is sent, Hephaestus hasn't answered; `created`: a task was created; `skipped`: its concurrency key's task was still unfinished (policy `skip`); `rejected`: Hephaestus refused it.
          * @enum {string}
          */
-        AutomationRunStatus: "requested" | "created" | "rejected";
+        AutomationRunStatus: "requested" | "created" | "skipped" | "rejected";
         AutomationRunResponse: {
             /**
              * Format: uuid
@@ -304,7 +316,7 @@ export interface components {
             };
             /** Format: uuid */
             taskId: string | null;
-            /** @description Hephaestus's reason, for a `rejected` run. */
+            /** @description Hephaestus's reason, for a `rejected` or `skipped` run. */
             rejection: null | {
                 code: string;
                 message: string;

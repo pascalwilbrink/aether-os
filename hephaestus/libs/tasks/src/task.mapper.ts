@@ -65,6 +65,8 @@ export class TaskMapper {
         })),
       ],
       repositoryLinkId: task.repositoryLinkId,
+      concurrencyKey: task.dto.concurrency?.key ?? null,
+      concurrencyPolicy: task.dto.concurrency?.policy ?? null,
       taskTemplateId: task.template?.templateId ?? null,
       taskTemplateVersion: task.template?.version ?? null,
       attempt: 1,
@@ -105,6 +107,10 @@ export class TaskMapper {
       repository: entity.repositoryLinkId
         ? { linkId: entity.repositoryLinkId }
         : null,
+      concurrency:
+        entity.concurrencyKey && entity.concurrencyPolicy
+          ? { key: entity.concurrencyKey, policy: entity.concurrencyPolicy }
+          : null,
       taskTemplateId: entity.taskTemplateId,
       taskTemplateVersion: entity.taskTemplateVersion,
       createdAt: entity.createdAt.toISOString(),

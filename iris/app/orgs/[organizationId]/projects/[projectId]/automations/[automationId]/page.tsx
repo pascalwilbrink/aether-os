@@ -5,7 +5,7 @@ import { ActionButton } from "@/app/components/action-forms";
 import { getAutomation, listAutomationRuns } from "@/lib/api/kairos";
 import { getProject } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
-import { automationStatus, fieldsOf, runStatusLabel, triggerSummary } from "@/lib/automations";
+import { automationStatus, CONCURRENCY_POLICIES, fieldsOf, runStatusLabel, triggerSummary } from "@/lib/automations";
 import { formatTime } from "@/lib/tasks";
 
 import { changeAutomationStatusAction, updateAutomationAction } from "../actions";
@@ -71,6 +71,13 @@ async function AutomationDetails({ params }: Props) {
             , running as {runsAs ?? "a service account without a role here"}
             {action.workInRepository === false ? "" : ", in the issue's repository"}
             {(action.reviewArtifactKinds ?? []).length > 0 ? "; everything it produces needs approval" : ""}.
+            {action.concurrency ? (
+              <>
+                {" "}
+                One task at a time per <span className="font-mono">{action.concurrency.key}</span>:{" "}
+                {CONCURRENCY_POLICIES.find((entry) => entry.value === action.concurrency?.policy)?.label.toLowerCase()}.
+              </>
+            ) : null}
           </p>
         </div>
         {automation.status === "archived" ? null : (

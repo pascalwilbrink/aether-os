@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ArrayContains, In, type Repository } from 'typeorm';
+import { ArrayContains, In, Not, type Repository } from 'typeorm';
 
 import {
   AccessControl,
@@ -10,6 +10,7 @@ import {
   isUniqueViolation,
   mapPage,
   Transactional,
+  type ApiTypes,
   type Page,
 } from '@hephaestus/core';
 import { AgentsService } from '@hephaestus/agents';
@@ -24,12 +25,15 @@ import {
   InvalidTaskCriteriaError,
   InvalidTaskDependencyError,
   InvalidTaskTransitionError,
+  TaskConcurrencyInvalidError,
+  TaskConcurrencySkippedError,
   TaskParentFinishedError,
 } from './task.errors.js';
 import { TaskMapper, type TaskTemplateOrigin } from './task.mapper.js';
 import {
   isTerminal,
   nextTaskStatus,
+  TERMINAL,
   type TaskAction,
   type TaskFailureReason,
   type TaskStatus,
@@ -107,6 +111,12 @@ export class TasksService {
       // The tree shares a branch (docs/git.md), so a repository too.
       repositoryLinkId ??= parent.repositoryLinkId;
     }
+    if (dto.concurrency) {
+      if (dto.parentTaskId) {
+        throw new TaskConcurrencyInvalidError();
+      }
+      await this.applyConcurrency(organizationId, projectId, dto.concurrency);
+    }
     const dependsOn = [...new Set(dto.dependsOn ?? [])];
     const ready = await this.dependenciesSucceeded(
       organizationId,
@@ -164,6 +174,43 @@ export class TasksService {
     });
 
     return { task: this.mapper.toResponse(entity), created: true };
+  }
+
+  /**
+   * A concurrency key's policy (docs/tasks.md, Concurrency), before a new
+   * task with it is created. Creates with the same key take turns (an
+   * advisory lock for the transaction), so two never both see none.
+   * `skip` refuses while an unfinished task has the key, `cancel-previous`
+   * cancels those, `queue` lets the new one wait (`TaskQueue` doesn't
+   * start it before them).
+   */
+  private async applyConcurrency(
+    organizationId: string,
+    projectId: string,
+    { key, policy }: ApiTypes.TaskConcurrency,
+  ): Promise<void> {
+    await this.tasks.query(
+      'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+      [`concurrency:${projectId}:${key}`],
+    );
+    const active = await this.tasks.find({
+      where: {
+        organizationId,
+        projectId,
+        concurrencyKey: key,
+        status: Not(In([...TERMINAL])),
+      },
+      order: { createdAt: 'ASC' },
+    });
+    if (active.length === 0 || policy === 'queue') {
+      return;
+    }
+    if (policy === 'skip') {
+      throw new TaskConcurrencySkippedError(key, active[0].id);
+    }
+    for (const task of active) {
+      await this.cancel(organizationId, projectId, task.id);
+    }
   }
 
   async list(

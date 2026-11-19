@@ -41,3 +41,26 @@ export class TaskBudgetInvalidError extends DomainError {
     );
   }
 }
+
+/** A concurrency key is set on a top-level task (docs/tasks.md, Concurrency). */
+export class TaskConcurrencyInvalidError extends DomainError {
+  constructor() {
+    super(
+      'A concurrency key is set on a top-level task, not on a subtask.',
+      'TASK_CONCURRENCY_INVALID',
+    );
+  }
+}
+
+/** Policy `skip`: an unfinished task with the same key exists. */
+export class TaskConcurrencySkippedError extends DomainError {
+  constructor(
+    readonly key: string,
+    readonly activeTaskId: string,
+  ) {
+    super(
+      `Task ${activeTaskId} with the concurrency key "${key}" hasn't finished; this one is skipped.`,
+      'TASK_CONCURRENCY_SKIPPED',
+    );
+  }
+}
