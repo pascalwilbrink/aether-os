@@ -30,6 +30,10 @@ export const getOrganization = (token: string, organizationId: string) =>
 export const getProject = (token: string, organizationId: string, projectId: string) =>
   call<Project>(config.polisUrl, `/v1/organizations/${organizationId}/projects/${projectId}`, token);
 
+/** A new project in the organization (`project:create`). */
+export const createProject = (token: string, organizationId: string, body: PolisSchemas["CreateProjectRequest"]) =>
+  call<Project>(config.polisUrl, `/v1/organizations/${organizationId}/projects`, token, { method: "POST", body });
+
 /** The projects the caller can read. */
 export const listProjects = (token: string, organizationId: string) =>
   call<Page<Project>>(config.polisUrl, `/v1/organizations/${organizationId}/projects?limit=100`, token);
