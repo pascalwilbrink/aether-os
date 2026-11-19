@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.17.0
+  version: 0.18.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -1506,6 +1506,24 @@ components:
         provider: { type: string, minLength: 1 }
         executionMode: { $ref: '#/components/schemas/AgentExecutionMode' }
         sandboxRequired: { type: boolean }
+        networkAccess:
+          description: |
+            The sandbox's network (../CLAUDE.md, sandboxes): `none` (the
+            default) or `restricted`, where it reaches only allowed hosts
+            through an allowlisting proxy: the platform's (package
+            registries, `SANDBOX_ALLOWED_HOSTS`) and `allowedHosts`.
+          type: string
+          enum: [none, restricted]
+        allowedHosts:
+          description: Hosts a `restricted` sandbox may reach on ports 80 and 443, besides the platform's; `*.example.com` for its subdomains.
+          type: array
+          maxItems: 50
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/HostPattern' }
+    HostPattern:
+      type: string
+      maxLength: 253
+      pattern: '^(\*\.)?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$'
     CreateAgentVersionRequest:
       type: object
       additionalProperties: false
@@ -1593,6 +1611,10 @@ components:
         cpuLimit: { type: number, exclusiveMinimum: 0 }
         memoryLimitMb: { type: integer, minimum: 1 }
         networkAccess: { $ref: '#/components/schemas/NetworkAccess' }
+        allowedHosts:
+          description: For `restricted` access, every host it may reach.
+          type: array
+          items: { $ref: '#/components/schemas/HostPattern' }
     SandboxReference:
       type: object
       required: [provider, resourceId]
@@ -1622,7 +1644,7 @@ components:
           description: Must be in the future.
     WorkspaceResponse:
       type: object
-      required: [id, organizationId, projectId, executionId, status, repository, sandbox, sandboxReference, workingDirectory, failureReason, expiresAt, createdAt, updatedAt, startedAt, destroyedAt]
+      required: [id, organizationId, projectId, executionId, status, repository, sandbox, sandboxReference, workingDirectory, blockedHosts, failureReason, expiresAt, createdAt, updatedAt, startedAt, destroyedAt]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -1639,6 +1661,10 @@ components:
             - $ref: '#/components/schemas/SandboxReference'
             - type: 'null'
         workingDirectory: { type: string }
+        blockedHosts:
+          description: Hosts the sandbox tried to reach and its proxy refused (`restricted` access), recorded when it's destroyed.
+          type: array
+          items: { type: string }
         failureReason: { type: [string, 'null'] }
         expiresAt: { $ref: '#/components/schemas/Timestamp' }
         createdAt: { $ref: '#/components/schemas/Timestamp' }

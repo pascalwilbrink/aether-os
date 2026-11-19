@@ -979,7 +979,18 @@ export interface components {
             provider: string;
             executionMode: components["schemas"]["AgentExecutionMode"];
             sandboxRequired: boolean;
+            /**
+             * @description The sandbox's network (../CLAUDE.md, sandboxes): `none` (the
+             *     default) or `restricted`, where it reaches only allowed hosts
+             *     through an allowlisting proxy: the platform's (package
+             *     registries, `SANDBOX_ALLOWED_HOSTS`) and `allowedHosts`.
+             * @enum {string}
+             */
+            networkAccess?: "none" | "restricted";
+            /** @description Hosts a `restricted` sandbox may reach on ports 80 and 443, besides the platform's; `*.example.com` for its subdomains. */
+            allowedHosts?: components["schemas"]["HostPattern"][];
         };
+        HostPattern: string;
         CreateAgentVersionRequest: {
             instructions: string;
             model: components["schemas"]["AgentModelConfiguration"];
@@ -1030,6 +1041,8 @@ export interface components {
             cpuLimit: number;
             memoryLimitMb: number;
             networkAccess: components["schemas"]["NetworkAccess"];
+            /** @description For `restricted` access, every host it may reach. */
+            allowedHosts?: components["schemas"]["HostPattern"][];
         };
         SandboxReference: {
             provider: string;
@@ -1065,6 +1078,8 @@ export interface components {
             sandbox: components["schemas"]["SandboxConfiguration"];
             sandboxReference: components["schemas"]["SandboxReference"] | null;
             workingDirectory: string;
+            /** @description Hosts the sandbox tried to reach and its proxy refused (`restricted` access), recorded when it's destroyed. */
+            blockedHosts: string[];
             failureReason: string | null;
             expiresAt: components["schemas"]["Timestamp"];
             createdAt: components["schemas"]["Timestamp"];

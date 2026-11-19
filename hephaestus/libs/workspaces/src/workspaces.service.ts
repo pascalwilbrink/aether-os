@@ -112,6 +112,19 @@ export class WorkspacesService {
     return this.apply(organizationId, workspaceId, 'destroy', 'none');
   }
 
+  /** What its sandbox's proxy refused (the provisioner, before teardown). */
+  @Transactional()
+  async recordBlockedHosts(
+    organizationId: string,
+    workspaceId: string,
+    hosts: string[],
+  ): Promise<void> {
+    await this.workspaces.update(
+      { id: workspaceId, organizationId },
+      { blockedHosts: [...new Set(hosts)].sort(), updatedAt: new Date() },
+    );
+  }
+
   /** An execution's workspaces that aren't destroyed, failed or expired. */
   async activeForExecution(
     organizationId: string,

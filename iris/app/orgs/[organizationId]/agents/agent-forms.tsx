@@ -167,6 +167,30 @@ export function VersionForm({
         <input type="checkbox" name="sandboxRequired" defaultChecked={start.sandboxRequired === "on"} /> Runs in a
         sandbox (a shell of its own; needed for command checks)
       </label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block text-sm">
+          Network (in its sandbox)
+          <select
+            key={start.networkAccess}
+            name="networkAccess"
+            defaultValue={start.networkAccess}
+            className={inputClass}
+          >
+            <option value="none">None</option>
+            <option value="restricted">Package registries and the hosts below</option>
+          </select>
+        </label>
+        <label className="block text-sm">
+          Also allowed <span className="text-zinc-500">(one host per line; *.example.com for subdomains)</span>
+          <textarea
+            name="allowedHosts"
+            rows={2}
+            defaultValue={start.allowedHosts}
+            placeholder="api.example.com"
+            className={`${inputClass} font-mono`}
+          />
+        </label>
+      </div>
       <input type="hidden" name="runtimeProvider" value={start.runtimeProvider} />
       <input type="hidden" name="tools" value={start.tools} />
       <input type="hidden" name="skills" value={start.skills} />

@@ -146,9 +146,10 @@ describe('Concurrency keys (e2e)', () => {
     expect(await status(first.id)).toBe('succeeded');
     expect(await status(other.id)).toBe('succeeded');
     expect(await status(second.id)).toBe('queued');
-    expect(runtime.runs.map((run) => run.task.id).sort()).toEqual(
-      [first.id, other.id].sort(),
+    expect(runtime.runs.map((run) => run.task.id)).toEqual(
+      expect.arrayContaining([first.id, other.id]),
     );
+    expect(runtime.runs).toHaveLength(2);
 
     await round();
     expect(await status(second.id)).toBe('succeeded');

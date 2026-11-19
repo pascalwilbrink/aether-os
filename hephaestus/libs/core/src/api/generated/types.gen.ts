@@ -72,7 +72,21 @@ export type AgentRuntimeConfiguration = {
     provider: string;
     executionMode: AgentExecutionMode;
     sandboxRequired: boolean;
+    /**
+     * The sandbox's network (../CLAUDE.md, sandboxes): `none` (the
+     * default) or `restricted`, where it reaches only allowed hosts
+     * through an allowlisting proxy: the platform's (package
+     * registries, `SANDBOX_ALLOWED_HOSTS`) and `allowedHosts`.
+     *
+     */
+    networkAccess?: 'none' | 'restricted';
+    /**
+     * Hosts a `restricted` sandbox may reach on ports 80 and 443, besides the platform's; `*.example.com` for its subdomains.
+     */
+    allowedHosts?: Array<HostPattern>;
 };
+
+export type HostPattern = string;
 
 export type CreateAgentVersionRequest = {
     instructions: string;
@@ -123,6 +137,10 @@ export type SandboxConfiguration = {
     cpuLimit: number;
     memoryLimitMb: number;
     networkAccess: NetworkAccess;
+    /**
+     * For `restricted` access, every host it may reach.
+     */
+    allowedHosts?: Array<HostPattern>;
 };
 
 export type SandboxReference = {
@@ -158,6 +176,10 @@ export type WorkspaceResponse = {
     sandbox: SandboxConfiguration;
     sandboxReference: SandboxReference | null;
     workingDirectory: string;
+    /**
+     * Hosts the sandbox tried to reach and its proxy refused (`restricted` access), recorded when it's destroyed.
+     */
+    blockedHosts: Array<string>;
     failureReason: string | null;
     expiresAt: Timestamp;
     createdAt: Timestamp;

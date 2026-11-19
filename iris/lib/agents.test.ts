@@ -125,6 +125,20 @@ describe("fieldsOf", () => {
     expect(versionFromForm(fieldsOf(version as never))).toEqual({
       body: version,
     });
+
+    // A restricted network and its hosts round-trip too.
+    const restricted = {
+      ...version,
+      runtime: {
+        ...version.runtime,
+        networkAccess: "restricted" as const,
+        allowedHosts: ["api.example.com", "*.cdn.test"],
+      },
+    };
+    expect(versionFromForm(fieldsOf(restricted as never))).toEqual({ body: restricted });
+    expect(
+      versionFromForm({ ...fieldsOf(restricted as never), allowedHosts: "API.example.com, ok.test\nnot a host" }),
+    ).toEqual({ error: '"not" isn\'t a host name (e.g. api.example.com, or *.example.com).' });
   });
 });
 

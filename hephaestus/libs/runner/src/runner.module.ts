@@ -1,3 +1,4 @@
+import Docker from 'dockerode';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -95,13 +96,23 @@ import {
         memoryMb: config.get('SANDBOX_MEMORY_MB', { infer: true }),
         pidsLimit: config.get('SANDBOX_PIDS_LIMIT', { infer: true }),
         workspaceMb: config.get('SANDBOX_WORKSPACE_MB', { infer: true }),
+        allowedHosts: config.get('SANDBOX_ALLOWED_HOSTS', { infer: true }),
         lifetimeMs:
           config.get('RUNNER_PROVISIONING_TIMEOUT_MS', { infer: true }) +
           config.get('RUNNER_RUN_TIMEOUT_MS', { infer: true }),
       }),
     },
     // Connects to Docker only when used.
-    { provide: SandboxDriver, useFactory: () => new DockerSandboxDriver() },
+    {
+      provide: SandboxDriver,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) =>
+        new DockerSandboxDriver(new Docker(), {
+          proxyImage: config.get('SANDBOX_PROXY_IMAGE', { infer: true }),
+          egressNetwork: config.get('SANDBOX_EGRESS_NETWORK', { infer: true }),
+          blockPrivateAddresses: true,
+        }),
+    },
     {
       provide: SandboxProvisioner,
       inject: [

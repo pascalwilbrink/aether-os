@@ -76,10 +76,14 @@ export const zAgentSkillConfiguration = z.object({
 
 export const zAgentExecutionMode = z.enum(['standard', 'coding']);
 
+export const zHostPattern = z.string().max(253).regex(/^(\*\.)?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/);
+
 export const zAgentRuntimeConfiguration = z.object({
     provider: z.string().min(1),
     executionMode: zAgentExecutionMode,
-    sandboxRequired: z.boolean()
+    sandboxRequired: z.boolean(),
+    networkAccess: z.enum(['none', 'restricted']).optional(),
+    allowedHosts: z.array(zHostPattern).max(50).optional()
 });
 
 export const zCreateAgentVersionRequest = z.object({
@@ -144,7 +148,8 @@ export const zSandboxConfiguration = z.object({
     image: z.string().min(1),
     cpuLimit: z.number().gt(0),
     memoryLimitMb: z.int().gte(1),
-    networkAccess: zNetworkAccess
+    networkAccess: zNetworkAccess,
+    allowedHosts: z.array(zHostPattern).optional()
 });
 
 export const zSandboxReference = z.object({
@@ -171,6 +176,7 @@ export const zWorkspaceResponse = z.object({
     sandbox: zSandboxConfiguration,
     sandboxReference: zSandboxReference.nullable(),
     workingDirectory: z.string(),
+    blockedHosts: z.array(z.string()),
     failureReason: z.string().nullable(),
     expiresAt: zTimestamp,
     createdAt: zTimestamp,
