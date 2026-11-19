@@ -14,8 +14,19 @@ export abstract class SecretStore {
   abstract delete(path: string): Promise<void>;
 }
 
+/**
+ * Why the store can't answer, for operators: no store configured, the store
+ * refused the caller's credentials (401/403), or anything else (down,
+ * timing out, an unexpected answer).
+ */
+export type SecretStoreUnavailableReason =
+  'not-configured' | 'refused' | 'unreachable';
+
 export class SecretStoreUnavailableError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly reason: SecretStoreUnavailableReason = 'unreachable',
+  ) {
     super(message);
     this.name = 'SecretStoreUnavailableError';
   }
@@ -37,7 +48,10 @@ export class UnconfiguredSecretStore extends SecretStore {
 
   private unavailable(): Promise<never> {
     return Promise.reject(
-      new SecretStoreUnavailableError('OpenBao is not configured'),
+      new SecretStoreUnavailableError(
+        'OpenBao is not configured',
+        'not-configured',
+      ),
     );
   }
 }

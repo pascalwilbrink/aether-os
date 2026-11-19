@@ -126,7 +126,38 @@ describe('Model keys (e2e)', () => {
     secrets.write = () =>
       Promise.reject(new SecretStoreUnavailableError('OpenBao is down'));
 
-    await owner.put(`${orgKeys()}/anthropic`).send({ apiKey: KEY }).expect(503);
+    const down = await owner
+      .put(`${orgKeys()}/anthropic`)
+      .send({ apiKey: KEY })
+      .expect(503);
+    expect(down.body.detail).toBe(
+      "Keys can't be stored right now: OpenBao isn't answering. Try again in a moment.",
+    );
+
+    // Why it failed, for whoever runs Aether-os: not configured, or a token it refuses.
+    secrets.write = () =>
+      Promise.reject(
+        new SecretStoreUnavailableError(
+          'OpenBao is not configured',
+          'not-configured',
+        ),
+      );
+    const unconfigured = await owner
+      .put(`${orgKeys()}/anthropic`)
+      .send({ apiKey: KEY })
+      .expect(503);
+    expect(unconfigured.body.detail).toContain(
+      'OPENBAO_ADDR and OPENBAO_TOKEN',
+    );
+    secrets.write = () =>
+      Promise.reject(
+        new SecretStoreUnavailableError('OpenBao answered 403', 'refused'),
+      );
+    const refused = await owner
+      .put(`${orgKeys()}/anthropic`)
+      .send({ apiKey: KEY })
+      .expect(503);
+    expect(refused.body.detail).toContain("refused Hephaestus's token");
 
     expect((await owner.get(orgKeys()).expect(200)).body.items).toEqual([]);
   });

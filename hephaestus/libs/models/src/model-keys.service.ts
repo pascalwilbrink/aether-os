@@ -1,4 +1,8 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
@@ -33,8 +37,20 @@ export function modelKeyPath(
  * write leaves nothing behind. Callers check the agent; the routes the
  * permissions (`org:secret:write`).
  */
+/** What people are told when OpenBao fails, by why (never a path or a value). */
+const UNAVAILABLE: Record<SecretStoreUnavailableError['reason'], string> = {
+  'not-configured':
+    "Keys can't be stored: OpenBao isn't configured for Hephaestus (OPENBAO_ADDR and OPENBAO_TOKEN).",
+  refused:
+    "Keys can't be stored: OpenBao refused Hephaestus's token (OPENBAO_TOKEN).",
+  unreachable:
+    "Keys can't be stored right now: OpenBao isn't answering. Try again in a moment.",
+};
+
 @Injectable()
 export class ModelKeysService {
+  private readonly logger = new Logger(ModelKeysService.name);
+
   constructor(
     @InjectRepository(ModelKeyEntity)
     private readonly keys: Repository<ModelKeyEntity>,
@@ -111,15 +127,18 @@ export class ModelKeysService {
     );
   }
 
-  /** OpenBao not answering is a 503, and rolls the change back. */
+  /**
+   * OpenBao failing is a 503 that rolls the change back, saying why (not
+   * configured, refusing Hephaestus's token, or not answering), so whoever
+   * runs Aether-os can tell; the cause is logged too.
+   */
   private async store(call: () => Promise<void>): Promise<void> {
     try {
       await call();
     } catch (error) {
       if (error instanceof SecretStoreUnavailableError) {
-        throw new ServiceUnavailableException(
-          "Keys can't be stored right now (OpenBao isn't answering). Try again.",
-        );
+        this.logger.warn(`Model key not stored: ${error.message}`);
+        throw new ServiceUnavailableException(UNAVAILABLE[error.reason]);
       }
       throw error;
     }
