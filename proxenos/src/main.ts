@@ -1,20 +1,7 @@
-import { ConfigService } from '@nestjs/config';
-import { NestFactory } from '@nestjs/core';
+import { startTelemetry } from '@aether-os/krepis/otel';
 
-import {
-  configureHttpApp,
-  initializeTransactions,
-  type Env,
-} from '@proxenos/core';
-
-import { AppModule } from './app.module.js';
-
-// Before Nest boots, so @Transactional() methods find their context.
-initializeTransactions();
-
-// The raw body too: webhook signatures are over exactly the bytes sent.
-const app = configureHttpApp(
-  await NestFactory.create(AppModule, { rawBody: true }),
-);
-const config = app.get<ConfigService<Env, true>>(ConfigService);
-await app.listen(config.get('PORT', { infer: true }));
+// First, and awaited: OpenTelemetry patches only what's imported after it
+// (../../CLAUDE.md, Observability). Without OTEL_EXPORTER_OTLP_ENDPOINT it
+// starts nothing.
+await startTelemetry({ serviceName: 'proxenos' });
+await import('./server.js');

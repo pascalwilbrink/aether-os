@@ -6,7 +6,13 @@ import {
   type OnApplicationBootstrap,
   type OnModuleDestroy,
 } from '@nestjs/common';
-import { context, propagation } from '@opentelemetry/api';
+import {
+  context,
+  propagation,
+  SpanKind,
+  SpanStatusCode,
+  trace,
+} from '@opentelemetry/api';
 import type { ConfirmChannel, ConsumeMessage, Options } from 'amqplib';
 
 import { runWithTraceContext } from '../telemetry/trace-context.js';
@@ -19,6 +25,9 @@ import {
   type EventsOptions,
   type RabbitMqOptions,
 } from './events.options.js';
+
+/** Krepis's own spans (no-ops while no OpenTelemetry SDK runs). */
+const tracer = trace.getTracer('@aether-os/krepis');
 
 type ChannelWrapper = ReturnType<
   AmqpConnection['managedConnection']['createChannel']
@@ -140,12 +149,38 @@ export class EventConsumer implements OnApplicationBootstrap, OnModuleDestroy {
 
     try {
       const event = parseEventEnvelope(message.content);
-      await context.with(
+      // A consumer span (when an SDK runs), child of the span that emitted
+      // the event, so the handling shows up in the same trace.
+      await tracer.startActiveSpan(
+        `${queue} process`,
+        {
+          kind: SpanKind.CONSUMER,
+          attributes: {
+            'messaging.system': 'rabbitmq',
+            'messaging.operation.type': 'process',
+            'messaging.destination.name': queue,
+            'messaging.message.id': event.eventId,
+            'aether.event.type': event.eventType,
+            ...(event.organizationId
+              ? { 'aether.organization.id': event.organizationId }
+              : {}),
+            'messaging.rabbitmq.delivery_attempt': attempt,
+          },
+        },
         propagation.extract(context.active(), traceHeaders),
-        () =>
-          runWithTraceContext(traceHeaders, () =>
-            this.inbox.receive(source, event),
-          ),
+        async (span) => {
+          try {
+            await runWithTraceContext(traceHeaders, () =>
+              this.inbox.receive(source, event),
+            );
+          } catch (error) {
+            span.recordException(error as Error);
+            span.setStatus({ code: SpanStatusCode.ERROR });
+            throw error;
+          } finally {
+            span.end();
+          }
+        },
       );
       channel.ack(message);
     } catch (error) {

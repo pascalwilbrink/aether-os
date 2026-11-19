@@ -13,6 +13,10 @@
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "import": "./dist/testing/index.js"
+    },
+    "./otel": {
+      "types": "./dist/otel/index.d.ts",
+      "import": "./dist/otel/index.js"
     }
   },
   "files": [
@@ -84,6 +88,17 @@
     }
   },
   "dependencies": {
+    "@opentelemetry/exporter-trace-otlp-proto": "0.301.2",
+    "@opentelemetry/instrumentation": "0.301.2",
+    "@opentelemetry/instrumentation-express": "0.73.0",
+    "@opentelemetry/instrumentation-http": "0.301.2",
+    "@opentelemetry/instrumentation-nestjs-core": "0.72.1",
+    "@opentelemetry/instrumentation-pg": "0.78.0",
+    "@opentelemetry/instrumentation-undici": "0.35.1",
+    "@opentelemetry/resources": "3.1.1",
+    "@opentelemetry/sdk-node": "0.301.2",
+    "@opentelemetry/sdk-trace": "3.1.1",
+    "@opentelemetry/semantic-conventions": "1.45.0",
     "jose": "^6.2.17",
     "uuid": "^14.0.3"
   }

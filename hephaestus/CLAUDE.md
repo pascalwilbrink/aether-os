@@ -55,7 +55,7 @@ An agent version's model is then `{ "provider": "anthropic", "model": "<model>" 
 
 ## Architecture
 
-`src/` is the app shell: `main.ts` calls Krepis's `initializeTransactions()` before Nest boots and `configureHttpApp(app)` (the `/v1` prefix, Zod validation, the response serializer, problem details); `app.module.ts` imports the config, database and feature modules. Code lives in Nest libraries under `libs/`, registered in `nest-cli.json` and aliased in `tsconfig.json` as `@hephaestus/<name>`.
+`src/` is the app shell: `main.ts` starts telemetry (Krepis's `startTelemetry`, awaited) and then imports `server.ts`, which calls Krepis's `initializeTransactions()` before Nest boots and `configureHttpApp(app)` (the `/v1` prefix, Zod validation, the response serializer, problem details); `app.module.ts` imports the config, database and feature modules. Code lives in Nest libraries under `libs/`, registered in `nest-cli.json` and aliased in `tsconfig.json` as `@hephaestus/<name>`.
 
 Dependency graph: `core` ← `tenancy` ← `agents`, `workspaces`; `tenancy`, `agents` ← `tasks` ← `artifacts`; `core`, `tenancy` ← `tools`, `skills` ← `agents`; `tasks`, `artifacts`, `models`, `tools`, `skills`, `workspaces` ← `runner`; `agents`, `tasks`, `tenancy` ← `templates`. The runner reaches Proxenos with the generated client (`libs/core/src/clients/proxenos`, `ProxenosApi`). A library's `index.ts` exports its module, services and errors, never entities, mappers or repositories.
 
@@ -108,4 +108,4 @@ Spec-first: `../contracts/hephaestus.openapi.yaml`. `pnpm generate:api` runs `@h
 
 ### ESM
 
-`"type": "module"` with `nodenext` resolution: relative imports need the `.js` extension. `main.ts` uses top-level `await`.
+`"type": "module"` with `nodenext` resolution: relative imports need the `.js` extension. `main.ts` and `server.ts` use top-level `await`.

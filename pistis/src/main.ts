@@ -1,14 +1,7 @@
-import { ConfigService } from '@nestjs/config';
-import { NestFactory } from '@nestjs/core';
+import { startTelemetry } from '@aether-os/krepis/otel';
 
-import { initializeTransactions, type Env } from '@pistis/core';
-import { configurePistisApp } from '@pistis/oidc';
-
-import { AppModule } from './app.module.js';
-
-// Before Nest boots, so @Transactional() methods find their context.
-initializeTransactions();
-
-const app = configurePistisApp(await NestFactory.create(AppModule));
-const config = app.get<ConfigService<Env, true>>(ConfigService);
-await app.listen(config.get('PORT', { infer: true }));
+// First, and awaited: OpenTelemetry patches only what's imported after it
+// (../../CLAUDE.md, Observability). Without OTEL_EXPORTER_OTLP_ENDPOINT it
+// starts nothing.
+await startTelemetry({ serviceName: 'pistis' });
+await import('./server.js');

@@ -44,7 +44,7 @@ Environment variables, validated at startup with the Zod schema in `libs/core/sr
 
 ## Architecture
 
-`src/` is the app shell: `main.ts` calls Krepis's `initializeTransactions()` before Nest boots and `configureHttpApp(app)` (the `/v1` prefix, the Zod validation pipe, the response serializer and the problem details filter); `app.module.ts` imports the config, database and feature modules. Code lives in Nest libraries under `libs/`, registered in `nest-cli.json` and aliased in `tsconfig.json` as `@polis/<name>`; update both when adding a library.
+`src/` is the app shell: `main.ts` starts telemetry (Krepis's `startTelemetry`, awaited) and then imports `server.ts`, which calls Krepis's `initializeTransactions()` before Nest boots and `configureHttpApp(app)` (the `/v1` prefix, the Zod validation pipe, the response serializer and the problem details filter); `app.module.ts` imports the config, database and feature modules. Code lives in Nest libraries under `libs/`, registered in `nest-cli.json` and aliased in `tsconfig.json` as `@polis/<name>`; update both when adding a library.
 
 Dependency graph: `core` ← `organizations` ← `projects`, `organizations` ← `memberships`, and `projects`, `memberships` ← `project-memberships`. A library's `index.ts` exports its module, its service and its errors, never entities, mappers or repositories.
 
@@ -86,4 +86,4 @@ Spec-first: `../contracts/polis.openapi.yaml`. `pnpm generate:api` runs `@hey-ap
 
 ### ESM
 
-`"type": "module"` with `nodenext` resolution: relative imports need the `.js` extension. `main.ts` uses top-level `await`.
+`"type": "module"` with `nodenext` resolution: relative imports need the `.js` extension. `main.ts` and `server.ts` use top-level `await`.
