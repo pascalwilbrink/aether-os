@@ -1,7 +1,6 @@
-import { decodeJwt } from "jose";
-
 import { listNotifications } from "@/lib/api/kerykes";
 import { getOrganization, listProjects, myMemberships } from "@/lib/api/polis";
+import { organizationRoles } from "@/lib/auth/claims";
 import { currentSession } from "@/lib/auth/current";
 import { roleLabel, statusLine } from "@/lib/sidebar";
 
@@ -37,14 +36,7 @@ export async function Sidebar({ params }: { params: Promise<{ organizationId: st
 
   const unreadItems = settled(unread, null)?.items ?? null;
   const attention = new Set((unreadItems ?? []).map((notification) => notification.projectId));
-  const claims = (() => {
-    try {
-      return decodeJwt(token);
-    } catch {
-      return {};
-    }
-  })();
-  const roles = Array.isArray(claims.org_roles) ? claims.org_roles.map(String) : [];
+  const roles = organizationRoles(token);
   const down = settled(statuses, [])
     .filter((status) => !status.up)
     .map((status) => status.name);

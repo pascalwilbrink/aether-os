@@ -198,25 +198,46 @@ function Panel({
           ))}
           <li>
             {collapsed ? (
-              <NavItem label="Projects" href={base} Icon={FolderIcon} active={section === "projects"} collapsed />
+              <NavItem
+                label="Projects"
+                href={`${base}/projects`}
+                Icon={FolderIcon}
+                active={section === "projects"}
+                collapsed
+              />
             ) : (
               <>
-                <button
-                  type="button"
-                  onClick={() => setProjectsOpen((open) => !open)}
-                  aria-expanded={projectsOpen}
-                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[15px] font-medium hover:bg-zinc-200/70 dark:hover:bg-zinc-800/60 ${
-                    section === "projects" ? "text-zinc-900 dark:text-zinc-100" : ""
+                <div
+                  className={`flex items-center rounded-lg ${
+                    pathname === `${base}/projects`
+                      ? "bg-indigo-100/70 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300"
+                      : section === "projects"
+                        ? "text-zinc-900 dark:text-zinc-100"
+                        : ""
                   }`}
                 >
-                  <FolderIcon className="shrink-0" />
-                  <span className="flex-1 text-left">Projects</span>
-                  <ChevronDownIcon
-                    width={16}
-                    height={16}
-                    className={`transition-transform ${projectsOpen ? "" : "-rotate-90"}`}
-                  />
-                </button>
+                  <Link
+                    href={`${base}/projects`}
+                    aria-current={pathname === `${base}/projects` ? "page" : undefined}
+                    className="flex flex-1 items-center gap-3 rounded-lg px-3 py-2 text-[15px] font-medium hover:bg-zinc-200/70 dark:hover:bg-zinc-800/60"
+                  >
+                    <FolderIcon className="shrink-0" />
+                    <span className="flex-1">Projects</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setProjectsOpen((open) => !open)}
+                    aria-expanded={projectsOpen}
+                    aria-label={projectsOpen ? "Hide the projects" : "Show the projects"}
+                    className="mr-1 rounded-md p-1.5 hover:bg-zinc-200/70 dark:hover:bg-zinc-800/60"
+                  >
+                    <ChevronDownIcon
+                      width={16}
+                      height={16}
+                      className={`transition-transform ${projectsOpen ? "" : "-rotate-90"}`}
+                    />
+                  </button>
+                </div>
                 {projectsOpen ? (
                   <ul className="mt-1 ml-[21px] space-y-0.5 border-l border-zinc-300 pl-3 dark:border-zinc-800">
                     {data.projects.length === 0 ? (
