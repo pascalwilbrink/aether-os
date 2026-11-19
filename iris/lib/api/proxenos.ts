@@ -2,7 +2,7 @@ import "server-only";
 
 import { config } from "../config";
 import type { components } from "./generated/proxenos-api";
-import { ApiError, call } from "./http";
+import { call } from "./http";
 
 /** Proxenos types, generated from ../contracts/proxenos.openapi.yaml. */
 export type ProxenosSchemas = components["schemas"];
@@ -10,7 +10,7 @@ export type Installation = ProxenosSchemas["InstallationResponse"];
 export type Repository = ProxenosSchemas["RepositoryResponse"];
 export type RepositoryLink = ProxenosSchemas["RepositoryLinkResponse"];
 
-type Page<T> = { items: T[]; nextCursor: string | null };
+type Page<T> = import("./http").Page<T>;
 
 const proxenos = <T>(path: string, token: string, init?: Parameters<typeof call>[3]) =>
   call<T>(config.proxenosUrl, path, token, init);
@@ -55,22 +55,4 @@ export const linkRepository = (token: string, organizationId: string, projectId:
 export const unlinkRepository = (token: string, organizationId: string, projectId: string, linkId: string) =>
   proxenos<void>(`${linksOf(organizationId, projectId)}/${linkId}`, token, { method: "DELETE" });
 
-/**
- * A list from Proxenos, or `unavailable` when Proxenos (or GitHub behind it)
- * can't answer, or isn't configured: pages show the rest without it. A
- * caller without the permission gets an empty list.
- */
-export async function orUnavailable<T>(promise: Promise<Page<T>>): Promise<{ items: T[]; unavailable: boolean }> {
-  try {
-    return { items: (await promise).items, unavailable: false };
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 403) {
-      return { items: [], unavailable: false };
-    }
-    if (error instanceof ApiError && error.status < 500) {
-      throw error;
-    }
-    // Unreachable (a fetch error or timeout), 503 (not configured, GitHub down) or another 5xx.
-    return { items: [], unavailable: true };
-  }
-}
+export { orUnavailable } from "./http";

@@ -29,4 +29,6 @@ The issue's title (and later its body) is written by whoever opened it: it reach
 - **Comment filters:** Proxenos's events don't carry the comment's body (it's in the stored delivery), so a comment trigger can't yet require e.g. `/aether` at its start.
 - **Automation templates** (`tasks.md`): predefined `task_plan`s materialized when the trigger fires.
 - **Other triggers:** schedules, Slack and Jira (through Proxenos), Hephaestus's own events (a task failed).
-- **Watching automations and notifications** (Kerykes), Iris pages (next).
+- **Watching automations and notifications** (Kerykes).
+
+Iris has the pages: a project's automations, creating and changing one, pausing, resuming and archiving it, and its runs (`../iris/CLAUDE.md`).

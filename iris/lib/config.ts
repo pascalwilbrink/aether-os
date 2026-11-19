@@ -58,6 +58,10 @@ export const config = {
   get proxenosUrl() {
     return value("PROXENOS_URL", "http://localhost:3004");
   },
+  /** Automations: triggers bound to agents. */
+  get kairosUrl() {
+    return value("KAIROS_URL", "http://localhost:3005");
+  },
   get secureCookies() {
     return production();
   },
