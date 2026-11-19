@@ -23,14 +23,14 @@ function read(key: string): string | null {
 
 /**
  * A value remembered in this browser (localStorage), as React state that
- * follows changes from other tabs too; null before hydration and when
- * storage is blocked.
+ * follows changes from other tabs too; `serverValue` (null by default)
+ * before hydration, and null when storage is blocked.
  */
-export function useStoredValue(key: string): string | null {
+export function useStoredValue(key: string, serverValue: string | null = null): string | null {
   return useSyncExternalStore(
     subscribe,
     () => read(key),
-    () => null,
+    () => serverValue,
   );
 }
 
