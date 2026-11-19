@@ -14,6 +14,7 @@ import { Deliveries1795031000000 } from './1795031000000-Deliveries.js';
 import { ModelCatalog1795038150208 } from './1795038150208-ModelCatalog.js';
 import { ModelCatalogSeed1795038150209 } from './1795038150209-ModelCatalogSeed.js';
 import { Budgets1795041939868 } from './1795041939868-Budgets.js';
+import { ModelKeys1795045800295 } from './1795045800295-ModelKeys.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -38,4 +39,5 @@ export const migrations = [
   ModelCatalog1795038150208,
   ModelCatalogSeed1795038150209,
   Budgets1795041939868,
+  ModelKeys1795045800295,
 ];

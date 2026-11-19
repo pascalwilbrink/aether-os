@@ -773,6 +773,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/model-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description The organization's provider keys (docs/models.md, Keys): which are
+         *     set, their last characters, who set them and when; never a key.
+         *     Every agent of the organization uses its key for its model's
+         *     provider, unless the agent has its own.
+         */
+        get: operations["listOrganizationModelKeys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/model-keys/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                provider: components["parameters"]["Provider"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Stores (or replaces) the organization's key for the provider, in OpenBao. */
+        put: operations["setOrganizationModelKey"];
+        post?: never;
+        /** @description Removes it, with every earlier version; agents without their own key then use the platform's, if allowed, or fail. */
+        delete: operations["deleteOrganizationModelKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/agents/{agentId}/model-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        /** @description The agent's own provider keys, used instead of the organization's (e.g. to bill another provider account). */
+        get: operations["listAgentModelKeys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/agents/{agentId}/model-keys/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+                provider: components["parameters"]["Provider"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Stores (or replaces) the agent's own key for the provider, in OpenBao. */
+        put: operations["setAgentModelKey"];
+        post?: never;
+        /** @description Removes the agent's own key; it uses the organization's again. */
+        delete: operations["deleteAgentModelKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1601,6 +1688,25 @@ export interface components {
              */
             updatedAt: string | null;
         };
+        SetModelKeyRequest: {
+            /** @description The provider's API key; write-only (stored in OpenBao, never returned). */
+            apiKey: string;
+        };
+        ModelKeyResponse: {
+            provider: components["schemas"]["ModelProvider"];
+            /** @enum {string} */
+            scope: "organization" | "agent";
+            /** Format: uuid */
+            agentId: string | null;
+            /** @description The key's last four characters (`…a1b2`), to tell keys apart. */
+            hint: string;
+            updatedBy: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ModelKeyList: {
+            items: components["schemas"]["ModelKeyResponse"][];
+        };
         /** @description Pass as `cursor` to get the next page; `null` on the last page. */
         NextCursor: string | null;
         /** @description One invalid input. Exactly one of `pointer` and `parameter` is set. */
@@ -1707,6 +1813,7 @@ export interface components {
         TaskId: string;
         TemplateId: string;
         ArtifactId: string;
+        Provider: components["schemas"]["ModelProvider"];
         ModelId: string;
         /** @description Page size. */
         Limit: number;
@@ -3174,6 +3281,181 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
+        };
+    };
+    listOrganizationModelKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description By provider */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelKeyList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setOrganizationModelKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                provider: components["parameters"]["Provider"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetModelKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description Stored in OpenBao; never returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelKeyResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    deleteOrganizationModelKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                provider: components["parameters"]["Provider"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed (also when there was none) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listAgentModelKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description By provider */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelKeyList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setAgentModelKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+                provider: components["parameters"]["Provider"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetModelKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description Stored in OpenBao; never returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelKeyResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    deleteAgentModelKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+                provider: components["parameters"]["Provider"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed (also when there was none) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
     };
 }

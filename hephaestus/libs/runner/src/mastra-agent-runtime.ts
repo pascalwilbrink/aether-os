@@ -82,6 +82,7 @@ export class MastraAgentRuntime extends AgentRuntime {
       projectId: task.projectId,
       taskId: task.id,
       topLevelTaskId: task.topLevelTaskId,
+      agentId: task.agentId,
       executionId,
       agentVersionId: agentVersion.id,
     };

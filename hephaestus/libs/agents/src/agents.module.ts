@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ModelsModule } from '@hephaestus/models';
 import { TenancyModule } from '@hephaestus/tenancy';
 
+import { AgentModelKeysController } from './agent-model-keys.controller.js';
 import { AgentVersionEntity } from './agent-version.entity.js';
 import { AgentVersionMapper } from './agent-version.mapper.js';
 import { AgentVersionsController } from './agent-versions.controller.js';
@@ -19,7 +20,11 @@ import { AgentsService } from './agents.service.js';
     TenancyModule,
     ModelsModule,
   ],
-  controllers: [AgentsController, AgentVersionsController],
+  controllers: [
+    AgentsController,
+    AgentVersionsController,
+    AgentModelKeysController,
+  ],
   providers: [
     AgentsService,
     AgentMapper,

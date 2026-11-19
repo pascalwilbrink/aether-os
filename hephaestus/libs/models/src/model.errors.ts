@@ -4,7 +4,7 @@ import { DomainError } from '@hephaestus/core';
 export class ModelKeyMissingError extends Error {
   constructor(readonly provider: string) {
     super(
-      `No key for model provider ${provider}: store one at orgs/<organizationId>/llm/${provider} in OpenBao`,
+      `No key for model provider ${provider}: set the organization's (or the agent's) ${provider} key`,
     );
     this.name = 'ModelKeyMissingError';
   }

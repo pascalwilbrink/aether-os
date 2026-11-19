@@ -50,6 +50,10 @@ async function Overview({ params }: Pick<PageProps<"/orgs/[organizationId]">, "p
               Budget
             </Link>{" "}
             ·{" "}
+            <Link href={`/orgs/${organizationId}/model-keys`} className="underline">
+              Model keys
+            </Link>{" "}
+            ·{" "}
             <Link href="/orgs" className="underline">
               Switch organization
             </Link>

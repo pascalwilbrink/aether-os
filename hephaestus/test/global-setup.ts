@@ -22,6 +22,7 @@ import { ModelCallEntity } from '../libs/models/src/model-call.entity.js';
 import { ModelEntity } from '../libs/models/src/model.entity.js';
 import { ModelPriceEntity } from '../libs/models/src/model-price.entity.js';
 import { BudgetEntity } from '../libs/models/src/budget.entity.js';
+import { ModelKeyEntity } from '../libs/models/src/model-key.entity.js';
 import { ExecutionEntity } from '../libs/runner/src/execution.entity.js';
 import { TaskEntity } from '../libs/tasks/src/task.entity.js';
 import { WorkspaceEntity } from '../libs/workspaces/src/workspace.entity.js';
@@ -62,6 +63,7 @@ export default async function setup(project: TestProject) {
         ModelEntity,
         ModelPriceEntity,
         BudgetEntity,
+        ModelKeyEntity,
         ArtifactEntity,
         TaskTemplateEntity,
         TaskTemplateVersionEntity,

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.14.0
+  version: 0.15.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -38,6 +38,7 @@ tags:
   - name: task-templates
   - name: models
   - name: budgets
+  - name: model-keys
 
 paths:
   /v1/organizations/{organizationId}/agents:
@@ -1137,6 +1138,130 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
 
+  /v1/organizations/{organizationId}/model-keys:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [model-keys]
+      operationId: listOrganizationModelKeys
+      x-permission: '`org:read`'
+      description: |
+        The organization's provider keys (docs/models.md, Keys): which are
+        set, their last characters, who set them and when; never a key.
+        Every agent of the organization uses its key for its model's
+        provider, unless the agent has its own.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: By provider
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelKeyList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/model-keys/{provider}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/Provider'
+    put:
+      tags: [model-keys]
+      operationId: setOrganizationModelKey
+      x-permission: '`org:secret:write`'
+      description: Stores (or replaces) the organization's key for the provider, in OpenBao.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetModelKeyRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Stored in OpenBao; never returned
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelKeyResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    delete:
+      tags: [model-keys]
+      operationId: deleteOrganizationModelKey
+      x-permission: '`org:secret:write`'
+      description: Removes it, with every earlier version; agents without their own key then use the platform's, if allowed, or fail.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '204': { description: Removed (also when there was none) }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/agents/{agentId}/model-keys:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/AgentId'
+    get:
+      tags: [model-keys]
+      operationId: listAgentModelKeys
+      x-permission: '`agent:read`'
+      description: The agent's own provider keys, used instead of the organization's (e.g. to bill another provider account).
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: By provider
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelKeyList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/agents/{agentId}/model-keys/{provider}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/AgentId'
+      - $ref: '#/components/parameters/Provider'
+    put:
+      tags: [model-keys]
+      operationId: setAgentModelKey
+      x-permission: '`org:secret:write`'
+      description: Stores (or replaces) the agent's own key for the provider, in OpenBao.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetModelKeyRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Stored in OpenBao; never returned
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ModelKeyResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    delete:
+      tags: [model-keys]
+      operationId: deleteAgentModelKey
+      x-permission: '`org:secret:write`'
+      description: Removes the agent's own key; it uses the organization's again.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '204': { description: Removed (also when there was none) }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
 components:
   parameters:
     OrganizationId:
@@ -1179,6 +1304,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    Provider:
+      name: provider
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/ModelProvider' }
     ModelId:
       name: modelId
       in: path
@@ -2307,3 +2437,36 @@ components:
           type: [string, 'null']
           format: date-time
           description: When the limit was last set; null if it never was.
+
+    # ---------- model keys ----------
+    SetModelKeyRequest:
+      type: object
+      additionalProperties: false
+      required: [apiKey]
+      properties:
+        apiKey:
+          type: string
+          minLength: 8
+          maxLength: 1000
+          description: The provider's API key; write-only (stored in OpenBao, never returned).
+    ModelKeyResponse:
+      type: object
+      required: [provider, scope, agentId, hint, updatedBy, updatedAt]
+      properties:
+        provider: { $ref: '#/components/schemas/ModelProvider' }
+        scope:
+          type: string
+          enum: [organization, agent]
+        agentId: { type: [string, 'null'], format: uuid }
+        hint:
+          type: string
+          description: The key's last four characters (`…a1b2`), to tell keys apart.
+        updatedBy: { type: string }
+        updatedAt: { type: string, format: date-time }
+    ModelKeyList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ModelKeyResponse' }
