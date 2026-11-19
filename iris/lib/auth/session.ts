@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { seal, unseal } from "./seal";
 
 /**
@@ -61,6 +63,14 @@ export const openPendingSignIn = (sealed: string | undefined, secret: string) =>
 /** Whether the access token should be refreshed before use. */
 export function needsRefresh(session: Session, now = Date.now()): boolean {
   return session.accessTokenExpiresAt - now < REFRESH_MARGIN_MS;
+}
+
+/**
+ * A short fingerprint of an access token, so a link can name the token an
+ * API refused without carrying the token itself (`/auth/expired`).
+ */
+export function tokenFingerprint(accessToken: string): string {
+  return createHash("sha256").update(accessToken).digest("base64url").slice(0, 22);
 }
 
 /** Only same-site paths, so `returnTo` can't send people elsewhere. */

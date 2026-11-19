@@ -9,6 +9,7 @@ import {
   sealPendingSignIn,
   sealSession,
   type Session,
+  tokenFingerprint,
 } from "./session";
 
 const SECRET = "a-test-secret-that-is-long-enough-123";
@@ -72,5 +73,13 @@ describe("session cookies", () => {
     expect(safeReturnTo("//evil.example")).toBe("/");
     expect(safeReturnTo("/\\evil.example")).toBe("/");
     expect(safeReturnTo(null)).toBe("/");
+  });
+});
+
+describe("tokenFingerprint", () => {
+  it("is stable per token, differs between tokens, and doesn't contain the token", () => {
+    expect(tokenFingerprint("access")).toBe(tokenFingerprint("access"));
+    expect(tokenFingerprint("access")).not.toBe(tokenFingerprint("other"));
+    expect(tokenFingerprint("access")).toMatch(/^[A-Za-z0-9_-]{22}$/);
   });
 });

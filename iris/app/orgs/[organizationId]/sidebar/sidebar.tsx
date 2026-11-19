@@ -1,3 +1,5 @@
+import { unstable_rethrow } from "next/navigation";
+
 import { listNotifications } from "@/lib/api/kerykes";
 import { getOrganization, listProjects, myMemberships } from "@/lib/api/polis";
 import { organizationRoles } from "@/lib/auth/claims";
@@ -7,9 +9,16 @@ import { roleLabel, statusLine } from "@/lib/sidebar";
 import { serviceStatuses } from "./services";
 import { SidebarView, type SidebarData } from "./sidebar-view";
 
-/** The value of a call, or a fallback when the service can't answer (the sidebar never fails a page). */
-const settled = <T,>(result: PromiseSettledResult<T>, fallback: T): T =>
-  result.status === "fulfilled" ? result.value : fallback;
+/**
+ * The value of a call, or a fallback when the service can't answer (the
+ * sidebar never fails a page). Signing out after a refused token (a 401
+ * redirects) still goes through.
+ */
+function settled<T>(result: PromiseSettledResult<T>, fallback: T): T {
+  if (result.status === "fulfilled") return result.value;
+  unstable_rethrow(result.reason);
+  return fallback;
+}
 
 /**
  * What the sidebar shows, for someone signed in to this organization: its

@@ -1,5 +1,9 @@
 import "server-only";
 
+import { redirect, unstable_rethrow } from "next/navigation";
+
+import { tokenFingerprint } from "../auth/session";
+
 /**
  * A problem details error (RFC 9457) from an Aether-os API, with its
  * `code`, so pages can tell "not found" from "forbidden" from a business
@@ -34,6 +38,11 @@ export async function call<T>(
     cache: "no-store",
     signal: AbortSignal.timeout(10_000),
   });
+  if (response.status === 401) {
+    // The token is invalid or expired (e.g. Pistis's keys changed, or the
+    // session was revoked): the session is no use any more, so sign out.
+    redirect(`/auth/expired?token=${tokenFingerprint(token)}`);
+  }
   if (!response.ok) {
     const problem = (await response.json().catch(() => ({}))) as {
       code?: string;
@@ -61,6 +70,8 @@ export async function orUnavailable<T>(promise: Promise<Page<T>>): Promise<{ ite
   try {
     return { items: (await promise).items, unavailable: false };
   } catch (error) {
+    // A redirect (signing out after a 401) isn't the service being unavailable.
+    unstable_rethrow(error);
     if (error instanceof ApiError && error.status === 403) {
       return { items: [], unavailable: false };
     }

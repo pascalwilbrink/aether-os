@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 
 import { ActionButton } from "@/app/components/action-forms";
@@ -34,7 +35,9 @@ async function Inbox({ params, searchParams }: Props) {
       unread: filter === "unread" ? true : undefined,
       cursor: typeof cursor === "string" ? cursor : undefined,
     });
-  } catch {
+  } catch (error) {
+    // Signing out after a 401 goes through; Kerykes being down doesn't.
+    unstable_rethrow(error);
     page = null;
   }
 
