@@ -53,6 +53,9 @@ export class UsersController {
   }
 
   @Get(':userId')
+  // Platform services read a user's profile too (Kerykes: a recipient's
+  // email address).
+  @PlatformAccess('platform:read')
   @ZodSerializerDto(UserResponse)
   findById(@Param() { userId }: UserParams) {
     return this.users.findById(userId);

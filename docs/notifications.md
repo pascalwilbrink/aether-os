@@ -2,7 +2,15 @@
 
 How Aether-os tells people that something needs them or happened: a draft waiting for approval, a failed task, a paused task tree, a budget running out. **Kerykes** owns this; the *kērykes* were the heralds of ancient Greece, who carried announcements.
 
-Status: agreed design, documentation only. Sections marked **Proposal** are not agreed yet.
+Status: agreed design; built in its first form (`../kerykes/CLAUDE.md`): the notifications in the table below except watchers, each user's inbox (API only; Iris to come), and email over SMTP (Mailpit locally) with retries. Not built yet: preferences, digests, rate limits, watchers, Slack and Teams, bounce handling, and inbox retention. Sections marked **Proposal** are not agreed yet.
+
+What the first form decided where this document left room:
+
+- **Failures and successes are told once per task tree,** for its top-level task (a failed subtask fails its parents too), to its requester. A task a service requested (Kairos's) has no user to tell yet; the automation's watchers will be.
+- **Paused work** goes to the organization's owners and admins (a project's admins are them), once per task tree, budget and day; **budget warnings** to them too, once per budget and window, linking to where that budget is set.
+- **No task titles in notifications:** a title can come from an issue (untrusted), so notifications say "a task in <project>" and link to it; the project's name is the only text they take from elsewhere.
+- **Recipients' permissions are checked twice,** when the notification is made and again before its email goes out, against Kerykes's copy of Polis's memberships. That copy is read from Polis the first time an organization comes up, then kept from Polis's events (version-guarded); the inbox shows only the organization and the projects the reader's token can read.
+- **Email addresses come from Pistis** (`GET /v1/users/{userId}`, which platform services can now read with `platform:read`).
 
 ## Decisions
 

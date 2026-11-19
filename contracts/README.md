@@ -8,15 +8,16 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 
 | Spec | Served by | Consumed by |
 |---|---|---|
-| `polis.openapi.yaml` | Polis | Hephaestus and Pistis (generated HTTP clients); later Agora, Kairos, Iris |
+| `polis.openapi.yaml` | Polis | Hephaestus, Pistis, Kairos and Kerykes (generated HTTP clients); later Agora, Iris |
 | `hephaestus.openapi.yaml` | Hephaestus | Iris |
-| `pistis.openapi.yaml` | Pistis | Iris |
+| `pistis.openapi.yaml` | Pistis | Iris; Kerykes (users' email addresses, generated HTTP client) |
 | `proxenos.openapi.yaml` | Proxenos (the GitHub App, repository links, tokens, webhooks) | later Hephaestus (repository tokens) and Iris |
 | `proxenos.asyncapi.yaml` | Proxenos (events on `proxenos.events`) | Hephaestus (pull requests), Kairos (issues) |
 | `kairos.openapi.yaml` | Kairos (automations and their runs) | later Iris |
 | `kairos.asyncapi.yaml` | Kairos (events on `kairos.events`) | later Iris, Kriterion |
-| `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Hephaestus (organization and project events); later Pistis and others |
-| `hephaestus.asyncapi.yaml` | Hephaestus (task events on `hephaestus.events`; the `task.create` command it receives on `hephaestus.commands`) | later Kairos, Kriterion, Kerykes, Iris |
+| `kerykes.openapi.yaml` | Kerykes (each user's inbox) | later Iris |
+| `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Hephaestus (organization and project events), Kerykes (membership events); later Pistis and others |
+| `hephaestus.asyncapi.yaml` | Hephaestus (task events on `hephaestus.events`; the `task.create` command it receives on `hephaestus.commands`) | Kairos (`task.created`, `task.create-rejected`), Kerykes (tasks that need people, budgets); later Kriterion, Iris |
 
 ## Authentication in the specs
 

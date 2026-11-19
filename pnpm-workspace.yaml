@@ -6,6 +6,7 @@ packages:
   - pistis
   - proxenos
   - kairos
+  - kerykes
   - iris
 
 # Native builds allowed during install.

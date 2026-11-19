@@ -81,7 +81,7 @@ paths:
     get:
       tags: [users]
       operationId: getUser
-      x-permission: '`platform:manage` (platform operators)'
+      x-permission: '`platform:read` (platform services, e.g. Kerykes for a recipient''s email), or `platform:manage`'
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }

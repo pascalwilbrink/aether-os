@@ -4,7 +4,7 @@ import type { App } from 'supertest/types.js';
 
 import { TokenSigner } from '@pistis/oidc';
 
-import { createApp, MISSING_ID, operatorAgent } from './app.js';
+import { createApp, MISSING_ID, operatorAgent, readerAgent } from './app.js';
 
 const googleIdentity = {
   provider: 'google',
@@ -68,6 +68,20 @@ describe('Users (e2e)', () => {
 
     await http().get(`/v1/users/${MISSING_ID}`).expect(404);
     await http().get('/v1/users/not-a-uuid').expect(400);
+  });
+
+  it('lets platform services read a user, and nothing else', async () => {
+    const user = await createUser();
+    const reader = await readerAgent(app);
+
+    const res = await reader.get(`/v1/users/${user.id}`).expect(200);
+    expect(res.body).toMatchObject({ id: user.id, email: 'ada@example.com' });
+    await reader.get('/v1/users').expect(403);
+    await reader
+      .put(`/v1/users/${user.id}`)
+      .send({ displayName: 'X', email: null })
+      .expect(403);
+    await reader.post(`/v1/users/${user.id}/disable`).expect(403);
   });
 
   it('disables and enables users idempotently', async () => {
