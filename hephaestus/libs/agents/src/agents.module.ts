@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ModelsModule } from '@hephaestus/models';
 import { TenancyModule } from '@hephaestus/tenancy';
 
+import { AgentBudgetController } from './agent-budget.controller.js';
 import { AgentModelKeysController } from './agent-model-keys.controller.js';
 import { AgentVersionEntity } from './agent-version.entity.js';
 import { AgentVersionMapper } from './agent-version.mapper.js';
@@ -24,6 +25,7 @@ import { AgentsService } from './agents.service.js';
     AgentsController,
     AgentVersionsController,
     AgentModelKeysController,
+    AgentBudgetController,
   ],
   providers: [
     AgentsService,

@@ -113,6 +113,7 @@ export class MastraAgentRuntime extends AgentRuntime {
     const budget = {
       organizationId: task.organizationId,
       projectId: task.projectId,
+      agentId: task.agentId,
       topLevelTaskId: task.topLevelTaskId,
     };
     const meter = (step: MeteredStep): Promise<void> => {

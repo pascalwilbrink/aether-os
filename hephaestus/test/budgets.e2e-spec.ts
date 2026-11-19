@@ -126,6 +126,37 @@ describe('Budgets (e2e)', () => {
     });
   });
 
+  it("sets an agent's monthly budget (org:manage)", async () => {
+    const path = `/v1/organizations/${orgId}/agents/${agentId}/budget`;
+    await expect(owner.get(path).expect(200)).resolves.toMatchObject({
+      body: {
+        scope: 'agent',
+        scopeId: agentId,
+        limitUsd: null,
+        spentUsd: '0.000000',
+        windowStart: monthStart(),
+      },
+    });
+
+    // Agent editors read it; the organization's owners and admins set it.
+    const member = await asMember(app, orgId, ['member']);
+    await member.get(path).expect(200);
+    await member.put(path).send({ limitUsd: '3' }).expect(403);
+    const set = await owner.put(path).send({ limitUsd: '3' }).expect(200);
+    expect(set.body).toMatchObject({ scope: 'agent', limitUsd: '3.000000' });
+
+    // Another organization's agent, or none, is a 404.
+    await owner
+      .get(`/v1/organizations/${orgId}/agents/${SERVICE_ACCOUNT}/budget`)
+      .expect(404);
+    const other = polis.organization();
+    const stranger = await asMember(app, other, ['owner']);
+    await stranger
+      .put(`/v1/organizations/${other}/agents/${agentId}/budget`)
+      .send({ limitUsd: '1' })
+      .expect(404);
+  });
+
   it('gives a task tree a budget for its life, through any of its tasks', async () => {
     const top = await createTask({ budgetUsd: '2.5' }).expect(201);
     expect(top.body.pausedFor).toBeNull();

@@ -25,6 +25,7 @@ import { ModelGateway } from './model-gateway.js';
 export interface BudgetContext {
   organizationId: string;
   projectId: string;
+  agentId: string;
   topLevelTaskId: string;
 }
 
@@ -37,18 +38,28 @@ export class BudgetExceededError extends Error {
 }
 
 /** Checked narrowest first: the budget that ran out is the one named. */
-const SCOPES: BudgetScope[] = ['task_tree', 'project', 'organization'];
+const SCOPES: BudgetScope[] = ['task_tree', 'agent', 'project', 'organization'];
 
 const scopeIdOf = (context: BudgetContext, scope: BudgetScope) =>
-  scope === 'organization'
-    ? context.organizationId
-    : scope === 'project'
-      ? context.projectId
-      : context.topLevelTaskId;
+  ({
+    organization: context.organizationId,
+    project: context.projectId,
+    agent: context.agentId,
+    task_tree: context.topLevelTaskId,
+  })[scope];
+
+/** Whose calls a scope's budget counts, as `ModelGateway.spent` filters them. */
+const callsOf = (scope: BudgetScope, scopeId: string) =>
+  ({
+    organization: { organizationId: scopeId },
+    project: { projectId: scopeId },
+    agent: { agentId: scopeId },
+    task_tree: { topLevelTaskId: scopeId },
+  })[scope];
 
 /**
- * Budgets for model calls (docs/models.md, Budgets): an organization's and a
- * project's per calendar month, a task tree's over its life. What was spent
+ * Budgets for model calls (docs/models.md, Budgets): an organization's, a
+ * project's and an agent's per calendar month, a task tree's over its life. What was spent
  * is summed from the calls the gateway recorded (their cost at the price in
  * force). The runner checks them before an execution starts and after each
  * model call; a task whose budget ran out pauses, and resumes once it has
@@ -101,6 +112,29 @@ export class BudgetsService {
       { organizationId, projectId },
       'project',
       projectId,
+      limitUsd,
+    );
+  }
+
+  /** An agent's budget; the caller checked the agent. */
+  getAgent(
+    organizationId: string,
+    agentId: string,
+  ): Promise<ApiTypes.BudgetResponse> {
+    return this.get(organizationId, 'agent', agentId);
+  }
+
+  /** Sets an agent's budget (all its projects); the caller checked the agent. */
+  async setAgent(
+    organizationId: string,
+    agentId: string,
+    limitUsd: string | null,
+  ): Promise<ApiTypes.BudgetResponse> {
+    await this.organizations.assertAcceptsWrites(organizationId);
+    return this.set(
+      { organizationId, projectId: null },
+      'agent',
+      agentId,
       limitUsd,
     );
   }
@@ -231,14 +265,7 @@ export class BudgetsService {
     scopeId: string,
     window: BudgetWindow,
   ): Promise<string> {
-    return this.gateway.spent(
-      scope === 'organization'
-        ? { organizationId: scopeId }
-        : scope === 'project'
-          ? { projectId: scopeId }
-          : { topLevelTaskId: scopeId },
-      window.start,
-    );
+    return this.gateway.spent(callsOf(scope, scopeId), window.start);
   }
 
   private async announceThreshold(

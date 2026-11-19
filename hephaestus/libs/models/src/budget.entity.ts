@@ -6,12 +6,15 @@ export type BudgetScope = ApiTypes.BudgetScope;
 
 /**
  * A limit on what model calls may cost (docs/models.md, Budgets): an
- * organization's or a project's per calendar month (UTC), or a task tree's
+ * organization's, a project's or an agent's per calendar month (UTC), or a task tree's
  * over its life (`scopeId` is its top-level task). What was spent isn't
  * stored: it's summed from `model_calls`.
  */
 @Entity({ name: 'budgets' })
-@Check('ck_budgets_scope', `scope IN ('organization', 'project', 'task_tree')`)
+@Check(
+  'ck_budgets_scope',
+  `scope IN ('organization', 'project', 'agent', 'task_tree')`,
+)
 @Index('uq_budgets_scope_scope_id', ['scope', 'scopeId'], { unique: true })
 export class BudgetEntity {
   @PrimaryColumn({ type: 'uuid' })
@@ -27,7 +30,7 @@ export class BudgetEntity {
   @Column({ type: 'text' })
   scope: BudgetScope;
 
-  /** The organization, project or top-level task. */
+  /** The organization, project, agent or top-level task. */
   @Column({ type: 'uuid' })
   scopeId: string;
 

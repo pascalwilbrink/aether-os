@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Hephaestus events
-  version: 0.7.0
+  version: 0.8.0
   description: |
     Events Hephaestus publishes to the `hephaestus.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -346,7 +346,7 @@ components:
           type: [string, 'null']
           description: The `sub` of whoever cancelled it (the task itself or an ancestor); null when the system did.
     BudgetScope:
-      enum: [organization, project, task_tree]
+      enum: [organization, project, agent, task_tree]
     TaskPaused:
       type: object
       additionalProperties: false

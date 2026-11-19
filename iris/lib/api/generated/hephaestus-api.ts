@@ -818,6 +818,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/agents/{agentId}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        /** @description The agent's monthly budget for model calls (all its versions, in every project), and what this month's calls cost so far. */
+        get: operations["getAgentBudget"];
+        /**
+         * @description Sets (or, with `limitUsd: null`, removes) the agent's monthly limit.
+         *     Tasks it paused resume within a runner round once it has room.
+         */
+        put: operations["setAgentBudget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/agents/{agentId}/model-keys": {
         parameters: {
             query?: never;
@@ -1655,12 +1679,12 @@ export interface components {
             items: components["schemas"]["ModelResponse"][];
         };
         /**
-         * @description What a budget limits (docs/models.md, Budgets): an organization's or
-         *     a project's model calls per calendar month (UTC), or a task tree's
-         *     over its whole life.
+         * @description What a budget limits (docs/models.md, Budgets): an organization's,
+         *     a project's or an agent's model calls per calendar month (UTC), or a
+         *     task tree's over its whole life.
          * @enum {string}
          */
-        BudgetScope: "organization" | "project" | "task_tree";
+        BudgetScope: "organization" | "project" | "agent" | "task_tree";
         SetBudgetRequest: {
             /** @description The limit; null for none. */
             limitUsd: components["schemas"]["Usd"] | null;
@@ -1669,7 +1693,7 @@ export interface components {
             scope: components["schemas"]["BudgetScope"];
             /**
              * Format: uuid
-             * @description The organization, project or top-level task.
+             * @description The organization, project, agent or top-level task.
              */
             scopeId: string;
             limitUsd: components["schemas"]["Usd"] | null;
@@ -3360,6 +3384,66 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getAgentBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setAgentBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetBudgetRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];

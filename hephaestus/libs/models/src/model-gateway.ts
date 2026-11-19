@@ -130,13 +130,14 @@ export class ModelGateway {
 
   /**
    * What calls cost in total (US dollars, 6 decimals): an organization's, a
-   * project's or a task tree's, from `since` (all of them when null).
+   * project's, an agent's or a task tree's, from `since` (all of them when null).
    * Unpriced calls count as nothing.
    */
   async spent(
     scope:
       | { organizationId: string }
       | { projectId: string }
+      | { agentId: string }
       | { topLevelTaskId: string },
     since: Date | null,
   ): Promise<string> {

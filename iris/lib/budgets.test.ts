@@ -55,5 +55,8 @@ describe("budgets as people read them", () => {
       "Paused: this task tree's budget ran out. It resumes once the budget is raised.",
     );
     expect(pausedMessage("organization")).toContain("or when the next month starts");
+    expect(pausedMessage("agent")).toBe(
+      "Paused: the agent's budget ran out. It resumes once the budget is raised, or when the next month starts.",
+    );
   });
 });

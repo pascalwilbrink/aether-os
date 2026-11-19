@@ -158,7 +158,7 @@ export const createTaskFromTemplate = (
     { method: "POST", body, headers: { "idempotency-key": idempotencyKey } },
   );
 
-// --- Budgets for model calls (docs/models.md: the organization's and a project's per month, a task tree's) ---
+// --- Budgets for model calls (docs/models.md: the organization's, a project's and an agent's per month, a task tree's) ---
 
 type Budget = ApiSchema<"BudgetResponse">;
 const budgetOf = (organizationId: string, projectId?: string) =>
@@ -171,6 +171,12 @@ export const getOrganizationBudget = (token: string, organizationId: string) =>
 
 export const setOrganizationBudget = (token: string, organizationId: string, limitUsd: string | null) =>
   hephaestus<Budget>(budgetOf(organizationId), token, { method: "PUT", body: { limitUsd } });
+
+export const getAgentBudget = (token: string, organizationId: string, agentId: string) =>
+  hephaestus<Budget>(`${agentsOf(organizationId)}/${agentId}/budget`, token);
+
+export const setAgentBudget = (token: string, organizationId: string, agentId: string, limitUsd: string | null) =>
+  hephaestus<Budget>(`${agentsOf(organizationId)}/${agentId}/budget`, token, { method: "PUT", body: { limitUsd } });
 
 export const getProjectBudget = (token: string, organizationId: string, projectId: string) =>
   hephaestus<Budget>(budgetOf(organizationId, projectId), token);
