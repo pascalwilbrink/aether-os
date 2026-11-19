@@ -20,7 +20,7 @@ Aether-os is a platform for building, running and supporting AI agents. This fol
 | **Krepis** | `@aether-os/krepis`: shared foundation library for the NestJS services (token verification and permissions, errors, events, transactions, pagination, HTTP helpers, shared IDs) | `krepis/` | Active |
 | **OpenBao** | Secrets and credentials (LLM provider keys, repository tokens, tool and integration credentials) | infrastructure | Planned |
 | **RabbitMQ** | Event bus between services | infrastructure | Planned |
-| **OpenTelemetry + Jaeger + Langfuse + Loki** | Observability: OTLP from every service; service traces in Jaeger, LLM traces in Langfuse, logs in Loki, browsed in Grafana | infrastructure | Planned |
+| **OpenTelemetry + Jaeger + Langfuse + Loki** | Observability: OTLP from every service; service traces in Jaeger, LLM traces in Langfuse, logs in Loki, browsed in Grafana | infrastructure | Traces: every service exports to the Collector (Krepis's `startTelemetry`), Jaeger shows them; LLM spans for Langfuse and logs to come |
 | **Seshat** | MCP server for RAG and long-term memory | not in this folder | Separate service |
 | **Kriterion** | Eval framework for measuring agent quality | not in this folder | Separate |
 | **Iris** | Web frontend for operating Aether-os (Next.js) | `iris/` | Active: sign-in through Pistis, choosing and creating organizations; agents and their versions (write, publish, archive); members, service accounts and project access; project tasks (create, follow, cancel, retry), artifacts and reviews, tasks from templates; connecting GitHub, linking repositories to projects and tasks that work in them; budgets (organization, project, agent, task tree) and paused tasks; provider keys (organization and agent); tool servers (MCP) and skills, and choosing an agent version's tools and skills; automations and their runs; the inbox (Kerykes); a sidebar, and light and dark themes |
@@ -92,7 +92,7 @@ Services communicate asynchronously over **RabbitMQ**: for example Polis announc
 
 ## Observability
 
-- Every service is instrumented with OpenTelemetry and exports over OTLP to an OpenTelemetry Collector, which routes the data onwards: all traces to **Jaeger** (service-level view: HTTP calls, RabbitMQ hops, database queries, latency), and LLM spans additionally to Langfuse.
+- Every service is instrumented with OpenTelemetry (Krepis's `startTelemetry`, `@aether-os/krepis/otel`, started first in each `main.ts`; set `OTEL_EXPORTER_OTLP_ENDPOINT`) and exports over OTLP to an OpenTelemetry Collector, which routes the data onwards: all traces to **Jaeger** (service-level view: HTTP calls, RabbitMQ hops, database queries, latency), and LLM spans additionally to Langfuse.
 - LLM-specific traces (prompts, completions, tool calls, token usage, cost) go to **Langfuse**, which accepts OTLP. APS policy decisions are recorded there too, through the SDK's OpenTelemetry or Langfuse audit handler.
 - Trace context must cross service boundaries: over HTTP via the standard `traceparent` header, and over RabbitMQ by copying it into message headers when publishing and restoring it when consuming. A task triggered by a GitHub issue then shows up as one trace from Kairos through Hephaestus.
 - Put the task ID, organization ID, agent version ID and policy set version on spans, so traces can be filtered per tenant and per version (which is also what Kriterion needs).

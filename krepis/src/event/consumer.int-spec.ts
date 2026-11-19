@@ -13,6 +13,14 @@ import {
   PrimaryColumn,
   type Repository,
 } from 'typeorm';
+import { context, propagation, trace } from '@opentelemetry/api';
+import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
+import { W3CTraceContextPropagator } from '@opentelemetry/core';
+import {
+  InMemorySpanExporter,
+  SimpleSpanProcessor,
+  TracerProvider,
+} from '@opentelemetry/sdk-trace';
 import { v7 as uuidv7 } from 'uuid';
 import { inject } from 'vitest';
 
@@ -222,6 +230,46 @@ describe('Event consumer (Postgres + RabbitMQ)', () => {
 
     await waitFor(async () => handlers.traces.length === 1);
     expect(handlers.traces).toEqual([traceparent]);
+  });
+
+  it('handles an event in a consumer span of the trace that emitted it', async () => {
+    const exporter = new InMemorySpanExporter();
+    const manager = new AsyncLocalStorageContextManager().enable();
+    context.setGlobalContextManager(manager);
+    propagation.setGlobalPropagator(new W3CTraceContextPropagator());
+    trace.setGlobalTracerProvider(
+      new TracerProvider({
+        spanProcessors: [new SimpleSpanProcessor({ exporter })],
+      }),
+    );
+    try {
+      const traceparent =
+        '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+      const e = event();
+      publish(e, { traceparent });
+
+      await waitFor(async () => exporter.getFinishedSpans().length === 1);
+      const [span] = exporter.getFinishedSpans();
+      expect(span.name).toBe(`${queue} process`);
+      expect(span.spanContext().traceId).toBe(
+        '4bf92f3577b34da6a3ce929d0e0e4736',
+      );
+      expect(span.parentSpanContext?.spanId).toBe('00f067aa0ba902b7');
+      expect(span.attributes).toMatchObject({
+        'messaging.system': 'rabbitmq',
+        'messaging.message.id': e.eventId,
+        'aether.event.type': e.eventType,
+      });
+      // The handlers pass on the consumer span, not the publisher's.
+      expect(handlers.traces).toEqual([
+        `00-4bf92f3577b34da6a3ce929d0e0e4736-${span.spanContext().spanId}-01`,
+      ]);
+    } finally {
+      trace.disable();
+      propagation.disable();
+      context.disable();
+      manager.disable();
+    }
   });
 
   it('retries a failing event with backoff, rolling back each failure', async () => {
