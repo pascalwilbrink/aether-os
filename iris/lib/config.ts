@@ -62,6 +62,10 @@ export const config = {
   get kairosUrl() {
     return value("KAIROS_URL", "http://localhost:3005");
   },
+  /** Notifications: each user's inbox. */
+  get kerykesUrl() {
+    return value("KERYKES_URL", "http://localhost:3006");
+  },
   get secureCookies() {
     return production();
   },
