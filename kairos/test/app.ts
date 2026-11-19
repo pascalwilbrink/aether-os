@@ -4,7 +4,7 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
 import type { OrganizationRole, ProjectRole } from '@aether-os/krepis';
-import { configureHttpApp } from '@kairos/core';
+import { configureHttpApp, EventConsumer } from '@kairos/core';
 import { PolisClient } from '@kairos/tenancy';
 
 import { AppModule } from '../src/app.module.js';
@@ -26,6 +26,9 @@ export async function createApp(): Promise<{
     moduleRef.createNestApplication({ logger: false }),
   );
   await app.init();
+  // Consuming before the test starts, so closing the app never cuts off a
+  // channel that is still being set up (an unhandled rejection).
+  await app.get(EventConsumer).ready();
   await resetDatabase(app);
   return { app: app as INestApplication<App>, polis };
 }
