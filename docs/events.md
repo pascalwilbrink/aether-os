@@ -80,7 +80,7 @@ Proxenos, the integrations service (see `git.md`), turns verified provider webho
 
 | Event | Payload | Consumers |
 |---|---|---|
-| `github.issue.opened`, `github.issue.labeled`, `github.issue-comment.created` | `webhookDeliveryId` and `deliveryId`, `repositoryId`, `repository`, `projectIds` (its links), the issue's `number`, `title`, `url`, `labels`, `isPullRequest`, the `label` added or `commentId`, `author` (who did it), `authorPermission` (their role on the repository, or null when GitHub couldn't say: untrusted), `fromAetherOs`. The full payload (body, comment) is fetched from Proxenos when needed (`GET …/webhook-deliveries/{webhookDeliveryId}`) | Kairos (triggers) |
+| `github.issue.opened`, `github.issue.labeled`, `github.issue-comment.created` | `webhookDeliveryId` and `deliveryId`, `repositoryId`, `repository`, `projectIds` and `links` (project and link ID: a task's `repository.linkId`), the issue's `number`, `title`, `url`, `labels`, `isPullRequest`, the `label` added or `commentId`, `author` (who did it), `authorPermission` (their role on the repository, or null when GitHub couldn't say: untrusted), `fromAetherOs`. The full payload (body, comment) is fetched from Proxenos when needed (`GET …/webhook-deliveries/{webhookDeliveryId}`) | Kairos (triggers) |
 | `git.installation-changed` | `installationId`, `provider`, `externalId`, `account`, `status`, `repositoriesAdded` / `repositoriesRemoved` (`repositoryId`, `fullName`) | Hephaestus, Kairos |
 | `git.repository-linked` | `linkId`, `projectId`, `repositoryId`, `fullName` | Hephaestus, Iris |
 | `git.repository-unlinked` | the same, and `reason` (`unlinked`, or `repository-removed` when the installation lost it) | Hephaestus, Iris |
@@ -90,7 +90,11 @@ Proxenos, the integrations service (see `git.md`), turns verified provider webho
 
 | Event | Payload | Consumers |
 |---|---|---|
-| `automation.triggered` | `automationId`, `triggerType`, `deliveryId` | Iris (activity), Kriterion |
+Published (`../contracts/kairos.asyncapi.yaml`): `automation.triggered`, with the run as its aggregate. Kairos consumes Proxenos's issue events and Hephaestus's `task.created` / `task.create-rejected` (`automations.md`).
+
+| Event | Payload | Consumers |
+|---|---|---|
+| `automation.triggered` | `automationId`, `runId` (the command's idempotency key), `triggerType`, `sourceEventId`, `webhookDeliveryId` | Iris (activity), Kriterion |
 
 Kairos sends `task.create` commands to Hephaestus when an automation fires (below).
 
@@ -131,7 +135,7 @@ Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created` (with
 
 ## Commands
 
-**Built:** Hephaestus accepts `task.create` on `hephaestus.commands` (`../contracts/hephaestus.asyncapi.yaml`, the `receive` operation; Krepis's `EventsModule` `commands` option), with `task` (a `CreateTaskRequest`) or `template` (`templateId` plus a `CreateTaskFromTemplateRequest`) and `automationId`. Only platform services (`actor.sub_type: service`) may send it. Differences from the table below: no `concurrencyKey` yet (it comes with Kairos and the concurrency policies of `tasks.md`), no `automationId` on the task itself, and `task.cancel` isn't built. Nothing sends commands yet: Kairos will, with an outbox row for `hephaestus.commands`.
+**Built:** Hephaestus accepts `task.create` on `hephaestus.commands` (`../contracts/hephaestus.asyncapi.yaml`, the `receive` operation; Krepis's `EventsModule` `commands` option), with `task` (a `CreateTaskRequest`) or `template` (`templateId` plus a `CreateTaskFromTemplateRequest`) and `automationId`. Only platform services (`actor.sub_type: service`) may send it. Differences from the table below: no `concurrencyKey` yet (it comes with Kairos and the concurrency policies of `tasks.md`), no `automationId` on the task itself, and `task.cancel` isn't built. Kairos sends it (`DomainEvents.send` in Krepis: an outbox row for `hephaestus.commands`, with the sending service as `actor`; `EventsModule`'s `send` option declares the receiver's exchange) with a run's ID as its `eventId`.
 
 | Command | Receiver | Payload | Outcome events |
 |---|---|---|---|

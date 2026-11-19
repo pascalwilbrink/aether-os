@@ -11,7 +11,7 @@ import {
   PrimaryColumn,
   type Repository,
 } from 'typeorm';
-import { Transactional } from 'typeorm-transactional';
+import { runInTransaction, Transactional } from 'typeorm-transactional';
 import { inject } from 'vitest';
 
 import { postgresOptions } from '../database/postgres.js';
@@ -98,6 +98,7 @@ describe('Outbox (Postgres + RabbitMQ)', () => {
         EventsModule.forRoot({
           service: 'test',
           publish: ['thing.created'],
+          send: { receiver: ['thing.do'] },
           rabbitmq: {
             useFactory: () => ({
               url: inject('rabbitmqUrl'),
@@ -209,6 +210,50 @@ describe('Outbox (Postgres + RabbitMQ)', () => {
       traceparent,
       tracestate: 'a=1',
     });
+
+    await connection.close();
+  });
+
+  it("sends commands to the receiver's command exchange, as the service", async () => {
+    await start();
+    const connection = await amqp.connect(inject('rabbitmqUrl'));
+    const channel = await connection.createChannel();
+    const { queue } = await channel.assertQueue('', { exclusive: true });
+    // Declared by the sender at start, before any receiver exists.
+    await channel.bindQueue(queue, 'receiver.commands', 'thing.do');
+
+    const eventId = '0193a1b2-c3d4-7e5f-8a9b-000000000009';
+    const sent = await runInTransaction(() =>
+      app.get(DomainEvents).send('receiver', {
+        eventId,
+        eventType: 'thing.do',
+        aggregateId: eventId,
+        aggregateVersion: 1,
+        organizationId: ORG,
+        payload: { name: 'nine' },
+      }),
+    );
+    expect(sent.actor).toEqual({ sub: 'test', sub_type: 'service' });
+    expect(await relay.relayBatch()).toBe(1);
+
+    const message = await waitForMessage(channel, queue);
+    expect(JSON.parse(message.content.toString())).toMatchObject({
+      eventId,
+      eventType: 'thing.do',
+      actor: { sub: 'test', sub_type: 'service' },
+      payload: { name: 'nine' },
+    });
+    // Only what `send` lists.
+    await expect(
+      runInTransaction(() =>
+        app.get(DomainEvents).send('receiver', {
+          eventType: 'thing.undo',
+          aggregateId: eventId,
+          aggregateVersion: 1,
+          payload: {},
+        }),
+      ),
+    ).rejects.toThrow("doesn't send thing.undo");
 
     await connection.close();
   });

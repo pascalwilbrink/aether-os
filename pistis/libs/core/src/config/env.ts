@@ -100,6 +100,16 @@ const DEV_CLIENTS = [
     token_endpoint_auth_method: 'client_secret_basic',
     platform_permissions: ['platform:read'],
   },
+  // Kairos's own token (client credentials), to read from Polis.
+  {
+    client_id: 'kairos',
+    client_secret: 'kairos-dev-secret',
+    redirect_uris: [],
+    response_types: [],
+    grant_types: ['client_credentials'],
+    token_endpoint_auth_method: 'client_secret_basic',
+    platform_permissions: ['platform:read'],
+  },
   // Operator tooling for local development: create users, suspend
   // organizations (README: "Creating a user").
   {

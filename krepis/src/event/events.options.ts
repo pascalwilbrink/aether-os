@@ -31,6 +31,12 @@ export interface EventsOptions {
    * sender that missed it) instead of repeating the work.
    */
   commands?: readonly string[];
+  /**
+   * Commands this service sends, per receiving service:
+   * `{ hephaestus: ['task.create'] }` (docs/events.md, Commands). Sent with
+   * `DomainEvents.send`, through the outbox, to `<receiver>.commands`.
+   */
+  send?: Readonly<Record<string, readonly string[]>>;
 }
 
 export interface RabbitMqOptions {

@@ -47,11 +47,21 @@ export class RepositoryLinksService {
 
   /** The projects a repository is linked to (no caller: webhooks). */
   async projectsOf(repositoryId: string): Promise<string[]> {
+    return (await this.linksOf(repositoryId)).map((link) => link.projectId);
+  }
+
+  /** The repository's links: each project it's linked to, with the link's ID. */
+  async linksOf(
+    repositoryId: string,
+  ): Promise<{ projectId: string; linkId: string }[]> {
     const links = await this.links.find({
       where: { repositoryId },
       order: { createdAt: 'ASC' },
     });
-    return links.map((link) => link.projectId);
+    return links.map((link) => ({
+      projectId: link.projectId,
+      linkId: link.id,
+    }));
   }
 
   /** Links an available repository of an active installation (`project:manage`). */

@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "types": [
+      "vitest/globals",
+      "node"
+    ],
+    "paths": {
+      "@kairos/core": [
+        "./libs/core/src/index.ts"
+      ],
+      "@kairos/core/*": [
+        "./libs/core/src/*"
+      ],
+      "@kairos/tenancy": [
+        "./libs/tenancy/src/index.ts"
+      ],
+      "@kairos/tenancy/*": [
+        "./libs/tenancy/src/*"
+      ],
+      "@kairos/automations": [
+        "./libs/automations/src/index.ts"
+      ],
+      "@kairos/automations/*": [
+        "./libs/automations/src/*"
+      ]
+    },
+    "rewriteRelativeImportExtensions": true
+  }
+}

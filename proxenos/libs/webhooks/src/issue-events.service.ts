@@ -129,7 +129,7 @@ export class IssueEventsService {
     await this.publish(eventType, delivery, installation.organizationId, {
       repositoryId: repository.id,
       repository: repository.fullName,
-      projectIds: await this.links.projectsOf(repository.id),
+      ...(await this.projectLinks(repository.id)),
       number: issue.number,
       title: issue.title,
       url: issue.html_url,
@@ -142,6 +142,12 @@ export class IssueEventsService {
       fromAetherOs,
     });
     return true;
+  }
+
+  /** The projects the repository is linked to, and the links (a task's `repository.linkId`). */
+  private async projectLinks(repositoryId: string) {
+    const links = await this.links.linksOf(repositoryId);
+    return { projectIds: links.map((link) => link.projectId), links };
   }
 
   @Transactional()

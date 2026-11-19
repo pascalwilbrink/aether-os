@@ -12,7 +12,7 @@ Aether-os is a platform for building, running and supporting AI agents. This fol
 | **Polis** | Tenancy: organizations, projects, and memberships (which user belongs to which organization, with what role) | `polis/` | Active |
 | **Agora** | Agent management: agent definitions and their immutable versions | not created yet | Planned |
 | **Themis** | Policies: versioned Rego policy sets per organization/project, served to OPA as bundles ([APS](https://agentpolicyspecification.github.io)) | not created yet | Planned |
-| **Kairos** | Automations: a trigger (e.g. an incoming GitHub issue) bound to an agent | not created yet | Planned |
+| **Kairos** | Automations: a trigger (e.g. an incoming GitHub issue) bound to an agent | `kairos/` | Active: automations on GitHub issue events (filters for repository, label, the author's role, pull requests and Aether-os's own bot), firing `task.create` commands to Hephaestus, and runs that follow Hephaestus's answers |
 | **Proxenos** | Connections to external systems: the GitHub App and its installations, repository ↔ project links, provider tokens, verified webhooks turned into events; later Slack, Jira and others | `proxenos/` | Active: connecting the GitHub App, installations and their repositories, repository ↔ project links, repository tokens for tasks, installation and pull request webhooks, issue and comment events for automations |
 | **Kerykes** | Notifications: turns events that need people (reviews waiting, failures, paused work, budgets) into in-app, email and Slack / Teams messages (chat via Proxenos), with per-user preferences | not created yet | Planned |
 | **Hephaestus** | Task management and execution: runs tasks with an agent, in sandboxed workspaces | `hephaestus/` | Active, being reshaped |
@@ -33,7 +33,7 @@ The names come from Greek, Egyptian and Roman antiquity: Pistis is trust and goo
 2. **Polis** is the tenant root and owns memberships. Every other service stores `organizationId` / `projectId` and resolves them in Polis; writes are rejected while an organization is suspended. Because token claims can be stale until the token expires, Polis should publish changes such as an organization being suspended or a membership being revoked, so services can react before then.
 3. In **Agora** you define an agent and its versions (instructions, model, tools, skills, capabilities, runtime config). A version moves draft → published → deprecated, and only one version per agent is published at a time.
 4. In **Themis** you write policies (Rego) and group them into versioned policy sets, scoped to an organization or project. An agent version references a policy set version.
-5. In **Kairos** you create an automation that binds a trigger to an agent. Triggers from external systems arrive through **Proxenos**, which owns the connections (e.g. the GitHub App), verifies webhooks and publishes them as events; it also mints the short-lived repository tokens Hephaestus uses (see `docs/git.md`).
+5. In **Kairos** you create an automation that binds a trigger to an agent (`docs/automations.md`). Triggers from external systems arrive through **Proxenos**, which owns the connections (e.g. the GitHub App), verifies webhooks and publishes them as events; it also mints the short-lived repository tokens Hephaestus uses (see `docs/git.md`).
 6. When a trigger fires, a task is created in **Hephaestus**, which runs it with the agent, provisioning a workspace when the runtime needs a sandbox. Hephaestus uses **[Mastra](https://mastra.ai)** as its agent runtime and sandbox layer: it turns the pinned agent version into a Mastra `Agent` (instructions, model, tools, skills) running against a Mastra workspace whose sandbox is the task's workspace (`@mastra/docker` locally, a microVM-backed provider such as Docker Cloud Sandboxes, E2B or Daytona in production). Hephaestus stays the source of truth for task and workspace state; Mastra sits behind ports in Hephaestus's domain layer (a runtime port and a `SandboxProvisioner` port) so it can be upgraded or swapped in one place. Sandboxes must be hardened: drop all capabilities, read-only root filesystem, PID limit, non-root user, egress only through an allowlisting proxy for `restricted` network access, and secrets delivered as short-lived files rather than container environment variables. Hephaestus enforces policy with the [Agent Policy Specification](https://agentpolicyspecification.github.io) TypeScript SDK (which has a Mastra integration): every LLM input, tool call and output goes through an `ApsEngine` backed by an OPA server (sidecar) that pulls its bundles from Themis. Evaluation fails closed (`on_error: "deny"`): if OPA is unreachable, the agent stops. APS is a draft spec with pre-release SDKs, so keep it behind a thin layer in Hephaestus.
 7. Secrets live in **OpenBao** (the open-source Vault fork), never in service databases, agent configuration or the agent's context. Store them per organization and project (e.g. `orgs/{organizationId}/projects/{projectId}/...`) and reference them by path. Hephaestus fetches what a task needs when the task starts and injects it into the runtime or sandbox. Prefer short-lived, dynamically issued credentials where the backend supports it.
 8. Files (task inputs and outputs, artifacts, uploads) live in **Loculus**. Services ask Loculus for signed URLs and pass those on rather than proxying file bytes or holding storage credentials themselves; clients such as Iris or a sandbox upload and download directly with the URL.
@@ -68,6 +68,7 @@ The task lifecycle (states, executions, timeouts, cancellation, retries, concurr
 | `docs/git.md` | GitHub App, repository access, one shared branch per task tree, webhooks, untrusted input | Agreed |
 | `docs/models.md` | Model gateway (inside Hephaestus), provider keys (BYOK and platform), metering, budgets (tasks pause at the limit) | Agreed |
 | `docs/events.md` | Event envelope (new fields on Krepis's `DomainEvent`), conventions, catalogue of events and commands | Agreed; the catalogue grows with the services |
+| `docs/automations.md` | Kairos: automations, triggers, matching, runs, the `task.create` command | Built (first form); service accounts per automation, concurrency keys and other triggers to come |
 | `docs/notifications.md` | Kerykes: notification types, recipients, preferences, channels (email via Resend or SES), content rules, answering reviews from Slack / Teams | Agreed |
 
 These are documentation only for now; read the relevant one before implementing anything in its area.
@@ -110,7 +111,7 @@ Organizations and projects live in Polis only: Hephaestus keeps their status fro
 
 ### Workspace
 
-The root `pnpm-workspace.yaml` lists the packages: `contracts` (`@aether-os/contracts`), `krepis` (`@aether-os/krepis`), `polis`, `hephaestus`, `pistis`, `proxenos` and `iris`. There is one lockfile, at the root; always run `pnpm install` from the root. Add new services to `pnpm-workspace.yaml`.
+The root `pnpm-workspace.yaml` lists the packages: `contracts` (`@aether-os/contracts`), `krepis` (`@aether-os/krepis`), `polis`, `hephaestus`, `pistis`, `proxenos`, `kairos` and `iris`. There is one lockfile, at the root; always run `pnpm install` from the root. Add new services to `pnpm-workspace.yaml`.
 
 ```bash
 pnpm install               # whole workspace
@@ -120,12 +121,12 @@ pnpm --filter polis test   # one package (or run pnpm inside its directory)
 pnpm format:check          # prettier, as CI runs it (`pnpm format` in a package fixes it)
 ```
 
-`test:e2e` needs Docker (Krepis, Polis, Hephaestus, Pistis): Testcontainers starts `postgres:17.5-alpine` and `rabbitmq:4.1-management` per run. Where Docker Hub can't be reached for Testcontainers' Ryuk image, run with `TESTCONTAINERS_RYUK_DISABLED=true`.
+`test:e2e` needs Docker (Krepis, Polis, Hephaestus, Pistis, Proxenos, Kairos): Testcontainers starts `postgres:17.5-alpine` and `rabbitmq:4.1-management` per run. Where Docker Hub can't be reached for Testcontainers' Ryuk image, run with `TESTCONTAINERS_RYUK_DISABLED=true`.
 
 **CI** (`.github/workflows/ci.yml`, on pushes to `main` and on pull requests) runs, in order: `pnpm install --frozen-lockfile`, `pnpm generate:api` (fails if the generated files differ from what's committed), `format:check`, `lint`, `build`, `test` and `test:e2e`. Each step only covers the packages changed since the base commit (the pull request's merge base, or the previous `main` commit) plus the packages that depend on them, so a Krepis change also checks Polis and Hephaestus, a `contracts` change checks every consumer, and changes only to `docs/` or `infra/` check nothing. Changes to the lockfile, `pnpm-workspace.yaml`, the root `package.json` or `.github/` check everything (see `.github/scripts/affected-filter.sh`). Run the same locally before pushing.
 
 - **Packages stay publishable.** The workspace is set up so moving to a package registry later is cheap: packages depend on each other with `workspace:*` (which `pnpm publish` rewrites to real versions), import only from each other's published entry points (never another package's `src/`, no TypeScript path aliases across packages), and `contracts` is consumed as a package (`node_modules/@aether-os/contracts/...`) rather than by relative path.
-- **Contracts:** `contracts/` holds the API specs (`polis.openapi.yaml`, `hephaestus.openapi.yaml`, `pistis.openapi.yaml`, `proxenos.openapi.yaml`), one per service. Each spec is the source of truth for that service's HTTP API, including its validation: services generate Zod schemas from it and validate with `nestjs-zod`'s `ZodValidationPipe` (target; see `docs/engineering.md`). Edit the spec first, then run `pnpm generate:api` (root, or in the service and each consumer; currently Iris consumes Hephaestus) and commit the regenerated files. See `contracts/README.md`.
+- **Contracts:** `contracts/` holds the API specs (`polis.openapi.yaml`, `hephaestus.openapi.yaml`, `pistis.openapi.yaml`, `proxenos.openapi.yaml`, `kairos.openapi.yaml`), one per service. Each spec is the source of truth for that service's HTTP API, including its validation: services generate Zod schemas from it and validate with `nestjs-zod`'s `ZodValidationPipe` (target; see `docs/engineering.md`). Edit the spec first, then run `pnpm generate:api` (root, or in the service and each consumer; currently Iris consumes Hephaestus) and commit the regenerated files. See `contracts/README.md`.
 - **Krepis:** shared NestJS code goes in `krepis/`, never copied between services. Consumers depend on it with `workspace:*` plus `dependenciesMeta.injected`, so pnpm copies it into each consumer and its peer dependencies (Nest, TypeORM, Zod, …) resolve to the consumer's own copies. `pnpm-workspace.yaml` sets `dedupeInjectedDeps: false`, without which pnpm 10 silently symlinks Krepis instead whenever it can, and Krepis then resolves its peers from its own `node_modules` (two TypeORM copies, broken DI). `syncInjectedDepsAfterScripts` refreshes the copies whenever Krepis's `build` script runs. See `krepis/CLAUDE.md`.
 
 ## Local development
@@ -139,7 +140,7 @@ docker compose down -v     # stop and wipe all data
 
 | What | Where |
 |---|---|
-| Iris / Polis / Hephaestus / Pistis / Proxenos | `localhost:3000` / `3001` / `3002` / `3003` / `3004` (each app's default `PORT`) |
+| Iris / Polis / Hephaestus / Pistis / Proxenos / Kairos | `localhost:3000` / `3001` / `3002` / `3003` / `3004` / `3005` (each app's default `PORT`) |
 | Postgres | `localhost:5432`, user `aether` / `aether`, one database per service (`infra/postgres/init/`) |
 | RabbitMQ | AMQP `localhost:5672`, UI `localhost:15672`, `aether` / `aether` |
 | OpenBao | `localhost:8200`, root token `dev-root-token` (dev mode: in-memory, wiped on restart) |
@@ -150,4 +151,4 @@ docker compose down -v     # stop and wipe all data
 | Mailpit | SMTP `localhost:1025` (any credentials), UI `localhost:8025`: catches all local email; production uses Resend or SES |
 | Grafana | `localhost:3300` (no login locally): logs from Loki, linked to traces in Jaeger |
 
-All credentials are fixed local-only values. MinIO in the compose file is only Langfuse's storage, not a stand-in for Loculus. Polis, Hephaestus, Pistis and Proxenos run on their own Postgres databases with migrations (`cd polis && cp .env.example .env && pnpm start:dev`, likewise in `hephaestus`); there's no SQLite left.
+All credentials are fixed local-only values. MinIO in the compose file is only Langfuse's storage, not a stand-in for Loculus. Polis, Hephaestus, Pistis, Proxenos and Kairos run on their own Postgres databases with migrations (`cd polis && cp .env.example .env && pnpm start:dev`, likewise in `hephaestus`); there's no SQLite left.
