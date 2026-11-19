@@ -1,0 +1,439 @@
+openapi: 3.1.0
+info:
+  title: Kairos API
+  version: 0.1.0
+  description: |
+    Automations (`../docs/automations.md`): a **trigger** (for now a GitHub
+    issue event from Proxenos) bound to a **task** an agent runs in
+    Hephaestus. When a matching event arrives, Kairos records a **run** and
+    sends Hephaestus a `task.create` command; the run follows Hephaestus's
+    answer (`task.created` or `task.create-rejected`).
+
+    Automations belong to a project. Reading them needs `automation:read` in
+    the project, managing them `automation:manage` (project admins: the
+    organization's owners and admins).
+
+    Follows `../docs/api.md`: paths under `/v1`, errors as problem details,
+    cursor pagination, UUIDs.
+
+security:
+  - pistis: []
+
+tags:
+  - name: automations
+  - name: runs
+
+paths:
+  /v1/organizations/{organizationId}/projects/{projectId}/automations:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [automations]
+      operationId: listAutomations
+      x-permission: '`automation:read` in the project'
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/AutomationStatus' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AutomationPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [automations]
+      operationId: createAutomation
+      x-permission: '`automation:manage` in the project'
+      description: An automation, `active` at once.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AutomationRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AutomationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/automations/{automationId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/AutomationId'
+    get:
+      tags: [automations]
+      operationId: getAutomation
+      x-permission: '`automation:read` in the project'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AutomationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [automations]
+      operationId: updateAutomation
+      x-permission: '`automation:manage` in the project'
+      description: Replaces its name, description, trigger and task (not an archived one). Runs already started keep what they were sent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AutomationRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AutomationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/automations/{automationId}/pause:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/AutomationId'
+    post:
+      tags: [automations]
+      operationId: pauseAutomation
+      x-permission: '`automation:manage` in the project'
+      description: Stops it firing until resumed (idempotent). Events while paused are not replayed.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AutomationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/automations/{automationId}/resume:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/AutomationId'
+    post:
+      tags: [automations]
+      operationId: resumeAutomation
+      x-permission: '`automation:manage` in the project'
+      description: Fires again for events from now on (idempotent).
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AutomationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/automations/{automationId}/archive:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/AutomationId'
+    post:
+      tags: [automations]
+      operationId: archiveAutomation
+      x-permission: '`automation:manage` in the project'
+      description: Stops it for good (idempotent); it and its runs stay readable.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AutomationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/automations/{automationId}/runs:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/AutomationId'
+    get:
+      tags: [runs]
+      operationId: listAutomationRuns
+      x-permission: '`automation:read` in the project'
+      description: Each time it fired, newest first, with the task it started or why Hephaestus refused it.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AutomationRunPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    AutomationId:
+      name: automationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Limit: { $ref: './common.openapi.yaml#/components/parameters/Limit' }
+    Cursor: { $ref: './common.openapi.yaml#/components/parameters/Cursor' }
+
+  securitySchemes:
+    pistis:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A Pistis access token (`../docs/identity.md`).
+  responses:
+    Unauthorized: { $ref: './common.openapi.yaml#/components/responses/Unauthorized' }
+    Forbidden: { $ref: './common.openapi.yaml#/components/responses/Forbidden' }
+    ValidationError: { $ref: './common.openapi.yaml#/components/responses/BadRequest' }
+    NotFound: { $ref: './common.openapi.yaml#/components/responses/NotFound' }
+    Unavailable: { $ref: './common.openapi.yaml#/components/responses/Unavailable' }
+    DomainError:
+      description: A business rule forbids this (409, with a `DomainErrorCode`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/DomainProblem' }
+
+  schemas:
+    # ---------- errors ----------
+    Problem: { $ref: './common.openapi.yaml#/components/schemas/Problem' }
+    DomainErrorCode:
+      type: string
+      enum:
+        - ORGANIZATION_SUSPENDED
+        - PROJECT_ARCHIVED
+        - AUTOMATION_ARCHIVED
+    DomainProblem:
+      description: Problem details for a business-rule violation.
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          required: [code]
+          properties:
+            code: { $ref: '#/components/schemas/DomainErrorCode' }
+    NextCursor: { $ref: './common.openapi.yaml#/components/schemas/NextCursor' }
+
+    # ---------- automations ----------
+    AutomationStatus:
+      type: string
+      description: '`active` fires; `paused` doesn''t until resumed; `archived` never again.'
+      enum: [active, paused, archived]
+    GitHubIssueEventType:
+      type: string
+      description: The Proxenos event that fires it (`../docs/git.md`, Webhooks).
+      enum: [github.issue.opened, github.issue.labeled, github.issue-comment.created]
+    RepositoryPermission:
+      type: string
+      description: |
+        The least role on the repository the event's author needs
+        (`../docs/git.md`, Untrusted input); `any` lets anyone fire it,
+        including people without access.
+      enum: [admin, maintain, write, triage, read, any]
+    AutomationTrigger:
+      type: object
+      additionalProperties: false
+      required: [type, event]
+      properties:
+        type: { type: string, const: github.issue }
+        event: { $ref: '#/components/schemas/GitHubIssueEventType' }
+        repositoryLinkId:
+          description: One of the project's repository links (Proxenos); null or left out for any repository linked to the project.
+          type: [string, 'null']
+          format: uuid
+        label:
+          description: |
+            For `github.issue.labeled`, the label that must be added; for the
+            other events, a label the issue must carry. Null or left out: no
+            label needed.
+          type: [string, 'null']
+          minLength: 1
+          maxLength: 100
+        minimumPermission:
+          description: Defaults to `write`.
+          $ref: '#/components/schemas/RepositoryPermission'
+        includePullRequests:
+          type: boolean
+          description: Also fire for pull requests' conversations (GitHub sends their comments as issue comments). Defaults to false.
+        includeAetherOs:
+          type: boolean
+          description: Also fire for what Aether-os's own bot did. Defaults to false, so an agent's comment never fires an automation again.
+    AutomationTaskAction:
+      type: object
+      additionalProperties: false
+      required: [agentId, title, instructions]
+      description: |
+        A task written here. `title` and `instructions` can use the event's
+        fields: `{{issue.number}}`, `{{issue.title}}`, `{{issue.url}}`,
+        `{{repository}}`, `{{author}}` and `{{label}}`. The issue's title is
+        written by whoever opened it: untrusted input for the agent.
+      properties:
+        agentId: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        instructions: { type: string, minLength: 1, maxLength: 100000 }
+    AutomationTemplateAction:
+      type: object
+      additionalProperties: false
+      required: [templateId]
+      description: A task from a Hephaestus task template; its inputs can use the same fields as a task's text.
+      properties:
+        templateId: { type: string, format: uuid }
+        version:
+          description: The template version; null or left out for its latest when the automation fires.
+          type: [integer, 'null']
+          minimum: 1
+        inputs:
+          type: object
+          additionalProperties: { type: string, maxLength: 10000 }
+    AutomationAction:
+      type: object
+      additionalProperties: false
+      required: [serviceAccountId]
+      description: The task to start; exactly one of `task` and `template`.
+      properties:
+        task: { $ref: '#/components/schemas/AutomationTaskAction' }
+        template: { $ref: '#/components/schemas/AutomationTemplateAction' }
+        serviceAccountId:
+          type: string
+          format: uuid
+          description: The Pistis service account the tasks run as; it needs a role in the project.
+        workInRepository:
+          type: boolean
+          description: The task works in the repository the event came from (its link in this project). Defaults to true.
+        reviewArtifactKinds:
+          type: array
+          description: Artifact kinds that need approval before delivery (`*` for all), as a task's `review.artifactKinds`.
+          maxItems: 20
+          items: { type: string, minLength: 1, maxLength: 50 }
+    AutomationRequest:
+      type: object
+      additionalProperties: false
+      required: [name, trigger, action]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        trigger: { $ref: '#/components/schemas/AutomationTrigger' }
+        action: { $ref: '#/components/schemas/AutomationAction' }
+    AutomationResponse:
+      type: object
+      required: [id, organizationId, projectId, name, description, status, trigger, action, createdBy, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/AutomationStatus' }
+        trigger: { $ref: '#/components/schemas/AutomationTrigger' }
+        action: { $ref: '#/components/schemas/AutomationAction' }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+    AutomationPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AutomationResponse' }
+        nextCursor: { $ref: '#/components/schemas/NextCursor' }
+
+    # ---------- runs ----------
+    AutomationRunStatus:
+      type: string
+      description: '`requested`: the command is sent, Hephaestus hasn''t answered; `created`: a task was created; `rejected`: Hephaestus refused it.'
+      enum: [requested, created, rejected]
+    AutomationRunResponse:
+      type: object
+      required: [id, automationId, status, event, taskId, rejection, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Also the `task.create` command's idempotency key.
+        automationId: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/AutomationRunStatus' }
+        event:
+          type: object
+          description: What fired it.
+          required: [eventId, type, webhookDeliveryId, repository, issueNumber, url, author]
+          properties:
+            eventId: { type: string, format: uuid }
+            type: { $ref: '#/components/schemas/GitHubIssueEventType' }
+            webhookDeliveryId: { type: string, format: uuid }
+            repository: { type: string }
+            issueNumber: { type: integer, minimum: 1 }
+            url: { type: string }
+            author: { type: string }
+        taskId:
+          type: [string, 'null']
+          format: uuid
+        rejection:
+          description: Hephaestus's reason, for a `rejected` run.
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [code, message]
+              properties:
+                code: { type: string }
+                message: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AutomationRunPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AutomationRunResponse' }
+        nextCursor: { $ref: '#/components/schemas/NextCursor' }

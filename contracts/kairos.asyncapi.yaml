@@ -1,0 +1,99 @@
+asyncapi: 3.0.0
+info:
+  title: Kairos events
+  version: 0.1.0
+  description: |
+    Events Kairos publishes to the `kairos.events` topic exchange on
+    RabbitMQ; the routing key is the event type. Every message is the Krepis
+    `DomainEvent` envelope (see `../docs/events.md`), JSON, persistent, with
+    the event ID as AMQP `messageId` and the event type as `type`.
+
+    Delivery is at least once (transactional outbox and relay): deduplicate
+    on `eventId`. `automation.triggered` has the run as its aggregate.
+
+    Kairos also sends the `task.create` command to Hephaestus
+    (`hephaestus.asyncapi.yaml`); the run's ID is its idempotency key.
+
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:5672
+    protocol: amqp
+    description: RabbitMQ from ../docker-compose.yml
+
+channels:
+  kairosEvents:
+    address: kairos.events
+    description: Topic exchange; consumers bind their own durable queue (`<consumer>.kairos-events`) to the routing keys they need.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: kairos.events
+          type: topic
+          durable: true
+          autoDelete: false
+    messages:
+      automationTriggered: { $ref: '#/components/messages/automationTriggered' }
+
+operations:
+  publishKairosEvents:
+    action: send
+    channel: { $ref: '#/channels/kairosEvents' }
+    messages:
+      - $ref: '#/channels/kairosEvents/messages/automationTriggered'
+
+components:
+  messages:
+    automationTriggered:
+      name: automation.triggered
+      summary: An automation fired; a task was requested from Hephaestus (Iris activity, Kriterion).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: automation.triggered }
+              payload: { $ref: '#/components/schemas/AutomationTriggered' }
+
+  schemas:
+    Uuid: { type: string, format: uuid }
+    Envelope:
+      type: object
+      description: Krepis's `DomainEvent`.
+      required: [eventId, eventType, schemaVersion, aggregateId, aggregateVersion, occurredAt, organizationId, projectId, actor, payload]
+      properties:
+        eventId: { $ref: '#/components/schemas/Uuid', description: 'UUIDv7; the deduplication key.' }
+        eventType: { type: string }
+        schemaVersion: { type: integer, const: 1 }
+        aggregateId: { $ref: '#/components/schemas/Uuid' }
+        aggregateVersion: { type: integer, minimum: 1 }
+        occurredAt: { type: string, format: date-time }
+        organizationId: { $ref: '#/components/schemas/Uuid' }
+        projectId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        actor:
+          description: Null for system work (Kairos reacting to events).
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [sub, sub_type]
+              properties:
+                sub: { type: string }
+                sub_type: { enum: [user, service_account, service] }
+        payload: { type: object }
+    AutomationTriggered:
+      type: object
+      additionalProperties: false
+      required: [automationId, runId, triggerType, sourceEventId, webhookDeliveryId]
+      properties:
+        automationId: { $ref: '#/components/schemas/Uuid' }
+        runId:
+          description: Also the `task.create` command's idempotency key.
+          $ref: '#/components/schemas/Uuid'
+        triggerType: { type: string, description: 'The event that fired it, e.g. `github.issue.opened`.' }
+        sourceEventId: { $ref: '#/components/schemas/Uuid' }
+        webhookDeliveryId: { $ref: '#/components/schemas/Uuid' }

@@ -619,6 +619,7 @@ describe('GitHub: connecting, links, tokens, webhooks (e2e)', () => {
           repositoryId: api.id,
           repository: 'acme/api',
           projectIds: [projectId],
+          links: [{ projectId, linkId: expect.any(String) }],
           number: 7,
           title: 'Login fails for uppercase emails',
           url: 'https://github.com/acme/api/issues/7',
@@ -683,6 +684,7 @@ describe('GitHub: connecting, links, tokens, webhooks (e2e)', () => {
         authorPermission: null,
         fromAetherOs: false,
         projectIds: [],
+        links: [],
       });
     });
 

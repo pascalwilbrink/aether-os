@@ -5,6 +5,7 @@ packages:
   - hephaestus
   - pistis
   - proxenos
+  - kairos
   - iris
 
 # Native builds allowed during install.

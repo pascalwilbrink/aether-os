@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Proxenos events
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Events Proxenos publishes to the `proxenos.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -224,7 +224,7 @@ components:
     GitHubIssueEvent:
       type: object
       additionalProperties: false
-      required: [webhookDeliveryId, deliveryId, repositoryId, repository, projectIds, number, title, url, isPullRequest, labels, label, commentId, author, authorPermission, fromAetherOs]
+      required: [webhookDeliveryId, deliveryId, repositoryId, repository, projectIds, links, number, title, url, isPullRequest, labels, label, commentId, author, authorPermission, fromAetherOs]
       properties:
         webhookDeliveryId:
           description: The stored delivery, whose full payload (the body, the comment) `GET /v1/organizations/{organizationId}/webhook-deliveries/{id}` returns.
@@ -236,6 +236,16 @@ components:
           type: array
           description: The projects the repository is linked to (none when it isn't linked yet).
           items: { $ref: '#/components/schemas/Uuid' }
+        links:
+          type: array
+          description: The same projects with their repository link, whose ID a task working in the repository names (Hephaestus's `repository.linkId`).
+          items:
+            type: object
+            additionalProperties: false
+            required: [projectId, linkId]
+            properties:
+              projectId: { $ref: '#/components/schemas/Uuid' }
+              linkId: { $ref: '#/components/schemas/Uuid' }
         number: { type: integer, minimum: 1 }
         title: { type: string, description: The issue's title, written by whoever opened it (untrusted). }
         url: { type: string }

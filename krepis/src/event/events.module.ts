@@ -77,6 +77,13 @@ export class EventsModule {
                         type: 'topic',
                         options: { durable: true },
                       },
+                      // The receivers' command exchanges, so a command can
+                      // be published before its receiver first started.
+                      ...Object.keys(events.send ?? {}).map((receiver) => ({
+                        name: `${receiver}.commands`,
+                        type: 'direct',
+                        options: { durable: true },
+                      })),
                     ],
                     // Start even while RabbitMQ is down: events wait in the
                     // outbox, and consumers start once it's reachable.

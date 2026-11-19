@@ -87,6 +87,13 @@ export interface GithubIssueCommentCreated {
    * The projects the repository is linked to (none when it isn't linked yet).
    */
   projectIds: string[];
+  /**
+   * The same projects with their repository link, whose ID a task working in the repository names (Hephaestus's `repository.linkId`).
+   */
+  links: {
+    projectId: string;
+    linkId: string;
+  }[];
   number: number;
   /**
    * The issue's title
@@ -148,6 +155,13 @@ export interface GithubIssueLabeled {
    * The projects the repository is linked to (none when it isn't linked yet).
    */
   projectIds: string[];
+  /**
+   * The same projects with their repository link, whose ID a task working in the repository names (Hephaestus's `repository.linkId`).
+   */
+  links: {
+    projectId: string;
+    linkId: string;
+  }[];
   number: number;
   /**
    * The issue's title
@@ -209,6 +223,13 @@ export interface GithubIssueOpened {
    * The projects the repository is linked to (none when it isn't linked yet).
    */
   projectIds: string[];
+  /**
+   * The same projects with their repository link, whose ID a task working in the repository names (Hephaestus's `repository.linkId`).
+   */
+  links: {
+    projectId: string;
+    linkId: string;
+  }[];
   number: number;
   /**
    * The issue's title
