@@ -1,4 +1,5 @@
 import type { AgentVersion, ApiSchema, Model } from "./api";
+import { skillFieldsOf, skillsFromForm } from "./skills";
 import { toolFieldsOf, toolsFromForm } from "./tool-servers";
 
 export type AgentVersionStatus = ApiSchema<"AgentVersionStatus">;
@@ -103,7 +104,7 @@ export function fieldsOf(version: AgentVersion | undefined): Record<string, stri
     allowedHosts: (version?.runtime.allowedHosts ?? []).join("\n"),
     runtimeProvider: version?.runtime.provider ?? DEFAULT_RUNTIME_PROVIDER,
     ...toolFieldsOf(version?.tools ?? []),
-    skills: JSON.stringify(version?.skills ?? []),
+    ...skillFieldsOf(version?.skills ?? []),
   };
 }
 
@@ -112,9 +113,8 @@ export type FormFields = Record<string, string | undefined>;
 
 /**
  * The request for a new version from the form's fields, or what's wrong
- * with them. Tools are the checked tool servers (`toolsFromForm`); skills
- * come as JSON from the version the form started from: Iris doesn't edit
- * them yet.
+ * with them. Tools are the checked tool servers (`toolsFromForm`), skills
+ * the checked skills at their chosen versions (`skillsFromForm`).
  */
 export function versionFromForm(fields: FormFields): { body: NewAgentVersion } | { error: string } {
   const value = (name: string) => (fields[name] ?? "").trim();
@@ -179,17 +179,8 @@ export function versionFromForm(fields: FormFields): { body: NewAgentVersion } |
   if ("error" in tools) return tools;
   body.tools = tools.tools;
 
-  const skills = value("skills");
-  if (skills) {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(skills);
-    } catch {
-      return { error: "The carried-over skills aren't valid." };
-    }
-    if (!Array.isArray(parsed)) return { error: "The carried-over skills aren't valid." };
-    // Validated by Hephaestus against the spec.
-    body.skills = parsed as NewAgentVersion["skills"];
-  }
+  const skills = skillsFromForm(fields);
+  if ("error" in skills) return skills;
+  body.skills = skills.skills;
   return { body };
 }

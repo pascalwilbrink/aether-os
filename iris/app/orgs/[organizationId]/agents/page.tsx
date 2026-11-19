@@ -29,12 +29,20 @@ async function Agents({ params }: Pick<Props, "params">) {
             What runs tasks: instructions, a model and a runtime, in versions. Tasks run the published version.
           </p>
         </div>
-        <Link
-          href={`/orgs/${organizationId}/agents/new`}
-          className="shrink-0 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500"
-        >
-          New agent
-        </Link>
+        <div className="flex shrink-0 gap-2">
+          <Link
+            href={`/orgs/${organizationId}/skills`}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          >
+            Skills
+          </Link>
+          <Link
+            href={`/orgs/${organizationId}/agents/new`}
+            className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+          >
+            New agent
+          </Link>
+        </div>
       </div>
       {agents.items.length === 0 ? (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">No agents yet.</p>

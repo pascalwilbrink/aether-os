@@ -31,6 +31,7 @@ describe("sidebar helpers", () => {
     expect(sectionOf(`${base}/projects/${PROJECT}/tasks/x`, ORG)).toBe("projects");
     expect(sectionOf(`${base}/projects/${PROJECT}/templates/x`, ORG)).toBe("templates");
     expect(sectionOf(`${base}/agents/new`, ORG)).toBe("agents");
+    expect(sectionOf(`${base}/skills/x`, ORG)).toBe("agents");
     expect(sectionOf(`${base}/members`, ORG)).toBe("members");
     for (const page of ["settings", "budget", "model-keys", "tool-servers", "github"]) {
       expect(sectionOf(`${base}/${page}`, ORG)).toBe("settings");

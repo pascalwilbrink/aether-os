@@ -26,6 +26,8 @@ export type TaskTemplateVersion = ApiSchema<"TaskTemplateVersionResponse">;
 export type Model = ApiSchema<"ModelResponse">;
 export type ToolServer = ApiSchema<"ToolServerResponse">;
 export type ToolSummary = ApiSchema<"ToolDescription">;
+export type Skill = ApiSchema<"SkillResponse">;
+export type SkillVersion = ApiSchema<"SkillVersionResponse">;
 /** Problem details (RFC 9457): every error response. */
 export type Problem = ApiSchema<"Problem">;
 /** Problem details for a business-rule violation, with a typed `code`. */

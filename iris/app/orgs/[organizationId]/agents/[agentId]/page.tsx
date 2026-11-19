@@ -12,6 +12,7 @@ import {
   listActiveModels,
   listAgentVersions,
   listModelKeys,
+  listSkills,
   listToolServers,
 } from "@/lib/api/hephaestus";
 import { getOrganization } from "@/lib/api/polis";
@@ -38,7 +39,7 @@ async function AgentDetails({ params }: Props) {
   const { organizationId, agentId } = await params;
   const session = await requireOrganization(organizationId, `/orgs/${organizationId}/agents/${agentId}`);
   const token = session.accessToken;
-  const [organization, agent, versions, models, organizationKeys, agentKeys, budget, toolServers] = await Promise.all([
+  const [organization, agent, versions, models, organizationKeys, agentKeys, budget, toolServers, skills] = await Promise.all([
     getOrganization(token, organizationId),
     getAgent(token, organizationId, agentId),
     listAgentVersions(token, organizationId, agentId),
@@ -47,6 +48,7 @@ async function AgentDetails({ params }: Props) {
     listModelKeys(token, organizationId, agentId),
     getAgentBudget(token, organizationId, agentId),
     listToolServers(token, organizationId),
+    listSkills(token, organizationId),
   ]);
   const ref = { organizationId, agentId };
   const [latest] = versions.items;
@@ -127,7 +129,9 @@ async function AgentDetails({ params }: Props) {
         <section className="space-y-3">
           <h2 className="font-medium">{latest ? `New version, from version ${latest.version}` : "First version"}</h2>
           {/* After a save, React resets the form to its defaults: the new latest version. */}
-          <VersionForm agent={ref} from={latest} models={models.items} toolServers={toolServers.items} />
+          <VersionForm agent={ref} from={latest} models={models.items} toolServers={toolServers.items}
+            skills={skills.items}
+          />
         </section>
       ) : null}
     </div>
@@ -174,7 +178,12 @@ function VersionDetails({
               .map((tool) => (tool.tools ? `${tool.name} (${tool.tools.join(", ")})` : tool.name))
               .join(", ") || "none"}
           </Fact>
-          <Fact label="Skills">{version.skills.map((skill) => skill.name).join(", ") || "none"}</Fact>
+          <Fact label="Skills">
+            {version.skills
+              .filter((skill) => skill.enabled)
+              .map((skill) => `${skill.name} v${skill.version}`)
+              .join(", ") || "none"}
+          </Fact>
           <Fact label="Created">{formatTime(version.createdAt)}</Fact>
           <Fact label="Published">{version.publishedAt ? formatTime(version.publishedAt) : "never"}</Fact>
         </dl>

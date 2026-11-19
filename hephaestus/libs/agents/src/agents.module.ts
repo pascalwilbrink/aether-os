@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { ModelsModule } from '@hephaestus/models';
 import { TenancyModule } from '@hephaestus/tenancy';
+import { SkillsModule } from '@hephaestus/skills';
 import { ToolsModule } from '@hephaestus/tools';
 
 import { AgentBudgetController } from './agent-budget.controller.js';
@@ -22,6 +23,7 @@ import { AgentsService } from './agents.service.js';
     TenancyModule,
     ModelsModule,
     ToolsModule,
+    SkillsModule,
   ],
   controllers: [
     AgentsController,

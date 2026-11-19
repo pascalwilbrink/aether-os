@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.20.0
+  version: 0.21.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -40,6 +40,7 @@ tags:
   - name: budgets
   - name: model-keys
   - name: tool-servers
+  - name: skills
 
 paths:
   /v1/organizations/{organizationId}/agents:
@@ -139,7 +140,9 @@ paths:
         server. Its model must be an `active` model of the catalogue
         (`MODEL_NOT_AVAILABLE` otherwise), and each enabled entry of `tools`
         must name one of the organization's tool servers, each at most once
-        (`TOOL_SERVER_INVALID` otherwise).
+        (`TOOL_SERVER_INVALID` otherwise); each enabled entry of `skills` a
+        version of one of its active skills, each skill at most once
+        (`SKILL_INVALID`).
       requestBody:
         required: true
         content:
@@ -1485,6 +1488,174 @@ paths:
             application/problem+json:
               schema: { $ref: '#/components/schemas/Problem' }
 
+  /v1/organizations/{organizationId}/skills:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [skills]
+      operationId: listSkills
+      x-permission: '`agent:read`'
+      description: The organization's skills, by name, without their files.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/SkillStatus' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: By name
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SkillPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [skills]
+      operationId: createSkill
+      x-permission: '`agent:write`'
+      description: |
+        Creates a skill with its first version: a folder of text files in the
+        Agent Skills format, with `SKILL.md` at its root (YAML front matter
+        with `name`, the skill's name, and `description`, then the
+        instructions). Agent versions pin a version of it (`skills[]`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSkillRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SkillResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/skills/{skillId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/SkillId'
+    get:
+      tags: [skills]
+      operationId: getSkill
+      x-permission: '`agent:read`'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SkillResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/skills/{skillId}/archive:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/SkillId'
+    post:
+      tags: [skills]
+      operationId: archiveSkill
+      x-permission: '`agent:write`'
+      description: |
+        Archives it (idempotent): new agent versions can't choose it, and it
+        gets no new versions. Agent versions that already pin one of its
+        versions keep running with it.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SkillResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/skills/{skillId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/SkillId'
+    get:
+      tags: [skills]
+      operationId: listSkillVersions
+      x-permission: '`agent:read`'
+      description: Newest first, without their files.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SkillVersionPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [skills]
+      operationId: createSkillVersion
+      x-permission: '`agent:write`'
+      description: |
+        A new version (versions never change): the whole folder again, its
+        `SKILL.md` naming the same skill. Numbered by the server.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSkillVersionRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SkillVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/skills/{skillId}/versions/{version}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/SkillId'
+      - name: version
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      tags: [skills]
+      operationId: getSkillVersion
+      x-permission: '`agent:read`'
+      description: The version with its files.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SkillVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   parameters:
     OrganizationId:
@@ -1534,6 +1705,11 @@ components:
       schema: { $ref: '#/components/schemas/ModelProvider' }
     ModelId:
       name: modelId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    SkillId:
+      name: skillId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -1597,6 +1773,9 @@ components:
         - TASK_TEMPLATE_INVALID
         - TOOL_SERVER_ALREADY_EXISTS
         - TOOL_SERVER_INVALID
+        - SKILL_ALREADY_EXISTS
+        - SKILL_ARCHIVED
+        - SKILL_INVALID
         - WORKSPACE_INVALID_EXPIRY
         - WORKSPACE_INVALID_TRANSITION
     DomainProblem:
@@ -1684,6 +1863,11 @@ components:
       type: object
       additionalProperties: false
       required: [name, version, enabled]
+      description: |
+        A version of one of the organization's skills (`/skills`), pinned:
+        `version` is its number (`"3"`). An enabled entry must name an
+        active skill and one of its versions when the agent version is
+        created (`SKILL_INVALID` otherwise).
       properties:
         name: { type: string, minLength: 1 }
         version: { type: string, minLength: 1 }
@@ -2903,3 +3087,98 @@ components:
         items:
           type: array
           items: { $ref: '#/components/schemas/ToolDescription' }
+
+    # ---------- skills ----------
+    SkillName:
+      type: string
+      description: Lowercase letters, digits and hyphens (the Agent Skills format), unique in the organization.
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      maxLength: 64
+    SkillStatus:
+      type: string
+      enum: [active, archived]
+    SkillFile:
+      type: object
+      additionalProperties: false
+      required: [path, content]
+      properties:
+        path:
+          type: string
+          description: Relative to the skill's folder, e.g. `SKILL.md` or `references/checklist.md`; no `..`.
+          maxLength: 200
+          pattern: '^[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$'
+        content:
+          type: string
+          description: The file's text (UTF-8).
+    SkillFiles:
+      type: array
+      description: The skill's folder, with `SKILL.md` at its root; at most 100 files and 1 MiB in all.
+      minItems: 1
+      maxItems: 100
+      items: { $ref: '#/components/schemas/SkillFile' }
+    CreateSkillRequest:
+      type: object
+      additionalProperties: false
+      required: [name, files]
+      properties:
+        name: { $ref: '#/components/schemas/SkillName' }
+        files: { $ref: '#/components/schemas/SkillFiles' }
+    CreateSkillVersionRequest:
+      type: object
+      additionalProperties: false
+      required: [files]
+      properties:
+        files: { $ref: '#/components/schemas/SkillFiles' }
+    SkillResponse:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, name, description, status, latestVersion, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        name: { $ref: '#/components/schemas/SkillName' }
+        description:
+          type: string
+          description: The latest version's, from its `SKILL.md`.
+        status: { $ref: '#/components/schemas/SkillStatus' }
+        latestVersion: { type: integer, minimum: 1 }
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    SkillPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/SkillResponse' }
+    SkillVersionResponse:
+      type: object
+      additionalProperties: false
+      required: [id, skillId, organizationId, name, version, description, sizeBytes, fileCount, createdBy, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        skillId: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        name: { $ref: '#/components/schemas/SkillName' }
+        version: { type: integer, minimum: 1 }
+        description: { type: string }
+        sizeBytes: { type: integer, minimum: 0 }
+        fileCount: { type: integer, minimum: 1 }
+        files:
+          description: Only when reading one version.
+          type: array
+          items: { $ref: '#/components/schemas/SkillFile' }
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+    SkillVersionPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/SkillVersionResponse' }
