@@ -214,6 +214,13 @@ export const listProjects = <ThrowOnError extends boolean = false>(
     ...options,
   });
 
+/**
+ * Creates an active project. Its creator gets the highest role their
+ * organization role allows in it (a `member` becomes `approver`, a
+ * service account `editor`), so they can open it; owners and admins get
+ * none, being admins in every project already.
+ *
+ */
 export const createProject = <ThrowOnError extends boolean = false>(
   options: Options<CreateProjectData, ThrowOnError>,
 ): RequestResult<CreateProjectResponses, CreateProjectErrors, ThrowOnError> =>

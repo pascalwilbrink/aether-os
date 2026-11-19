@@ -101,6 +101,12 @@ export interface paths {
         };
         get: operations["listProjects"];
         put?: never;
+        /**
+         * @description Creates an active project. Its creator gets the highest role their
+         *     organization role allows in it (a `member` becomes `approver`, a
+         *     service account `editor`), so they can open it; owners and admins get
+         *     none, being admins in every project already.
+         */
         post: operations["createProject"];
         delete?: never;
         options?: never;
