@@ -37,6 +37,24 @@ function freePort(): Promise<number> {
   });
 }
 
+/**
+ * Waits until the proxy's log has every one of these: it logs a refusal on
+ * stdout and answers on the socket, and the answer can arrive first.
+ */
+async function logged(
+  output: () => string,
+  ...texts: string[]
+): Promise<string> {
+  const deadline = Date.now() + 5_000;
+  while (!texts.every((text) => output().includes(text))) {
+    if (Date.now() > deadline) {
+      throw new Error(`Not logged: ${texts.join(', ')}\n${output()}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  return output();
+}
+
 /** A CONNECT through the proxy: the status line it answers with. */
 function connect(proxyPort: number, target: string): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -120,6 +138,13 @@ describe('egress proxy', () => {
     expect(refused).toMatchObject({ status: 403 });
     expect(refused.body).toContain('example.org (not on the allowlist)');
 
+    await logged(
+      output,
+      '"host":"127.0.0.1"',
+      '"host":"example.com"',
+      '"host":"example.org"',
+      '"host":"localhost"',
+    );
     expect(blockedHostsIn(output())).toEqual([
       '127.0.0.1',
       'example.com',
@@ -135,7 +160,7 @@ describe('egress proxy', () => {
     });
 
     expect(await connect(port, `localhost:${upstreamPort}`)).toBe(403);
-    expect(output()).toContain('"reason":"private address"');
+    await logged(output, '"reason":"private address"');
   });
 
   it("matches a wildcard's subdomains, not the domain itself", async () => {
@@ -144,10 +169,9 @@ describe('egress proxy', () => {
     // Allowed, then unresolvable (no such domain): refused for that reason.
     expect(await connect(port, 'npm.registry.test:443')).toBe(403);
     expect(await connect(port, 'registry.test:443')).toBe(403);
-    expect(output()).toContain(
+    await logged(
+      output,
       '"host":"npm.registry.test","port":443,"reason":"unresolvable"',
-    );
-    expect(output()).toContain(
       '"host":"registry.test","port":443,"reason":"not on the allowlist"',
     );
   });
