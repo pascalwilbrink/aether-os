@@ -110,6 +110,17 @@ const DEV_CLIENTS = [
     token_endpoint_auth_method: 'client_secret_basic',
     platform_permissions: ['platform:read'],
   },
+  // Kerykes's own token (client credentials): memberships from Polis,
+  // recipients' email addresses from Pistis.
+  {
+    client_id: 'kerykes',
+    client_secret: 'kerykes-dev-secret',
+    redirect_uris: [],
+    response_types: [],
+    grant_types: ['client_credentials'],
+    token_endpoint_auth_method: 'client_secret_basic',
+    platform_permissions: ['platform:read'],
+  },
   // Operator tooling for local development: create users, suspend
   // organizations (README: "Creating a user").
   {

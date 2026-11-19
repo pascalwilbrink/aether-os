@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": true
+  },
+  "entryFile": "src/main",
+  "projects": {
+    "core": {
+      "type": "library",
+      "root": "libs/core",
+      "entryFile": "index",
+      "sourceRoot": "libs/core/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/core/tsconfig.lib.json"
+      }
+    },
+    "directory": {
+      "type": "library",
+      "root": "libs/directory",
+      "entryFile": "index",
+      "sourceRoot": "libs/directory/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/directory/tsconfig.lib.json"
+      }
+    },
+    "memberships": {
+      "type": "library",
+      "root": "libs/memberships",
+      "entryFile": "index",
+      "sourceRoot": "libs/memberships/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/memberships/tsconfig.lib.json"
+      }
+    },
+    "notifications": {
+      "type": "library",
+      "root": "libs/notifications",
+      "entryFile": "index",
+      "sourceRoot": "libs/notifications/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/notifications/tsconfig.lib.json"
+      }
+    }
+  }
+}

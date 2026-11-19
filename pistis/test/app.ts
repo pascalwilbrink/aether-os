@@ -37,15 +37,18 @@ export const MISSING_ID = '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
 
 /**
  * A client of Pistis's API as a platform operator would be: a service token
- * with `platform:manage`, signed with the app's own keys.
+ * with `platform:read` and `platform:manage` (as the dev `operator` client
+ * has), signed with the app's own keys.
  */
 export async function operatorAgent(app: INestApplication<App>) {
-  const token = await app
-    .get(TokenSigner)
-    .sign(
-      { sub: 'operator', sub_type: 'service', scope: 'platform:manage' },
-      600,
-    );
+  const token = await app.get(TokenSigner).sign(
+    {
+      sub: 'operator',
+      sub_type: 'service',
+      scope: 'platform:read platform:manage',
+    },
+    600,
+  );
   return request
     .agent(app.getHttpServer())
     .set('authorization', `Bearer ${token}`);
@@ -69,6 +72,16 @@ export async function memberAgent(
     },
     600,
   );
+  return request
+    .agent(app.getHttpServer())
+    .set('authorization', `Bearer ${token}`);
+}
+
+/** A platform service with only `platform:read` (e.g. Kerykes). */
+export async function readerAgent(app: INestApplication<App>) {
+  const token = await app
+    .get(TokenSigner)
+    .sign({ sub: 'kerykes', sub_type: 'service', scope: 'platform:read' }, 600);
   return request
     .agent(app.getHttpServer())
     .set('authorization', `Bearer ${token}`);

@@ -1,0 +1,215 @@
+openapi: 3.1.0
+info:
+  title: Kerykes API
+  version: 0.1.0
+  description: |
+    Notifications (`../docs/notifications.md`): Kerykes turns other
+    services' events that need people (drafts waiting for review, failed or
+    paused tasks, budgets nearly used, new memberships) into notifications
+    for the users concerned, in their **inbox** (read here, shown in Iris)
+    and by email.
+
+    The inbox is per user and per organization: each route reads or changes
+    only the caller's own notifications in the token's organization (users
+    only, with `org:read`; service accounts and services have no inbox).
+    Notifications about a project the caller can no longer read are left
+    out.
+
+    Follows `../docs/api.md`: paths under `/v1`, errors as problem details,
+    cursor pagination, UUIDs.
+
+security:
+  - pistis: []
+
+tags:
+  - name: notifications
+
+paths:
+  /v1/organizations/{organizationId}/notifications:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [notifications]
+      operationId: listNotifications
+      x-permission: '`org:read`; the caller''s own (users only)'
+      parameters:
+        - name: unread
+          in: query
+          required: false
+          description: Only unread ones (`true`), or only read ones (`false`).
+          schema: { type: boolean }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/notifications/unread-count:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [notifications]
+      operationId: countUnreadNotifications
+      x-permission: '`org:read`; the caller''s own (users only)'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UnreadCount' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/notifications/read-all:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [notifications]
+      operationId: readAllNotifications
+      x-permission: '`org:read`; the caller''s own (users only)'
+      description: Marks every unread notification of the caller in the organization read.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: How many there were, now none
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReadAllResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/notifications/{notificationId}/read:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/NotificationId'
+    post:
+      tags: [notifications]
+      operationId: readNotification
+      x-permission: '`org:read`; the caller''s own (users only)'
+      description: Marks it read (idempotent); another user's is a 404.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/notifications/{notificationId}/unread:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/NotificationId'
+    post:
+      tags: [notifications]
+      operationId: unreadNotification
+      x-permission: '`org:read`; the caller''s own (users only)'
+      description: Marks it unread again (idempotent).
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    NotificationId:
+      name: notificationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Limit: { $ref: './common.openapi.yaml#/components/parameters/Limit' }
+    Cursor: { $ref: './common.openapi.yaml#/components/parameters/Cursor' }
+
+  securitySchemes:
+    pistis:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A Pistis access token (`../docs/identity.md`).
+  responses:
+    Unauthorized: { $ref: './common.openapi.yaml#/components/responses/Unauthorized' }
+    Forbidden: { $ref: './common.openapi.yaml#/components/responses/Forbidden' }
+    ValidationError: { $ref: './common.openapi.yaml#/components/responses/BadRequest' }
+    NotFound: { $ref: './common.openapi.yaml#/components/responses/NotFound' }
+
+  schemas:
+    Problem: { $ref: './common.openapi.yaml#/components/schemas/Problem' }
+    NextCursor: { $ref: './common.openapi.yaml#/components/schemas/NextCursor' }
+
+    NotificationType:
+      type: string
+      description: |
+        What happened (`../docs/notifications.md`, Notifications):
+        `review_requested` (`task.awaiting-review`), `task_failed`,
+        `task_succeeded` (tasks started by hand), `task_paused` (a budget ran
+        out), `budget_threshold` (80% of a budget used) and
+        `membership_granted` (added to the organization or a project).
+      enum: [review_requested, task_failed, task_succeeded, task_paused, budget_threshold, membership_granted]
+    NotificationResponse:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, projectId, type, title, body, link, taskId, readAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        projectId:
+          description: The project it's about; null for the organization.
+          type: [string, 'null']
+          format: uuid
+        type: { $ref: '#/components/schemas/NotificationType' }
+        title:
+          type: string
+          description: One line, from Aether-os's own data only (never a task title, issue or agent output).
+        body: { type: string }
+        link:
+          type: string
+          description: Where it points in Iris, as a path (`/orgs/…`).
+        taskId:
+          type: [string, 'null']
+          format: uuid
+        readAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt: { type: string, format: date-time }
+    NotificationPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/NotificationResponse' }
+        nextCursor: { $ref: '#/components/schemas/NextCursor' }
+    UnreadCount:
+      type: object
+      additionalProperties: false
+      required: [unread]
+      properties:
+        unread: { type: integer, minimum: 0 }
+    ReadAllResponse:
+      type: object
+      additionalProperties: false
+      required: [read]
+      properties:
+        read: { type: integer, minimum: 0, description: How many were marked read. }
