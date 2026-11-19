@@ -24,6 +24,8 @@ import { ThemeSwitch } from "@/app/components/theme-switch";
 import { unreadBadge } from "@/lib/notifications";
 import { initials, projectColor, projectOf, sectionOf, type SidebarSection } from "@/lib/sidebar";
 
+import { startTour, Tour } from "./tour";
+
 export interface SidebarData {
   organization: { id: string; name: string };
   /** The person's organizations, to switch to. */
@@ -76,6 +78,7 @@ export function SidebarView({ data }: { data: SidebarData }) {
 
   return (
     <>
+      <Tour base={`/orgs/${data.organization.id}`} />
       {/* Small screens: a bar with the menu button. */}
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-200 bg-zinc-100/90 px-4 py-2 backdrop-blur md:hidden dark:border-zinc-800 dark:bg-[#0f0f11]/90">
         <Logo />
@@ -182,7 +185,7 @@ function Panel({
         </button>
       </div>
 
-      <div className="px-3">
+      <div className="px-3" data-tour="organization">
         <OrganizationSwitcher data={data} collapsed={collapsed} />
       </div>
 
@@ -193,10 +196,10 @@ function Panel({
         <ul className="space-y-1">
           {items.map(({ key, ...item }) => (
             <li key={key}>
-              <NavItem {...item} active={section === key} collapsed={collapsed} />
+              <NavItem {...item} tour={key} active={section === key} collapsed={collapsed} />
             </li>
           ))}
-          <li>
+          <li data-tour="projects">
             {collapsed ? (
               <NavItem
                 label="Projects"
@@ -273,7 +276,7 @@ function Panel({
           </li>
           {rest.map(({ key, ...item }) => (
             <li key={key}>
-              <NavItem {...item} active={section === key} collapsed={collapsed} />
+              <NavItem {...item} tour={key} active={section === key} collapsed={collapsed} />
             </li>
           ))}
         </ul>
@@ -323,7 +326,9 @@ function Panel({
       </div>
 
       <div className="border-t border-zinc-200 px-3 py-3 dark:border-zinc-800">
-        <UserMenu data={data} collapsed={collapsed} />
+        <div data-tour="user">
+          <UserMenu data={data} collapsed={collapsed} />
+        </div>
       </div>
     </nav>
   );
@@ -336,6 +341,7 @@ function NavItem({
   active,
   collapsed,
   badge,
+  tour,
 }: {
   label: string;
   href: string;
@@ -343,10 +349,13 @@ function NavItem({
   active: boolean;
   collapsed: boolean;
   badge?: string | null;
+  /** What the tour calls it (`data-tour`). */
+  tour?: string;
 }) {
   return (
     <Link
       href={href}
+      data-tour={tour}
       aria-current={active ? "page" : undefined}
       title={collapsed ? label : undefined}
       className={`flex items-center gap-3 rounded-lg px-3 py-2 text-[15px] font-medium ${
@@ -493,6 +502,16 @@ function UserMenu({ data, collapsed }: { data: SidebarData; collapsed: boolean }
             <ThemeSwitch />
           </div>
           <div className="my-1 border-t border-zinc-200 dark:border-zinc-800" />
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              startTour();
+            }}
+            className="w-full rounded-lg px-2.5 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            Take the tour
+          </button>
           <Link href="/orgs" className="block rounded-lg px-2.5 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800">
             Switch organization
           </Link>
