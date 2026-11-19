@@ -24,7 +24,7 @@ export default function ProjectsPage(props: Props) {
 
 async function Projects({ params, searchParams }: Props) {
   const { organizationId } = await params;
-  const { show, created } = await searchParams;
+  const { show } = await searchParams;
   const path = `/orgs/${organizationId}/projects`;
   const session = await requireOrganization(organizationId, path);
   const archived = showArchived(show);
@@ -53,16 +53,6 @@ async function Projects({ params, searchParams }: Props) {
         </div>
         <NewProjectDialog action={createProjectAction.bind(null, organizationId)} />
       </div>
-
-      {created === "1" ? (
-        <p
-          role="status"
-          className="rounded-md bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
-        >
-          The project is created. To open it you need a role in it: an owner or admin of the organization can give you
-          one on the project&apos;s page.
-        </p>
-      ) : null}
 
       {shown.length === 0 ? (
         <div className="rounded-lg border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700">

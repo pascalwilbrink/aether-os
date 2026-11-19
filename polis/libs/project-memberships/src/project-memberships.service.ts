@@ -70,30 +70,14 @@ export class ProjectMembershipsService {
       dto.role,
     );
 
-    const entity = this.mapper.toEntity(
-      dto,
-      { organizationId, projectId },
-      this.access.principal().sub,
-      new Date(),
+    return this.mapper.toResponse(
+      await this.grant(
+        organizationId,
+        projectId,
+        dto,
+        this.access.principal().sub,
+      ),
     );
-    try {
-      await this.grants.insert(entity);
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new ProjectMembershipExistsError(dto.subjectType, dto.subject);
-      }
-      throw error;
-    }
-    await this.events.emit({
-      eventType: 'project-membership.granted',
-      aggregateId: entity.id,
-      aggregateVersion: entity.version,
-      organizationId,
-      projectId,
-      payload: { ...this.eventBase(entity), role: entity.role },
-    });
-
-    return this.mapper.toResponse(entity);
   }
 
   async list(
@@ -175,6 +159,45 @@ export class ProjectMembershipsService {
     return this.page({ organizationId, subjectType, subject }, page);
   }
 
+  /**
+   * Whoever creates a project gets a role in it, the highest their
+   * organization role allows (an organization `member`: `approver`; a
+   * service account: `editor`), in the project's transaction, so they can
+   * open what they made. Owners and admins get none: they're admins in
+   * every project already.
+   */
+  @OnDomainEvent('polis.project.created')
+  async onProjectCreated(
+    event: DomainEvent<PolisEventPayloads['project.created']>,
+  ): Promise<void> {
+    const { actor, organizationId } = event;
+    if (
+      !actor ||
+      !organizationId ||
+      (actor.sub_type !== 'user' && actor.sub_type !== 'service_account')
+    ) {
+      return;
+    }
+    const roles = await this.memberships.rolesOf(
+      organizationId,
+      actor.sub_type,
+      actor.sub,
+    );
+    if (!roles || roles.includes('owner') || roles.includes('admin')) {
+      return;
+    }
+    const role = grantableCap(actor.sub_type, roles);
+    if (!role) {
+      return;
+    }
+    await this.grant(
+      organizationId,
+      event.payload.projectId,
+      { subjectType: actor.sub_type, subject: actor.sub, role },
+      actor.sub,
+    );
+  }
+
   /** A lowered organization role caps the principal's grants in it. */
   @OnDomainEvent('polis.membership.role-changed')
   async onOrganizationRoleChanged(
@@ -200,6 +223,37 @@ export class ProjectMembershipsService {
     for (const grant of await this.grantsOf(scope.organizationId, principal)) {
       await this.revoke(grant);
     }
+  }
+
+  private async grant(
+    organizationId: string,
+    projectId: string,
+    dto: CreateProjectMembershipRequest,
+    createdBy: string,
+  ): Promise<ProjectMembershipEntity> {
+    const entity = this.mapper.toEntity(
+      dto,
+      { organizationId, projectId },
+      createdBy,
+      new Date(),
+    );
+    try {
+      await this.grants.insert(entity);
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ProjectMembershipExistsError(dto.subjectType, dto.subject);
+      }
+      throw error;
+    }
+    await this.events.emit({
+      eventType: 'project-membership.granted',
+      aggregateId: entity.id,
+      aggregateVersion: entity.version,
+      organizationId,
+      projectId,
+      payload: { ...this.eventBase(entity), role: entity.role },
+    });
+    return entity;
   }
 
   private async assertGrantable(

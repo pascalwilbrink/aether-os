@@ -17,9 +17,10 @@ export interface NewProjectState {
 
 /**
  * Creates a project (Polis, `project:create`), then opens it. Owners and
- * admins are admins in every project; anyone else has no role in a new
- * project until one is given (Polis doesn't give its creator one), so they
- * go back to the overview, which says so.
+ * admins are admins in every project already. Anyone else gets a role in it
+ * from Polis (the creator's), which their token doesn't carry yet: they go
+ * through a new sign-in for the organization (a redirect round trip, no
+ * page), whose token has it, and on to the project.
  */
 export async function createProjectAction(
   organizationId: string,
@@ -54,9 +55,10 @@ export async function createProjectAction(
     };
   }
   const roles = organizationRoles(session.accessToken);
+  const project = `/orgs/${organizationId}/projects/${projectId}`;
   redirect(
     roles.includes("owner") || roles.includes("admin")
-      ? `/orgs/${organizationId}/projects/${projectId}`
-      : `/orgs/${organizationId}/projects?created=1`,
+      ? project
+      : `/auth/sign-in?organization=${organizationId}&returnTo=${encodeURIComponent(project)}`,
   );
 }

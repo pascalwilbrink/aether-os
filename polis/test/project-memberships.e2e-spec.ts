@@ -46,6 +46,59 @@ describe('Project memberships (e2e)', () => {
   const grant = (subject: string, role: string, subjectType = 'user') =>
     owner.post(base).send({ subjectType, subject, role });
 
+  it("gives a project's creator a role in it, unless they're an admin already", async () => {
+    await join('user-1', ['member']);
+    await join('sa-1', ['member'], 'service_account');
+    const projects = `/v1/organizations/${orgId}/projects`;
+    const create = async (as: Client, slug: string) =>
+      (
+        await as
+          .post(projects)
+          .send({ name: slug, slug, description: '' })
+          .expect(201)
+      ).body.id as string;
+    const rolesIn = async (id: string) =>
+      (
+        await owner.get(`${projects}/${id}/memberships`).expect(200)
+      ).body.items.map(
+        (m: {
+          subjectType: string;
+          subject: string;
+          role: string;
+          createdBy: string;
+        }) => [m.subjectType, m.subject, m.role, m.createdBy],
+      );
+
+    // A member: approver, the most a member can be.
+    const mine = await create(await asMember(app, orgId, ['member']), 'mine');
+    expect(await rolesIn(mine)).toEqual([
+      ['user', 'user-1', 'approver', 'user-1'],
+    ]);
+    // A service account: editor (service accounts never approve).
+    const theirs = await create(
+      await asMember(app, orgId, ['member'], {
+        sub: 'sa-1',
+        subType: 'service_account',
+      }),
+      'theirs',
+    );
+    expect(await rolesIn(theirs)).toEqual([
+      ['service_account', 'sa-1', 'editor', 'sa-1'],
+    ]);
+    // The owner: none, being an admin of every project.
+    expect(await rolesIn(projectId)).toEqual([]);
+
+    const granted = (await outboxEvents(app)).filter(
+      (e) => e.eventType === 'project-membership.granted',
+    );
+    expect(
+      granted.map((e) => [e.projectId, (e.payload as { role: string }).role]),
+    ).toEqual([
+      [mine, 'approver'],
+      [theirs, 'editor'],
+    ]);
+  });
+
   it('grants, reads, changes and removes a project role', async () => {
     await join('user-1', ['member']);
 
