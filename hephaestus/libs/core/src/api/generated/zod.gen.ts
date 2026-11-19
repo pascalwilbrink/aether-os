@@ -730,6 +730,23 @@ export const zBudgetResponse = z.object({
     updatedAt: z.iso.datetime().nullable()
 });
 
+export const zSetModelKeyRequest = z.object({
+    apiKey: z.string().min(8).max(1000)
+});
+
+export const zModelKeyResponse = z.object({
+    provider: zModelProvider,
+    scope: z.enum(['organization', 'agent']),
+    agentId: z.uuid().nullable(),
+    hint: z.string(),
+    updatedBy: z.string(),
+    updatedAt: z.iso.datetime()
+});
+
+export const zModelKeyList = z.object({
+    items: z.array(zModelKeyResponse)
+});
+
 /**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
@@ -834,6 +851,8 @@ export const zTaskId = z.uuid();
 export const zTemplateId = z.uuid();
 
 export const zArtifactId = z.uuid();
+
+export const zProvider = zModelProvider;
 
 export const zModelId = z.uuid();
 
@@ -1425,3 +1444,68 @@ export const zSetTaskTreeBudgetPath = z.object({
  * OK
  */
 export const zSetTaskTreeBudgetResponse = zBudgetResponse;
+
+export const zListOrganizationModelKeysPath = z.object({
+    organizationId: z.uuid()
+});
+
+/**
+ * By provider
+ */
+export const zListOrganizationModelKeysResponse = zModelKeyList;
+
+export const zDeleteOrganizationModelKeyPath = z.object({
+    organizationId: z.uuid(),
+    provider: zModelProvider
+});
+
+/**
+ * Removed (also when there was none)
+ */
+export const zDeleteOrganizationModelKeyResponse = z.void();
+
+export const zSetOrganizationModelKeyBody = zSetModelKeyRequest;
+
+export const zSetOrganizationModelKeyPath = z.object({
+    organizationId: z.uuid(),
+    provider: zModelProvider
+});
+
+/**
+ * Stored in OpenBao; never returned
+ */
+export const zSetOrganizationModelKeyResponse = zModelKeyResponse;
+
+export const zListAgentModelKeysPath = z.object({
+    organizationId: z.uuid(),
+    agentId: z.uuid()
+});
+
+/**
+ * By provider
+ */
+export const zListAgentModelKeysResponse = zModelKeyList;
+
+export const zDeleteAgentModelKeyPath = z.object({
+    organizationId: z.uuid(),
+    agentId: z.uuid(),
+    provider: zModelProvider
+});
+
+/**
+ * Removed (also when there was none)
+ */
+export const zDeleteAgentModelKeyResponse = z.void();
+
+export const zSetAgentModelKeyBody = zSetModelKeyRequest;
+
+export const zSetAgentModelKeyPath = z.object({
+    organizationId: z.uuid(),
+    agentId: z.uuid(),
+    provider: zModelProvider
+});
+
+/**
+ * Stored in OpenBao; never returned
+ */
+export const zSetAgentModelKeyResponse = zModelKeyResponse;

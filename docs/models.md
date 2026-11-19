@@ -2,7 +2,7 @@
 
 How agents reach LLM providers, whose keys they use, and how usage and cost are measured and limited.
 
-Status: agreed design. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/models`, used by the Mastra runtime): the gateway resolving an agent version's model with the organization's key, else the platform's if allowed (`PLATFORM_MODEL_KEYS`), from OpenBao; calls through Mastra's model router with retries on 429/5xx; metering of every call (tokens, cache reads and writes, key source, attribution) in `model_calls`, totalled per execution; and the **model catalogue** (`/v1/models`: models and their versioned prices; agent versions must name an active model, and every call is priced). and **budgets** (below, Built so far). Not yet: policy checks, fallback models, the gateway's HTTP endpoint, and LLM spans to Langfuse.
+Status: agreed design. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/models`, used by the Mastra runtime): the gateway resolving an agent version's model with the agent's own key, else the organization's, else the platform's if allowed (`PLATFORM_MODEL_KEYS`), from OpenBao; calls through Mastra's model router with retries on 429/5xx; metering of every call (tokens, cache reads and writes, key source, attribution) in `model_calls`, totalled per execution; and the **model catalogue** (`/v1/models`: models and their versioned prices; agent versions must name an active model, and every call is priced). and **budgets** (below, Built so far), and **setting keys** through the API and Iris (Keys, below). Not yet: policy checks, fallback models, the gateway's HTTP endpoint, and LLM spans to Langfuse.
 
 ## Decisions
 
@@ -27,7 +27,7 @@ The gateway:
 1. authenticates the caller (a task token, or a service token acting for a task);
 2. checks the model against policy (allowed models for the organization and project, data-residency rules);
 3. checks and reserves budget (below);
-4. picks the key: the organization's own key for that provider, else the platform key if allowed;
+4. picks the key: the agent's own key for that provider, else the organization's, else the platform key if allowed;
 5. calls the provider, with retries on 429/5xx and the agent version's optional fallback models;
 6. records usage and cost, emits the LLM span (to Langfuse via the Collector) and releases the unused part of the reservation.
 
@@ -37,11 +37,13 @@ Why a gateway instead of each component calling providers: one place for keys, b
 
 | Source | Stored at | Used when |
 |---|---|---|
-| Organization (BYOK) | `orgs/{organizationId}/llm/{provider}` in OpenBao | Always first, if present for that provider |
+| Agent (BYOK) | `orgs/{organizationId}/agents/{agentId}/llm/{provider}` in OpenBao | First, if the agent has its own key for that provider (e.g. to bill a separate provider account) |
+| Organization (BYOK) | `orgs/{organizationId}/llm/{provider}` in OpenBao | If the agent has none for that provider |
 | Platform | `platform/llm/{provider}` | If the organization has no key for that provider and its plan includes platform usage |
 
 - Organizations manage their keys with `secret:write` (organization-wide); keys are write-only through the API, as with every secret.
-- Proposal: a project can override with its own key (`orgs/{organizationId}/projects/{projectId}/llm/{provider}`), e.g. to bill a different provider account.
+- Built: `GET /v1/organizations/{organizationId}/model-keys` (`org:read`) and `PUT`/`DELETE …/model-keys/{provider}` (`org:secret:write`), and the same under `…/agents/{agentId}/model-keys` (read with `agent:read`). Hephaestus writes the key to OpenBao and keeps only a row per key (`model_keys`: scope, provider, its last four characters as a `hint`, who set it and when), so lists never touch OpenBao and never return a key. OpenBao unavailable is a `503` and nothing is stored. An agent's keys are set by the organization's owners and admins too (`org:secret:write`), not by whoever can edit the agent: a key is the organization's money. In Iris: the organization's **Model keys** page, and on the agent's page which key its model uses and its own.
+- Proposal: a project can override with its own key (`orgs/{organizationId}/projects/{projectId}/llm/{provider}`), between the agent's and the organization's.
 - With platform keys, the gateway also shares provider rate limits fairly between organizations (per-organization concurrency on model calls), so one tenant can't exhaust them for everyone.
 
 ## Models
@@ -61,7 +63,7 @@ Each call records:
 | Field | |
 |---|---|
 | `organizationId`, `projectId`, `taskId`, `executionId`, `agentVersionId`, `taskTemplateVersion` | Attribution |
-| `provider`, `model`, `keySource` (`organization` / `platform`) | What was used and who pays the provider |
+| `provider`, `model`, `keySource` (`agent` / `organization` / `platform`) | What was used and who pays the provider |
 | `inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheWriteTokens` | Usage, as reported by the provider; input includes cache reads and writes |
 | `costUsd`, `priceId` | Cost at the price in force when the run resolved its model |
 | `purpose` | `agent`, `judge`, `planning`, … |

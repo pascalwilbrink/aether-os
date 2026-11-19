@@ -14,6 +14,7 @@ import {
   type CatalogEntry,
 } from './model-catalog.service.js';
 import { costOf } from './model-cost.js';
+import { modelKeyPath } from './model-keys.service.js';
 import { ModelKeyMissingError, ModelRetiredError } from './model.errors.js';
 
 /** Who a model call is for: every call is attributed (docs/models.md). */
@@ -23,6 +24,8 @@ export interface ModelCallContext {
   taskId: string;
   /** The task tree it's part of (budgets: docs/models.md). */
   topLevelTaskId: string;
+  /** The agent: its own provider key comes first. */
+  agentId: string;
   executionId: string;
   agentVersionId: string;
 }
@@ -86,7 +89,7 @@ export class ModelGateway {
     if (entry?.status === 'retired') {
       throw new ModelRetiredError(provider, modelId);
     }
-    const key = await this.keyFor(context.organizationId, provider);
+    const key = await this.keyFor(context, provider);
     return {
       model: this.languageModels.create(`${provider}/${modelId}`, key.apiKey),
       provider,
@@ -181,12 +184,19 @@ export class ModelGateway {
     return usage;
   }
 
+  /** The agent's own key, else the organization's, else the platform's if allowed. */
   private async keyFor(
-    organizationId: string,
+    { organizationId, agentId }: ModelCallContext,
     provider: string,
   ): Promise<{ apiKey: string; source: KeySource }> {
+    const agents = apiKeyOf(
+      await this.secrets.read(modelKeyPath(organizationId, provider, agentId)),
+    );
+    if (agents) {
+      return { apiKey: agents, source: 'agent' };
+    }
     const own = apiKeyOf(
-      await this.secrets.read(`orgs/${organizationId}/llm/${provider}`),
+      await this.secrets.read(modelKeyPath(organizationId, provider)),
     );
     if (own) {
       return { apiKey: own, source: 'organization' };

@@ -1,6 +1,6 @@
 import { Check, Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
-export type KeySource = 'organization' | 'platform';
+export type KeySource = 'agent' | 'organization' | 'platform';
 
 /**
  * One call to a model provider through the gateway (docs/models.md,
@@ -10,7 +10,7 @@ export type KeySource = 'organization' | 'platform';
 @Entity({ name: 'model_calls' })
 @Check(
   'ck_model_calls_key_source',
-  `key_source IN ('organization', 'platform')`,
+  `key_source IN ('agent', 'organization', 'platform')`,
 )
 @Index('ix_model_calls_execution_id', ['executionId'])
 // What budgets sum (docs/models.md): per project and month, per task tree.

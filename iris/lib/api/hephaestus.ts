@@ -193,3 +193,25 @@ export const setTaskTreeBudget = (
     method: "PUT",
     body: { limitUsd },
   });
+
+// --- Provider keys (docs/models.md, Keys): the organization's, and an agent's own; write-only ---
+
+type ModelKeyList = ApiSchema<"ModelKeyList">;
+type ModelKey = ApiSchema<"ModelKeyResponse">;
+const keysOf = (organizationId: string, agentId?: string) =>
+  agentId ? `${agentsOf(organizationId)}/${agentId}/model-keys` : `/v1/organizations/${organizationId}/model-keys`;
+
+/** Which keys are set (last characters, who, when); never a key. */
+export const listModelKeys = (token: string, organizationId: string, agentId?: string) =>
+  hephaestus<ModelKeyList>(keysOf(organizationId, agentId), token);
+
+export const setModelKey = (
+  token: string,
+  organizationId: string,
+  provider: string,
+  apiKey: string,
+  agentId?: string,
+) => hephaestus<ModelKey>(`${keysOf(organizationId, agentId)}/${provider}`, token, { method: "PUT", body: { apiKey } });
+
+export const deleteModelKey = (token: string, organizationId: string, provider: string, agentId?: string) =>
+  hephaestus<void>(`${keysOf(organizationId, agentId)}/${provider}`, token, { method: "DELETE" });

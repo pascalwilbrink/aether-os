@@ -28,6 +28,14 @@ class FakeSecretStore extends SecretStore {
         : null,
     );
   }
+
+  write(): Promise<void> {
+    return Promise.reject(new Error('Proxenos never writes secrets'));
+  }
+
+  delete(): Promise<void> {
+    return Promise.reject(new Error('Proxenos never deletes secrets'));
+  }
 }
 
 /** The whole Proxenos app, configured as in main.ts, on an empty database. */

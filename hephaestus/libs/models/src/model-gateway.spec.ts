@@ -18,6 +18,7 @@ const context: ModelCallContext = {
   projectId: 'project-1',
   taskId: 'task-1',
   topLevelTaskId: 'task-1',
+  agentId: 'agent-1',
   executionId: 'execution-1',
   agentVersionId: 'version-1',
 };
@@ -107,5 +108,24 @@ describe('ModelGateway keys', () => {
       ModelRetiredError,
     );
     expect(secrets.reads).toEqual([]);
+  });
+
+  it("uses the agent's own key before the organization's", async () => {
+    secrets.secrets.set('orgs/org-1/llm/anthropic', { apiKey: 'own-key' });
+    secrets.secrets.set('orgs/org-1/agents/agent-1/llm/anthropic', {
+      apiKey: 'agent-key',
+    });
+
+    await expect(gateway(true).resolve(context, model)).resolves.toMatchObject({
+      keySource: 'agent',
+    });
+    expect(models.created).toEqual([
+      { id: 'anthropic/claude-sonnet', apiKey: 'agent-key' },
+    ]);
+
+    // Another agent of the organization uses the organization's.
+    await expect(
+      gateway(true).resolve({ ...context, agentId: 'agent-2' }, model),
+    ).resolves.toMatchObject({ keySource: 'organization' });
   });
 });

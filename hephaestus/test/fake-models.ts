@@ -12,6 +12,16 @@ export class FakeSecretStore extends SecretStore {
     this.reads.push(path);
     return Promise.resolve(this.secrets.get(path) ?? null);
   }
+
+  write(path: string, data: Record<string, unknown>): Promise<void> {
+    this.secrets.set(path, data);
+    return Promise.resolve();
+  }
+
+  delete(path: string): Promise<void> {
+    this.secrets.delete(path);
+    return Promise.resolve();
+  }
 }
 
 /** What a scripted model call returns, or the provider error it throws. */

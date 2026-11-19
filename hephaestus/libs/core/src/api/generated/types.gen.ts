@@ -907,6 +907,29 @@ export type BudgetResponse = {
     updatedAt: string | null;
 };
 
+export type SetModelKeyRequest = {
+    /**
+     * The provider's API key; write-only (stored in OpenBao, never returned).
+     */
+    apiKey: string;
+};
+
+export type ModelKeyResponse = {
+    provider: ModelProvider;
+    scope: 'organization' | 'agent';
+    agentId: string | null;
+    /**
+     * The key's last four characters (`…a1b2`), to tell keys apart.
+     */
+    hint: string;
+    updatedBy: string;
+    updatedAt: string;
+};
+
+export type ModelKeyList = {
+    items: Array<ModelKeyResponse>;
+};
+
 /**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
@@ -988,6 +1011,8 @@ export type TaskId = string;
 export type TemplateId = string;
 
 export type ArtifactId = string;
+
+export type Provider = ModelProvider;
 
 export type ModelId = string;
 
@@ -3559,3 +3584,326 @@ export type SetTaskTreeBudgetResponses = {
 };
 
 export type SetTaskTreeBudgetResponse = SetTaskTreeBudgetResponses[keyof SetTaskTreeBudgetResponses];
+
+export type ListOrganizationModelKeysData = {
+    body?: never;
+    path: {
+        organizationId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/model-keys';
+};
+
+export type ListOrganizationModelKeysErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListOrganizationModelKeysError = ListOrganizationModelKeysErrors[keyof ListOrganizationModelKeysErrors];
+
+export type ListOrganizationModelKeysResponses = {
+    /**
+     * By provider
+     */
+    200: ModelKeyList;
+};
+
+export type ListOrganizationModelKeysResponse = ListOrganizationModelKeysResponses[keyof ListOrganizationModelKeysResponses];
+
+export type DeleteOrganizationModelKeyData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        provider: ModelProvider;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/model-keys/{provider}';
+};
+
+export type DeleteOrganizationModelKeyErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type DeleteOrganizationModelKeyError = DeleteOrganizationModelKeyErrors[keyof DeleteOrganizationModelKeyErrors];
+
+export type DeleteOrganizationModelKeyResponses = {
+    /**
+     * Removed (also when there was none)
+     */
+    204: void;
+};
+
+export type DeleteOrganizationModelKeyResponse = DeleteOrganizationModelKeyResponses[keyof DeleteOrganizationModelKeyResponses];
+
+export type SetOrganizationModelKeyData = {
+    body: SetModelKeyRequest;
+    path: {
+        organizationId: string;
+        provider: ModelProvider;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/model-keys/{provider}';
+};
+
+export type SetOrganizationModelKeyErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type SetOrganizationModelKeyError = SetOrganizationModelKeyErrors[keyof SetOrganizationModelKeyErrors];
+
+export type SetOrganizationModelKeyResponses = {
+    /**
+     * Stored in OpenBao; never returned
+     */
+    200: ModelKeyResponse;
+};
+
+export type SetOrganizationModelKeyResponse = SetOrganizationModelKeyResponses[keyof SetOrganizationModelKeyResponses];
+
+export type ListAgentModelKeysData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        agentId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/agents/{agentId}/model-keys';
+};
+
+export type ListAgentModelKeysErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListAgentModelKeysError = ListAgentModelKeysErrors[keyof ListAgentModelKeysErrors];
+
+export type ListAgentModelKeysResponses = {
+    /**
+     * By provider
+     */
+    200: ModelKeyList;
+};
+
+export type ListAgentModelKeysResponse = ListAgentModelKeysResponses[keyof ListAgentModelKeysResponses];
+
+export type DeleteAgentModelKeyData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        agentId: string;
+        provider: ModelProvider;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/agents/{agentId}/model-keys/{provider}';
+};
+
+export type DeleteAgentModelKeyErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type DeleteAgentModelKeyError = DeleteAgentModelKeyErrors[keyof DeleteAgentModelKeyErrors];
+
+export type DeleteAgentModelKeyResponses = {
+    /**
+     * Removed (also when there was none)
+     */
+    204: void;
+};
+
+export type DeleteAgentModelKeyResponse = DeleteAgentModelKeyResponses[keyof DeleteAgentModelKeyResponses];
+
+export type SetAgentModelKeyData = {
+    body: SetModelKeyRequest;
+    path: {
+        organizationId: string;
+        agentId: string;
+        provider: ModelProvider;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/agents/{agentId}/model-keys/{provider}';
+};
+
+export type SetAgentModelKeyErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type SetAgentModelKeyError = SetAgentModelKeyErrors[keyof SetAgentModelKeyErrors];
+
+export type SetAgentModelKeyResponses = {
+    /**
+     * Stored in OpenBao; never returned
+     */
+    200: ModelKeyResponse;
+};
+
+export type SetAgentModelKeyResponse = SetAgentModelKeyResponses[keyof SetAgentModelKeyResponses];

@@ -17,6 +17,10 @@ import { BudgetMapper } from './budget.mapper.js';
 import { BudgetsController } from './budgets.controller.js';
 import { BudgetsService } from './budgets.service.js';
 import { ModelCallEntity } from './model-call.entity.js';
+import { ModelKeyEntity } from './model-key.entity.js';
+import { ModelKeyMapper } from './model-key.mapper.js';
+import { ModelKeysController } from './model-keys.controller.js';
+import { ModelKeysService } from './model-keys.service.js';
 import { ModelCatalogService } from './model-catalog.service.js';
 import { ModelGateway } from './model-gateway.js';
 import { ModelPriceEntity } from './model-price.entity.js';
@@ -32,10 +36,11 @@ import { ModelsController } from './models.controller.js';
       ModelEntity,
       ModelPriceEntity,
       BudgetEntity,
+      ModelKeyEntity,
     ]),
     TenancyModule,
   ],
-  controllers: [ModelsController, BudgetsController],
+  controllers: [ModelsController, BudgetsController, ModelKeysController],
   providers: [
     {
       provide: SecretStore,
@@ -58,7 +63,14 @@ import { ModelsController } from './models.controller.js';
     ModelGateway,
     BudgetMapper,
     BudgetsService,
+    ModelKeyMapper,
+    ModelKeysService,
   ],
-  exports: [ModelGateway, ModelCatalogService, BudgetsService],
+  exports: [
+    ModelGateway,
+    ModelCatalogService,
+    BudgetsService,
+    ModelKeysService,
+  ],
 })
 export class ModelsModule {}
