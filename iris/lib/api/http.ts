@@ -47,3 +47,27 @@ export async function call<T>(
   }
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 }
+
+/** A page of a cursor-paginated list. */
+export type Page<T> = { items: T[]; nextCursor: string | null };
+
+/**
+ * A list from a service that can be down without breaking the page (Proxenos,
+ * Kairos), or `unavailable` when it (or GitHub behind it) can't answer, or
+ * isn't configured: pages show the rest without it. A
+ * caller without the permission gets an empty list.
+ */
+export async function orUnavailable<T>(promise: Promise<Page<T>>): Promise<{ items: T[]; unavailable: boolean }> {
+  try {
+    return { items: (await promise).items, unavailable: false };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 403) {
+      return { items: [], unavailable: false };
+    }
+    if (error instanceof ApiError && error.status < 500) {
+      throw error;
+    }
+    // Unreachable (a fetch error or timeout), 503 (not configured, GitHub down) or another 5xx.
+    return { items: [], unavailable: true };
+  }
+}

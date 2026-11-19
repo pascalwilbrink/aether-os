@@ -7,8 +7,10 @@ import { getProjectBudget, listAgents, listTasks, listTaskTemplates } from "@/li
 import { ApiError } from "@/lib/api/http";
 import { listOrganizationUsers, listServiceAccounts } from "@/lib/api/pistis";
 import { getOrganization, getProject, listMemberships, listProjectMemberships } from "@/lib/api/polis";
+import { listAutomations } from "@/lib/api/kairos";
 import { listRepositories, listRepositoryLinks, orUnavailable } from "@/lib/api/proxenos";
 import { requireOrganization } from "@/lib/auth/current";
+import { automationStatus, triggerSummary } from "@/lib/automations";
 import { linkableRepositories, repositoryChoices } from "@/lib/github";
 import {
   people,
@@ -73,6 +75,7 @@ async function Project({ params, searchParams }: Props) {
     links,
     repositories,
     budget,
+    automations,
   ] = await Promise.all([
     getOrganization(token, organizationId),
     getProject(token, organizationId, projectId),
@@ -87,6 +90,7 @@ async function Project({ params, searchParams }: Props) {
     orUnavailable(listRepositoryLinks(token, organizationId, projectId)),
     orUnavailable(listRepositories(token, organizationId)),
     getProjectBudget(token, organizationId, projectId),
+    orUnavailable(listAutomations(token, organizationId, projectId)),
   ]);
   const runnable = agents.items.filter((agent) => agent.status === "active" && agent.latestVersionId);
   // Only service accounts with a role here can run its tasks.
@@ -184,6 +188,47 @@ async function Project({ params, searchParams }: Props) {
                   </div>
                 </li>
               ))}
+          </ul>
+        )}
+      </section>
+
+      <section id="automations" className="space-y-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <h2 className="font-medium">Automations</h2>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Tasks that start themselves when something happens on GitHub, in this project&apos;s repositories.
+            </p>
+          </div>
+          <Link href={`${path}/automations/new`} className="text-sm underline">
+            New automation
+          </Link>
+        </div>
+        {automations.unavailable ? (
+          <p className="text-sm text-amber-700 dark:text-amber-300">
+            Automations can&apos;t be shown right now (Kairos isn&apos;t answering).
+          </p>
+        ) : automations.items.length === 0 ? (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">No automations yet.</p>
+        ) : (
+          <ul className="divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
+            {automations.items.map((automation) => {
+              const status = automationStatus(automation.status);
+              const repository =
+                links.items.find((link) => link.id === automation.trigger.repositoryLinkId)?.repository.fullName ??
+                null;
+              return (
+                <li key={automation.id} className="py-2">
+                  <Link href={`${path}/automations/${automation.id}`} className="font-medium hover:underline">
+                    {automation.name}
+                  </Link>
+                  <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${status.classes}`}>
+                    {status.label}
+                  </span>
+                  <p className="text-zinc-600 dark:text-zinc-400">{triggerSummary(automation.trigger, repository)}</p>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
