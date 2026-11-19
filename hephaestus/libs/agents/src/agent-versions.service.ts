@@ -12,6 +12,7 @@ import {
   Transactional,
 } from '@hephaestus/core';
 import { ModelCatalogService } from '@hephaestus/models';
+import { SkillsService } from '@hephaestus/skills';
 import { ToolServerInvalidError, ToolServersService } from '@hephaestus/tools';
 
 import { nextAgentVersionStatus } from './agent-transitions.js';
@@ -40,6 +41,7 @@ export class AgentVersionsService {
     private readonly access: AccessControl,
     private readonly models: ModelCatalogService,
     private readonly toolServers: ToolServersService,
+    private readonly skills: SkillsService,
   ) {}
 
   @Transactional()
@@ -51,6 +53,7 @@ export class AgentVersionsService {
     await this.agents.lockForVersionChange(organizationId, agentId);
     await this.models.assertAvailable(dto.model.provider, dto.model.model);
     await this.assertTools(organizationId, dto.tools);
+    await this.skills.assertChoosable(organizationId, dto.skills);
 
     const current = await this.versions.maximum('version', { agentId });
     const entity = this.mapper.toEntity(

@@ -14,7 +14,7 @@ const versionBody = {
   model: { provider: 'anthropic', model: 'claude', temperature: 0.2 },
   capabilities: ['chat'],
   tools: [{ name: 'search', enabled: false, tools: ['query'] }],
-  skills: [{ name: 'summarize', version: '1.0.0', enabled: true }],
+  skills: [{ name: 'summarize', version: '1', enabled: false }],
   runtime: {
     provider: 'local',
     executionMode: 'standard' as const,

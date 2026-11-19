@@ -23,6 +23,8 @@ import { ModelEntity } from '../libs/models/src/model.entity.js';
 import { ModelPriceEntity } from '../libs/models/src/model-price.entity.js';
 import { BudgetEntity } from '../libs/models/src/budget.entity.js';
 import { ModelKeyEntity } from '../libs/models/src/model-key.entity.js';
+import { SkillVersionEntity } from '../libs/skills/src/skill-version.entity.js';
+import { SkillEntity } from '../libs/skills/src/skill.entity.js';
 import { ToolServerEntity } from '../libs/tools/src/tool-server.entity.js';
 import { ExecutionEntity } from '../libs/runner/src/execution.entity.js';
 import { TaskEntity } from '../libs/tasks/src/task.entity.js';
@@ -66,6 +68,8 @@ export default async function setup(project: TestProject) {
         BudgetEntity,
         ModelKeyEntity,
         ToolServerEntity,
+        SkillEntity,
+        SkillVersionEntity,
         ArtifactEntity,
         TaskTemplateEntity,
         TaskTemplateVersionEntity,

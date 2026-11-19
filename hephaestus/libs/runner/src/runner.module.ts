@@ -7,6 +7,7 @@ import type { Env } from '@hephaestus/core';
 import { AgentsModule } from '@hephaestus/agents';
 import { ArtifactsModule } from '@hephaestus/artifacts';
 import { BudgetsService, ModelGateway, ModelsModule } from '@hephaestus/models';
+import { SkillsModule, SkillsService } from '@hephaestus/skills';
 import { ToolServersService, ToolsModule } from '@hephaestus/tools';
 import { WorkspacesModule, WorkspacesService } from '@hephaestus/workspaces';
 import { TasksModule } from '@hephaestus/tasks';
@@ -60,6 +61,7 @@ import {
     AgentsModule,
     ModelsModule,
     ToolsModule,
+    SkillsModule,
     WorkspacesModule,
     ArtifactsModule,
   ],
@@ -73,16 +75,28 @@ import {
     },
     {
       provide: AgentRuntime,
-      inject: [ConfigService, ModelGateway, BudgetsService, ToolServersService],
+      inject: [
+        ConfigService,
+        ModelGateway,
+        BudgetsService,
+        ToolServersService,
+        SkillsService,
+      ],
       useFactory: (
         config: ConfigService<Env, true>,
         gateway: ModelGateway,
         budgets: BudgetsService,
         toolServers: ToolServersService,
+        skills: SkillsService,
       ) => {
         switch (config.get('AGENT_RUNTIME', { infer: true })) {
           case 'mastra':
-            return new MastraAgentRuntime(gateway, budgets, toolServers);
+            return new MastraAgentRuntime(
+              gateway,
+              budgets,
+              toolServers,
+              skills,
+            );
           case 'echo':
             return new EchoAgentRuntime();
           default:

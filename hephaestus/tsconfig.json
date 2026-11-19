@@ -82,6 +82,12 @@
       ],
       "@hephaestus/tools/*": [
         "./libs/tools/src/*"
+      ],
+      "@hephaestus/skills": [
+        "./libs/skills/src/index.ts"
+      ],
+      "@hephaestus/skills/*": [
+        "./libs/skills/src/*"
       ]
     },
     "rewriteRelativeImportExtensions": true

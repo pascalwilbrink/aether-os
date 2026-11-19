@@ -96,6 +96,15 @@
       "compilerOptions": {
         "tsConfigPath": "libs/tools/tsconfig.lib.json"
       }
+    },
+    "skills": {
+      "type": "library",
+      "root": "libs/skills",
+      "entryFile": "index",
+      "sourceRoot": "libs/skills/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/skills/tsconfig.lib.json"
+      }
     }
   }
 }

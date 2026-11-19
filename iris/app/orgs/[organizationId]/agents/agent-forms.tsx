@@ -3,8 +3,9 @@
 import { useActionState } from "react";
 
 import { buttonClass, FormError, inputClass, secondaryButtonClass } from "@/app/components/form";
-import type { AgentVersion, Model, ToolServer } from "@/lib/api";
+import type { AgentVersion, Model, Skill, ToolServer } from "@/lib/api";
 import { fieldsOf, modelChoices } from "@/lib/agents";
+import { SKILL_FIELD, SKILL_VERSION_FIELD, versionChoices } from "@/lib/skills";
 import { TOOL_FIELD, TOOL_NAMES_FIELD } from "@/lib/tool-servers";
 
 import {
@@ -55,6 +56,7 @@ export function VersionForm({
   from,
   models,
   toolServers,
+  skills,
 }: {
   agent: AgentRef;
   from: AgentVersion | undefined;
@@ -62,9 +64,10 @@ export function VersionForm({
   models: Model[];
   /** The organization's tool servers. */
   toolServers: ToolServer[];
+  /** The organization's skills (archived ones too: a version may pin one). */
+  skills: Skill[];
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(createVersionAction.bind(null, agent), {});
-  const carried = from?.skills.length ?? 0;
   // A refused submit starts from what was sent; otherwise from `from`.
   const start = state.values ?? fieldsOf(from);
   const choices = modelChoices(models, start.model ?? "");
@@ -196,13 +199,8 @@ export function VersionForm({
         </label>
       </div>
       <ToolChoices organizationId={agent.organizationId} toolServers={toolServers} start={start} />
+      <SkillChoices organizationId={agent.organizationId} skills={skills} start={start} />
       <input type="hidden" name="runtimeProvider" value={start.runtimeProvider} />
-      <input type="hidden" name="skills" value={start.skills} />
-      {carried > 0 ? (
-        <p className="text-xs text-zinc-500">
-          Its {carried} skill settings carry over from version {from?.version}; Iris can&apos;t edit them yet.
-        </p>
-      ) : null}
       <div className="flex items-center gap-4">
         <button type="submit" disabled={pending} className={buttonClass}>
           {pending ? "Saving…" : "Save version"}
@@ -273,6 +271,76 @@ function ToolChoices({
               defaultValue={start[`${TOOL_NAMES_FIELD}${row.name}`]}
               className={`${inputClass} mt-0 font-mono`}
             />
+          </div>
+        ))
+      )}
+    </fieldset>
+  );
+}
+
+/**
+ * Which skills the version uses, each at a version (the latest by default).
+ * An archived skill shows only when the version starts with it, to keep or
+ * drop (Hephaestus refuses choosing it anew).
+ */
+function SkillChoices({
+  organizationId,
+  skills,
+  start,
+}: {
+  organizationId: string;
+  skills: Skill[];
+  start: Record<string, string | undefined>;
+}) {
+  const chosen = (name: string) => start[`${SKILL_FIELD}${name}`] === "on";
+  const rows = skills.filter((skill) => skill.status === "active" || chosen(skill.name));
+  return (
+    <fieldset className="space-y-2 text-sm">
+      <legend>Skills</legend>
+      {rows.length === 0 ? (
+        <p className="text-xs text-zinc-500">
+          The organization has no{" "}
+          <a href={`/orgs/${organizationId}/skills`} className="underline">
+            skills
+          </a>{" "}
+          yet.
+        </p>
+      ) : (
+        rows.map((skill) => (
+          // Keyed by what the form starts from: a reset doesn't move inputs to new defaults.
+          <div
+            key={`${skill.name}:${start[`${SKILL_FIELD}${skill.name}`] ?? ""}:${start[`${SKILL_VERSION_FIELD}${skill.name}`] ?? ""}`}
+            className="grid gap-2 sm:grid-cols-2"
+          >
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                name={`${SKILL_FIELD}${skill.name}`}
+                defaultChecked={chosen(skill.name)}
+                className="mt-1"
+              />
+              <span>
+                <span className="font-mono">{skill.name}</span>
+                <span
+                  className={`block text-xs ${skill.status === "archived" ? "text-amber-700 dark:text-amber-300" : "text-zinc-500"}`}
+                >
+                  {skill.status === "archived" ? "Archived: uncheck it to save a new version." : skill.description}
+                </span>
+              </span>
+            </label>
+            <select
+              name={`${SKILL_VERSION_FIELD}${skill.name}`}
+              aria-label={`Version of ${skill.name}`}
+              defaultValue={start[`${SKILL_VERSION_FIELD}${skill.name}`] ?? String(skill.latestVersion)}
+              className={`${inputClass} mt-0`}
+            >
+              {versionChoices(skill).map((version) => (
+                <option key={version} value={version}>
+                  Version {version}
+                  {version === String(skill.latestVersion) ? " (latest)" : ""}
+                </option>
+              ))}
+            </select>
           </div>
         ))
       )}

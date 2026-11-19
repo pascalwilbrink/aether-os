@@ -39,7 +39,8 @@ describe("versionFromForm", () => {
       "toolNames:docs": "lookup, search lookup",
       "tool:seshat": "on",
       "tool:off": "",
-      skills: "[]",
+      "skill:code-review": "on",
+      "skillVersion:code-review": "2",
     });
     expect(result).toEqual({
       body: {
@@ -55,7 +56,7 @@ describe("versionFromForm", () => {
           { name: "docs", enabled: true, tools: ["lookup", "search"] },
           { name: "seshat", enabled: true },
         ],
-        skills: [],
+        skills: [{ name: "code-review", version: "2", enabled: true }],
         runtime: {
           provider: "local",
           executionMode: "coding",
@@ -75,7 +76,7 @@ describe("versionFromForm", () => {
     [{ ...base, maxTokens: "1.5" }, "Max tokens is a whole number above 0."],
     [{ ...base, maxTokens: "0" }, "Max tokens is a whole number above 0."],
     [{ ...base, "tool:docs": "on", "toolNames:docs": "a/b" }, '"a/b" isn\'t a tool name (letters, digits, _ . and -).'],
-    [{ ...base, skills: "{}" }, "The carried-over skills aren't valid."],
+    [{ ...base, "skill:a": "on" }, "Choose a version of a."],
   ])("refuses %o", (fields, error) => {
     expect(versionFromForm(fields)).toEqual({ error });
   });
@@ -121,7 +122,7 @@ describe("fieldsOf", () => {
       },
       capabilities: ["code", "chat"],
       tools: [{ name: "docs", enabled: true, tools: ["lookup"] }, { name: "seshat", enabled: true }],
-      skills: [],
+      skills: [{ name: "review", version: "3", enabled: true }],
       runtime: {
         provider: "local",
         executionMode: "coding" as const,

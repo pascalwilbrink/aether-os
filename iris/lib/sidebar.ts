@@ -56,6 +56,7 @@ export function sectionOf(pathname: string, organizationId: string): SidebarSect
     case "projects":
       return rest.includes("/templates/") ? "templates" : "projects";
     case "agents":
+    case "skills":
       return "agents";
     case "templates":
       return "templates";

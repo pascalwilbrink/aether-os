@@ -10,6 +10,7 @@ import {
   BudgetsService,
   ModelGateway,
 } from '@hephaestus/models';
+import { SkillsService } from '@hephaestus/skills';
 import { TasksService } from '@hephaestus/tasks';
 import { ToolServersService } from '@hephaestus/tools';
 import { WorkspacesService } from '@hephaestus/workspaces';
@@ -344,8 +345,14 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
               gateway: ModelGateway,
               budgets: BudgetsService,
               toolServers: ToolServersService,
-            ) => new MastraAgentRuntime(gateway, budgets, toolServers),
-            inject: [ModelGateway, BudgetsService, ToolServersService],
+              skills: SkillsService,
+            ) => new MastraAgentRuntime(gateway, budgets, toolServers, skills),
+            inject: [
+              ModelGateway,
+              BudgetsService,
+              ToolServersService,
+              SkillsService,
+            ],
           })
           .overrideProvider(SANDBOX_OPTIONS)
           .useValue(sandboxOptions)
@@ -394,6 +401,7 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
       description: string;
       check: { type: 'command'; command: string };
     }[] = [],
+    skills: { name: string; version: string; enabled: boolean }[] = [],
   ) {
     const agents = actingAs(moduleRef.get(AgentsService), caller());
     const versions = actingAs(moduleRef.get(AgentVersionsService), caller());
@@ -405,7 +413,7 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
       model: { provider: 'scripted', model: 'scripted-model' },
       capabilities: ['code'],
       tools: [],
-      skills: [],
+      skills,
       runtime: {
         provider: 'mastra',
         executionMode: 'standard',
@@ -489,6 +497,52 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
       }),
     ]);
     expect(await sandboxContainers(executionId)).toEqual([]);
+  });
+
+  it("copies the version's skills into the sandbox, to run their scripts", async () => {
+    await actingAs(moduleRef.get(SkillsService), caller()).create(
+      organizationId,
+      {
+        name: 'greet',
+        files: [
+          {
+            path: 'SKILL.md',
+            content:
+              '---\nname: greet\ndescription: Greets\n---\n\nRun scripts/hello.sh.',
+          },
+          { path: 'scripts/hello.sh', content: 'echo "hello from $1"\n' },
+        ],
+      },
+    );
+    models.replies = [
+      {
+        toolCall: {
+          tool: 'execute_command',
+          input: {
+            command: 'sh /workspace/skills/greet/scripts/hello.sh sandbox',
+          },
+        },
+      },
+      { text: 'Greeted.' },
+    ];
+    const task = await taskFor(
+      true,
+      [],
+      [{ name: 'greet', version: '1', enabled: true }],
+    );
+
+    await runner().tick();
+    await runner().drain();
+
+    await expect(
+      tasks.findById(organizationId, projectId, task.id),
+    ).resolves.toMatchObject({ status: 'succeeded' });
+    expect(JSON.stringify(models.calls[0].prompt.at(-1))).toContain(
+      'at /workspace/skills/<name>',
+    );
+    expect(JSON.stringify(models.calls[1].prompt.at(-1))).toContain(
+      'hello from sandbox',
+    );
   });
 
   it('gives a restricted agent a proxy, and records the hosts it was refused', async () => {

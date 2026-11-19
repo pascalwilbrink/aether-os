@@ -17,6 +17,7 @@ import { ArtifactsModule } from '@hephaestus/artifacts';
 import { RunnerModule } from '@hephaestus/runner';
 import { TasksModule } from '@hephaestus/tasks';
 import { TemplatesModule } from '@hephaestus/templates';
+import { SkillsModule } from '@hephaestus/skills';
 import { ToolsModule } from '@hephaestus/tools';
 import { WorkspacesModule } from '@hephaestus/workspaces';
 
@@ -75,6 +76,7 @@ export const PROXENOS_SUBSCRIPTIONS = ['git.pull-request.updated'] as const;
     ArtifactsModule,
     TemplatesModule,
     ToolsModule,
+    SkillsModule,
     RunnerModule,
   ],
 })

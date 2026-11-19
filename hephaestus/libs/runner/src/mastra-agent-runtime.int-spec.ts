@@ -10,6 +10,7 @@ import {
   BudgetsService,
   ModelGateway,
 } from '@hephaestus/models';
+import { SkillsService } from '@hephaestus/skills';
 import { TasksService } from '@hephaestus/tasks';
 import { TOOL_SERVER_POLICY, ToolServersService } from '@hephaestus/tools';
 
@@ -63,8 +64,14 @@ describe('MastraAgentRuntime (Postgres)', () => {
               gateway: ModelGateway,
               budgets: BudgetsService,
               toolServers: ToolServersService,
-            ) => new MastraAgentRuntime(gateway, budgets, toolServers),
-            inject: [ModelGateway, BudgetsService, ToolServersService],
+              skills: SkillsService,
+            ) => new MastraAgentRuntime(gateway, budgets, toolServers, skills),
+            inject: [
+              ModelGateway,
+              BudgetsService,
+              ToolServersService,
+              SkillsService,
+            ],
           })
           // The test tool server is one of Aether-os's own.
           .overrideProvider(TOOL_SERVER_POLICY)
@@ -499,24 +506,114 @@ describe('MastraAgentRuntime (Postgres)', () => {
     });
   });
 
-  it("refuses an agent version with skills it can't run yet", async () => {
-    secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
-      apiKey: 'sk-organization',
-    });
-    const { task: created } = await taskFor({
-      skills: [{ name: 'review', version: '1.0.0', enabled: true }],
+  describe('skills', () => {
+    const skills = () =>
+      actingAs(
+        moduleRef.get(SkillsService),
+        testPrincipal({
+          sub: 'user-1',
+          subType: 'user',
+          organizationId,
+          organizationRoles: ['owner'],
+          scopes: [],
+        }),
+      );
+    const skillMd = (body: string) =>
+      `---\nname: login-fixes\ndescription: How we fix sign-in bugs\n---\n\n${body}`;
+
+    beforeEach(() => {
+      secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
+        apiKey: 'sk-organization',
+      });
     });
 
-    await runOnce();
+    it('gives the agent the pinned version of its skills, through the skill tool', async () => {
+      const skill = await skills().create(organizationId, {
+        name: 'login-fixes',
+        files: [
+          {
+            path: 'SKILL.md',
+            content: skillMd('Always lowercase emails first.'),
+          },
+          { path: 'references/emails.md', content: 'RFC 5321' },
+        ],
+      });
+      // A later version doesn't change what the agent version pinned.
+      await skills().createVersion(organizationId, skill.id, {
+        files: [{ path: 'SKILL.md', content: skillMd('Something else.') }],
+      });
+      models.replies = [
+        { toolCall: { tool: 'skill', input: { name: 'login-fixes' } } },
+        { text: 'Lowercased them.' },
+      ];
+      const { task: created } = await taskFor({
+        skills: [{ name: 'login-fixes', version: '1', enabled: true }],
+      });
 
-    await expect(task(created.id)).resolves.toMatchObject({
-      status: 'failed',
-      failureReason: 'infrastructure',
+      await runOnce();
+
+      await expect(task(created.id)).resolves.toMatchObject({
+        status: 'succeeded',
+      });
+      const offered = (models.calls[0].tools ?? []).map((tool) => tool.name);
+      expect(offered).toEqual(expect.arrayContaining(['skill', 'skill_read']));
+      expect(JSON.stringify(models.calls[0].prompt.at(-1))).toContain(
+        '- login-fixes: How we fix sign-in bugs',
+      );
+      const answer = JSON.stringify(models.calls[1].prompt);
+      expect(answer).toContain('Always lowercase emails first.');
+      expect(answer).not.toContain('Something else.');
     });
-    expect((await executionsOf(created.id))[0].error).toBe(
-      "Skills aren't supported yet (review@1.0.0)",
-    );
-    expect(models.calls).toHaveLength(0);
+
+    it('refuses versions naming a skill, or a version of one, that the organization lacks', async () => {
+      await expect(
+        taskFor({ skills: [{ name: 'nowhere', version: '1', enabled: true }] }),
+      ).rejects.toMatchObject({ code: 'SKILL_INVALID' });
+      await skills().create(organizationId, {
+        name: 'login-fixes',
+        files: [{ path: 'SKILL.md', content: skillMd('x') }],
+      });
+      await expect(
+        taskFor({
+          skills: [{ name: 'login-fixes', version: '2', enabled: true }],
+        }),
+      ).rejects.toMatchObject({ code: 'SKILL_INVALID' });
+      await expect(
+        taskFor({
+          skills: [{ name: 'login-fixes', version: 'latest', enabled: true }],
+        }),
+      ).rejects.toMatchObject({ code: 'SKILL_INVALID' });
+    });
+
+    it('keeps running a pinned version after its skill is archived', async () => {
+      const skill = await skills().create(organizationId, {
+        name: 'login-fixes',
+        files: [{ path: 'SKILL.md', content: skillMd('Archived but pinned.') }],
+      });
+      models.replies = [
+        { toolCall: { tool: 'skill', input: { name: 'login-fixes' } } },
+        { text: 'Done.' },
+      ];
+      const { task: created } = await taskFor({
+        skills: [{ name: 'login-fixes', version: '1', enabled: true }],
+      });
+      await skills().archive(organizationId, skill.id);
+
+      await runOnce();
+
+      await expect(task(created.id)).resolves.toMatchObject({
+        status: 'succeeded',
+      });
+      expect(JSON.stringify(models.calls[1].prompt)).toContain(
+        'Archived but pinned.',
+      );
+      // But new versions can't choose it.
+      await expect(
+        taskFor({
+          skills: [{ name: 'login-fixes', version: '1', enabled: true }],
+        }),
+      ).rejects.toMatchObject({ code: 'SKILL_INVALID' });
+    });
   });
 
   describe('budgets (docs/models.md)', () => {
