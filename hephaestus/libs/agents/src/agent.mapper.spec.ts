@@ -39,7 +39,7 @@ describe('AgentVersionMapper', () => {
         instructions: 'Be helpful.',
         model: { provider: 'anthropic', model: 'claude', temperature: 0.2 },
         capabilities: ['chat'],
-        tools: [{ name: 'search', enabled: true, configuration: { depth: 2 } }],
+        tools: [{ name: 'search', enabled: true, tools: ['query'] }],
         skills: [{ name: 'summarize', version: '1.0.0', enabled: true }],
         runtime: {
           provider: 'local',

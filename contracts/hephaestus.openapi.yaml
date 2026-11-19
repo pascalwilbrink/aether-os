@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.19.0
+  version: 0.20.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -39,6 +39,7 @@ tags:
   - name: models
   - name: budgets
   - name: model-keys
+  - name: tool-servers
 
 paths:
   /v1/organizations/{organizationId}/agents:
@@ -136,7 +137,9 @@ paths:
       description: |
         Creates a draft version; the version number is assigned by the
         server. Its model must be an `active` model of the catalogue
-        (`MODEL_NOT_AVAILABLE` otherwise).
+        (`MODEL_NOT_AVAILABLE` otherwise), and each enabled entry of `tools`
+        must name one of the organization's tool servers, each at most once
+        (`TOOL_SERVER_INVALID` otherwise).
       requestBody:
         required: true
         content:
@@ -1306,6 +1309,182 @@ paths:
         '409': { $ref: '#/components/responses/DomainError' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  /v1/organizations/{organizationId}/tool-servers:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [tool-servers]
+      operationId: listToolServers
+      x-permission: '`agent:read`'
+      description: The organization's tool servers, by name (at most 50).
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: By name
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ToolServerList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    post:
+      tags: [tool-servers]
+      operationId: createToolServer
+      x-permission: '`org:manage`'
+      description: |
+        Registers an MCP server (Streamable HTTP) that the organization's agent
+        versions can take tools from (`tools[].name` is its `name`).
+        Hephaestus connects to it, never the sandbox. A `header` credential is
+        set separately (`PUT …/credential`) and kept in OpenBao.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateToolServerRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ToolServerResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/tool-servers/{toolServerId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ToolServerId'
+    get:
+      tags: [tool-servers]
+      operationId: getToolServer
+      x-permission: '`agent:read`'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ToolServerResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [tool-servers]
+      operationId: updateToolServer
+      x-permission: '`org:manage`'
+      description: |
+        Replaces its description, URL and authentication (the name stays: agent
+        versions refer to it). Changing the URL or the authentication removes
+        the credential, so it isn't sent somewhere new without being set again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateToolServerRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ToolServerResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    delete:
+      tags: [tool-servers]
+      operationId: deleteToolServer
+      x-permission: '`org:manage`'
+      description: |
+        Removes it and its credential. Tasks of agent versions that use it
+        then fail without retrying until a server with its name exists again.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '204': { description: Removed (also when there was none) }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/tool-servers/{toolServerId}/credential:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ToolServerId'
+    put:
+      tags: [tool-servers]
+      operationId: setToolServerCredential
+      x-permission: '`org:secret:write`'
+      description: |
+        Sets the value sent in the server's `auth.headerName` header (for
+        `Authorization`, include the scheme: `Bearer …`). Kept in OpenBao and
+        never returned; only its last four characters are.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetToolServerCredentialRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ToolServerResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    delete:
+      tags: [tool-servers]
+      operationId: deleteToolServerCredential
+      x-permission: '`org:secret:write`'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '204': { description: Removed (also when there was none) }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/tool-servers/{toolServerId}/tools:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ToolServerId'
+    get:
+      tags: [tool-servers]
+      operationId: listToolServerTools
+      x-permission: '`agent:read`'
+      description: |
+        Connects to the server and lists the tools it offers now, to choose
+        from for an agent version. A `task-token` server is sent the caller's
+        own token.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: By name
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ToolList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503':
+          description: The tool server couldn't be reached or refused the request (`UNAVAILABLE`); `detail` says what it answered.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
 components:
   parameters:
     OrganizationId:
@@ -1355,6 +1534,11 @@ components:
       schema: { $ref: '#/components/schemas/ModelProvider' }
     ModelId:
       name: modelId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ToolServerId:
+      name: toolServerId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -1411,6 +1595,8 @@ components:
         - TASK_TEMPLATE_ARCHIVED
         - TASK_TEMPLATE_INPUTS_INVALID
         - TASK_TEMPLATE_INVALID
+        - TOOL_SERVER_ALREADY_EXISTS
+        - TOOL_SERVER_INVALID
         - WORKSPACE_INVALID_EXPIRY
         - WORKSPACE_INVALID_TRANSITION
     DomainProblem:
@@ -1481,12 +1667,19 @@ components:
       type: object
       additionalProperties: false
       required: [name, enabled]
+      description: |
+        Tools from one of the organization's tool servers (MCP): the agent
+        gets them as `<name>_<tool>`. An enabled entry must name an existing
+        tool server when the version is created.
       properties:
-        name: { type: string, minLength: 1 }
+        name: { $ref: '#/components/schemas/ToolServerName' }
         enabled: { type: boolean }
-        configuration:
-          type: object
-          additionalProperties: true
+        tools:
+          description: Which of the server's tools, by name; all of them when left out.
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/ToolName' }
     AgentSkillConfiguration:
       type: object
       additionalProperties: false
@@ -2594,3 +2787,119 @@ components:
         items:
           type: array
           items: { $ref: '#/components/schemas/ModelKeyResponse' }
+
+    # ---------- tool servers ----------
+    ToolServerName:
+      type: string
+      description: Lowercase letters, digits and hyphens, starting with a letter; unique in the organization.
+      pattern: '^[a-z][a-z0-9-]{0,29}$'
+    ToolName:
+      type: string
+      minLength: 1
+      maxLength: 64
+      pattern: '^[A-Za-z0-9_.-]+$'
+    ToolServerAuthType:
+      type: string
+      description: |
+        How Hephaestus authenticates to the server: `none`; `header`, sending
+        the credential in `headerName`; or `task-token`, sending the running
+        task's own Pistis token as a bearer token (only to servers whose
+        origin the platform trusts, `TOOL_SERVER_TRUSTED_ORIGINS`: Aether-os's
+        own, such as Seshat).
+      enum: [none, header, task-token]
+    ToolServerAuth:
+      type: object
+      additionalProperties: false
+      required: [type]
+      properties:
+        type: { $ref: '#/components/schemas/ToolServerAuthType' }
+        headerName:
+          description: For `header`; `Authorization` when left out.
+          type: string
+          pattern: '^[A-Za-z0-9-]{1,64}$'
+    ToolServerUrl:
+      type: string
+      format: uri
+      maxLength: 2000
+      description: The MCP endpoint (Streamable HTTP); `https://`, or `http://` only where Hephaestus may reach private addresses (local development).
+      pattern: '^https?://'
+    CreateToolServerRequest:
+      type: object
+      additionalProperties: false
+      required: [name, url, auth]
+      properties:
+        name: { $ref: '#/components/schemas/ToolServerName' }
+        description: { type: string, maxLength: 500 }
+        url: { $ref: '#/components/schemas/ToolServerUrl' }
+        auth: { $ref: '#/components/schemas/ToolServerAuth' }
+    UpdateToolServerRequest:
+      type: object
+      additionalProperties: false
+      required: [description, url, auth]
+      properties:
+        description: { type: string, maxLength: 500 }
+        url: { $ref: '#/components/schemas/ToolServerUrl' }
+        auth: { $ref: '#/components/schemas/ToolServerAuth' }
+    SetToolServerCredentialRequest:
+      type: object
+      additionalProperties: false
+      required: [value]
+      properties:
+        value: { type: string, minLength: 8, maxLength: 4096 }
+    ToolServerCredential:
+      type: object
+      additionalProperties: false
+      required: [hint, updatedBy, updatedAt]
+      properties:
+        hint: { type: string, description: 'The last four characters, e.g. `…ab12`.' }
+        updatedBy: { type: string }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    ToolServerResponse:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, name, description, url, auth, credential, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        name: { $ref: '#/components/schemas/ToolServerName' }
+        description: { type: string }
+        url: { type: string }
+        auth:
+          type: object
+          additionalProperties: false
+          required: [type, headerName]
+          properties:
+            type: { $ref: '#/components/schemas/ToolServerAuthType' }
+            headerName:
+              type: [string, 'null']
+        credential:
+          description: That a `header` credential is set; null when none is.
+          oneOf:
+            - { $ref: '#/components/schemas/ToolServerCredential' }
+            - { type: 'null' }
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    ToolServerList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ToolServerResponse' }
+    ToolDescription:
+      type: object
+      additionalProperties: false
+      required: [name, description]
+      properties:
+        name: { type: string }
+        description: { type: string }
+    ToolList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ToolDescription' }

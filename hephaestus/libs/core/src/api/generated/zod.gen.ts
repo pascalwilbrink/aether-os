@@ -24,6 +24,8 @@ export const zDomainErrorCode = z.enum([
     'TASK_TEMPLATE_ARCHIVED',
     'TASK_TEMPLATE_INPUTS_INVALID',
     'TASK_TEMPLATE_INVALID',
+    'TOOL_SERVER_ALREADY_EXISTS',
+    'TOOL_SERVER_INVALID',
     'WORKSPACE_INVALID_EXPIRY',
     'WORKSPACE_INVALID_TRANSITION'
 ]);
@@ -62,12 +64,6 @@ export const zAgentModelConfiguration = z.object({
     maxTokens: z.int().gte(1).optional()
 });
 
-export const zAgentToolConfiguration = z.object({
-    name: z.string().min(1),
-    enabled: z.boolean(),
-    configuration: z.record(z.string(), z.unknown()).optional()
-});
-
 export const zAgentSkillConfiguration = z.object({
     name: z.string().min(1),
     version: z.string().min(1),
@@ -84,32 +80,6 @@ export const zAgentRuntimeConfiguration = z.object({
     sandboxRequired: z.boolean(),
     networkAccess: z.enum(['none', 'restricted']).optional(),
     allowedHosts: z.array(zHostPattern).max(50).optional()
-});
-
-export const zCreateAgentVersionRequest = z.object({
-    instructions: z.string().min(1),
-    model: zAgentModelConfiguration,
-    capabilities: z.array(z.string()),
-    tools: z.array(zAgentToolConfiguration),
-    skills: z.array(zAgentSkillConfiguration),
-    runtime: zAgentRuntimeConfiguration
-});
-
-export const zAgentVersionResponse = z.object({
-    id: z.uuid(),
-    agentId: z.uuid(),
-    organizationId: z.uuid(),
-    version: z.int().gte(1),
-    status: zAgentVersionStatus,
-    instructions: z.string(),
-    model: zAgentModelConfiguration,
-    capabilities: z.array(z.string()),
-    tools: z.array(zAgentToolConfiguration),
-    skills: z.array(zAgentSkillConfiguration),
-    runtime: zAgentRuntimeConfiguration,
-    createdBy: z.string(),
-    createdAt: zTimestamp,
-    publishedAt: z.iso.datetime().nullable()
 });
 
 export const zWorkspaceStatus = z.enum([
@@ -792,6 +762,127 @@ export const zModelKeyList = z.object({
 });
 
 /**
+ * Lowercase letters, digits and hyphens, starting with a letter; unique in the organization.
+ */
+export const zToolServerName = z.string().regex(/^[a-z][a-z0-9-]{0,29}$/);
+
+export const zToolName = z.string().min(1).max(64).regex(/^[A-Za-z0-9_.-]+$/);
+
+/**
+ * Tools from one of the organization's tool servers (MCP): the agent
+ * gets them as `<name>_<tool>`. An enabled entry must name an existing
+ * tool server when the version is created.
+ *
+ */
+export const zAgentToolConfiguration = z.object({
+    name: zToolServerName,
+    enabled: z.boolean(),
+    tools: z.array(zToolName).max(100).optional()
+});
+
+export const zCreateAgentVersionRequest = z.object({
+    instructions: z.string().min(1),
+    model: zAgentModelConfiguration,
+    capabilities: z.array(z.string()),
+    tools: z.array(zAgentToolConfiguration),
+    skills: z.array(zAgentSkillConfiguration),
+    runtime: zAgentRuntimeConfiguration
+});
+
+export const zAgentVersionResponse = z.object({
+    id: z.uuid(),
+    agentId: z.uuid(),
+    organizationId: z.uuid(),
+    version: z.int().gte(1),
+    status: zAgentVersionStatus,
+    instructions: z.string(),
+    model: zAgentModelConfiguration,
+    capabilities: z.array(z.string()),
+    tools: z.array(zAgentToolConfiguration),
+    skills: z.array(zAgentSkillConfiguration),
+    runtime: zAgentRuntimeConfiguration,
+    createdBy: z.string(),
+    createdAt: zTimestamp,
+    publishedAt: z.iso.datetime().nullable()
+});
+
+/**
+ * How Hephaestus authenticates to the server: `none`; `header`, sending
+ * the credential in `headerName`; or `task-token`, sending the running
+ * task's own Pistis token as a bearer token (only to servers whose
+ * origin the platform trusts, `TOOL_SERVER_TRUSTED_ORIGINS`: Aether-os's
+ * own, such as Seshat).
+ *
+ */
+export const zToolServerAuthType = z.enum([
+    'none',
+    'header',
+    'task-token'
+]);
+
+export const zToolServerAuth = z.object({
+    type: zToolServerAuthType,
+    headerName: z.string().regex(/^[A-Za-z0-9-]{1,64}$/).optional()
+});
+
+/**
+ * The MCP endpoint (Streamable HTTP); `https://`, or `http://` only where Hephaestus may reach private addresses (local development).
+ */
+export const zToolServerUrl = z.url().max(2000).regex(/^https?:\/\//);
+
+export const zCreateToolServerRequest = z.object({
+    name: zToolServerName,
+    description: z.string().max(500).optional(),
+    url: zToolServerUrl,
+    auth: zToolServerAuth
+});
+
+export const zUpdateToolServerRequest = z.object({
+    description: z.string().max(500),
+    url: zToolServerUrl,
+    auth: zToolServerAuth
+});
+
+export const zSetToolServerCredentialRequest = z.object({
+    value: z.string().min(8).max(4096)
+});
+
+export const zToolServerCredential = z.object({
+    hint: z.string(),
+    updatedBy: z.string(),
+    updatedAt: zTimestamp
+});
+
+export const zToolServerResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    name: zToolServerName,
+    description: z.string(),
+    url: z.string(),
+    auth: z.object({
+        type: zToolServerAuthType,
+        headerName: z.string().nullable()
+    }),
+    credential: zToolServerCredential.nullable(),
+    createdBy: z.string(),
+    createdAt: zTimestamp,
+    updatedAt: zTimestamp
+});
+
+export const zToolServerList = z.object({
+    items: z.array(zToolServerResponse)
+});
+
+export const zToolDescription = z.object({
+    name: z.string(),
+    description: z.string()
+});
+
+export const zToolList = z.object({
+    items: z.array(zToolDescription)
+});
+
+/**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
 export const zNextCursor = z.string().nullable();
@@ -899,6 +990,8 @@ export const zArtifactId = z.uuid();
 export const zProvider = zModelProvider;
 
 export const zModelId = z.uuid();
+
+export const zToolServerId = z.uuid();
 
 /**
  * Page size.
@@ -1575,3 +1668,87 @@ export const zSetAgentModelKeyPath = z.object({
  * Stored in OpenBao; never returned
  */
 export const zSetAgentModelKeyResponse = zModelKeyResponse;
+
+export const zListToolServersPath = z.object({
+    organizationId: z.uuid()
+});
+
+/**
+ * By name
+ */
+export const zListToolServersResponse = zToolServerList;
+
+export const zCreateToolServerBody = zCreateToolServerRequest;
+
+export const zCreateToolServerPath = z.object({
+    organizationId: z.uuid()
+});
+
+/**
+ * Created
+ */
+export const zCreateToolServerResponse = zToolServerResponse;
+
+export const zDeleteToolServerPath = z.object({
+    organizationId: z.uuid(),
+    toolServerId: z.uuid()
+});
+
+/**
+ * Removed (also when there was none)
+ */
+export const zDeleteToolServerResponse = z.void();
+
+export const zGetToolServerPath = z.object({
+    organizationId: z.uuid(),
+    toolServerId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetToolServerResponse = zToolServerResponse;
+
+export const zUpdateToolServerBody = zUpdateToolServerRequest;
+
+export const zUpdateToolServerPath = z.object({
+    organizationId: z.uuid(),
+    toolServerId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zUpdateToolServerResponse = zToolServerResponse;
+
+export const zDeleteToolServerCredentialPath = z.object({
+    organizationId: z.uuid(),
+    toolServerId: z.uuid()
+});
+
+/**
+ * Removed (also when there was none)
+ */
+export const zDeleteToolServerCredentialResponse = z.void();
+
+export const zSetToolServerCredentialBody = zSetToolServerCredentialRequest;
+
+export const zSetToolServerCredentialPath = z.object({
+    organizationId: z.uuid(),
+    toolServerId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zSetToolServerCredentialResponse = zToolServerResponse;
+
+export const zListToolServerToolsPath = z.object({
+    organizationId: z.uuid(),
+    toolServerId: z.uuid()
+});
+
+/**
+ * By name
+ */
+export const zListToolServerToolsResponse = zToolList;

@@ -64,6 +64,7 @@ export function sectionOf(pathname: string, organizationId: string): SidebarSect
     case "settings":
     case "budget":
     case "model-keys":
+    case "tool-servers":
     case "github":
       return "settings";
     default:

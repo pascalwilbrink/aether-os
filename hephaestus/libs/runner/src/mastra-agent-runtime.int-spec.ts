@@ -11,6 +11,7 @@ import {
   ModelGateway,
 } from '@hephaestus/models';
 import { TasksService } from '@hephaestus/tasks';
+import { TOOL_SERVER_POLICY, ToolServersService } from '@hephaestus/tools';
 
 import type { FakePolis } from '../../../test/fake-polis.js';
 import {
@@ -22,6 +23,7 @@ import {
   FakeTaskTokens,
   testRunnerOptions,
 } from '../../../test/fake-runner.js';
+import { FakeToolServer } from '../../../test/fake-tool-server.js';
 import { createTestingModuleWith } from '../../../test/testing-module.js';
 import { AgentRuntime } from './agent-runtime.js';
 import { ExecutionHistory } from './execution-history.js';
@@ -42,9 +44,11 @@ describe('MastraAgentRuntime (Postgres)', () => {
   let organizationId: string;
   let projectId: string;
   let tasks: TasksService;
+  let toolServer: FakeToolServer;
   let key = 0;
 
   beforeEach(async () => {
+    toolServer = await new FakeToolServer().start();
     secrets = new FakeSecretStore();
     models = new ScriptedLanguageModels();
     ({ moduleRef, polis } = await createTestingModuleWith(
@@ -55,9 +59,18 @@ describe('MastraAgentRuntime (Postgres)', () => {
           .useValue(testRunnerOptions({ maxExecutions: 1 }))
           .overrideProvider(AgentRuntime)
           .useFactory({
-            factory: (gateway: ModelGateway, budgets: BudgetsService) =>
-              new MastraAgentRuntime(gateway, budgets),
-            inject: [ModelGateway, BudgetsService],
+            factory: (
+              gateway: ModelGateway,
+              budgets: BudgetsService,
+              toolServers: ToolServersService,
+            ) => new MastraAgentRuntime(gateway, budgets, toolServers),
+            inject: [ModelGateway, BudgetsService, ToolServersService],
+          })
+          // The test tool server is one of Aether-os's own.
+          .overrideProvider(TOOL_SERVER_POLICY)
+          .useValue({
+            allowPrivate: true,
+            trustedOrigins: [new URL(toolServer.url).origin],
           })
           .overrideProvider(SecretStore)
           .useValue(secrets)
@@ -85,12 +98,14 @@ describe('MastraAgentRuntime (Postgres)', () => {
 
   afterEach(async () => {
     await moduleRef.close();
+    await toolServer.stop();
   });
 
   /** A task for an agent whose published version has these settings. */
   async function taskFor(
     version: {
-      tools?: { name: string; enabled: boolean }[];
+      tools?: { name: string; enabled: boolean; tools?: string[] }[];
+      skills?: { name: string; version: string; enabled: boolean }[];
     } = {},
   ) {
     const caller = testPrincipal({
@@ -117,7 +132,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
       },
       capabilities: ['chat'],
       tools: version.tools ?? [],
-      skills: [],
+      skills: version.skills ?? [],
       runtime: {
         provider: 'mastra',
         executionMode: 'standard',
@@ -338,12 +353,158 @@ describe('MastraAgentRuntime (Postgres)', () => {
     ]);
   });
 
-  it("refuses an agent version with tools it can't run yet", async () => {
+  describe('tools from tool servers', () => {
+    const toolServers = () =>
+      actingAs(
+        moduleRef.get(ToolServersService),
+        testPrincipal({
+          sub: 'user-1',
+          subType: 'user',
+          organizationId,
+          organizationRoles: ['owner'],
+          scopes: [],
+        }),
+      );
+
+    beforeEach(() => {
+      secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
+        apiKey: 'sk-organization',
+      });
+    });
+
+    it('gives the agent the chosen tools, as the task, and closes them after', async () => {
+      await toolServers().create(organizationId, {
+        name: 'docs',
+        url: toolServer.url,
+        auth: { type: 'task-token' },
+      });
+      models.replies = [
+        { toolCall: { tool: 'docs_lookup', input: { term: 'Aether' } } },
+        { text: 'Aether is a test.' },
+      ];
+      const { task: created } = await taskFor({
+        tools: [
+          { name: 'docs', enabled: true, tools: ['lookup'] },
+          // Disabled: needn't exist.
+          { name: 'gone', enabled: false },
+        ],
+      });
+
+      await runOnce();
+
+      await expect(task(created.id)).resolves.toMatchObject({
+        status: 'succeeded',
+      });
+      const offered = (models.calls[0].tools ?? []).map((tool) => tool.name);
+      expect(offered).toContain('docs_lookup');
+      expect(offered).toContain('submit_artifact');
+      expect(offered).not.toContain('docs_shout');
+      expect(JSON.stringify(models.calls[0].prompt.at(-1))).toContain(
+        'You have tools from outside Aether-os: docs_lookup.',
+      );
+      // The tool's answer went back to the model.
+      expect(JSON.stringify(models.calls[1].prompt)).toContain(
+        'Aether is a test',
+      );
+      // Sent the task's own token, nothing else.
+      expect(toolServer.requests.length).toBeGreaterThan(0);
+      for (const headers of toolServer.requests) {
+        expect(headers.authorization).toBe(
+          `Bearer task-token-for-${created.id}`,
+        );
+      }
+    });
+
+    it('sends a header credential from OpenBao', async () => {
+      const server = await toolServers().create(organizationId, {
+        name: 'docs',
+        url: toolServer.url,
+        auth: { type: 'header', headerName: 'X-Api-Key' },
+      });
+      await toolServers().setCredential(
+        organizationId,
+        server.id,
+        'key-12345678',
+      );
+      models.replies = [{ text: 'Nothing to look up.' }];
+      const { task: created } = await taskFor({
+        tools: [{ name: 'docs', enabled: true }],
+      });
+
+      await runOnce();
+
+      await expect(task(created.id)).resolves.toMatchObject({
+        status: 'succeeded',
+      });
+      const offered = (models.calls[0].tools ?? []).map((tool) => tool.name);
+      expect(offered).toEqual(
+        expect.arrayContaining(['docs_lookup', 'docs_shout']),
+      );
+      expect(toolServer.requests[0]).toMatchObject({
+        'x-api-key': 'key-12345678',
+      });
+      expect(toolServer.requests[0].authorization).toBeUndefined();
+    });
+
+    it('fails without retrying when the tool server is gone', async () => {
+      const server = await toolServers().create(organizationId, {
+        name: 'docs',
+        url: toolServer.url,
+        auth: { type: 'none' },
+      });
+      const { task: created } = await taskFor({
+        tools: [{ name: 'docs', enabled: true }],
+      });
+      await toolServers().remove(organizationId, server.id);
+
+      await runOnce();
+
+      await expect(task(created.id)).resolves.toMatchObject({
+        status: 'failed',
+        failureReason: 'infrastructure',
+      });
+      expect((await executionsOf(created.id))[0].error).toBe(
+        'The organization has no tool server named docs',
+      );
+      expect(models.calls).toHaveLength(0);
+    });
+
+    it('retries when the tool server refuses or is down', async () => {
+      await toolServers().create(organizationId, {
+        name: 'docs',
+        url: toolServer.url,
+        auth: { type: 'none' },
+      });
+      toolServer.refuse = true;
+      const { task: created } = await taskFor({
+        tools: [{ name: 'docs', enabled: true }],
+      });
+
+      await runOnce();
+
+      await expect(task(created.id)).resolves.toMatchObject({
+        status: 'queued',
+      });
+      expect((await executionsOf(created.id))[0]).toMatchObject({
+        status: 'failed',
+        error: expect.stringContaining("Tool server docs didn't answer"),
+      });
+      expect(models.calls).toHaveLength(0);
+    });
+
+    it("refuses a version naming a tool server the organization doesn't have", async () => {
+      await expect(
+        taskFor({ tools: [{ name: 'nowhere', enabled: true }] }),
+      ).rejects.toMatchObject({ code: 'TOOL_SERVER_INVALID' });
+    });
+  });
+
+  it("refuses an agent version with skills it can't run yet", async () => {
     secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
       apiKey: 'sk-organization',
     });
     const { task: created } = await taskFor({
-      tools: [{ name: 'github', enabled: true }],
+      skills: [{ name: 'review', version: '1.0.0', enabled: true }],
     });
 
     await runOnce();
@@ -353,7 +514,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
       failureReason: 'infrastructure',
     });
     expect((await executionsOf(created.id))[0].error).toBe(
-      "Tools and skills aren't supported yet (github)",
+      "Skills aren't supported yet (review@1.0.0)",
     );
     expect(models.calls).toHaveLength(0);
   });

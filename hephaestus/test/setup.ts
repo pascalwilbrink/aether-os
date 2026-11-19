@@ -13,6 +13,8 @@ process.env.POLIS_URL = 'http://polis.invalid';
 process.env.OUTBOX_RELAY_INTERVAL_MS = '0';
 process.env.NODE_ENV = 'test';
 // Sandbox proxies come from Docker Hub's mirror (no rate limit on CI).
+// Test tool servers (test/fake-tool-server.ts) listen on 127.0.0.1.
+process.env.TOOL_SERVER_ALLOW_PRIVATE = 'true';
 process.env.SANDBOX_PROXY_IMAGE = 'mirror.gcr.io/library/node:22-alpine';
 // Test apps trust the run's test keys (test/tokens.ts) instead of Pistis.
 const { tokens } = await import('./tokens.js');

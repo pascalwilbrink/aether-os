@@ -44,6 +44,9 @@ describe('zEnv', () => {
         'registry.npmjs.org',
         'pypi.org',
       ]),
+      TOOL_SERVER_ALLOW_PRIVATE: false,
+      TOOL_SERVER_TRUSTED_ORIGINS: [],
+      TOOL_CALL_TIMEOUT_MS: 60_000,
       SANDBOX_PROXY_IMAGE: 'node:22-alpine',
       SANDBOX_EGRESS_NETWORK: 'bridge',
     });
@@ -55,6 +58,12 @@ describe('zEnv', () => {
       zEnv.parse({ ...valid, SANDBOX_ALLOWED_HOSTS: ' a.test, *.B.test ,' })
         .SANDBOX_ALLOWED_HOSTS,
     ).toEqual(['a.test', '*.b.test']);
+    expect(
+      zEnv.parse({
+        ...valid,
+        TOOL_SERVER_TRUSTED_ORIGINS: ' https://Seshat.example.com/ ,',
+      }).TOOL_SERVER_TRUSTED_ORIGINS,
+    ).toEqual(['https://seshat.example.com']);
     expect(zEnv.safeParse({ ...valid, AGENT_RUNTIME: 'other' }).success).toBe(
       false,
     );

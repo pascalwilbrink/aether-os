@@ -75,7 +75,9 @@ export interface paths {
         /**
          * @description Creates a draft version; the version number is assigned by the
          *     server. Its model must be an `active` model of the catalogue
-         *     (`MODEL_NOT_AVAILABLE` otherwise).
+         *     (`MODEL_NOT_AVAILABLE` otherwise), and each enabled entry of `tools`
+         *     must name one of the organization's tool servers, each at most once
+         *     (`TOOL_SERVER_INVALID` otherwise).
          */
         post: operations["createAgentVersion"];
         delete?: never;
@@ -884,6 +886,107 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/tool-servers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        /** @description The organization's tool servers, by name (at most 50). */
+        get: operations["listToolServers"];
+        put?: never;
+        /**
+         * @description Registers an MCP server (Streamable HTTP) that the organization's agent
+         *     versions can take tools from (`tools[].name` is its `name`).
+         *     Hephaestus connects to it, never the sandbox. A `header` credential is
+         *     set separately (`PUT …/credential`) and kept in OpenBao.
+         */
+        post: operations["createToolServer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/tool-servers/{toolServerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getToolServer"];
+        /**
+         * @description Replaces its description, URL and authentication (the name stays: agent
+         *     versions refer to it). Changing the URL or the authentication removes
+         *     the credential, so it isn't sent somewhere new without being set again.
+         */
+        put: operations["updateToolServer"];
+        post?: never;
+        /**
+         * @description Removes it and its credential. Tasks of agent versions that use it
+         *     then fail without retrying until a server with its name exists again.
+         */
+        delete: operations["deleteToolServer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/tool-servers/{toolServerId}/credential": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Sets the value sent in the server's `auth.headerName` header (for
+         *     `Authorization`, include the scheme: `Bearer …`). Kept in OpenBao and
+         *     never returned; only its last four characters are.
+         */
+        put: operations["setToolServerCredential"];
+        post?: never;
+        delete: operations["deleteToolServerCredential"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/tool-servers/{toolServerId}/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description Connects to the server and lists the tools it offers now, to choose
+         *     from for an agent version. A `task-token` server is sent the caller's
+         *     own token.
+         */
+        get: operations["listToolServerTools"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -920,7 +1023,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "MODEL_ALREADY_EXISTS" | "MODEL_NOT_AVAILABLE" | "MODEL_PRICE_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "MODEL_ALREADY_EXISTS" | "MODEL_NOT_AVAILABLE" | "MODEL_PRICE_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -961,12 +1064,16 @@ export interface components {
             temperature?: number;
             maxTokens?: number;
         };
+        /**
+         * @description Tools from one of the organization's tool servers (MCP): the agent
+         *     gets them as `<name>_<tool>`. An enabled entry must name an existing
+         *     tool server when the version is created.
+         */
         AgentToolConfiguration: {
-            name: string;
+            name: components["schemas"]["ToolServerName"];
             enabled: boolean;
-            configuration?: {
-                [key: string]: unknown;
-            };
+            /** @description Which of the server's tools, by name; all of them when left out. */
+            tools?: components["schemas"]["ToolName"][];
         };
         AgentSkillConfiguration: {
             name: string;
@@ -1781,6 +1888,76 @@ export interface components {
         ModelKeyList: {
             items: components["schemas"]["ModelKeyResponse"][];
         };
+        /** @description Lowercase letters, digits and hyphens, starting with a letter; unique in the organization. */
+        ToolServerName: string;
+        ToolName: string;
+        /**
+         * @description How Hephaestus authenticates to the server: `none`; `header`, sending
+         *     the credential in `headerName`; or `task-token`, sending the running
+         *     task's own Pistis token as a bearer token (only to servers whose
+         *     origin the platform trusts, `TOOL_SERVER_TRUSTED_ORIGINS`: Aether-os's
+         *     own, such as Seshat).
+         * @enum {string}
+         */
+        ToolServerAuthType: "none" | "header" | "task-token";
+        ToolServerAuth: {
+            type: components["schemas"]["ToolServerAuthType"];
+            /** @description For `header`; `Authorization` when left out. */
+            headerName?: string;
+        };
+        /**
+         * Format: uri
+         * @description The MCP endpoint (Streamable HTTP); `https://`, or `http://` only where Hephaestus may reach private addresses (local development).
+         */
+        ToolServerUrl: string;
+        CreateToolServerRequest: {
+            name: components["schemas"]["ToolServerName"];
+            description?: string;
+            url: components["schemas"]["ToolServerUrl"];
+            auth: components["schemas"]["ToolServerAuth"];
+        };
+        UpdateToolServerRequest: {
+            description: string;
+            url: components["schemas"]["ToolServerUrl"];
+            auth: components["schemas"]["ToolServerAuth"];
+        };
+        SetToolServerCredentialRequest: {
+            value: string;
+        };
+        ToolServerCredential: {
+            /** @description The last four characters, e.g. `…ab12`. */
+            hint: string;
+            updatedBy: string;
+            updatedAt: components["schemas"]["Timestamp"];
+        };
+        ToolServerResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            name: components["schemas"]["ToolServerName"];
+            description: string;
+            url: string;
+            auth: {
+                type: components["schemas"]["ToolServerAuthType"];
+                headerName: string | null;
+            };
+            /** @description That a `header` credential is set; null when none is. */
+            credential: components["schemas"]["ToolServerCredential"] | null;
+            createdBy: string;
+            createdAt: components["schemas"]["Timestamp"];
+            updatedAt: components["schemas"]["Timestamp"];
+        };
+        ToolServerList: {
+            items: components["schemas"]["ToolServerResponse"][];
+        };
+        ToolDescription: {
+            name: string;
+            description: string;
+        };
+        ToolList: {
+            items: components["schemas"]["ToolDescription"][];
+        };
         /** @description Pass as `cursor` to get the next page; `null` on the last page. */
         NextCursor: string | null;
         /** @description One invalid input. Exactly one of `pointer` and `parameter` is set. */
@@ -1889,6 +2066,7 @@ export interface components {
         ArtifactId: string;
         Provider: components["schemas"]["ModelProvider"];
         ModelId: string;
+        ToolServerId: string;
         /** @description Page size. */
         Limit: number;
         /**
@@ -3590,6 +3768,249 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
             503: components["responses"]["Unavailable"];
+        };
+    };
+    listToolServers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description By name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolServerList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createToolServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateToolServerRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolServerResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getToolServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolServerResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateToolServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateToolServerRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolServerResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    deleteToolServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed (also when there was none) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    setToolServerCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetToolServerCredentialRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolServerResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    deleteToolServerCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed (also when there was none) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listToolServerTools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description By name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            /** @description The tool server couldn't be reached or refused the request (`UNAVAILABLE`); `detail` says what it answered. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
 }

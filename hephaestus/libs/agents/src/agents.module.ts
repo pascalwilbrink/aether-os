@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { ModelsModule } from '@hephaestus/models';
 import { TenancyModule } from '@hephaestus/tenancy';
+import { ToolsModule } from '@hephaestus/tools';
 
 import { AgentBudgetController } from './agent-budget.controller.js';
 import { AgentModelKeysController } from './agent-model-keys.controller.js';
@@ -20,6 +21,7 @@ import { AgentsService } from './agents.service.js';
     TypeOrmModule.forFeature([AgentEntity, AgentVersionEntity]),
     TenancyModule,
     ModelsModule,
+    ToolsModule,
   ],
   controllers: [
     AgentsController,

@@ -6,7 +6,14 @@ import { BudgetForm, BudgetMeter } from "@/app/components/budget";
 import { ModelKeyForm } from "@/app/components/model-key-form";
 import type { AgentVersion } from "@/lib/api";
 import { canPublish, versionStatusClasses, versionStatusLabel } from "@/lib/agents";
-import { getAgent, getAgentBudget, listActiveModels, listAgentVersions, listModelKeys } from "@/lib/api/hephaestus";
+import {
+  getAgent,
+  getAgentBudget,
+  listActiveModels,
+  listAgentVersions,
+  listModelKeys,
+  listToolServers,
+} from "@/lib/api/hephaestus";
 import { getOrganization } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
 import { keyInUse, providerName, type ModelKey } from "@/lib/model-keys";
@@ -31,7 +38,7 @@ async function AgentDetails({ params }: Props) {
   const { organizationId, agentId } = await params;
   const session = await requireOrganization(organizationId, `/orgs/${organizationId}/agents/${agentId}`);
   const token = session.accessToken;
-  const [organization, agent, versions, models, organizationKeys, agentKeys, budget] = await Promise.all([
+  const [organization, agent, versions, models, organizationKeys, agentKeys, budget, toolServers] = await Promise.all([
     getOrganization(token, organizationId),
     getAgent(token, organizationId, agentId),
     listAgentVersions(token, organizationId, agentId),
@@ -39,6 +46,7 @@ async function AgentDetails({ params }: Props) {
     listModelKeys(token, organizationId),
     listModelKeys(token, organizationId, agentId),
     getAgentBudget(token, organizationId, agentId),
+    listToolServers(token, organizationId),
   ]);
   const ref = { organizationId, agentId };
   const [latest] = versions.items;
@@ -119,7 +127,7 @@ async function AgentDetails({ params }: Props) {
         <section className="space-y-3">
           <h2 className="font-medium">{latest ? `New version, from version ${latest.version}` : "First version"}</h2>
           {/* After a save, React resets the form to its defaults: the new latest version. */}
-          <VersionForm agent={ref} from={latest} models={models.items} />
+          <VersionForm agent={ref} from={latest} models={models.items} toolServers={toolServers.items} />
         </section>
       ) : null}
     </div>
@@ -160,10 +168,13 @@ function VersionDetails({
         </pre>
         <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
           <Fact label="Capabilities">{version.capabilities.join(", ") || "none"}</Fact>
-          <Fact label="Tools and skills">
-            {[...version.tools.map((tool) => tool.name), ...version.skills.map((skill) => skill.name)].join(", ") ||
-              "none"}
+          <Fact label="Tools">
+            {version.tools
+              .filter((tool) => tool.enabled)
+              .map((tool) => (tool.tools ? `${tool.name} (${tool.tools.join(", ")})` : tool.name))
+              .join(", ") || "none"}
           </Fact>
+          <Fact label="Skills">{version.skills.map((skill) => skill.name).join(", ") || "none"}</Fact>
           <Fact label="Created">{formatTime(version.createdAt)}</Fact>
           <Fact label="Published">{version.publishedAt ? formatTime(version.publishedAt) : "never"}</Fact>
         </dl>
