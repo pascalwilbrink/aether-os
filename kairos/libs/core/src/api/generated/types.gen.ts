@@ -110,6 +110,18 @@ export type AutomationAction = {
    */
   workInRepository?: boolean;
   /**
+   * A concurrency key for its tasks (docs/tasks.md, Concurrency): the
+   * key can use the event's fields (e.g. `{{repository}}#{{issue.number}}`)
+   * and is the automation's own (two automations never share one).
+   * `queue` (the new task waits for the earlier ones), `cancel-previous`
+   * or `skip` (the run is `skipped`). Null or left out for none.
+   *
+   */
+  concurrency?: null | {
+    key: string;
+    policy: 'queue' | 'cancel-previous' | 'skip';
+  };
+  /**
    * Artifact kinds that need approval before delivery (`*` for all), as a task's `review.artifactKinds`.
    */
   reviewArtifactKinds?: Array<string>;
@@ -143,9 +155,10 @@ export type AutomationPage = {
 };
 
 /**
- * `requested`: the command is sent, Hephaestus hasn't answered; `created`: a task was created; `rejected`: Hephaestus refused it.
+ * `requested`: the command is sent, Hephaestus hasn't answered; `created`: a task was created; `skipped`: its concurrency key's task was still unfinished (policy `skip`); `rejected`: Hephaestus refused it.
  */
-export type AutomationRunStatus = 'requested' | 'created' | 'rejected';
+export type AutomationRunStatus =
+  'requested' | 'created' | 'skipped' | 'rejected';
 
 export type AutomationRunResponse = {
   /**
@@ -168,7 +181,7 @@ export type AutomationRunResponse = {
   };
   taskId: string | null;
   /**
-   * Hephaestus's reason, for a `rejected` run.
+   * Hephaestus's reason, for a `rejected` or `skipped` run.
    */
   rejection: null | {
     code: string;

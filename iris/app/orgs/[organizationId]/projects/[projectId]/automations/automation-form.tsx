@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 
 import { buttonClass, FormError, inputClass } from "@/app/components/form";
-import { EVENTS, FIELDS, PERMISSIONS, type AutomationFields } from "@/lib/automations";
+import { CONCURRENCY_POLICIES, EVENTS, FIELDS, PERMISSIONS, type AutomationFields } from "@/lib/automations";
 
 import type { FormState } from "../actions";
 
@@ -191,6 +191,28 @@ export function AutomationForm({
         </label>
         {checkbox("workInRepository", "Works in the issue's repository (its commits come back as a pull request)")}
         {checkbox("review", "Everything it produces needs approval", "all")}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-sm">
+            Concurrency key <span className="text-zinc-500">(optional)</span>
+            <input
+              name="concurrencyKey"
+              maxLength={150}
+              defaultValue={values.concurrencyKey}
+              placeholder="{{repository}}#{{issue.number}}"
+              className={`${inputClass} font-mono`}
+            />
+            <span className="mt-1 block text-xs text-zinc-500">
+              Tasks of this automation with the same key don&apos;t run side by side; empty for no limit.
+            </span>
+          </label>
+          <label className="block text-sm">
+            While one with the same key is unfinished
+            {select(
+              "concurrencyPolicy",
+              CONCURRENCY_POLICIES.map(({ value, label }) => ({ value, label })),
+            )}
+          </label>
+        </div>
       </fieldset>
 
       <button type="submit" disabled={pending} className={buttonClass}>

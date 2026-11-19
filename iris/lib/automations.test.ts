@@ -34,8 +34,14 @@ describe("automations", () => {
           serviceAccountId: "sa-1",
           workInRepository: true,
           reviewArtifactKinds: [],
+          // One task per issue at a time, by default.
+          concurrency: { key: "{{repository}}#{{issue.number}}", policy: "queue" },
         },
       },
+    });
+    expect(requestOf(fields({ concurrencyKey: "" }))).toMatchObject({ request: { action: { concurrency: null } } });
+    expect(requestOf(fields({ concurrencyPolicy: "later" }))).toEqual({
+      error: "Choose what happens to a second task with the same key.",
     });
   });
 

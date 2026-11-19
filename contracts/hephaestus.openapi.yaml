@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.16.0
+  version: 0.17.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -1396,6 +1396,8 @@ components:
         - AGENT_VERSION_INVALID_TRANSITION
         - ARTIFACT_NOT_DRAFT
         - TASK_BUDGET_INVALID
+        - TASK_CONCURRENCY_INVALID
+        - TASK_CONCURRENCY_SKIPPED
         - MODEL_ALREADY_EXISTS
         - MODEL_NOT_AVAILABLE
         - MODEL_PRICE_INVALID
@@ -1716,6 +1718,10 @@ components:
           oneOf:
             - $ref: '#/components/schemas/Usd'
             - type: 'null'
+        concurrency:
+          oneOf:
+            - $ref: '#/components/schemas/TaskConcurrency'
+            - type: 'null'
     TaskRepository:
       type: object
       additionalProperties: false
@@ -1922,6 +1928,24 @@ components:
         repository:
           $ref: '#/components/schemas/TaskRepository'
           description: The repository the task works in, as for a task written by hand.
+        concurrency:
+          oneOf:
+            - $ref: '#/components/schemas/TaskConcurrency'
+            - type: 'null'
+    TaskConcurrency:
+      type: object
+      additionalProperties: false
+      required: [key, policy]
+      description: |
+        A concurrency key (docs/tasks.md, Concurrency): what to do with a new
+        top-level task while an unfinished one with the same key exists in
+        the project. `queue`: it waits until those have finished (the
+        runner doesn't start it before); `cancel-previous`: they're
+        cancelled; `skip`: it isn't created (`TASK_CONCURRENCY_SKIPPED`).
+        Only on top-level tasks (`TASK_CONCURRENCY_INVALID`).
+      properties:
+        key: { type: string, minLength: 1, maxLength: 200 }
+        policy: { type: string, enum: [queue, cancel-previous, skip] }
     TaskReviewSettings:
       type: object
       additionalProperties: false
@@ -1939,7 +1963,7 @@ components:
           items: { type: string, minLength: 1, maxLength: 50 }
     TaskResponse:
       type: object
-      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, pausedFor, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
+      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, pausedFor, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, concurrency, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -1989,6 +2013,10 @@ components:
             - $ref: '#/components/schemas/TaskRepository'
             - { type: 'null' }
           description: The repository it works in (its own, or its parent's), if any.
+        concurrency:
+          oneOf:
+            - $ref: '#/components/schemas/TaskConcurrency'
+            - type: 'null'
         taskTemplateId:
           type: [string, 'null']
           format: uuid

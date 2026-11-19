@@ -20,12 +20,13 @@ Status: built in its first form (Kairos, `../kairos`); sections marked **Proposa
 3. Each matching automation gets a run, at most one per event, and Kairos sends Hephaestus a `task.create` command (`events.md`, Commands) in the same transaction, through the outbox: a trigger survives Hephaestus being down. The run's ID is the command's idempotency key.
 4. Hephaestus answers with `task.created` or `task.create-rejected` (an unpublished agent, an archived project, invalid fields, …); the run records it. Nothing is retried after a rejection: the automation needs fixing.
 
+**Concurrency keys** (`tasks.md`, Concurrency): an action can set a key using the event's fields, e.g. `{{repository}}#{{issue.number}}` (Iris starts new automations with that one, policy `queue`), and a policy for a task while an earlier one of the same automation with the same key hasn't finished: `queue` (it waits), `cancel-previous` (the earlier one is cancelled) or `skip` (no task; the run is `skipped`). Kairos prefixes the automation's ID, so two automations never block each other; a key longer than 160 characters once filled in is hashed.
+
 The issue's title (and later its body) is written by whoever opened it: it reaches the agent as untrusted input (`git.md`, Untrusted input), which is why automations fire only for collaborators with write access by default.
 
 ## Not yet
 
 - **A service account per automation** (`identity.md`): for now the automation names an existing service account, which needs a role in the project. Proposal: Kairos creates one (Pistis) with project `editor` (Polis) when the automation is created, and exchanges for its token when firing (`act` = Kairos).
-- **Concurrency keys** (`tasks.md`, Concurrency): `queue`, `cancel-previous` or `skip` for a second trigger while a task with the same key is active.
 - **Comment filters:** Proxenos's events don't carry the comment's body (it's in the stored delivery), so a comment trigger can't yet require e.g. `/aether` at its start.
 - **Automation templates** (`tasks.md`): predefined `task_plan`s materialized when the trigger fires.
 - **Other triggers:** schedules, Slack and Jira (through Proxenos), Hephaestus's own events (a task failed).

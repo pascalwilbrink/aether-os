@@ -9,6 +9,8 @@ export const zDomainErrorCode = z.enum([
     'AGENT_VERSION_INVALID_TRANSITION',
     'ARTIFACT_NOT_DRAFT',
     'TASK_BUDGET_INVALID',
+    'TASK_CONCURRENCY_INVALID',
+    'TASK_CONCURRENCY_SKIPPED',
     'MODEL_ALREADY_EXISTS',
     'MODEL_NOT_AVAILABLE',
     'MODEL_PRICE_INVALID',
@@ -288,6 +290,24 @@ export const zTaskTemplateResponse = z.object({
 });
 
 /**
+ * A concurrency key (docs/tasks.md, Concurrency): what to do with a new
+ * top-level task while an unfinished one with the same key exists in
+ * the project. `queue`: it waits until those have finished (the
+ * runner doesn't start it before); `cancel-previous`: they're
+ * cancelled; `skip`: it isn't created (`TASK_CONCURRENCY_SKIPPED`).
+ * Only on top-level tasks (`TASK_CONCURRENCY_INVALID`).
+ *
+ */
+export const zTaskConcurrency = z.object({
+    key: z.string().min(1).max(200),
+    policy: z.enum([
+        'queue',
+        'cancel-previous',
+        'skip'
+    ])
+});
+
+/**
  * Which of the task's artifacts need approval before they're final
  * (docs/tasks.md, What needs approval). Pinned when the task is
  * created; automations and Themis policy will add to it later.
@@ -349,7 +369,8 @@ export const zCreateTaskFromTemplateRequest = z.object({
     dependsOn: z.array(z.uuid()).max(50).optional(),
     acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional(),
     review: zTaskReviewSettings.optional(),
-    repository: zTaskRepository.optional()
+    repository: zTaskRepository.optional(),
+    concurrency: zTaskConcurrency.nullish()
 });
 
 /**
@@ -562,7 +583,8 @@ export const zCreateTaskRequest = z.object({
     review: zTaskReviewSettings.optional(),
     acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional(),
     repository: zTaskRepository.nullish(),
-    budgetUsd: zUsd.nullish()
+    budgetUsd: zUsd.nullish(),
+    concurrency: zTaskConcurrency.nullish()
 });
 
 /**
@@ -709,6 +731,7 @@ export const zTaskResponse = z.object({
     reviewRound: z.int().gte(0),
     acceptanceCriteria: z.array(zAcceptanceCriterion),
     repository: zTaskRepository.nullable(),
+    concurrency: zTaskConcurrency.nullable(),
     taskTemplateId: z.uuid().nullable(),
     taskTemplateVersion: z.int().gte(1).nullable(),
     createdAt: z.iso.datetime(),

@@ -13,7 +13,7 @@ export type RunEvent = ApiTypes.AutomationRunResponse['event'];
 @Entity({ name: 'automation_runs' })
 @Check(
   'ck_automation_runs_status',
-  `status IN ('requested', 'created', 'rejected')`,
+  `status IN ('requested', 'created', 'skipped', 'rejected')`,
 )
 @Index(
   'uq_automation_runs_automation_id_source_event_id',

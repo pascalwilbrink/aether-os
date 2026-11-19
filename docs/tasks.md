@@ -438,6 +438,7 @@ Limits on tasks in a counting state (see the table above), checked when a task l
 
 - **Fair queueing:** Hephaestus starts queued tasks round-robin across organizations, then FIFO within one, so one busy tenant can't starve others. Subtasks of a tree that's already running go before new top-level tasks, so started work finishes first.
 - **Concurrency keys:** an automation can set a `concurrencyKey` (e.g. `{{repository}}#{{issue.number}}`) with a policy for a second trigger while a task with the same key is active: `queue` (default), `cancel-previous`, or `skip`. That stops a busy issue from starting five tasks.
+  - Built: a top-level task takes `concurrency: { key, policy }` (`TASK_CONCURRENCY_INVALID` on a subtask), through the HTTP API, templates and the `task.create` command. A key is per project and "active" means not finished (`succeeded`, `failed` or `cancelled`), so a task waiting for review or paused for its budget still holds it. `queue`: the queue doesn't start the task while an older unfinished one has its key; `cancel-previous`: those are cancelled (with their subtrees) when it's created; `skip`: it isn't created (`TASK_CONCURRENCY_SKIPPED`, 409, naming the unfinished task). Creates with the same key take turns (an advisory lock), so two never both see none. Kairos makes an automation's key its own (`<automation>:<rendered key>`), so two automations never share one, and a skipped run is `skipped`. Not yet: the per-automation limit in the table above.
 
 ### Events
 

@@ -2,6 +2,7 @@ import type { ProxenosEvents } from '@kairos/core';
 
 import {
   actionProblems,
+  concurrencyKey,
   fieldsOf,
   match,
   render,
@@ -159,6 +160,15 @@ describe('triggers', () => {
     ).toBe(
       'Fix #12 in acme/api: Login fails for uppercase emails (ada, https://github.com/acme/api/issues/12) ',
     );
+  });
+
+  it("makes the automation's own concurrency key, hashing a long one", () => {
+    const fields = fieldsOf(event());
+    expect(
+      concurrencyKey('a-1', '{{repository}}#{{issue.number}}', fields),
+    ).toBe('a-1:acme/api#12');
+    const long = concurrencyKey('a-1', '{{issue.title}}'.repeat(10), fields);
+    expect(long).toMatch(/^a-1:[0-9a-f]{64}$/);
   });
 
   it('refuses an action with neither or both kinds, or unknown fields', () => {

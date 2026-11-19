@@ -77,6 +77,12 @@ export const zAutomationAction = z.object({
   template: zAutomationTemplateAction.optional(),
   serviceAccountId: z.uuid(),
   workInRepository: z.boolean().optional(),
+  concurrency: z
+    .object({
+      key: z.string().min(1).max(150),
+      policy: z.enum(['queue', 'cancel-previous', 'skip']),
+    })
+    .nullish(),
   reviewArtifactKinds: z.array(z.string().min(1).max(50)).max(20).optional(),
 });
 
@@ -103,11 +109,12 @@ export const zAutomationResponse = z.object({
 });
 
 /**
- * `requested`: the command is sent, Hephaestus hasn't answered; `created`: a task was created; `rejected`: Hephaestus refused it.
+ * `requested`: the command is sent, Hephaestus hasn't answered; `created`: a task was created; `skipped`: its concurrency key's task was still unfinished (policy `skip`); `rejected`: Hephaestus refused it.
  */
 export const zAutomationRunStatus = z.enum([
   'requested',
   'created',
+  'skipped',
   'rejected',
 ]);
 

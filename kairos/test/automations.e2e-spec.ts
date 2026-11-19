@@ -282,6 +282,67 @@ describe('Automations (e2e)', () => {
     expect(await outbox('hephaestus.commands')).toEqual([]);
   });
 
+  it('sends its concurrency key, and marks a skipped run', async () => {
+    const automation = await create({
+      action: {
+        ...body().action,
+        concurrency: { key: '{{repository}}#{{issue.number}}', policy: 'skip' },
+      },
+    });
+    expect(automation.action.concurrency).toEqual({
+      key: '{{repository}}#{{issue.number}}',
+      policy: 'skip',
+    });
+    await deliver('proxenos', issueEvent('github.issue.opened'));
+
+    const [command] = await outbox('hephaestus.commands');
+    expect(command.payload).toMatchObject({
+      task: {
+        // The automation's own: two automations never share a key.
+        concurrency: { key: `${automation.id}:acme/api#12`, policy: 'skip' },
+      },
+    });
+
+    const [run] = await runs(automation.id);
+    await deliver('hephaestus', {
+      eventId: uuidv7(),
+      eventType: 'task.create-rejected',
+      schemaVersion: 1,
+      aggregateId: run.id as string,
+      aggregateVersion: 1,
+      occurredAt: new Date(),
+      organizationId: orgId,
+      projectId,
+      actor: null,
+      payload: {
+        idempotencyKey: run.id,
+        automationId: automation.id,
+        code: 'TASK_CONCURRENCY_SKIPPED',
+        message:
+          "Task … with the concurrency key … hasn't finished; this one is skipped.",
+      },
+    });
+    expect(await runs(automation.id)).toMatchObject([
+      { status: 'skipped', rejection: { code: 'TASK_CONCURRENCY_SKIPPED' } },
+    ]);
+
+    // Fields it can't use are refused.
+    const refused = await owner
+      .post(automations())
+      .send(
+        body({
+          action: {
+            ...body().action,
+            concurrency: { key: '{{issue.body}}', policy: 'queue' },
+          },
+        }),
+      )
+      .expect(400);
+    expect(refused.body.errors).toMatchObject([
+      { pointer: '/action/concurrency/key' },
+    ]);
+  });
+
   it("fills in a template with the event, and follows Hephaestus's answers", async () => {
     const fromTemplate = await create({
       name: 'From a template',
