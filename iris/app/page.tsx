@@ -4,13 +4,16 @@ import { Suspense } from "react";
 import { currentSession } from "@/lib/auth/current";
 
 import { Notice } from "./components/notice";
+import { PublicShell } from "./components/public-shell";
 
 /** Signed out: a way in. Signed in: straight to the organization (or choosing one). */
 export default function Home({ searchParams }: PageProps<"/">) {
   return (
-    <Suspense fallback={<p>Loading…</p>}>
-      <Landing searchParams={searchParams} />
-    </Suspense>
+    <PublicShell>
+      <Suspense fallback={<p>Loading…</p>}>
+        <Landing searchParams={searchParams} />
+      </Suspense>
+    </PublicShell>
   );
 }
 

@@ -135,6 +135,10 @@ export const listTaskTemplates = (token: string, organizationId: string, project
     token,
   );
 
+/** The organization-wide templates (every project sees them). */
+export const listOrganizationTaskTemplates = (token: string, organizationId: string) =>
+  hephaestus<Page<TaskTemplate>>(`/v1/organizations/${organizationId}/task-templates?limit=100`, token);
+
 export const getTaskTemplate = (token: string, organizationId: string, templateId: string) =>
   hephaestus<TaskTemplate>(`/v1/organizations/${organizationId}/task-templates/${templateId}`, token);
 

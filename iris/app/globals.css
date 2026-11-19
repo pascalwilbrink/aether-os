@@ -1,1 +1,27 @@
 @import "tailwindcss";
+
+/*
+ * Dark mode follows the person's choice (light, dark, or the system's), set
+ * as a class on <html> before the first paint (app/layout.tsx); `system`
+ * follows prefers-color-scheme.
+ */
+@custom-variant dark {
+  &:where(.dark, .dark *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(.system, .system *) {
+      @slot;
+    }
+  }
+}
+
+html.dark {
+  color-scheme: dark;
+}
+html.light {
+  color-scheme: light;
+}
+html.system {
+  color-scheme: light dark;
+}

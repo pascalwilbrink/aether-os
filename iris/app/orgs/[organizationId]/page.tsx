@@ -6,7 +6,6 @@ import { listAgents } from "@/lib/api/hephaestus";
 import { getOrganization, listProjects } from "@/lib/api/polis";
 import { requireSession } from "@/lib/auth/current";
 
-import { SignOutButton } from "../../components/sign-out";
 
 /** An organization, with a token for it: its projects (from Polis) and agents (from Hephaestus). */
 export default function OrganizationHome({ params }: PageProps<"/orgs/[organizationId]">) {
@@ -33,33 +32,9 @@ async function Overview({ params }: Pick<PageProps<"/orgs/[organizationId]">, "p
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">{organization.name}</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Signed in as {session.name} ·{" "}
-            <Link href={`/orgs/${organizationId}/members`} className="underline">
-              Members
-            </Link>{" "}
-            ·{" "}
-            <Link href={`/orgs/${organizationId}/github`} className="underline">
-              GitHub
-            </Link>{" "}
-            ·{" "}
-            <Link href={`/orgs/${organizationId}/budget`} className="underline">
-              Budget
-            </Link>{" "}
-            ·{" "}
-            <Link href={`/orgs/${organizationId}/model-keys`} className="underline">
-              Model keys
-            </Link>{" "}
-            ·{" "}
-            <Link href="/orgs" className="underline">
-              Switch organization
-            </Link>
-          </p>
-        </div>
-        <SignOutButton />
+      <div>
+        <h1 className="text-2xl font-semibold">{organization.name}</h1>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">Welcome back, {session.name}.</p>
       </div>
 
       <section>
