@@ -1,5 +1,13 @@
 import { SecretStore, SecretStoreUnavailableError } from './secret-store.js';
 
+/** A refused token (401, 403) is `refused`; any other failure `unreachable`. */
+function failed(status: number, message: string): SecretStoreUnavailableError {
+  return new SecretStoreUnavailableError(
+    message,
+    status === 401 || status === 403 ? 'refused' : 'unreachable',
+  );
+}
+
 export interface OpenBaoOptions {
   /** OpenBao's address, e.g. `http://localhost:8200`. */
   address: string;
@@ -25,7 +33,8 @@ export class OpenBaoSecretStore extends SecretStore {
       return null;
     }
     if (!response.ok) {
-      throw new SecretStoreUnavailableError(
+      throw failed(
+        response.status,
         `OpenBao answered ${response.status} reading ${path}`,
       );
     }
@@ -38,7 +47,8 @@ export class OpenBaoSecretStore extends SecretStore {
   async write(path: string, data: Record<string, unknown>): Promise<void> {
     const response = await this.request('POST', 'data', path, { data });
     if (!response.ok) {
-      throw new SecretStoreUnavailableError(
+      throw failed(
+        response.status,
         `OpenBao answered ${response.status} writing ${path}`,
       );
     }
@@ -48,7 +58,8 @@ export class OpenBaoSecretStore extends SecretStore {
   async delete(path: string): Promise<void> {
     const response = await this.request('DELETE', 'metadata', path);
     if (!response.ok && response.status !== 404) {
-      throw new SecretStoreUnavailableError(
+      throw failed(
+        response.status,
         `OpenBao answered ${response.status} deleting ${path}`,
       );
     }

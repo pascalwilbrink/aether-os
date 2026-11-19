@@ -2,7 +2,10 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
 import { OpenBaoSecretStore } from './openbao-secret-store.js';
-import { SecretStoreUnavailableError } from './secret-store.js';
+import {
+  SecretStoreUnavailableError,
+  UnconfiguredSecretStore,
+} from './secret-store.js';
 
 describe('OpenBaoSecretStore', () => {
   let server: Server;
@@ -90,9 +93,16 @@ describe('OpenBaoSecretStore', () => {
   });
 
   it("is unavailable when OpenBao refuses or can't be reached", async () => {
+    // A token it refuses says so, apart from OpenBao being down.
     await expect(
       store('wrong').read('orgs/org-1/llm/anthropic'),
-    ).rejects.toBeInstanceOf(SecretStoreUnavailableError);
+    ).rejects.toMatchObject({
+      name: 'SecretStoreUnavailableError',
+      reason: 'refused',
+    });
+    await expect(store('wrong').write('x', { a: 1 })).rejects.toMatchObject({
+      reason: 'refused',
+    });
     await expect(
       new OpenBaoSecretStore({
         address: 'http://127.0.0.1:1',
@@ -100,7 +110,13 @@ describe('OpenBaoSecretStore', () => {
         mount: 'secret',
         timeoutMs: 500,
       }).read('x'),
-    ).rejects.toBeInstanceOf(SecretStoreUnavailableError);
+    ).rejects.toMatchObject({ reason: 'unreachable' });
+    await expect(new UnconfiguredSecretStore().write()).rejects.toEqual(
+      expect.objectContaining({ reason: 'not-configured' }),
+    );
+    await expect(store('wrong').read('x')).rejects.toBeInstanceOf(
+      SecretStoreUnavailableError,
+    );
   });
 
   it('writes a secret, and deletes it with every version', async () => {

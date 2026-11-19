@@ -20,8 +20,12 @@ const pathOf = ({ organizationId, agentId }: KeyRef) =>
   agentId ? `/orgs/${organizationId}/agents/${agentId}` : `/orgs/${organizationId}/model-keys`;
 
 function keyMessageOf(error: unknown): string {
-  if (error instanceof ApiError && error.status === 503) {
-    return "Keys can't be stored right now. Try again in a moment.";
+  if (!(error instanceof ApiError)) {
+    return "Hephaestus can't be reached right now. Try again in a moment.";
+  }
+  if (error.status === 503) {
+    // Hephaestus says why: OpenBao not configured, refusing its token, or not answering.
+    return error.message || "Keys can't be stored right now. Try again in a moment.";
   }
   return messageOf(error, {
     FORBIDDEN: "Only the organization's owners and admins set provider keys.",

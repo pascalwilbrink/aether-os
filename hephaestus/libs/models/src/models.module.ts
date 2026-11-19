@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
@@ -48,13 +48,18 @@ import { ModelsController } from './models.controller.js';
       useFactory: (config: ConfigService<Env, true>) => {
         const address = config.get('OPENBAO_ADDR', { infer: true });
         const token = config.get('OPENBAO_TOKEN', { infer: true });
-        return address && token
-          ? new OpenBaoSecretStore({
-              address,
-              token,
-              mount: config.get('OPENBAO_KV_MOUNT', { infer: true }),
-            })
-          : new UnconfiguredSecretStore();
+        if (address && token) {
+          return new OpenBaoSecretStore({
+            address,
+            token,
+            mount: config.get('OPENBAO_KV_MOUNT', { infer: true }),
+          });
+        }
+        // Model keys can't be set, nor agents run with them, until it is.
+        new Logger('SecretStore').warn(
+          'OpenBao is not configured (OPENBAO_ADDR, OPENBAO_TOKEN): model keys can be neither stored nor read',
+        );
+        return new UnconfiguredSecretStore();
       },
     },
     { provide: LanguageModels, useClass: MastraModelRouter },
