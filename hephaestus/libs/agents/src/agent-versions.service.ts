@@ -12,6 +12,7 @@ import {
   Transactional,
 } from '@hephaestus/core';
 import { ModelCatalogService } from '@hephaestus/models';
+import { ToolServerInvalidError, ToolServersService } from '@hephaestus/tools';
 
 import { nextAgentVersionStatus } from './agent-transitions.js';
 import { AgentVersionEntity } from './agent-version.entity.js';
@@ -38,6 +39,7 @@ export class AgentVersionsService {
     private readonly agents: AgentsService,
     private readonly access: AccessControl,
     private readonly models: ModelCatalogService,
+    private readonly toolServers: ToolServersService,
   ) {}
 
   @Transactional()
@@ -48,6 +50,7 @@ export class AgentVersionsService {
   ): Promise<AgentVersionResponse> {
     await this.agents.lockForVersionChange(organizationId, agentId);
     await this.models.assertAvailable(dto.model.provider, dto.model.model);
+    await this.assertTools(organizationId, dto.tools);
 
     const current = await this.versions.maximum('version', { agentId });
     const entity = this.mapper.toEntity(
@@ -71,6 +74,32 @@ export class AgentVersionsService {
     }
 
     return this.mapper.toResponse(entity);
+  }
+
+  /**
+   * Each tool server at most once, and an enabled one must exist (a
+   * disabled entry may name one that doesn't, yet or any more).
+   */
+  private async assertTools(
+    organizationId: string,
+    tools: CreateAgentVersionRequest['tools'],
+  ): Promise<void> {
+    const names = tools.map((tool) => tool.name);
+    const repeated = names.filter((name, i) => names.indexOf(name) !== i);
+    if (repeated.length > 0) {
+      throw new ToolServerInvalidError(
+        `Tool server ${repeated[0]} is listed more than once in tools.`,
+      );
+    }
+    const unknown = await this.toolServers.unknownNames(
+      organizationId,
+      tools.filter((tool) => tool.enabled).map((tool) => tool.name),
+    );
+    if (unknown.length > 0) {
+      throw new ToolServerInvalidError(
+        `The organization has no tool server named ${unknown.join(', ')}.`,
+      );
+    }
   }
 
   async list(

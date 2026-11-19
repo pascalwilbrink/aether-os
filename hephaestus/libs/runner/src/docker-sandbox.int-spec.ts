@@ -11,6 +11,7 @@ import {
   ModelGateway,
 } from '@hephaestus/models';
 import { TasksService } from '@hephaestus/tasks';
+import { ToolServersService } from '@hephaestus/tools';
 import { WorkspacesService } from '@hephaestus/workspaces';
 
 import {
@@ -339,9 +340,12 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
           .useValue(testRunnerOptions({ maxExecutions: 1 }))
           .overrideProvider(AgentRuntime)
           .useFactory({
-            factory: (gateway: ModelGateway, budgets: BudgetsService) =>
-              new MastraAgentRuntime(gateway, budgets),
-            inject: [ModelGateway, BudgetsService],
+            factory: (
+              gateway: ModelGateway,
+              budgets: BudgetsService,
+              toolServers: ToolServersService,
+            ) => new MastraAgentRuntime(gateway, budgets, toolServers),
+            inject: [ModelGateway, BudgetsService, ToolServersService],
           })
           .overrideProvider(SANDBOX_OPTIONS)
           .useValue(sandboxOptions)

@@ -1,4 +1,5 @@
 import type { AgentVersion, ApiSchema, Model } from "./api";
+import { toolFieldsOf, toolsFromForm } from "./tool-servers";
 
 export type AgentVersionStatus = ApiSchema<"AgentVersionStatus">;
 export type NewAgentVersion = ApiSchema<"CreateAgentVersionRequest">;
@@ -101,7 +102,7 @@ export function fieldsOf(version: AgentVersion | undefined): Record<string, stri
     networkAccess: version?.runtime.networkAccess ?? "none",
     allowedHosts: (version?.runtime.allowedHosts ?? []).join("\n"),
     runtimeProvider: version?.runtime.provider ?? DEFAULT_RUNTIME_PROVIDER,
-    tools: JSON.stringify(version?.tools ?? []),
+    ...toolFieldsOf(version?.tools ?? []),
     skills: JSON.stringify(version?.skills ?? []),
   };
 }
@@ -111,8 +112,9 @@ export type FormFields = Record<string, string | undefined>;
 
 /**
  * The request for a new version from the form's fields, or what's wrong
- * with them. Tools and skills come as JSON from the version the form
- * started from: Iris doesn't edit them yet.
+ * with them. Tools are the checked tool servers (`toolsFromForm`); skills
+ * come as JSON from the version the form started from: Iris doesn't edit
+ * them yet.
  */
 export function versionFromForm(fields: FormFields): { body: NewAgentVersion } | { error: string } {
   const value = (name: string) => (fields[name] ?? "").trim();
@@ -173,18 +175,21 @@ export function versionFromForm(fields: FormFields): { body: NewAgentVersion } |
     body.model.maxTokens = number;
   }
 
-  for (const name of ["tools", "skills"] as const) {
-    const json = value(name);
-    if (!json) continue;
+  const tools = toolsFromForm(fields);
+  if ("error" in tools) return tools;
+  body.tools = tools.tools;
+
+  const skills = value("skills");
+  if (skills) {
     let parsed: unknown;
     try {
-      parsed = JSON.parse(json);
+      parsed = JSON.parse(skills);
     } catch {
-      return { error: `The carried-over ${name} aren't valid.` };
+      return { error: "The carried-over skills aren't valid." };
     }
-    if (!Array.isArray(parsed)) return { error: `The carried-over ${name} aren't valid.` };
+    if (!Array.isArray(parsed)) return { error: "The carried-over skills aren't valid." };
     // Validated by Hephaestus against the spec.
-    (body[name] as unknown[]) = parsed;
+    body.skills = parsed as NewAgentVersion["skills"];
   }
   return { body };
 }

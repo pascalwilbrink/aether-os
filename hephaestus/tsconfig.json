@@ -76,6 +76,12 @@
       ],
       "@hephaestus/models/*": [
         "./libs/models/src/*"
+      ],
+      "@hephaestus/tools": [
+        "./libs/tools/src/index.ts"
+      ],
+      "@hephaestus/tools/*": [
+        "./libs/tools/src/*"
       ]
     },
     "rewriteRelativeImportExtensions": true

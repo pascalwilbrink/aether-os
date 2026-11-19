@@ -24,6 +24,8 @@ export type AcceptanceCriterion = ApiSchema<"AcceptanceCriterion">;
 export type TaskTemplate = ApiSchema<"TaskTemplateResponse">;
 export type TaskTemplateVersion = ApiSchema<"TaskTemplateVersionResponse">;
 export type Model = ApiSchema<"ModelResponse">;
+export type ToolServer = ApiSchema<"ToolServerResponse">;
+export type ToolSummary = ApiSchema<"ToolDescription">;
 /** Problem details (RFC 9457): every error response. */
 export type Problem = ApiSchema<"Problem">;
 /** Problem details for a business-rule violation, with a typed `code`. */

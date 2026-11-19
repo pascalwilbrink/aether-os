@@ -225,3 +225,42 @@ export const setModelKey = (
 
 export const deleteModelKey = (token: string, organizationId: string, provider: string, agentId?: string) =>
   hephaestus<void>(`${keysOf(organizationId, agentId)}/${provider}`, token, { method: "DELETE" });
+
+// --- Tool servers (MCP) the organization's agent versions take tools from ---
+
+type ToolServerList = ApiSchema<"ToolServerList">;
+type ToolServer = ApiSchema<"ToolServerResponse">;
+const toolServersOf = (organizationId: string) => `/v1/organizations/${organizationId}/tool-servers`;
+
+export const listToolServers = (token: string, organizationId: string) =>
+  hephaestus<ToolServerList>(toolServersOf(organizationId), token);
+
+export const getToolServer = (token: string, organizationId: string, toolServerId: string) =>
+  hephaestus<ToolServer>(`${toolServersOf(organizationId)}/${toolServerId}`, token);
+
+export const createToolServer = (token: string, organizationId: string, body: ApiSchema<"CreateToolServerRequest">) =>
+  hephaestus<ToolServer>(toolServersOf(organizationId), token, { method: "POST", body });
+
+export const updateToolServer = (
+  token: string,
+  organizationId: string,
+  toolServerId: string,
+  body: ApiSchema<"UpdateToolServerRequest">,
+) => hephaestus<ToolServer>(`${toolServersOf(organizationId)}/${toolServerId}`, token, { method: "PUT", body });
+
+export const deleteToolServer = (token: string, organizationId: string, toolServerId: string) =>
+  hephaestus<void>(`${toolServersOf(organizationId)}/${toolServerId}`, token, { method: "DELETE" });
+
+/** Stored in OpenBao; never returned. */
+export const setToolServerCredential = (token: string, organizationId: string, toolServerId: string, value: string) =>
+  hephaestus<ToolServer>(`${toolServersOf(organizationId)}/${toolServerId}/credential`, token, {
+    method: "PUT",
+    body: { value },
+  });
+
+export const deleteToolServerCredential = (token: string, organizationId: string, toolServerId: string) =>
+  hephaestus<void>(`${toolServersOf(organizationId)}/${toolServerId}/credential`, token, { method: "DELETE" });
+
+/** What the server offers now (Hephaestus connects to it). */
+export const listToolServerTools = (token: string, organizationId: string, toolServerId: string) =>
+  hephaestus<ApiSchema<"ToolList">>(`${toolServersOf(organizationId)}/${toolServerId}/tools`, token);

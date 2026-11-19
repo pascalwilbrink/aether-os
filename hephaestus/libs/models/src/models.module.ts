@@ -1,13 +1,7 @@
-import { Logger, Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import {
-  OpenBaoSecretStore,
-  SecretStore,
-  UnconfiguredSecretStore,
-  type Env,
-} from '@hephaestus/core';
+import { SecretsModule } from '@hephaestus/core';
 
 import { LanguageModels, MastraModelRouter } from './language-models.js';
 import { TenancyModule } from '@hephaestus/tenancy';
@@ -39,29 +33,10 @@ import { ModelsController } from './models.controller.js';
       ModelKeyEntity,
     ]),
     TenancyModule,
+    SecretsModule,
   ],
   controllers: [ModelsController, BudgetsController, ModelKeysController],
   providers: [
-    {
-      provide: SecretStore,
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>) => {
-        const address = config.get('OPENBAO_ADDR', { infer: true });
-        const token = config.get('OPENBAO_TOKEN', { infer: true });
-        if (address && token) {
-          return new OpenBaoSecretStore({
-            address,
-            token,
-            mount: config.get('OPENBAO_KV_MOUNT', { infer: true }),
-          });
-        }
-        // Model keys can't be set, nor agents run with them, until it is.
-        new Logger('SecretStore').warn(
-          'OpenBao is not configured (OPENBAO_ADDR, OPENBAO_TOKEN): model keys can be neither stored nor read',
-        );
-        return new UnconfiguredSecretStore();
-      },
-    },
     { provide: LanguageModels, useClass: MastraModelRouter },
     ModelMapper,
     ModelCatalogService,

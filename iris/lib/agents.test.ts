@@ -35,7 +35,10 @@ describe("versionFromForm", () => {
       executionMode: "coding",
       sandboxRequired: "on",
       runtimeProvider: "local",
-      tools: '[{"name":"github","enabled":false}]',
+      "tool:docs": "on",
+      "toolNames:docs": "lookup, search lookup",
+      "tool:seshat": "on",
+      "tool:off": "",
       skills: "[]",
     });
     expect(result).toEqual({
@@ -48,7 +51,10 @@ describe("versionFromForm", () => {
           maxTokens: 2000,
         },
         capabilities: ["code", "chat"],
-        tools: [{ name: "github", enabled: false }],
+        tools: [
+          { name: "docs", enabled: true, tools: ["lookup", "search"] },
+          { name: "seshat", enabled: true },
+        ],
         skills: [],
         runtime: {
           provider: "local",
@@ -68,7 +74,7 @@ describe("versionFromForm", () => {
     [{ ...base, temperature: "warm" }, "Temperature is a number from 0 to 2."],
     [{ ...base, maxTokens: "1.5" }, "Max tokens is a whole number above 0."],
     [{ ...base, maxTokens: "0" }, "Max tokens is a whole number above 0."],
-    [{ ...base, tools: "{" }, "The carried-over tools aren't valid."],
+    [{ ...base, "tool:docs": "on", "toolNames:docs": "a/b" }, '"a/b" isn\'t a tool name (letters, digits, _ . and -).'],
     [{ ...base, skills: "{}" }, "The carried-over skills aren't valid."],
   ])("refuses %o", (fields, error) => {
     expect(versionFromForm(fields)).toEqual({ error });
@@ -114,7 +120,7 @@ describe("fieldsOf", () => {
         maxTokens: 100,
       },
       capabilities: ["code", "chat"],
-      tools: [{ name: "github", enabled: false }],
+      tools: [{ name: "docs", enabled: true, tools: ["lookup"] }, { name: "seshat", enabled: true }],
       skills: [],
       runtime: {
         provider: "local",

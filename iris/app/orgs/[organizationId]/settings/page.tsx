@@ -10,6 +10,7 @@ type Props = PageProps<"/orgs/[organizationId]/settings">;
 const SETTINGS = [
   { path: "budget", title: "Budget", text: "What model calls cost this month, and the organization's monthly limit." },
   { path: "model-keys", title: "Model keys", text: "The organization's keys for model providers (write-only)." },
+  { path: "tool-servers", title: "Tool servers", text: "MCP servers agents take tools from, and their credentials." },
   { path: "github", title: "GitHub", text: "Connecting the GitHub App, and the repositories projects can link." },
   { path: "members", title: "Members", text: "People and service accounts, and their roles." },
 ] as const;

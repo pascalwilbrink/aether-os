@@ -32,7 +32,7 @@ describe("sidebar helpers", () => {
     expect(sectionOf(`${base}/projects/${PROJECT}/templates/x`, ORG)).toBe("templates");
     expect(sectionOf(`${base}/agents/new`, ORG)).toBe("agents");
     expect(sectionOf(`${base}/members`, ORG)).toBe("members");
-    for (const page of ["settings", "budget", "model-keys", "github"]) {
+    for (const page of ["settings", "budget", "model-keys", "tool-servers", "github"]) {
       expect(sectionOf(`${base}/${page}`, ORG)).toBe("settings");
     }
     expect(projectOf(`${base}/projects/${PROJECT}/automations/new`, ORG)).toBe(PROJECT);

@@ -3,8 +3,9 @@
 import { useActionState } from "react";
 
 import { buttonClass, FormError, inputClass, secondaryButtonClass } from "@/app/components/form";
-import type { AgentVersion, Model } from "@/lib/api";
+import type { AgentVersion, Model, ToolServer } from "@/lib/api";
 import { fieldsOf, modelChoices } from "@/lib/agents";
+import { TOOL_FIELD, TOOL_NAMES_FIELD } from "@/lib/tool-servers";
 
 import {
   archiveAgentAction,
@@ -53,14 +54,17 @@ export function VersionForm({
   agent,
   from,
   models,
+  toolServers,
 }: {
   agent: AgentRef;
   from: AgentVersion | undefined;
   /** The catalogue's active models. */
   models: Model[];
+  /** The organization's tool servers. */
+  toolServers: ToolServer[];
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(createVersionAction.bind(null, agent), {});
-  const carried = (from?.tools.length ?? 0) + (from?.skills.length ?? 0);
+  const carried = from?.skills.length ?? 0;
   // A refused submit starts from what was sent; otherwise from `from`.
   const start = state.values ?? fieldsOf(from);
   const choices = modelChoices(models, start.model ?? "");
@@ -191,12 +195,12 @@ export function VersionForm({
           />
         </label>
       </div>
+      <ToolChoices organizationId={agent.organizationId} toolServers={toolServers} start={start} />
       <input type="hidden" name="runtimeProvider" value={start.runtimeProvider} />
-      <input type="hidden" name="tools" value={start.tools} />
       <input type="hidden" name="skills" value={start.skills} />
       {carried > 0 ? (
         <p className="text-xs text-zinc-500">
-          Its {carried} tool and skill settings carry over from version {from?.version}; Iris can&apos;t edit them yet.
+          Its {carried} skill settings carry over from version {from?.version}; Iris can&apos;t edit them yet.
         </p>
       ) : null}
       <div className="flex items-center gap-4">
@@ -208,6 +212,71 @@ export function VersionForm({
         </label>
       </div>
     </form>
+  );
+}
+
+/**
+ * Which tool servers the version takes tools from, and optionally which of
+ * their tools; one the version named that's gone is shown too, to drop.
+ */
+function ToolChoices({
+  organizationId,
+  toolServers,
+  start,
+}: {
+  organizationId: string;
+  toolServers: ToolServer[];
+  start: Record<string, string | undefined>;
+}) {
+  const known = new Set(toolServers.map((server) => server.name));
+  const gone = Object.keys(start)
+    .filter((key) => key.startsWith(TOOL_FIELD) && start[key] === "on")
+    .map((key) => key.slice(TOOL_FIELD.length))
+    .filter((name) => !known.has(name));
+  const rows = [
+    ...toolServers.map((server) => ({ name: server.name, text: server.description || server.url, gone: false })),
+    ...gone.map((name) => ({ name, text: "No tool server has this name any more: uncheck it.", gone: true })),
+  ];
+  return (
+    <fieldset className="space-y-2 text-sm">
+      <legend>Tools</legend>
+      {rows.length === 0 ? (
+        <p className="text-xs text-zinc-500">
+          The organization has no{" "}
+          <a href={`/orgs/${organizationId}/tool-servers`} className="underline">
+            tool servers
+          </a>{" "}
+          yet. Without them the agent has its sandbox (if any) and submit_artifact.
+        </p>
+      ) : (
+        rows.map((row) => (
+          // Keyed by what the form starts from: a reset doesn't move checkboxes to new defaults.
+          <div key={`${row.name}:${start[`${TOOL_FIELD}${row.name}`] ?? ""}`} className="grid gap-2 sm:grid-cols-2">
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                name={`${TOOL_FIELD}${row.name}`}
+                defaultChecked={start[`${TOOL_FIELD}${row.name}`] === "on"}
+                className="mt-1"
+              />
+              <span>
+                <span className="font-mono">{row.name}</span>
+                <span className={`block text-xs ${row.gone ? "text-amber-700 dark:text-amber-300" : "text-zinc-500"}`}>
+                  {row.text}
+                </span>
+              </span>
+            </label>
+            <input
+              name={`${TOOL_NAMES_FIELD}${row.name}`}
+              aria-label={`Tools of ${row.name}`}
+              placeholder="All its tools, or: lookup, search"
+              defaultValue={start[`${TOOL_NAMES_FIELD}${row.name}`]}
+              className={`${inputClass} mt-0 font-mono`}
+            />
+          </div>
+        ))
+      )}
+    </fieldset>
   );
 }
 

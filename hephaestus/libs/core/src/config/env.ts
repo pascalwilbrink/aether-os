@@ -124,6 +124,28 @@ export const zEnv = z
           .map((host) => host.trim().toLowerCase())
           .filter(Boolean),
       ),
+    /**
+     * Tool servers (MCP, libs/tools): whether Hephaestus may connect to
+     * private, loopback and link-local addresses, and over `http://` (local
+     * development, a tool server next to Hephaestus). Off in production.
+     */
+    TOOL_SERVER_ALLOW_PRIVATE: z.stringbool().default(false),
+    /**
+     * Origins (`https://seshat.example.com`) whose tool servers may be sent
+     * a task's own token (`auth.type: task-token`): Aether-os's own servers
+     * only (comma-separated).
+     */
+    TOOL_SERVER_TRUSTED_ORIGINS: z
+      .string()
+      .default('')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((origin) => origin.trim().replace(/\/+$/, '').toLowerCase())
+          .filter(Boolean),
+      ),
+    /** How long one tool call (or connecting to a tool server) may take. */
+    TOOL_CALL_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
     /** The image of a `restricted` sandbox's proxy; anything with `node`. */
     SANDBOX_PROXY_IMAGE: z.string().min(1).default('node:22-alpine'),
     /** The Docker network the proxy reaches the internet on. */

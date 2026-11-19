@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ARTIFACT_NOT_DRAFT' | 'TASK_BUDGET_INVALID' | 'TASK_CONCURRENCY_INVALID' | 'TASK_CONCURRENCY_SKIPPED' | 'MODEL_ALREADY_EXISTS' | 'MODEL_NOT_AVAILABLE' | 'MODEL_PRICE_INVALID' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'TASK_TEMPLATE_ARCHIVED' | 'TASK_TEMPLATE_INPUTS_INVALID' | 'TASK_TEMPLATE_INVALID' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
+export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ARTIFACT_NOT_DRAFT' | 'TASK_BUDGET_INVALID' | 'TASK_CONCURRENCY_INVALID' | 'TASK_CONCURRENCY_SKIPPED' | 'MODEL_ALREADY_EXISTS' | 'MODEL_NOT_AVAILABLE' | 'MODEL_PRICE_INVALID' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'TASK_TEMPLATE_ARCHIVED' | 'TASK_TEMPLATE_INPUTS_INVALID' | 'TASK_TEMPLATE_INVALID' | 'TOOL_SERVER_ALREADY_EXISTS' | 'TOOL_SERVER_INVALID' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
 
 /**
  * Problem details for a business-rule violation.
@@ -52,12 +52,19 @@ export type AgentModelConfiguration = {
     maxTokens?: number;
 };
 
+/**
+ * Tools from one of the organization's tool servers (MCP): the agent
+ * gets them as `<name>_<tool>`. An enabled entry must name an existing
+ * tool server when the version is created.
+ *
+ */
 export type AgentToolConfiguration = {
-    name: string;
+    name: ToolServerName;
     enabled: boolean;
-    configuration?: {
-        [key: string]: unknown;
-    };
+    /**
+     * Which of the server's tools, by name; all of them when left out.
+     */
+    tools?: Array<ToolName>;
 };
 
 export type AgentSkillConfiguration = {
@@ -993,6 +1000,94 @@ export type ModelKeyList = {
 };
 
 /**
+ * Lowercase letters, digits and hyphens, starting with a letter; unique in the organization.
+ */
+export type ToolServerName = string;
+
+export type ToolName = string;
+
+/**
+ * How Hephaestus authenticates to the server: `none`; `header`, sending
+ * the credential in `headerName`; or `task-token`, sending the running
+ * task's own Pistis token as a bearer token (only to servers whose
+ * origin the platform trusts, `TOOL_SERVER_TRUSTED_ORIGINS`: Aether-os's
+ * own, such as Seshat).
+ *
+ */
+export type ToolServerAuthType = 'none' | 'header' | 'task-token';
+
+export type ToolServerAuth = {
+    type: ToolServerAuthType;
+    /**
+     * For `header`; `Authorization` when left out.
+     */
+    headerName?: string;
+};
+
+/**
+ * The MCP endpoint (Streamable HTTP); `https://`, or `http://` only where Hephaestus may reach private addresses (local development).
+ */
+export type ToolServerUrl = string;
+
+export type CreateToolServerRequest = {
+    name: ToolServerName;
+    description?: string;
+    url: ToolServerUrl;
+    auth: ToolServerAuth;
+};
+
+export type UpdateToolServerRequest = {
+    description: string;
+    url: ToolServerUrl;
+    auth: ToolServerAuth;
+};
+
+export type SetToolServerCredentialRequest = {
+    value: string;
+};
+
+export type ToolServerCredential = {
+    /**
+     * The last four characters, e.g. `…ab12`.
+     */
+    hint: string;
+    updatedBy: string;
+    updatedAt: Timestamp;
+};
+
+export type ToolServerResponse = {
+    id: string;
+    organizationId: string;
+    name: ToolServerName;
+    description: string;
+    url: string;
+    auth: {
+        type: ToolServerAuthType;
+        headerName: string | null;
+    };
+    /**
+     * That a `header` credential is set; null when none is.
+     */
+    credential: ToolServerCredential | null;
+    createdBy: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+};
+
+export type ToolServerList = {
+    items: Array<ToolServerResponse>;
+};
+
+export type ToolDescription = {
+    name: string;
+    description: string;
+};
+
+export type ToolList = {
+    items: Array<ToolDescription>;
+};
+
+/**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
 export type NextCursor = string | null;
@@ -1077,6 +1172,8 @@ export type ArtifactId = string;
 export type Provider = ModelProvider;
 
 export type ModelId = string;
+
+export type ToolServerId = string;
 
 /**
  * Page size.
@@ -4073,3 +4170,441 @@ export type SetAgentModelKeyResponses = {
 };
 
 export type SetAgentModelKeyResponse = SetAgentModelKeyResponses[keyof SetAgentModelKeyResponses];
+
+export type ListToolServersData = {
+    body?: never;
+    path: {
+        organizationId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/tool-servers';
+};
+
+export type ListToolServersErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type ListToolServersError = ListToolServersErrors[keyof ListToolServersErrors];
+
+export type ListToolServersResponses = {
+    /**
+     * By name
+     */
+    200: ToolServerList;
+};
+
+export type ListToolServersResponse = ListToolServersResponses[keyof ListToolServersResponses];
+
+export type CreateToolServerData = {
+    body: CreateToolServerRequest;
+    path: {
+        organizationId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/tool-servers';
+};
+
+export type CreateToolServerErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type CreateToolServerError = CreateToolServerErrors[keyof CreateToolServerErrors];
+
+export type CreateToolServerResponses = {
+    /**
+     * Created
+     */
+    201: ToolServerResponse;
+};
+
+export type CreateToolServerResponse = CreateToolServerResponses[keyof CreateToolServerResponses];
+
+export type DeleteToolServerData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        toolServerId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/tool-servers/{toolServerId}';
+};
+
+export type DeleteToolServerErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type DeleteToolServerError = DeleteToolServerErrors[keyof DeleteToolServerErrors];
+
+export type DeleteToolServerResponses = {
+    /**
+     * Removed (also when there was none)
+     */
+    204: void;
+};
+
+export type DeleteToolServerResponse = DeleteToolServerResponses[keyof DeleteToolServerResponses];
+
+export type GetToolServerData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        toolServerId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/tool-servers/{toolServerId}';
+};
+
+export type GetToolServerErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type GetToolServerError = GetToolServerErrors[keyof GetToolServerErrors];
+
+export type GetToolServerResponses = {
+    /**
+     * OK
+     */
+    200: ToolServerResponse;
+};
+
+export type GetToolServerResponse = GetToolServerResponses[keyof GetToolServerResponses];
+
+export type UpdateToolServerData = {
+    body: UpdateToolServerRequest;
+    path: {
+        organizationId: string;
+        toolServerId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/tool-servers/{toolServerId}';
+};
+
+export type UpdateToolServerErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type UpdateToolServerError = UpdateToolServerErrors[keyof UpdateToolServerErrors];
+
+export type UpdateToolServerResponses = {
+    /**
+     * OK
+     */
+    200: ToolServerResponse;
+};
+
+export type UpdateToolServerResponse = UpdateToolServerResponses[keyof UpdateToolServerResponses];
+
+export type DeleteToolServerCredentialData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        toolServerId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/tool-servers/{toolServerId}/credential';
+};
+
+export type DeleteToolServerCredentialErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type DeleteToolServerCredentialError = DeleteToolServerCredentialErrors[keyof DeleteToolServerCredentialErrors];
+
+export type DeleteToolServerCredentialResponses = {
+    /**
+     * Removed (also when there was none)
+     */
+    204: void;
+};
+
+export type DeleteToolServerCredentialResponse = DeleteToolServerCredentialResponses[keyof DeleteToolServerCredentialResponses];
+
+export type SetToolServerCredentialData = {
+    body: SetToolServerCredentialRequest;
+    path: {
+        organizationId: string;
+        toolServerId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/tool-servers/{toolServerId}/credential';
+};
+
+export type SetToolServerCredentialErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type SetToolServerCredentialError = SetToolServerCredentialErrors[keyof SetToolServerCredentialErrors];
+
+export type SetToolServerCredentialResponses = {
+    /**
+     * OK
+     */
+    200: ToolServerResponse;
+};
+
+export type SetToolServerCredentialResponse = SetToolServerCredentialResponses[keyof SetToolServerCredentialResponses];
+
+export type ListToolServerToolsData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        toolServerId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/tool-servers/{toolServerId}/tools';
+};
+
+export type ListToolServerToolsErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * The tool server couldn't be reached or refused the request (`UNAVAILABLE`); `detail` says what it answered.
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type ListToolServerToolsError = ListToolServerToolsErrors[keyof ListToolServerToolsErrors];
+
+export type ListToolServerToolsResponses = {
+    /**
+     * By name
+     */
+    200: ToolList;
+};
+
+export type ListToolServerToolsResponse = ListToolServerToolsResponses[keyof ListToolServerToolsResponses];

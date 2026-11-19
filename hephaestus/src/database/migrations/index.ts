@@ -17,6 +17,7 @@ import { Budgets1795041939868 } from './1795041939868-Budgets.js';
 import { ModelKeys1795045800295 } from './1795045800295-ModelKeys.js';
 import { AgentBudgets1795070345258 } from './1795070345258-AgentBudgets.js';
 import { TaskConcurrency1795082757713 } from './1795082757713-TaskConcurrency.js';
+import { ToolServers1795100000000 } from './1795100000000-ToolServers.js';
 import { WorkspaceBlockedHosts1795085475839 } from './1795085475839-WorkspaceBlockedHosts.js';
 
 /**
@@ -46,4 +47,5 @@ export const migrations = [
   AgentBudgets1795070345258,
   TaskConcurrency1795082757713,
   WorkspaceBlockedHosts1795085475839,
+  ToolServers1795100000000,
 ];
