@@ -15,7 +15,7 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 | `proxenos.asyncapi.yaml` | Proxenos (events on `proxenos.events`) | Hephaestus (pull requests), Kairos (issues) |
 | `kairos.openapi.yaml` | Kairos (automations and their runs) | later Iris |
 | `kairos.asyncapi.yaml` | Kairos (events on `kairos.events`) | later Iris, Kriterion |
-| `kerykes.openapi.yaml` | Kerykes (each user's inbox) | later Iris |
+| `kerykes.openapi.yaml` | Kerykes (each user's inbox) | Iris |
 | `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Hephaestus (organization and project events), Kerykes (membership events); later Pistis and others |
 | `hephaestus.asyncapi.yaml` | Hephaestus (task events on `hephaestus.events`; the `task.create` command it receives on `hephaestus.commands`) | Kairos (`task.created`, `task.create-rejected`), Kerykes (tasks that need people, budgets); later Kriterion, Iris |
 
