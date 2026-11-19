@@ -25,6 +25,7 @@ import {
 import { createTestingModuleWith } from '../../../test/testing-module.js';
 import { AgentRuntime } from './agent-runtime.js';
 import { DockerSandboxDriver } from './docker-sandbox-driver.js';
+import { ExecutionHistory } from './execution-history.js';
 import { MastraAgentRuntime } from './mastra-agent-runtime.js';
 import { RunnerModule } from './runner.module.js';
 import { RUNNER_OPTIONS } from './runner.options.js';
@@ -518,6 +519,18 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
         }),
         blocked_hosts: ['example.com'],
       }),
+    ]);
+    // And on the execution, for people with `task:read`.
+    const { items } = await moduleRef
+      .get(ExecutionHistory)
+      .list(organizationId, projectId, task.id, { limit: 10 });
+    expect(items.map((execution) => execution.sandbox)).toEqual([
+      {
+        workspaceId: expect.any(String),
+        networkAccess: 'restricted',
+        allowedHosts: ['*.internal.test'],
+        blockedHosts: ['example.com'],
+      },
     ]);
   });
 

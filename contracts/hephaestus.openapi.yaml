@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.18.0
+  version: 0.19.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -2240,7 +2240,7 @@ components:
     ExecutionResponse:
       type: object
       additionalProperties: false
-      required: [id, taskId, attempt, number, status, failureReason, error, summary, usage, repository, startedAt, endedAt]
+      required: [id, taskId, attempt, number, status, failureReason, error, summary, usage, repository, sandbox, startedAt, endedAt]
       properties:
         id: { type: string, format: uuid }
         taskId: { type: string, format: uuid }
@@ -2262,8 +2262,34 @@ components:
           oneOf:
             - $ref: '#/components/schemas/ExecutionRepository'
             - { type: 'null' }
+        sandbox:
+          oneOf:
+            - $ref: '#/components/schemas/ExecutionSandbox'
+            - { type: 'null' }
         startedAt: { type: string, format: date-time }
         endedAt: { type: [string, 'null'], format: date-time }
+    ExecutionSandbox:
+      type: object
+      additionalProperties: false
+      description: |
+        The sandbox the execution ran in (its workspace), and what it could
+        reach: none for a version without `runtime.sandboxRequired`. Seen
+        with `task:read`, unlike the workspace itself.
+      required: [workspaceId, networkAccess, allowedHosts, blockedHosts]
+      properties:
+        workspaceId: { type: string, format: uuid }
+        networkAccess: { $ref: '#/components/schemas/NetworkAccess' }
+        allowedHosts:
+          description: For `restricted` access, every host it could reach (the platform's and the agent version's); empty otherwise.
+          type: array
+          items: { type: string }
+        blockedHosts:
+          description: |
+            Hosts it tried to reach and its proxy refused, recorded when the
+            sandbox is destroyed (so empty while it runs). Candidates for
+            the agent version's `allowedHosts`.
+          type: array
+          items: { type: string }
     ExecutionRepository:
       type: object
       additionalProperties: false

@@ -23,7 +23,7 @@ import {
 } from '../../../test/fake-runner.js';
 import { createTestingModuleWith } from '../../../test/testing-module.js';
 import { AgentRuntime, type AgentRunInput } from './agent-runtime.js';
-import { ExecutionsService } from './executions.service.js';
+import { ExecutionHistory } from './execution-history.js';
 import {
   RepositoryTokens,
   type RepositoryCredentials,
@@ -58,6 +58,7 @@ const sandboxOptions: SandboxOptions = {
   memoryMb: 256,
   pidsLimit: 64,
   workspaceMb: 64,
+  allowedHosts: [],
   lifetimeMs: 600_000,
 };
 
@@ -281,13 +282,13 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
   const execution = async (taskId: string) =>
     (
       await moduleRef
-        .get(ExecutionsService)
+        .get(ExecutionHistory)
         .list(organizationId, projectId, taskId, { limit: 10 })
     ).items[0];
   const executionsOf = async (taskId: string) =>
     (
       await moduleRef
-        .get(ExecutionsService)
+        .get(ExecutionHistory)
         .list(organizationId, projectId, taskId, { limit: 10 })
     ).items;
   /** Why the task moved, from its `task.status-changed` events in the outbox. */

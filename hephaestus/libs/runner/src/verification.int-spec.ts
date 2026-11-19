@@ -16,7 +16,7 @@ import {
 } from '../../../test/fake-runner.js';
 import { createTestingModuleWith } from '../../../test/testing-module.js';
 import { AgentRuntime } from './agent-runtime.js';
-import { ExecutionsService } from './executions.service.js';
+import { ExecutionHistory } from './execution-history.js';
 import { RunnerModule } from './runner.module.js';
 import { RUNNER_OPTIONS } from './runner.options.js';
 import { SandboxProvisioner } from './sandbox-provisioner.js';
@@ -246,7 +246,7 @@ describe('Verification (Postgres)', () => {
     });
     // One execution, two runs of the agent: the second with what failed.
     const executions = await moduleRef
-      .get(ExecutionsService)
+      .get(ExecutionHistory)
       .list(organizationId, projectId, created.id, { limit: 10 });
     expect(executions.items).toHaveLength(1);
     expect(runtime.runs).toHaveLength(2);
@@ -283,7 +283,7 @@ describe('Verification (Postgres)', () => {
     expect(runtime.runs).toHaveLength(3);
     const [execution] = (
       await moduleRef
-        .get(ExecutionsService)
+        .get(ExecutionHistory)
         .list(organizationId, projectId, created.id, { limit: 10 })
     ).items;
     expect(execution).toMatchObject({

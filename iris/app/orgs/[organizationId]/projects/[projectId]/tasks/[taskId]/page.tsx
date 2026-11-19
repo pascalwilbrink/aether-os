@@ -8,7 +8,16 @@ import { getTask, getTaskTreeBudget, listArtifacts, listExecutions } from "@/lib
 import { getProject } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
 import { pausedMessage } from "@/lib/budgets";
-import { artifactsByExecution, failureLabel, formatCost, formatCount, formatTime, taskActions } from "@/lib/tasks";
+import {
+  artifactsByExecution,
+  blockedHosts,
+  failureLabel,
+  formatCost,
+  formatCount,
+  formatTime,
+  networkLabel,
+  taskActions,
+} from "@/lib/tasks";
 
 import { setTaskBudgetAction } from "../../actions";
 import { ReviewForm } from "../../review-form";
@@ -38,6 +47,7 @@ async function TaskView({ params }: Pick<Props, "params">) {
     getTaskTreeBudget(token, organizationId, projectId, taskId),
   ]);
   const actions = taskActions(task);
+  const refused = blockedHosts(executions.items);
   const ref = { organizationId, projectId, taskId };
   const groups = artifactsByExecution(executions.items, artifacts.items);
   const who = (sub: string) => (sub === session.sub ? "you" : sub);
@@ -207,6 +217,7 @@ async function TaskView({ params }: Pick<Props, "params">) {
                 <th className="py-1 font-normal">Model calls</th>
                 <th className="py-1 font-normal">Tokens in / out</th>
                 <th className="py-1 font-normal">Cost</th>
+                <th className="py-1 font-normal">Network</th>
                 <th className="py-1 font-normal">Started</th>
               </tr>
             </thead>
@@ -225,6 +236,9 @@ async function TaskView({ params }: Pick<Props, "params">) {
                     {formatCount(execution.usage.inputTokens)} / {formatCount(execution.usage.outputTokens)}
                   </td>
                   <td className="py-2 pr-2">{formatCost(execution.usage.costUsd)}</td>
+                  <td className="py-2 pr-2" title={execution.sandbox?.allowedHosts.join(", ") || undefined}>
+                    {networkLabel(execution)}
+                  </td>
                   <td className="py-2 text-zinc-600 dark:text-zinc-400">{formatTime(execution.startedAt)}</td>
                 </tr>
               ))}
@@ -232,6 +246,30 @@ async function TaskView({ params }: Pick<Props, "params">) {
           </table>
         )}
       </section>
+
+      {refused.length > 0 ? (
+        <section className="space-y-2">
+          <h2 className="font-medium">Blocked hosts</h2>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            The sandbox tried to reach these hosts and was refused: they&apos;re not among the hosts its agent version
+            may reach. If the agent needs one, add it to the allowed hosts of a new version of{" "}
+            <Link href={`/orgs/${organizationId}/agents/${task.agentId}`} className="underline">
+              the agent
+            </Link>
+            .
+          </p>
+          <ul className="space-y-1 text-sm">
+            {refused.map(({ host, executions: numbers }) => (
+              <li key={host}>
+                <code className="font-mono">{host}</code>{" "}
+                <span className="text-zinc-500">
+                  (execution{numbers.length > 1 ? "s" : ""} {numbers.join(", ")})
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

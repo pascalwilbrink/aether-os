@@ -2,13 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, LessThan, type Repository } from 'typeorm';
 
-import {
-  findPage,
-  mapPage,
-  Transactional,
-  type ApiTypes,
-  type Page,
-} from '@hephaestus/core';
+import { Transactional, type ApiTypes } from '@hephaestus/core';
 import type { BudgetScope } from '@hephaestus/models';
 import {
   ArtifactRejectedError,
@@ -17,7 +11,6 @@ import {
   type NewArtifact,
   type NewPullRequest,
 } from '@hephaestus/artifacts';
-import { ModelGateway } from '@hephaestus/models';
 import {
   InvalidTaskTransitionError,
   TaskQueue,
@@ -27,8 +20,6 @@ import {
   type TaskStatus,
 } from '@hephaestus/tasks';
 
-import type { ExecutionResponse } from './dto/execution.response.js';
-import type { ListExecutionsQuery } from './dto/list-executions.query.js';
 import {
   ACTIVE_EXECUTION,
   ExecutionEntity,
@@ -76,7 +67,6 @@ export class ExecutionsService {
     private readonly mapper: ExecutionMapper,
     private readonly tasks: TasksService,
     private readonly queue: TaskQueue,
-    private readonly gateway: ModelGateway,
     private readonly artifacts: ArtifactsService,
     @Inject(RUNNER_OPTIONS) private readonly options: RunnerOptions,
   ) {}
@@ -451,27 +441,6 @@ export class ExecutionsService {
     await this.executions.update(
       { id: executionId },
       { sandboxReference: null },
-    );
-  }
-
-  async list(
-    organizationId: string,
-    projectId: string,
-    taskId: string,
-    page: ListExecutionsQuery,
-  ): Promise<Page<ExecutionResponse>> {
-    // 404 for another organization's or project's task.
-    await this.tasks.findById(organizationId, projectId, taskId);
-    const entities = await findPage(
-      this.executions,
-      { where: { taskId }, sortBy: 'startedAt', direction: 'DESC' },
-      page,
-    );
-    const usage = await this.gateway.usageOf(
-      entities.items.map((entity) => entity.id),
-    );
-    return mapPage(entities, (entity) =>
-      this.mapper.toResponse(entity, usage.get(entity.id)),
     );
   }
 

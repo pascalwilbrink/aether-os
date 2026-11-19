@@ -5,13 +5,13 @@ import { RequirePermission, ZodSerializerDto } from '@hephaestus/core';
 import { ExecutionPage } from './dto/execution-page.response.js';
 import { ExecutionsParams } from './dto/executions.params.js';
 import { ListExecutionsQuery } from './dto/list-executions.query.js';
-import { ExecutionsService } from './executions.service.js';
+import { ExecutionHistory } from './execution-history.js';
 
 @Controller(
   'organizations/:organizationId/projects/:projectId/tasks/:taskId/executions',
 )
 export class ExecutionsController {
-  constructor(private readonly executions: ExecutionsService) {}
+  constructor(private readonly executions: ExecutionHistory) {}
 
   @Get()
   @RequirePermission('task:read', { project: 'projectId' })

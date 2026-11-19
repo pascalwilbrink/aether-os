@@ -17,6 +17,7 @@ import {
 import { createTestingModuleWith } from '../../../test/testing-module.js';
 import { AgentRuntime } from './agent-runtime.js';
 import { ExecutionReaper } from './execution-reaper.js';
+import { ExecutionHistory } from './execution-history.js';
 import { ExecutionsService } from './executions.service.js';
 import { RunnerModule } from './runner.module.js';
 import { RUNNER_OPTIONS, type RunnerOptions } from './runner.options.js';
@@ -47,6 +48,7 @@ describe('TaskRunner (Postgres)', () => {
   let sandboxes: FakeSandboxProvisioner;
   let runner: TaskRunner;
   let executions: ExecutionsService;
+  let history: ExecutionHistory;
   let key = 0;
 
   async function start(options: Partial<RunnerOptions> = {}) {
@@ -68,6 +70,7 @@ describe('TaskRunner (Postgres)', () => {
     ));
     runner = moduleRef.get(TaskRunner);
     executions = moduleRef.get(ExecutionsService);
+    history = moduleRef.get(ExecutionHistory);
   }
 
   afterEach(async () => {
@@ -120,7 +123,7 @@ describe('TaskRunner (Postgres)', () => {
     const task = (id: string, project = projectId) =>
       tasks.findById(organizationId, project, id);
     const executionsOf = async (id: string, project = projectId) =>
-      (await executions.list(organizationId, project, id, { limit: 50 })).items;
+      (await history.list(organizationId, project, id, { limit: 50 })).items;
     return {
       organizationId,
       projectId,

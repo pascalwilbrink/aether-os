@@ -1,6 +1,7 @@
 export * from './runner.module.js';
 export * from './task-runner.js';
 export * from './executions.service.js';
+export * from './execution-history.js';
 export * from './agent-runtime.js';
 export * from './sandbox-provisioner.js';
 export * from './task-tokens.js';

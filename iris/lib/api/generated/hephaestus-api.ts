@@ -1550,10 +1550,29 @@ export interface components {
             summary: string | null;
             usage: components["schemas"]["ExecutionUsage"];
             repository: components["schemas"]["ExecutionRepository"] | null;
+            sandbox: components["schemas"]["ExecutionSandbox"] | null;
             /** Format: date-time */
             startedAt: string;
             /** Format: date-time */
             endedAt: string | null;
+        };
+        /**
+         * @description The sandbox the execution ran in (its workspace), and what it could
+         *     reach: none for a version without `runtime.sandboxRequired`. Seen
+         *     with `task:read`, unlike the workspace itself.
+         */
+        ExecutionSandbox: {
+            /** Format: uuid */
+            workspaceId: string;
+            networkAccess: components["schemas"]["NetworkAccess"];
+            /** @description For `restricted` access, every host it could reach (the platform's and the agent version's); empty otherwise. */
+            allowedHosts: string[];
+            /**
+             * @description Hosts it tried to reach and its proxy refused, recorded when the
+             *     sandbox is destroyed (so empty while it runs). Candidates for
+             *     the agent version's `allowedHosts`.
+             */
+            blockedHosts: string[];
         };
         /**
          * @description The repository the execution worked in (`docs/git.md`, Inside the
