@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import type { Artifact, Execution } from "./api";
 import {
   artifactsByExecution,
+  blockedHosts,
   drafts,
   failureLabel,
   formatCost,
   formatCount,
   formatTime,
   isTaskStatus,
+  networkLabel,
   statusClasses,
   statusLabel,
   TASK_STATUSES,
@@ -87,5 +89,27 @@ describe("task helpers", () => {
       [2, ["a2"]],
       [1, ["a1", "v1"]],
     ]);
+  });
+
+  it("names an execution's network and gathers the hosts its sandboxes were refused", () => {
+    const sandbox = (networkAccess: string, hosts: string[]) => ({
+      workspaceId: "w",
+      networkAccess,
+      allowedHosts: [],
+      blockedHosts: hosts,
+    });
+    const executions = [
+      { number: 3, sandbox: sandbox("restricted", ["example.com", "api.github.com"]) },
+      { number: 2, sandbox: null },
+      { number: 1, sandbox: sandbox("restricted", ["example.com"]) },
+      { number: 4, sandbox: sandbox("none", []) },
+    ] as Execution[];
+
+    expect(executions.map(networkLabel)).toEqual(["Allowed hosts", "No sandbox", "Allowed hosts", "No network"]);
+    expect(blockedHosts(executions)).toEqual([
+      { host: "api.github.com", executions: [3] },
+      { host: "example.com", executions: [1, 3] },
+    ]);
+    expect(blockedHosts([])).toEqual([]);
   });
 });

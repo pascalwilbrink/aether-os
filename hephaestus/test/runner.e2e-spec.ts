@@ -131,6 +131,8 @@ describe('Running tasks (e2e)', () => {
             costUsd: null,
           },
           repository: null,
+          // Its agent version needs no sandbox.
+          sandbox: null,
           startedAt: expect.any(String),
           endedAt: expect.any(String),
         },

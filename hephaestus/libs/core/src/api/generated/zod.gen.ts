@@ -531,6 +531,19 @@ export const zExecutionFailureReason = z.enum([
 ]);
 
 /**
+ * The sandbox the execution ran in (its workspace), and what it could
+ * reach: none for a version without `runtime.sandboxRequired`. Seen
+ * with `task:read`, unlike the workspace itself.
+ *
+ */
+export const zExecutionSandbox = z.object({
+    workspaceId: z.uuid(),
+    networkAccess: zNetworkAccess,
+    allowedHosts: z.array(z.string()),
+    blockedHosts: z.array(z.string())
+});
+
+/**
  * The repository the execution worked in (`docs/git.md`, Inside the
  * sandbox): checked out at `branch` from `baseSha`, and, once the run
  * succeeded, what the agent committed on top (taken out of the sandbox
@@ -619,6 +632,7 @@ export const zExecutionResponse = z.object({
     summary: z.string().nullable(),
     usage: zExecutionUsage,
     repository: zExecutionRepository.nullable(),
+    sandbox: zExecutionSandbox.nullable(),
     startedAt: z.iso.datetime(),
     endedAt: z.iso.datetime().nullable()
 });

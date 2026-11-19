@@ -110,3 +110,25 @@ export function artifactsByExecution(
     }))
     .filter((group) => group.items.length > 0);
 }
+
+/** What an execution's sandbox could reach, in a word: none without a sandbox. */
+export function networkLabel(execution: Execution): string {
+  if (!execution.sandbox) return "No sandbox";
+  return execution.sandbox.networkAccess === "restricted" ? "Allowed hosts" : "No network";
+}
+
+/**
+ * The hosts the task's sandboxes tried to reach and were refused, each with
+ * the executions (numbers, oldest first) it happened in; by host.
+ */
+export function blockedHosts(executions: Execution[]): { host: string; executions: number[] }[] {
+  const byHost = new Map<string, number[]>();
+  for (const execution of executions) {
+    for (const host of execution.sandbox?.blockedHosts ?? []) {
+      byHost.set(host, [...(byHost.get(host) ?? []), execution.number]);
+    }
+  }
+  return [...byHost]
+    .map(([host, numbers]) => ({ host, executions: numbers.sort((a, b) => a - b) }))
+    .sort((a, b) => a.host.localeCompare(b.host));
+}

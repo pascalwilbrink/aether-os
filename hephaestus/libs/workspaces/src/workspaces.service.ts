@@ -125,6 +125,32 @@ export class WorkspacesService {
     );
   }
 
+  /**
+   * The sandbox each of these executions ran in (its latest workspace),
+   * with what it could reach and what was refused; executions without one
+   * are left out.
+   */
+  async sandboxesOf(
+    organizationId: string,
+    executionIds: string[],
+  ): Promise<Map<string, ApiTypes.ExecutionSandbox>> {
+    const sandboxes = new Map<string, ApiTypes.ExecutionSandbox>();
+    if (executionIds.length === 0) return sandboxes;
+    const entities = await this.workspaces.find({
+      where: { organizationId, executionId: In(executionIds) },
+      order: { createdAt: 'ASC', id: 'ASC' },
+    });
+    for (const entity of entities) {
+      sandboxes.set(entity.executionId, {
+        workspaceId: entity.id,
+        networkAccess: entity.sandbox.networkAccess,
+        allowedHosts: entity.sandbox.allowedHosts ?? [],
+        blockedHosts: entity.blockedHosts,
+      });
+    }
+    return sandboxes;
+  }
+
   /** An execution's workspaces that aren't destroyed, failed or expired. */
   async activeForExecution(
     organizationId: string,

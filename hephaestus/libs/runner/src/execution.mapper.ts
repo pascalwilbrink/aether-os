@@ -49,6 +49,7 @@ export class ExecutionMapper {
   toResponse(
     entity: ExecutionEntity,
     usage: ApiTypes.ExecutionUsage = NO_USAGE,
+    sandbox: ApiTypes.ExecutionSandbox | null = null,
   ): ExecutionResponse {
     return {
       id: entity.id,
@@ -61,6 +62,7 @@ export class ExecutionMapper {
       summary: entity.summary,
       usage,
       repository: entity.repository,
+      sandbox,
       startedAt: entity.startedAt.toISOString(),
       endedAt: entity.endedAt?.toISOString() ?? null,
     };

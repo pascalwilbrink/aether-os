@@ -24,7 +24,7 @@ import {
 } from '../../../test/fake-runner.js';
 import { createTestingModuleWith } from '../../../test/testing-module.js';
 import { AgentRuntime } from './agent-runtime.js';
-import { ExecutionsService } from './executions.service.js';
+import { ExecutionHistory } from './execution-history.js';
 import { MastraAgentRuntime } from './mastra-agent-runtime.js';
 import { RunnerModule } from './runner.module.js';
 import { RUNNER_OPTIONS } from './runner.options.js';
@@ -149,7 +149,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
   const executionsOf = async (id: string) =>
     (
       await moduleRef
-        .get(ExecutionsService)
+        .get(ExecutionHistory)
         .list(organizationId, projectId, id, { limit: 50 })
     ).items;
 

@@ -704,8 +704,31 @@ export type ExecutionResponse = {
     summary: string | null;
     usage: ExecutionUsage;
     repository: ExecutionRepository | null;
+    sandbox: ExecutionSandbox | null;
     startedAt: string;
     endedAt: string | null;
+};
+
+/**
+ * The sandbox the execution ran in (its workspace), and what it could
+ * reach: none for a version without `runtime.sandboxRequired`. Seen
+ * with `task:read`, unlike the workspace itself.
+ *
+ */
+export type ExecutionSandbox = {
+    workspaceId: string;
+    networkAccess: NetworkAccess;
+    /**
+     * For `restricted` access, every host it could reach (the platform's and the agent version's); empty otherwise.
+     */
+    allowedHosts: Array<string>;
+    /**
+     * Hosts it tried to reach and its proxy refused, recorded when the
+     * sandbox is destroyed (so empty while it runs). Candidates for
+     * the agent version's `allowedHosts`.
+     *
+     */
+    blockedHosts: Array<string>;
 };
 
 /**

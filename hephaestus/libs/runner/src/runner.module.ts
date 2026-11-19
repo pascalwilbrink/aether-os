@@ -18,6 +18,7 @@ import { ExecutionMapper } from './execution.mapper.js';
 import { ExecutionPreparer } from './execution-preparer.js';
 import { ExecutionReaper } from './execution-reaper.js';
 import { ExecutionsController } from './executions.controller.js';
+import { ExecutionHistory } from './execution-history.js';
 import { ExecutionsService } from './executions.service.js';
 import { DockerSandboxDriver } from './docker-sandbox-driver.js';
 import { NoSandboxProvisioner } from './no-sandbox-provisioner.js';
@@ -158,11 +159,12 @@ import {
     Housekeeping,
     ExecutionMapper,
     ExecutionsService,
+    ExecutionHistory,
     ExecutionReaper,
     ExecutionPreparer,
     Verifier,
     TaskRunner,
   ],
-  exports: [ExecutionsService, TaskRunner],
+  exports: [ExecutionsService, ExecutionHistory, TaskRunner],
 })
 export class RunnerModule {}
