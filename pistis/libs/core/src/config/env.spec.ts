@@ -25,6 +25,7 @@ describe('zEnv', () => {
       'kerykes',
       'agora',
       'seshat',
+      'pylon',
       'operator',
     ]);
     expect(env.PISTIS_SIGNING_KEYS).toBeUndefined();

@@ -23,6 +23,7 @@ import {
   type Problem,
   type ProblemFieldError,
 } from './problem.js';
+import { ProblemException } from './problem.exception.js';
 import { ValidationProblemException } from './validation-problem.exception.js';
 
 interface Classified {
@@ -30,6 +31,7 @@ interface Classified {
   code: string;
   detail: string;
   errors?: ProblemFieldError[];
+  extensions?: Record<string, unknown>;
 }
 
 const CODE_BY_STATUS: Partial<Record<number, string>> = {
@@ -50,6 +52,7 @@ const INTERNAL_DETAIL = 'An unexpected error occurred.';
  * service formats errors itself:
  *
  * - `DomainError` → 409 with its code
+ * - `ProblemException` → its status, code, detail and extension members
  * - `ValidationProblemException` → 400 `VALIDATION_FAILED` with `errors`
  * - `InvalidCursorError` → 400 `INVALID_CURSOR`
  * - Nest `HttpException`s → their status, with the code for that status
@@ -64,7 +67,8 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     const request = http.getRequest<Request>();
     const response = http.getResponse<Response>();
 
-    const { status, code, detail, errors } = this.classify(exception);
+    const { status, code, detail, errors, extensions } =
+      this.classify(exception);
     if (status >= 500) {
       this.logger.error(
         `${request.method} ${request.originalUrl} failed`,
@@ -73,6 +77,7 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     }
 
     const problem: Problem = {
+      ...extensions,
       type: problemType(code),
       title: problemTitle(code),
       status,
@@ -92,6 +97,14 @@ export class ProblemDetailsFilter implements ExceptionFilter {
         status: HttpStatus.CONFLICT,
         code: exception.code,
         detail: exception.message,
+      };
+    }
+    if (exception instanceof ProblemException) {
+      return {
+        status: exception.status,
+        code: exception.code,
+        detail: exception.message,
+        extensions: exception.extensions,
       };
     }
     if (exception instanceof InvalidCursorError) {

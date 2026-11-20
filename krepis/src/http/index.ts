@@ -8,3 +8,4 @@ export * from './zod-validation.pipe.js';
 // on handlers so responses are checked against the spec.
 export { createZodDto, ZodSerializerDto } from 'nestjs-zod';
 export * from './zod-dto.js';
+export * from './problem.exception.js';

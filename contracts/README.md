@@ -8,10 +8,10 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 
 | Spec | Served by | Consumed by |
 |---|---|---|
-| `polis.openapi.yaml` | Polis | Hephaestus, Pistis, Kairos, Kerykes, Agora and Seshat (generated HTTP clients); later Iris |
+| `polis.openapi.yaml` | Polis | Hephaestus, Pistis, Kairos, Kerykes, Agora, Seshat and Pylon (generated HTTP clients); later Iris |
 | `hephaestus.openapi.yaml` | Hephaestus | Iris; Agora (`checkAgentVersion`, generated HTTP client) |
 | `agora.openapi.yaml` | Agora (agents and their versions) | Iris |
-| `agora.asyncapi.yaml` | Agora (agent and version events on `agora.events`) | Hephaestus (its copy of agents and published versions); later Kairos, Kriterion |
+| `agora.asyncapi.yaml` | Agora (agent and version events on `agora.events`) | Hephaestus (its copy of agents and published versions), Pylon (its copy of agents); later Kairos, Kriterion |
 | `pistis.openapi.yaml` | Pistis | Iris; Kerykes (users' email addresses, generated HTTP client) |
 | `proxenos.openapi.yaml` | Proxenos (the GitHub App, repository links, tokens, webhooks) | later Hephaestus (repository tokens) and Iris |
 | `proxenos.asyncapi.yaml` | Proxenos (events on `proxenos.events`) | Hephaestus (pull requests), Kairos (issues) |
@@ -20,6 +20,8 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 | `kerykes.openapi.yaml` | Kerykes (each user's inbox) | Iris |
 | `loculus.openapi.yaml` | Loculus (each project's files) | Hephaestus, Iris, Seshat (documents' files, generated HTTP client) |
 | `seshat.openapi.yaml` | Seshat (each project's knowledge) | later Hephaestus (agents' knowledge tools) and Iris |
+| `pylon.openapi.yaml` | Pylon (the model gateway: provider pass-through, embeddings, catalogue, keys, budgets, usage) | later Hephaestus, Agora, Seshat and Iris |
+| `pylon.asyncapi.yaml` | Pylon (budget events on `pylon.events`) | later Hephaestus, Kerykes, Iris |
 | `seshat.asyncapi.yaml` | Seshat (knowledge item events on `seshat.events`) | later Hephaestus (embeddings), Kerykes, Iris |
 | `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Hephaestus (organization and project events), Kerykes (membership events); later Pistis and others |
 | `hephaestus.asyncapi.yaml` | Hephaestus (task events on `hephaestus.events`; the `task.create` command it receives on `hephaestus.commands`) | Kairos (`task.created`, `task.create-rejected`), Kerykes (tasks that need people, budgets); later Kriterion, Iris |

@@ -1,11 +1,11 @@
 import { isIP } from 'node:net';
 
 /**
- * Why Hephaestus won't call this URL, or null when it will: `https://`
+ * Why a service won't call this URL, or null when it will: `https://`
  * (`http://` only where private addresses are allowed), no credentials in
  * the URL, and no private or loopback address written into it (names are
  * checked again when connecting, `guardedFetch`). For URLs an organization
- * gives Hephaestus to call: tool servers, model endpoints (Ollama).
+ * gives a service to call: tool servers, model endpoints (Ollama).
  */
 export function endpointProblem(
   url: string,
@@ -33,14 +33,14 @@ export function endpointProblem(
       host.endsWith('.localhost') ||
       (isIP(host) !== 0 && isPrivateAddress(host)))
   ) {
-    return "Hephaestus doesn't connect to private or loopback addresses.";
+    return "Aether-os doesn't connect to private or loopback addresses.";
   }
   return null;
 }
 
 /**
  * Private, loopback, link-local (cloud metadata), CGNAT, unspecified and
- * multicast addresses: nowhere an organization's URL should make Hephaestus
+ * multicast addresses: nowhere an organization's URL should make a service
  * connect.
  */
 export function isPrivateAddress(address: string): boolean {

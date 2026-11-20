@@ -63,6 +63,8 @@ const PROJECT_PERMISSIONS = {
   'knowledge:read': ['admin', 'approver', 'editor', 'viewer'],
   'knowledge:write': ['admin', 'approver', 'editor'],
   'knowledge:approve': ['admin', 'approver'],
+  // Model calls and embeddings through Pylon (docs/pylon.md); task tokens.
+  'model:invoke': ['admin', 'approver', 'editor'],
   // A short-lived token for a linked repository (Proxenos); only task tokens.
   'repository:token': ['admin', 'approver', 'editor'],
 } as const satisfies Record<string, readonly ProjectRole[]>;
@@ -76,6 +78,8 @@ const PROJECT_PERMISSIONS = {
 export const PLATFORM_PERMISSIONS = [
   'platform:read',
   'platform:manage',
+  // Embeddings through Pylon charged to a project (Seshat; docs/pylon.md).
+  'model:invoke',
 ] as const;
 
 export type OrganizationPermission = keyof typeof ORGANIZATION_PERMISSIONS;

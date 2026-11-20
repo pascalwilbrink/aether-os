@@ -20,6 +20,11 @@ export interface Principal {
   /** Task tokens: the one project the token is limited to. */
   readonly projectId: string | null;
   readonly taskId: string | null;
+  /** Task tokens: the task's tree (its top-level task), for its budget (docs/pylon.md). */
+  readonly taskTreeId: string | null;
+  /** Task tokens: the agent and version the task runs, for budgets, keys and attribution. */
+  readonly agentId: string | null;
+  readonly agentVersionId: string | null;
   /** Who acts on the principal's behalf (token exchange). */
   readonly actor: { readonly sub: string } | null;
   /** The token's scopes (`scope`). */
@@ -44,6 +49,9 @@ export const zAccessTokenClaims = z
       .optional(),
     project_id: zUuid.optional(),
     task_id: z.string().optional(),
+    task_tree_id: zUuid.optional(),
+    agent_id: zUuid.optional(),
+    agent_version_id: zUuid.optional(),
     act: z.object({ sub: z.string() }).loose().optional(),
     scope: z.string().optional(),
   })
@@ -70,6 +78,9 @@ export function principalFromClaims(
     projectRoles: claims.org_id ? (claims.project_roles ?? {}) : {},
     projectId: claims.project_id ?? null,
     taskId: claims.task_id ?? null,
+    taskTreeId: claims.task_tree_id ?? null,
+    agentId: claims.agent_id ?? null,
+    agentVersionId: claims.agent_version_id ?? null,
     actor: claims.act ? { sub: claims.act.sub } : null,
     scopes: claims.scope?.split(' ').filter(Boolean) ?? [],
   };

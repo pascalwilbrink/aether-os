@@ -47,6 +47,9 @@ const principal: Principal = {
   projectRoles: {},
   projectId: null,
   taskId: null,
+  taskTreeId: null,
+  agentId: null,
+  agentVersionId: null,
   actor: null,
   scopes: [],
 };

@@ -6,10 +6,10 @@ import { Agent, fetch as undiciFetch } from 'undici';
 import { isPrivateAddress } from './endpoints.js';
 
 /**
- * `fetch` for URLs organizations give Hephaestus (tool servers, model
+ * `fetch` for URLs organizations give a service (tool servers, model
  * endpoints). Unless private addresses are allowed, every address a name
  * resolves to is checked when connecting (so a name can't
- * point at the metadata service or Hephaestus's own network, even after it
+ * point at the metadata service or the service's own network, even after it
  * was checked once), and addresses written into the URL before. Redirects
  * are refused: a server answers where it was registered.
  */

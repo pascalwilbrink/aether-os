@@ -2,7 +2,7 @@
 
 How agents reach LLM providers, whose keys they use, and how usage and cost are measured and limited.
 
-The gateway is moving out of Hephaestus into its own service, **Pylon** (`pylon.md`, proposal): the same catalogue, keys, metering and budgets, called over HTTP by Hephaestus, Seshat, Kriterion and Echo. What follows describes what the gateway does, wherever it runs.
+The gateway is moving out of Hephaestus into its own service, **Pylon** (`pylon.md`; the service is built, the callers switch next): the same catalogue, keys, metering and budgets, called over HTTP by Hephaestus, Seshat, Kriterion and Echo. What follows describes what the gateway does, wherever it runs.
 
 Status: agreed design. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/models`, used by the Mastra runtime): the gateway resolving an agent version's model with the agent's own key, else the organization's, else the platform's if allowed (`PLATFORM_MODEL_KEYS`), from OpenBao; calls through Mastra's model router with retries on 429/5xx; metering of every call (tokens, cache reads and writes, key source, attribution) in `model_calls`, totalled per execution; and the **model catalogue** (`/v1/models`: models and their versioned prices; agent versions must name an active model, and every call is priced). and **budgets** (below, Built so far), and **setting keys** through the API and Iris (Keys, below). Not yet: policy checks, fallback models, the gateway's HTTP endpoint, and LLM spans to Langfuse.
 

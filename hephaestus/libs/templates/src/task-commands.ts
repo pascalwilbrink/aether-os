@@ -152,6 +152,9 @@ export class TaskCommands {
       projectRoles: {},
       projectId: null,
       taskId: null,
+      taskTreeId: null,
+      agentId: null,
+      agentVersionId: null,
       actor: null,
       // Reads what a task needs (its template, its project); creating it is
       // the command itself.

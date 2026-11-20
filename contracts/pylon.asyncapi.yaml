@@ -1,0 +1,140 @@
+asyncapi: 3.0.0
+info:
+  title: Pylon events
+  version: 0.1.0
+  description: |
+    Events Pylon publishes to the `pylon.events` topic exchange on
+    RabbitMQ; the routing key is the event type. Every message is the Krepis
+    `DomainEvent` envelope (see `../docs/events.md`), JSON, persistent, with
+    the event ID as AMQP `messageId` and the event type as `type`.
+
+    Delivery is at least once (transactional outbox and relay): deduplicate
+    on `eventId`. Every event has the budget as its aggregate (its
+    `projectId` is the budget's project, if any); the budget's
+    `aggregateVersion` grows with each event. Pylon publishes nothing per
+    model call: read usage from its API (`../docs/pylon.md`).
+
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:5672
+    protocol: amqp
+    description: RabbitMQ from ../docker-compose.yml
+
+channels:
+  pylonEvents:
+    address: pylon.events
+    description: Topic exchange; consumers bind their own durable queue (`<consumer>.pylon-events`) to the routing keys they need.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: pylon.events
+          type: topic
+          durable: true
+          autoDelete: false
+    messages:
+      budgetThresholdReached: { $ref: '#/components/messages/budgetThresholdReached' }
+      budgetExhausted: { $ref: '#/components/messages/budgetExhausted' }
+      budgetChanged: { $ref: '#/components/messages/budgetChanged' }
+
+operations:
+  publishPylonEvents:
+    action: send
+    channel: { $ref: '#/channels/pylonEvents' }
+    messages:
+      - $ref: '#/channels/pylonEvents/messages/budgetThresholdReached'
+      - $ref: '#/channels/pylonEvents/messages/budgetExhausted'
+      - $ref: '#/channels/pylonEvents/messages/budgetChanged'
+
+components:
+  messages:
+    budgetThresholdReached:
+      name: budget.threshold-reached
+      summary: A budget is 80% spent (once per window; Kerykes tells its admins).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: budget.threshold-reached }
+              payload: { $ref: '#/components/schemas/BudgetSpent' }
+    budgetExhausted:
+      name: budget.exhausted
+      summary: A budget ran out (once per window); calls it covers are refused until it has room, and tasks pause.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: budget.exhausted }
+              payload: { $ref: '#/components/schemas/BudgetSpent' }
+    budgetChanged:
+      name: budget.changed
+      summary: A budget's limit was set, changed or removed; Hephaestus checks the tasks it paused at once.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: budget.changed }
+              payload: { $ref: '#/components/schemas/BudgetChanged' }
+
+  schemas:
+    Uuid: { type: string, format: uuid }
+    BudgetScope:
+      enum: [organization, project, agent, task_tree]
+    Envelope:
+      type: object
+      description: Krepis's `DomainEvent`.
+      required: [eventId, eventType, schemaVersion, aggregateId, aggregateVersion, occurredAt, organizationId, projectId, actor, payload]
+      properties:
+        eventId: { $ref: '#/components/schemas/Uuid', description: 'UUIDv7; the deduplication key.' }
+        eventType: { type: string }
+        schemaVersion: { type: integer, const: 1 }
+        aggregateId: { $ref: '#/components/schemas/Uuid' }
+        aggregateVersion: { type: integer, minimum: 1 }
+        occurredAt: { type: string, format: date-time }
+        organizationId: { $ref: '#/components/schemas/Uuid' }
+        projectId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        actor:
+          description: Who made the change; null for Pylon's own (a call's spending).
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [sub, sub_type]
+              properties:
+                sub: { type: string }
+                sub_type: { enum: [user, service_account, service] }
+        payload: { type: object }
+    BudgetSpent:
+      type: object
+      additionalProperties: false
+      required: [budgetId, scope, scopeId, limitUsd, spentUsd, windowStart]
+      properties:
+        budgetId: { $ref: '#/components/schemas/Uuid' }
+        scope: { $ref: '#/components/schemas/BudgetScope' }
+        scopeId:
+          description: The organization, project, agent or top-level task.
+          $ref: '#/components/schemas/Uuid'
+        limitUsd: { type: string, description: US dollars, 6 decimals. }
+        spentUsd: { type: string, description: US dollars, 6 decimals. }
+        windowStart:
+          type: [string, 'null']
+          format: date-time
+          description: The month it's for; null for a task tree's (its lifetime).
+    BudgetChanged:
+      type: object
+      additionalProperties: false
+      required: [budgetId, scope, scopeId, limitUsd]
+      properties:
+        budgetId: { $ref: '#/components/schemas/Uuid' }
+        scope: { $ref: '#/components/schemas/BudgetScope' }
+        scopeId: { $ref: '#/components/schemas/Uuid' }
+        limitUsd:
+          description: US dollars, 6 decimals; null for no limit.
+          type: [string, 'null']
