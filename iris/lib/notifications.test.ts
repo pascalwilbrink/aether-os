@@ -10,9 +10,15 @@ describe("notification helpers", () => {
   it("opens only this organization's pages in Iris", () => {
     const task = `/orgs/${ORG}/projects/${PROJECT}/tasks/${PROJECT}`;
     expect(notificationHref({ link: task }, ORG)).toBe(task);
-    expect(notificationHref({ link: `${task}#budget` }, ORG)).toBe(`${task}#budget`);
-    expect(notificationHref({ link: `/orgs/${ORG}` }, ORG)).toBe(`/orgs/${ORG}`);
-    expect(notificationHref({ link: `/orgs/${ORG}/budget` }, ORG)).toBe(`/orgs/${ORG}/budget`);
+    expect(notificationHref({ link: `${task}#budget` }, ORG)).toBe(
+      `${task}#budget`,
+    );
+    expect(notificationHref({ link: `/orgs/${ORG}` }, ORG)).toBe(
+      `/orgs/${ORG}`,
+    );
+    expect(notificationHref({ link: `/orgs/${ORG}/budget` }, ORG)).toBe(
+      `/orgs/${ORG}/budget`,
+    );
 
     for (const link of [
       "https://evil.example/orgs",

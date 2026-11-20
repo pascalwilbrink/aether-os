@@ -11,7 +11,11 @@ const SERVER_NAME = /^[a-z][a-z0-9-]{0,29}$/;
 const TOOL_NAME = /^[A-Za-z0-9_.-]{1,64}$/;
 const HEADER_NAME = /^[A-Za-z0-9-]{1,64}$/;
 
-export const AUTH_TYPES: { value: ToolServerAuthType; label: string; text: string }[] = [
+export const AUTH_TYPES: {
+  value: ToolServerAuthType;
+  label: string;
+  text: string;
+}[] = [
   { value: "none", label: "None", text: "The server needs no credential." },
   {
     value: "header",
@@ -28,7 +32,8 @@ export const AUTH_TYPES: { value: ToolServerAuthType; label: string; text: strin
 export const authLabel = (server: Pick<ToolServer, "auth">) =>
   server.auth.type === "header"
     ? `Header ${server.auth.headerName}`
-    : (AUTH_TYPES.find((type) => type.value === server.auth.type)?.label ?? server.auth.type);
+    : (AUTH_TYPES.find((type) => type.value === server.auth.type)?.label ??
+      server.auth.type);
 
 /** Fields as a form sends them. */
 type Fields = Record<string, string | undefined>;
@@ -48,7 +53,9 @@ export function toolServerFromForm(
   }
   const url = value("url");
   if (!/^https?:\/\//.test(url)) {
-    return { error: "The URL is the server's MCP endpoint, starting with https://." };
+    return {
+      error: "The URL is the server's MCP endpoint, starting with https://.",
+    };
   }
   try {
     new URL(url);
@@ -85,7 +92,9 @@ export function toolFieldsOf(tools: AgentTool[]): Record<string, string> {
  * A version's tools from the form: each checked server, with the tools
  * named for it (all of them when none are), or what's wrong.
  */
-export function toolsFromForm(fields: Fields): { tools: AgentTool[] } | { error: string } {
+export function toolsFromForm(
+  fields: Fields,
+): { tools: AgentTool[] } | { error: string } {
   const tools: AgentTool[] = [];
   for (const [key, checked] of Object.entries(fields)) {
     if (!key.startsWith(TOOL_FIELD) || checked !== "on") continue;
@@ -99,8 +108,15 @@ export function toolsFromForm(fields: Fields): { tools: AgentTool[] } | { error:
       ),
     ];
     const invalid = names.find((tool) => !TOOL_NAME.test(tool));
-    if (invalid) return { error: `"${invalid}" isn't a tool name (letters, digits, _ . and -).` };
-    tools.push(names.length > 0 ? { name, enabled: true, tools: names } : { name, enabled: true });
+    if (invalid)
+      return {
+        error: `"${invalid}" isn't a tool name (letters, digits, _ . and -).`,
+      };
+    tools.push(
+      names.length > 0
+        ? { name, enabled: true, tools: names }
+        : { name, enabled: true },
+    );
   }
   return { tools: tools.sort((a, b) => a.name.localeCompare(b.name)) };
 }

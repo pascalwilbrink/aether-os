@@ -14,7 +14,8 @@ const PROVIDER_NAMES: Record<string, string> = {
 };
 
 /** A model as the version form's `model` field holds it: `provider/model`. */
-export const modelValue = (model: { provider: string; model: string }) => `${model.provider}/${model.model}`;
+export const modelValue = (model: { provider: string; model: string }) =>
+  `${model.provider}/${model.model}`;
 
 /** `"2.500000"` → `"2.5"`: a price per million tokens, as people read it. */
 export function formatPrice(price: string): string {
@@ -59,11 +60,19 @@ export function modelChoices(
     options.push({ value: modelValue(model), label: `${model.name}${price}` });
     groups.set(model.provider, options);
   }
-  const ollama = [...new Set([...ollamaModels, ...(current.startsWith("ollama/") ? [current.slice(7)] : [])])];
+  const ollama = [
+    ...new Set([
+      ...ollamaModels,
+      ...(current.startsWith("ollama/") ? [current.slice(7)] : []),
+    ]),
+  ];
   if (ollama.length > 0) {
     groups.set(
       "ollama",
-      ollama.map((name) => ({ value: `ollama/${name}`, label: `${name} · unpriced` })),
+      ollama.map((name) => ({
+        value: `ollama/${name}`,
+        label: `${name} · unpriced`,
+      })),
     );
   }
   const label = (provider: string) => PROVIDER_NAMES[provider] ?? provider;
@@ -76,44 +85,57 @@ export function modelChoices(
       }))
       .sort((a, b) => a.label.localeCompare(b.label)),
     unavailable:
-      current && !current.startsWith("ollama/") && !models.some((model) => modelValue(model) === current)
+      current &&
+      !current.startsWith("ollama/") &&
+      !models.some((model) => modelValue(model) === current)
         ? current
         : null,
   };
 }
 
 /** A host an agent's sandbox may reach (the API's `HostPattern`). */
-const HOST = /^(\*\.)?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
+const HOST =
+  /^(\*\.)?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
 
 /** The runtime new versions get; Hephaestus runs every version with its configured runtime. */
 export const DEFAULT_RUNTIME_PROVIDER = "mastra";
 
-const VERSION_STATUS: Record<AgentVersionStatus, { label: string; classes: string }> = {
+const VERSION_STATUS: Record<
+  AgentVersionStatus,
+  { label: string; classes: string }
+> = {
   draft: {
     label: "Draft",
     classes: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
   },
   published: {
     label: "Published",
-    classes: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+    classes:
+      "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
   },
   deprecated: {
     label: "Deprecated",
-    classes: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+    classes:
+      "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
   },
 };
 
-export const versionStatusLabel = (status: AgentVersionStatus) => VERSION_STATUS[status].label;
-export const versionStatusClasses = (status: AgentVersionStatus) => VERSION_STATUS[status].classes;
+export const versionStatusLabel = (status: AgentVersionStatus) =>
+  VERSION_STATUS[status].label;
+export const versionStatusClasses = (status: AgentVersionStatus) =>
+  VERSION_STATUS[status].classes;
 
 /** Only a draft can be published (publishing the published one changes nothing). */
-export const canPublish = (version: Pick<AgentVersion, "status">) => version.status === "draft";
+export const canPublish = (version: Pick<AgentVersion, "status">) =>
+  version.status === "draft";
 
 /**
  * The version form's fields for a version (the next one starts from it),
  * or a first version's defaults.
  */
-export function fieldsOf(version: AgentVersion | undefined): Record<string, string> {
+export function fieldsOf(
+  version: AgentVersion | undefined,
+): Record<string, string> {
   return {
     instructions: version?.instructions ?? "",
     model: version ? modelValue(version.model) : "",
@@ -138,7 +160,9 @@ export type FormFields = Record<string, string | undefined>;
  * with them. Tools are the checked tool servers (`toolsFromForm`), skills
  * the checked skills at their chosen versions (`skillsFromForm`).
  */
-export function versionFromForm(fields: FormFields): { body: NewAgentVersion } | { error: string } {
+export function versionFromForm(
+  fields: FormFields,
+): { body: NewAgentVersion } | { error: string } {
   const value = (name: string) => (fields[name] ?? "").trim();
   const instructions = value("instructions");
   // `provider/model` (from the catalogue): the provider has no slash, a model ID might.
@@ -155,12 +179,16 @@ export function versionFromForm(fields: FormFields): { body: NewAgentVersion } |
     capabilities: value("capabilities")
       .split(",")
       .map((capability) => capability.trim())
-      .filter((capability, index, all) => capability && all.indexOf(capability) === index),
+      .filter(
+        (capability, index, all) =>
+          capability && all.indexOf(capability) === index,
+      ),
     tools: [],
     skills: [],
     runtime: {
       provider: value("runtimeProvider") || DEFAULT_RUNTIME_PROVIDER,
-      executionMode: value("executionMode") === "coding" ? "coding" : "standard",
+      executionMode:
+        value("executionMode") === "coding" ? "coding" : "standard",
       sandboxRequired: value("sandboxRequired") === "on",
     },
   };
@@ -175,7 +203,10 @@ export function versionFromForm(fields: FormFields): { body: NewAgentVersion } |
       ),
     ];
     const invalid = hosts.find((host) => !HOST.test(host));
-    if (invalid) return { error: `"${invalid}" isn't a host name (e.g. api.example.com, or *.example.com).` };
+    if (invalid)
+      return {
+        error: `"${invalid}" isn't a host name (e.g. api.example.com, or *.example.com).`,
+      };
     body.runtime.networkAccess = "restricted";
     body.runtime.allowedHosts = hosts;
   }

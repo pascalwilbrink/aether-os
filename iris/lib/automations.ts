@@ -10,12 +10,18 @@ export type Permission = Schemas["RepositoryPermission"];
 export const EVENTS: { value: IssueEvent; label: string }[] = [
   { value: "github.issue.opened", label: "An issue is opened" },
   { value: "github.issue.labeled", label: "An issue is labelled" },
-  { value: "github.issue-comment.created", label: "Someone comments on an issue" },
+  {
+    value: "github.issue-comment.created",
+    label: "Someone comments on an issue",
+  },
 ];
 
 export type ConcurrencyPolicy = "queue" | "cancel-previous" | "skip";
 
-export const CONCURRENCY_POLICIES: { value: ConcurrencyPolicy; label: string }[] = [
+export const CONCURRENCY_POLICIES: {
+  value: ConcurrencyPolicy;
+  label: string;
+}[] = [
   { value: "queue", label: "Wait for the earlier task to finish" },
   { value: "cancel-previous", label: "Cancel the earlier task" },
   { value: "skip", label: "Don't start a new task" },
@@ -31,7 +37,14 @@ export const PERMISSIONS: { value: Permission; label: string }[] = [
 ];
 
 /** The fields a task's text can use (Kairos fills them in). */
-export const FIELDS = ["issue.number", "issue.title", "issue.url", "repository", "author", "label"];
+export const FIELDS = [
+  "issue.number",
+  "issue.title",
+  "issue.url",
+  "repository",
+  "author",
+  "label",
+];
 
 /** The automation form's fields, as text. */
 export type AutomationFields = Record<string, string>;
@@ -47,7 +60,8 @@ export function fieldsOf(automation?: Automation): AutomationFields {
       concurrencyKey: "{{repository}}#{{issue.number}}",
       concurrencyPolicy: "queue",
       title: "Fix #{{issue.number}}: {{issue.title}}",
-      instructions: "Fix the issue {{issue.url}} in {{repository}}, reported by {{author}}.",
+      instructions:
+        "Fix the issue {{issue.url}} in {{repository}}, reported by {{author}}.",
     };
   }
   const { trigger, action } = automation;
@@ -65,7 +79,9 @@ export function fieldsOf(automation?: Automation): AutomationFields {
     title: action.task?.title ?? "",
     instructions: action.task?.instructions ?? "",
     templateId: action.template?.templateId ?? "",
-    templateVersion: action.template?.version ? String(action.template.version) : "",
+    templateVersion: action.template?.version
+      ? String(action.template.version)
+      : "",
     inputs: Object.entries(action.template?.inputs ?? {})
       .map(([name, value]) => `${name}=${value}`)
       .join("\n"),
@@ -78,37 +94,56 @@ export function fieldsOf(automation?: Automation): AutomationFields {
 }
 
 /** The request for the form's fields, or what's wrong with them. */
-export function requestOf(fields: AutomationFields): { request: AutomationRequest } | { error: string } {
+export function requestOf(
+  fields: AutomationFields,
+): { request: AutomationRequest } | { error: string } {
   const value = (name: string) => (fields[name] ?? "").trim();
   const on = (name: string) => value(name) === "on";
   if (!value("name")) return { error: "Give the automation a name." };
-  if (!value("serviceAccountId")) return { error: "Choose the service account its tasks run as." };
+  if (!value("serviceAccountId"))
+    return { error: "Choose the service account its tasks run as." };
   const event = value("event") as IssueEvent;
-  if (!EVENTS.some((entry) => entry.value === event)) return { error: "Choose what fires it." };
+  if (!EVENTS.some((entry) => entry.value === event))
+    return { error: "Choose what fires it." };
   const permission = (value("minimumPermission") || "write") as Permission;
-  if (!PERMISSIONS.some((entry) => entry.value === permission)) return { error: "Choose who may fire it." };
+  if (!PERMISSIONS.some((entry) => entry.value === permission))
+    return { error: "Choose who may fire it." };
 
   let task: AutomationRequest["action"]["task"];
   let template: AutomationRequest["action"]["template"];
   if (value("kind") === "template") {
     if (!value("templateId")) return { error: "Choose a template." };
     const version = value("templateVersion");
-    if (version && !/^[1-9][0-9]*$/.test(version)) return { error: "The template version is a whole number." };
+    if (version && !/^[1-9][0-9]*$/.test(version))
+      return { error: "The template version is a whole number." };
     const inputs: Record<string, string> = {};
     for (const line of value("inputs").split("\n")) {
       if (!line.trim()) continue;
       const at = line.indexOf("=");
-      if (at <= 0) return { error: `Write each input as name=value ("${line.trim()}").` };
+      if (at <= 0)
+        return { error: `Write each input as name=value ("${line.trim()}").` };
       inputs[line.slice(0, at).trim()] = line.slice(at + 1).trim();
     }
-    template = { templateId: value("templateId"), version: version ? Number(version) : null, inputs };
+    template = {
+      templateId: value("templateId"),
+      version: version ? Number(version) : null,
+      inputs,
+    };
   } else {
     if (!value("agentId")) return { error: "Choose an agent." };
-    if (!value("title") || !value("instructions")) return { error: "Give the task a title and instructions." };
-    task = { agentId: value("agentId"), title: value("title"), instructions: value("instructions") };
+    if (!value("title") || !value("instructions"))
+      return { error: "Give the task a title and instructions." };
+    task = {
+      agentId: value("agentId"),
+      title: value("title"),
+      instructions: value("instructions"),
+    };
   }
-  const concurrencyPolicy = (value("concurrencyPolicy") || "queue") as ConcurrencyPolicy;
-  if (!CONCURRENCY_POLICIES.some((entry) => entry.value === concurrencyPolicy)) {
+  const concurrencyPolicy = (value("concurrencyPolicy") ||
+    "queue") as ConcurrencyPolicy;
+  if (
+    !CONCURRENCY_POLICIES.some((entry) => entry.value === concurrencyPolicy)
+  ) {
     return { error: "Choose what happens to a second task with the same key." };
   }
   return {
@@ -129,14 +164,19 @@ export function requestOf(fields: AutomationFields): { request: AutomationReques
         serviceAccountId: value("serviceAccountId"),
         workInRepository: on("workInRepository"),
         reviewArtifactKinds: value("review") === "all" ? ["*"] : [],
-        concurrency: value("concurrencyKey") ? { key: value("concurrencyKey"), policy: concurrencyPolicy } : null,
+        concurrency: value("concurrencyKey")
+          ? { key: value("concurrencyKey"), policy: concurrencyPolicy }
+          : null,
       },
     },
   };
 }
 
 /** What fires an automation, in a sentence. */
-export function triggerSummary(trigger: Automation["trigger"], repositoryName: string | null): string {
+export function triggerSummary(
+  trigger: Automation["trigger"],
+  repositoryName: string | null,
+): string {
   const where = repositoryName ?? "any linked repository";
   const what =
     trigger.event === "github.issue.labeled"
@@ -144,7 +184,10 @@ export function triggerSummary(trigger: Automation["trigger"], repositoryName: s
       : trigger.event === "github.issue-comment.created"
         ? `someone comments on an issue in ${where}`
         : `an issue is opened in ${where}`;
-  const label = trigger.label && trigger.event !== "github.issue.labeled" ? ` with the label “${trigger.label}”` : "";
+  const label =
+    trigger.label && trigger.event !== "github.issue.labeled"
+      ? ` with the label “${trigger.label}”`
+      : "";
   const who =
     trigger.minimumPermission === "any"
       ? "by anyone"
@@ -152,12 +195,25 @@ export function triggerSummary(trigger: Automation["trigger"], repositoryName: s
   return `When ${what}${label}, ${who}.`;
 }
 
-const STATUS: Record<Automation["status"], { label: string; classes: string }> = {
-  active: { label: "Active", classes: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" },
-  paused: { label: "Paused", classes: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300" },
-  archived: { label: "Archived", classes: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" },
-};
-export const automationStatus = (status: Automation["status"]) => STATUS[status];
+const STATUS: Record<Automation["status"], { label: string; classes: string }> =
+  {
+    active: {
+      label: "Active",
+      classes:
+        "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+    },
+    paused: {
+      label: "Paused",
+      classes:
+        "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+    },
+    archived: {
+      label: "Archived",
+      classes: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
+    },
+  };
+export const automationStatus = (status: Automation["status"]) =>
+  STATUS[status];
 
 const RUN: Record<AutomationRun["status"], string> = {
   requested: "Requested",

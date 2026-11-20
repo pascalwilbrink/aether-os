@@ -24,14 +24,20 @@ export function skillFilesFromForm(
   const name = (fields.name ?? "").trim();
   const skillMd = fields.skillMd ?? "";
   if (!NAME.test(name) || name.length > 64) {
-    return { error: "A skill's name is lowercase letters, digits and hyphens (at most 64), e.g. code-review." };
+    return {
+      error:
+        "A skill's name is lowercase letters, digits and hyphens (at most 64), e.g. code-review.",
+    };
   }
   if (!skillMd.trim()) {
     return { error: "Write the skill's SKILL.md." };
   }
   return {
     name,
-    files: [{ path: "SKILL.md", content: skillMd }, ...keep.filter((file) => file.path !== "SKILL.md")],
+    files: [
+      { path: "SKILL.md", content: skillMd },
+      ...keep.filter((file) => file.path !== "SKILL.md"),
+    ],
   };
 }
 
@@ -47,13 +53,16 @@ export function skillFieldsOf(skills: AgentSkill[]): Record<string, string> {
 }
 
 /** A version's skills from the form: each checked one at the version chosen for it. */
-export function skillsFromForm(fields: Record<string, string | undefined>): { skills: AgentSkill[] } | { error: string } {
+export function skillsFromForm(
+  fields: Record<string, string | undefined>,
+): { skills: AgentSkill[] } | { error: string } {
   const skills: AgentSkill[] = [];
   for (const [key, checked] of Object.entries(fields)) {
     if (!key.startsWith(SKILL_FIELD) || checked !== "on") continue;
     const name = key.slice(SKILL_FIELD.length);
     const version = (fields[`${SKILL_VERSION_FIELD}${name}`] ?? "").trim();
-    if (!/^[1-9]\d*$/.test(version)) return { error: `Choose a version of ${name}.` };
+    if (!/^[1-9]\d*$/.test(version))
+      return { error: `Choose a version of ${name}.` };
     skills.push({ name, version, enabled: true });
   }
   return { skills: skills.sort((a, b) => a.name.localeCompare(b.name)) };
@@ -61,7 +70,9 @@ export function skillsFromForm(fields: Record<string, string | undefined>): { sk
 
 /** Versions to offer for a skill, newest first. */
 export const versionChoices = (skill: Pick<Skill, "latestVersion">) =>
-  Array.from({ length: skill.latestVersion }, (_, i) => String(skill.latestVersion - i));
+  Array.from({ length: skill.latestVersion }, (_, i) =>
+    String(skill.latestVersion - i),
+  );
 
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

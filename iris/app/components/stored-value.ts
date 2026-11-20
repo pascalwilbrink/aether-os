@@ -26,7 +26,10 @@ function read(key: string): string | null {
  * follows changes from other tabs too; `serverValue` (null by default)
  * before hydration, and null when storage is blocked.
  */
-export function useStoredValue(key: string, serverValue: string | null = null): string | null {
+export function useStoredValue(
+  key: string,
+  serverValue: string | null = null,
+): string | null {
   return useSyncExternalStore(
     subscribe,
     () => read(key),

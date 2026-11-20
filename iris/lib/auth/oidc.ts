@@ -16,10 +16,18 @@ let discovered: Promise<client.Configuration> | undefined;
 /** Pistis's metadata, discovered once (and again after a failure). */
 function pistis(): Promise<client.Configuration> {
   discovered ??= client
-    .discovery(new URL(config.pistisIssuer), config.clientId, undefined, client.None(), {
-      // http only outside production (local Pistis).
-      execute: config.pistisIssuer.startsWith("http:") ? [client.allowInsecureRequests] : [],
-    })
+    .discovery(
+      new URL(config.pistisIssuer),
+      config.clientId,
+      undefined,
+      client.None(),
+      {
+        // http only outside production (local Pistis).
+        execute: config.pistisIssuer.startsWith("http:")
+          ? [client.allowInsecureRequests]
+          : [],
+      },
+    )
     .catch((error: unknown) => {
       discovered = undefined;
       throw error;
@@ -51,7 +59,9 @@ export async function startSignIn(
     scope: SCOPE,
     // Refresh tokens need consent; Pistis grants it without a page.
     prompt: "consent",
-    resource: organizationId ? organizationResource(organizationId) : PLATFORM_RESOURCE,
+    resource: organizationId
+      ? organizationResource(organizationId)
+      : PLATFORM_RESOURCE,
     state: pending.state,
     nonce: pending.nonce,
     code_challenge: await client.calculatePKCECodeChallenge(codeVerifier),
@@ -61,13 +71,20 @@ export async function startSignIn(
 }
 
 /** Finishes a sign-in from the callback URL: the new session. */
-export async function finishSignIn(currentUrl: URL, pending: PendingSignIn): Promise<Session> {
-  const tokens = await client.authorizationCodeGrant(await pistis(), currentUrl, {
-    pkceCodeVerifier: pending.codeVerifier,
-    expectedState: pending.state,
-    expectedNonce: pending.nonce,
-    idTokenExpected: true,
-  });
+export async function finishSignIn(
+  currentUrl: URL,
+  pending: PendingSignIn,
+): Promise<Session> {
+  const tokens = await client.authorizationCodeGrant(
+    await pistis(),
+    currentUrl,
+    {
+      pkceCodeVerifier: pending.codeVerifier,
+      expectedState: pending.state,
+      expectedNonce: pending.nonce,
+      idTokenExpected: true,
+    },
+  );
   const claims = tokens.claims();
   if (!claims) {
     throw new Error("Pistis returned no ID token");
@@ -93,11 +110,15 @@ export async function refreshSession(session: Session): Promise<Session> {
   if (!session.refreshToken) {
     throw new Error("No refresh token");
   }
-  const tokens = await client.refreshTokenGrant(await pistis(), session.refreshToken, {
-    resource: session.organizationId
-      ? organizationResource(session.organizationId)
-      : PLATFORM_RESOURCE,
-  });
+  const tokens = await client.refreshTokenGrant(
+    await pistis(),
+    session.refreshToken,
+    {
+      resource: session.organizationId
+        ? organizationResource(session.organizationId)
+        : PLATFORM_RESOURCE,
+    },
+  );
   return {
     ...session,
     accessToken: tokens.access_token,

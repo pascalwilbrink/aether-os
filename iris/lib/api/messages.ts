@@ -6,7 +6,10 @@ import { ApiError } from "./http";
  * A message for people from an API error: `byCode` for a problem's `code`,
  * then common statuses. Anything that isn't an API error is thrown on.
  */
-export function messageOf(error: unknown, byCode: Record<string, string> = {}): string {
+export function messageOf(
+  error: unknown,
+  byCode: Record<string, string> = {},
+): string {
   if (!(error instanceof ApiError)) {
     throw error;
   }

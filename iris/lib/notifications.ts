@@ -20,7 +20,10 @@ const SAFE_PATH = /^\/orgs\/[0-9a-f-]{36}(\/[A-Za-z0-9-]+)*(#[a-z-]+)?$/;
  * organization in Iris, else the organization's home. Never anywhere else,
  * so a stored link can't send anyone off-site.
  */
-export function notificationHref(notification: Pick<Notification, "link">, organizationId: string): string {
+export function notificationHref(
+  notification: Pick<Notification, "link">,
+  organizationId: string,
+): string {
   const { link } = notification;
   return SAFE_PATH.test(link) &&
     (link === `/orgs/${organizationId}` ||
@@ -37,6 +40,8 @@ export function unreadBadge(count: number): string | null {
 }
 
 /** The inbox's filter from `?show=`: only unread ones unless `all`. */
-export function inboxFilter(show: string | string[] | undefined): "unread" | "all" {
+export function inboxFilter(
+  show: string | string[] | undefined,
+): "unread" | "all" {
   return show === "all" ? "all" : "unread";
 }
