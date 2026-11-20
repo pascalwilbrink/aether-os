@@ -5,7 +5,7 @@ import type { App } from 'supertest/types.js';
 
 import { ObjectStorage, S3ObjectStorage } from '@loculus/files';
 
-import { asMember, asTask, createApp, type Client } from './app.js';
+import { asMember, asPlatform, asTask, createApp, type Client } from './app.js';
 
 const sha256 = (bytes: Buffer) =>
   createHash('sha256').update(bytes).digest('hex');
@@ -209,6 +209,14 @@ describe('Files (e2e)', () => {
     // Another organization's token.
     const stranger = await asMember(app, randomUUID(), ['owner']);
     await stranger.get(`${files}/${file.id}`).expect(404);
+
+    // A platform service reads it with platform:read (Seshat indexing a
+    // document), and changes nothing.
+    const seshat = await asPlatform(app, ['platform:read']);
+    await seshat.get(`${files}/${file.id}`).expect(200);
+    await seshat.delete(`${files}/${file.id}`).expect(403);
+    await seshat.post(files).send(declare(PAGE)).expect(403);
+    await (await asPlatform(app, [])).get(`${files}/${file.id}`).expect(403);
   });
 
   it('deletes the file and its object', async () => {

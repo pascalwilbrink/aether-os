@@ -8,7 +8,7 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 
 | Spec | Served by | Consumed by |
 |---|---|---|
-| `polis.openapi.yaml` | Polis | Hephaestus, Pistis, Kairos, Kerykes and Agora (generated HTTP clients); later Iris |
+| `polis.openapi.yaml` | Polis | Hephaestus, Pistis, Kairos, Kerykes, Agora and Seshat (generated HTTP clients); later Iris |
 | `hephaestus.openapi.yaml` | Hephaestus | Iris; Agora (`checkAgentVersion`, generated HTTP client) |
 | `agora.openapi.yaml` | Agora (agents and their versions) | Iris |
 | `agora.asyncapi.yaml` | Agora (agent and version events on `agora.events`) | Hephaestus (its copy of agents and published versions); later Kairos, Kriterion |
@@ -18,7 +18,9 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 | `kairos.openapi.yaml` | Kairos (automations and their runs) | later Iris |
 | `kairos.asyncapi.yaml` | Kairos (events on `kairos.events`) | later Iris, Kriterion |
 | `kerykes.openapi.yaml` | Kerykes (each user's inbox) | Iris |
-| `loculus.openapi.yaml` | Loculus (each project's files) | Hephaestus, Iris |
+| `loculus.openapi.yaml` | Loculus (each project's files) | Hephaestus, Iris, Seshat (documents' files, generated HTTP client) |
+| `seshat.openapi.yaml` | Seshat (each project's knowledge) | later Hephaestus (agents' knowledge tools) and Iris |
+| `seshat.asyncapi.yaml` | Seshat (knowledge item events on `seshat.events`) | later Hephaestus (embeddings), Kerykes, Iris |
 | `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Hephaestus (organization and project events), Kerykes (membership events); later Pistis and others |
 | `hephaestus.asyncapi.yaml` | Hephaestus (task events on `hephaestus.events`; the `task.create` command it receives on `hephaestus.commands`) | Kairos (`task.created`, `task.create-rejected`), Kerykes (tasks that need people, budgets); later Kriterion, Iris |
 

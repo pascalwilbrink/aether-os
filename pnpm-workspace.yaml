@@ -9,6 +9,7 @@ packages:
   - kerykes
   - loculus
   - agora
+  - seshat
   - iris
 
 # Native builds allowed during install.

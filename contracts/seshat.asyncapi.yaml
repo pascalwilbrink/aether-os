@@ -1,0 +1,190 @@
+asyncapi: 3.0.0
+info:
+  title: Seshat events
+  version: 0.1.0
+  description: |
+    Events Seshat publishes to the `seshat.events` topic exchange on
+    RabbitMQ; the routing key is the event type. Every message is the Krepis
+    `DomainEvent` envelope (see `../docs/events.md`), JSON, persistent, with
+    the event ID as AMQP `messageId` and the event type as `type`.
+
+    Delivery is at least once (transactional outbox and relay): deduplicate
+    on `eventId`. Every event has the knowledge item as its aggregate; the
+    item's `aggregateVersion` grows by one with each event, so a consumer
+    can tell an old event from a newer one. Payloads carry IDs and metadata,
+    never the item's text: read it from Seshat's API with your own
+    permissions.
+
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:5672
+    protocol: amqp
+    description: RabbitMQ from ../docker-compose.yml
+
+channels:
+  seshatEvents:
+    address: seshat.events
+    description: Topic exchange; consumers bind their own durable queue (`<consumer>.seshat-events`) to the routing keys they need.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: seshat.events
+          type: topic
+          durable: true
+          autoDelete: false
+    messages:
+      knowledgeItemProposed: { $ref: '#/components/messages/knowledgeItemProposed' }
+      knowledgeItemAccepted: { $ref: '#/components/messages/knowledgeItemAccepted' }
+      knowledgeItemRejected: { $ref: '#/components/messages/knowledgeItemRejected' }
+      knowledgeItemUpdated: { $ref: '#/components/messages/knowledgeItemUpdated' }
+      knowledgeItemSuperseded: { $ref: '#/components/messages/knowledgeItemSuperseded' }
+      knowledgeItemRetired: { $ref: '#/components/messages/knowledgeItemRetired' }
+      knowledgeItemIndexed: { $ref: '#/components/messages/knowledgeItemIndexed' }
+
+operations:
+  publishSeshatEvents:
+    action: send
+    channel: { $ref: '#/channels/seshatEvents' }
+    messages:
+      - $ref: '#/channels/seshatEvents/messages/knowledgeItemProposed'
+      - $ref: '#/channels/seshatEvents/messages/knowledgeItemAccepted'
+      - $ref: '#/channels/seshatEvents/messages/knowledgeItemRejected'
+      - $ref: '#/channels/seshatEvents/messages/knowledgeItemUpdated'
+      - $ref: '#/channels/seshatEvents/messages/knowledgeItemSuperseded'
+      - $ref: '#/channels/seshatEvents/messages/knowledgeItemRetired'
+      - $ref: '#/channels/seshatEvents/messages/knowledgeItemIndexed'
+
+components:
+  messages:
+    knowledgeItemProposed:
+      name: knowledge-item.proposed
+      summary: "An agent proposed an item; someone with `knowledge:approve` should look at it (Kerykes, Iris)."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-item.proposed }
+              payload: { $ref: '#/components/schemas/KnowledgeItemChanged' }
+    knowledgeItemAccepted:
+      name: knowledge-item.accepted
+      summary: "An item became knowledge: written by a person, or a proposal accepted (Iris)."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-item.accepted }
+              payload: { $ref: '#/components/schemas/KnowledgeItemChanged' }
+    knowledgeItemRejected:
+      name: knowledge-item.rejected
+      summary: "A proposal was turned down."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-item.rejected }
+              payload: { $ref: '#/components/schemas/KnowledgeItemChanged' }
+    knowledgeItemUpdated:
+      name: knowledge-item.updated
+      summary: "An item has a new version (its text, or a document's file)."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-item.updated }
+              payload: { $ref: '#/components/schemas/KnowledgeItemChanged' }
+    knowledgeItemSuperseded:
+      name: knowledge-item.superseded
+      summary: "An item was replaced by a newer one (`supersededBy`)."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-item.superseded }
+              payload: { $ref: '#/components/schemas/KnowledgeItemChanged' }
+    knowledgeItemRetired:
+      name: knowledge-item.retired
+      summary: "An item is no longer true."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-item.retired }
+              payload: { $ref: '#/components/schemas/KnowledgeItemChanged' }
+    knowledgeItemIndexed:
+      name: knowledge-item.indexed
+      summary: "A version's text is split into chunks and searchable by keyword: Hephaestus embeds them next (`../docs/knowledge.md`)."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-item.indexed }
+              payload: { $ref: '#/components/schemas/KnowledgeItemIndexed' }
+
+  schemas:
+    Uuid: { type: string, format: uuid }
+    Envelope:
+      type: object
+      description: Krepis's `DomainEvent`.
+      required: [eventId, eventType, schemaVersion, aggregateId, aggregateVersion, occurredAt, organizationId, projectId, actor, payload]
+      properties:
+        eventId: { $ref: '#/components/schemas/Uuid', description: 'UUIDv7; the deduplication key.' }
+        eventType: { type: string }
+        schemaVersion: { type: integer, const: 1 }
+        aggregateId: { $ref: '#/components/schemas/Uuid' }
+        aggregateVersion: { type: integer, minimum: 1 }
+        occurredAt: { type: string, format: date-time }
+        organizationId: { $ref: '#/components/schemas/Uuid' }
+        projectId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        actor:
+          description: Who made the change; null for Seshat's own work (indexing).
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [sub, sub_type]
+              properties:
+                sub: { type: string }
+                sub_type: { enum: [user, service_account, service] }
+        payload: { type: object }
+    KnowledgeItemChanged:
+      type: object
+      additionalProperties: false
+      required: [itemId, projectId, type, status, version, sourceKind, supersededBy]
+      properties:
+        itemId: { $ref: '#/components/schemas/Uuid' }
+        projectId: { $ref: '#/components/schemas/Uuid' }
+        type: { enum: [document, decision, fact, convention, architecture, lesson] }
+        status: { enum: [proposed, accepted, rejected, superseded, retired] }
+        version:
+          type: integer
+          minimum: 1
+          description: The item's content version (its text, or a document's file).
+        sourceKind: { enum: [person, task] }
+        supersededBy:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+    KnowledgeItemIndexed:
+      type: object
+      additionalProperties: false
+      required: [itemId, projectId, version, chunkCount]
+      properties:
+        itemId: { $ref: '#/components/schemas/Uuid' }
+        projectId: { $ref: '#/components/schemas/Uuid' }
+        version:
+          type: integer
+          minimum: 1
+          description: The content version whose chunks are ready.
+        chunkCount: { type: integer, minimum: 0 }

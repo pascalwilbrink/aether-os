@@ -84,7 +84,7 @@ paths:
     get:
       tags: [files]
       operationId: getFile
-      x-permission: '`file:read` in the project'
+      x-permission: '`file:read` in the project, or `platform:read` (platform services: Seshat indexing documents)'
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -164,7 +164,7 @@ paths:
     get:
       tags: [files]
       operationId: getFileDownload
-      x-permission: '`file:read` in the project'
+      x-permission: '`file:read` in the project, or `platform:read` (platform services: Seshat indexing documents)'
       description: |
         A signed URL that downloads the file as an attachment, with its
         name. `FILE_NOT_AVAILABLE` while it's pending.

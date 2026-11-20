@@ -92,6 +92,28 @@ describe('FixedPermissionEvaluator', () => {
         'task:approve',
       ),
     ).toBe(false);
+    // Knowledge too: agents propose it, people accept it.
+    expect(
+      evaluator.hasProjectPermission(
+        principal(roles),
+        PROJECT,
+        'knowledge:approve',
+      ),
+    ).toBe(true);
+    expect(
+      evaluator.hasProjectPermission(
+        principal({ ...roles, subType: 'service_account' }),
+        PROJECT,
+        'knowledge:approve',
+      ),
+    ).toBe(false);
+    expect(
+      evaluator.hasProjectPermission(
+        principal({ ...roles, subType: 'service_account' }),
+        PROJECT,
+        'knowledge:write',
+      ),
+    ).toBe(true);
   });
 
   it('limits task tokens to their project', () => {
