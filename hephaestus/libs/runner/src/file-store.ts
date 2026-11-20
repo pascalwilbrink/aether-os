@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto';
 
-import { createLoculusHttpClient, LoculusApi } from '@hephaestus/core';
+import {
+  createLoculusHttpClient,
+  fetchFailure,
+  LoculusApi,
+} from '@hephaestus/core';
 import type { TaskResponse } from '@hephaestus/tasks';
 
 /** A file kept in Loculus (docs/files.md), in the task's project. */
@@ -131,7 +135,7 @@ export class LoculusFileStore extends FileStore {
       });
     } catch (error) {
       throw new FileStoreError(
-        `The file storage could not be reached: ${error instanceof Error ? error.message : String(error)}`,
+        `The file storage could not be reached: ${fetchFailure(error)}`,
       );
     }
     if (!uploaded.ok) {
@@ -189,7 +193,7 @@ export class LoculusFileStore extends FileStore {
       bytes = Buffer.from(await response.arrayBuffer());
     } catch (error) {
       throw new FileStoreError(
-        `The file storage could not be reached: ${error instanceof Error ? error.message : String(error)}`,
+        `The file storage could not be reached: ${fetchFailure(error)}`,
         true,
       );
     }
@@ -219,7 +223,7 @@ export class LoculusFileStore extends FileStore {
       result = await send();
     } catch (error) {
       throw new FileStoreError(
-        `Loculus could not be reached: ${error instanceof Error ? error.message : String(error)}`,
+        `Loculus could not be reached: ${fetchFailure(error)}`,
         true,
       );
     }
@@ -230,7 +234,7 @@ export class LoculusFileStore extends FileStore {
     if (!result.response) {
       const cause = result.error;
       throw new FileStoreError(
-        `Loculus could not be reached: ${cause instanceof Error ? cause.message : String(cause)}`,
+        `Loculus could not be reached: ${fetchFailure(cause)}`,
         true,
       );
     }

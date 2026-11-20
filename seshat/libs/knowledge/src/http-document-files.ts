@@ -4,6 +4,7 @@ import { Inject, Injectable } from '@nestjs/common';
 
 import {
   createLoculusHttpClient,
+  fetchFailure,
   LoculusApi,
   ServiceTokens,
 } from '@seshat/core';
@@ -118,11 +119,15 @@ export class HttpDocumentFiles extends DocumentFiles {
 
   /** The body of a 2xx, null for a 404 or 409 (not available). */
   private async call<T>(
-    request: () => Promise<{ data?: T; response?: Response }>,
+    request: () => Promise<{
+      data?: T;
+      error?: unknown;
+      response?: Response;
+    }>,
   ): Promise<T | null> {
     let refreshed = false;
     for (let attempt = 1; ; attempt++) {
-      let result: { data?: T; response?: Response };
+      let result: Awaited<ReturnType<typeof request>>;
       try {
         result = await request();
       } catch (error) {
@@ -130,7 +135,7 @@ export class HttpDocumentFiles extends DocumentFiles {
           continue;
         }
         throw new DocumentFileError(
-          `Loculus didn't answer: ${error instanceof Error ? error.message : String(error)}`,
+          `Loculus didn't answer: ${fetchFailure(error)}`,
           true,
         );
       }
@@ -139,7 +144,10 @@ export class HttpDocumentFiles extends DocumentFiles {
         if (attempt < 2) {
           continue;
         }
-        throw new DocumentFileError("Loculus didn't answer", true);
+        throw new DocumentFileError(
+          `Loculus didn't answer: ${fetchFailure(result.error)}`,
+          true,
+        );
       }
       if (response.status === 401 && !refreshed) {
         refreshed = true;
