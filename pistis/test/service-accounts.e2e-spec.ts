@@ -221,6 +221,26 @@ describe('Service accounts and token exchange (e2e)', () => {
       200,
     );
     expect(short.body.expires_in).toBe(300);
+
+    // Pylon's claims, when Hephaestus sends them (docs/pylon.md).
+    const ids = {
+      task_tree_id: '0193a1b2-c3d4-7e5f-8a9b-0000000000a1',
+      agent_id: '0193a1b2-c3d4-7e5f-8a9b-0000000000a2',
+      agent_version_id: '0193a1b2-c3d4-7e5f-8a9b-0000000000a3',
+    };
+    const withIds = await taskToken(account.id, ids).expect(200);
+    expect(decodeJwt(withIds.body.access_token)).toMatchObject(ids);
+    await expect(
+      app.get(TokenVerifier).verify(withIds.body.access_token),
+    ).resolves.toMatchObject({
+      taskTreeId: ids.task_tree_id,
+      agentId: ids.agent_id,
+      agentVersionId: ids.agent_version_id,
+    });
+    const invalid = await taskToken(account.id, { agent_id: 'nope' }).expect(
+      400,
+    );
+    expect(invalid.body.error).toBe('invalid_request');
   });
 
   it('refuses task tokens to other clients, and for projects without a role', async () => {

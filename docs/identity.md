@@ -53,8 +53,8 @@ Short-lived JWTs (5–15 minutes) signed by Pistis with asymmetric keys. Service
   "act": { "sub": "<actor>", "sub_type": "service" },  // present when acting on behalf of someone (RFC 8693)
   "task_id": "<task id>",                 // task tokens only
   "project_id": "<project id>",           // task tokens only: the one project the token is limited to
-  "task_tree_id": "<top-level task id>",  // task tokens only (Proposal, pylon.md): the tree's budget
-  "agent_id": "<agent id>", "agent_version_id": "<agent version id>",  // task tokens only (Proposal, pylon.md)
+  "task_tree_id": "<top-level task id>",  // task tokens, when Hephaestus sends it (pylon.md): the tree's budget
+  "agent_id": "<agent id>", "agent_version_id": "<agent version id>",  // task tokens, likewise: the agent's budget and keys
   "jti": "<token id>", "iat": 0, "exp": 0
 }
 ```
@@ -148,7 +148,7 @@ The organization-wide variants carry an `org:` prefix in code, so every permissi
 | `knowledge:read` (project knowledge in Seshat, `knowledge.md`) | project | ✓ | ✓ | ✓ | ✓ |
 | `knowledge:write` (creating and editing items, uploading documents) | project | ✓ | ✓ | ✓ | |
 | `knowledge:approve` (accepting or rejecting proposals; only people) | project | ✓ | ✓ | | |
-| `model:invoke` (model calls and embeddings through Pylon, `pylon.md`; used by task tokens; Proposal) | project | ✓ | ✓ | ✓ | |
+| `model:invoke` (model calls and embeddings through Pylon, `pylon.md`; used by task tokens) | project | ✓ | ✓ | ✓ | |
 | `session:use` (copilot, voice and council sessions, `interaction.md`, `councils.md`; Proposal) | project | ✓ | ✓ | ✓ | ✓ |
 | `meeting:read` / `meeting:manage` (the meeting agent, `interaction.md`; Proposal) | project | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / |
 
@@ -169,7 +169,7 @@ Notes:
   |---|---|
   | `platform:read` | Reading any organization, project or membership (Pistis building token claims, Hephaestus resolving an organization it hasn't seen) |
   | `platform:manage` | Creating, suspending and activating organizations, and Pistis's user administration; for operator tooling until platform operators have their own principals |
-  | `model:invoke` | Embeddings through Pylon charged to a project named in the path (Seshat; Proposal, `pylon.md`) |
+  | `model:invoke` | Embeddings through Pylon charged to a project named in the path (Seshat, `pylon.md`) |
 
   An endpoint accepts them only where it says so (`@PlatformAccess`); everywhere else a platform service's own token is refused.
 - **Creating an organization:** any user may, and becomes its first `owner` in the same transaction; a platform service needs `platform:manage` and the organization then has no owner until one is granted. Service accounts can't.

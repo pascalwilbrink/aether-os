@@ -9,7 +9,7 @@ Pylon is the service every model call goes through: chat and tool-calling models
 
 Nothing else in Aether-os holds a provider key or calls a provider. A *pylōn* (πυλών) is the monumental gateway of a Greek or Egyptian temple.
 
-Status: **proposal**. Today the gateway lives in Hephaestus (`hephaestus/libs/models`). `models.md` describes what it does, and that design holds unchanged: keys, models, metering, budgets. This document is about moving it into its own service, `pylon/` (port 3011), and how the other services use it.
+Status: **step 1 built** (Moving there, below): the service, `pylon/` (port 3011, `../pylon/CLAUDE.md`), with the catalogue, keys, metering, budgets, the pass-through and embeddings, and the import from Hephaestus. Hephaestus still calls providers through its own gateway (`hephaestus/libs/models`) until step 2 switches it over. `models.md` describes what the gateway does, and that design holds unchanged: keys, models, metering, budgets. This document is about it as its own service, and how the other services use it.
 
 ## Why its own service
 
@@ -47,33 +47,40 @@ All under `/v1`, problem details for Pylon's own errors (`api.md`). The pass-thr
 POST /v1/providers/anthropic/v1/messages
 POST /v1/providers/openai/v1/chat/completions
 POST /v1/providers/openai/v1/responses
+POST /v1/providers/mistral/v1/chat/completions
 POST /v1/providers/ollama/v1/chat/completions
+POST /v1/providers/google/v1beta/models/{model}:generateContent
+POST /v1/providers/google/v1beta/models/{model}:streamGenerateContent
 ```
 
-The token goes where the provider's SDK puts its key (`x-api-key` for Anthropic, `Authorization: Bearer` for OpenAI and Ollama), so the SDK needs no changes. For every call, Pylon:
+The token goes where the provider's SDK puts its key (`x-api-key` for Anthropic, `x-goog-api-key` for Google, `Authorization: Bearer` for the others), so the SDK needs no changes. Any other path is a `400`: Pylon passes on only these. For every call, Pylon:
 
-1. **verifies the token** and takes the organization, project, task, tree, agent and agent version from it (Identity, below). `X-Aether-Execution-Id` and `X-Aether-Purpose` (`agent`, `judge`, `summary`, …) are recorded for attribution only; they never widen access or change which budget pays;
-2. **checks the model**: it must be in the catalogue and not `retired` (Ollama models, which aren't in the catalogue, excepted), and allowed by policy (Themis, later);
+1. **verifies the token** (a task token, with `model:invoke` in its project) and takes the organization, project, task, tree, agent and agent version from it (Identity, below). `X-Aether-Execution-Id` and `X-Aether-Purpose` (`agent`, `judge`, `summary`, …) are recorded for attribution only; they never widen access or change which budget pays;
+2. **checks the model**: not `retired` (`409 MODEL_RETIRED`) and a `chat` model (`MODEL_NOT_AVAILABLE`); a model outside the catalogue (Ollama's, or one older than it) is called unpriced; allowed by policy (Themis, later);
 3. **checks every budget that applies**, narrowest first, or refuses with `402 BUDGET_EXHAUSTED`;
-4. **picks the key**: the agent's, else the organization's, else the platform's when the organization may use it. Keys are cached briefly in memory, never stored outside OpenBao;
-5. **forwards the request** to the provider, and the response back. Streams (SSE) are passed on as they come. Pylon reads the usage from the response or the stream's last events; for OpenAI it adds `stream_options.include_usage`. Retries on `429` and `5xx` happen only before the first byte reaches the caller;
-6. **records the call** (`model_calls`, `models.md`, Metering) with its cost at the catalogue's price, and checks the budgets' thresholds.
+4. **picks the key**: the agent's, else the organization's, else the platform's when the organization may use it (`409 MODEL_KEY_MISSING`), read from OpenBao for every call (`503` when it can't answer), never stored anywhere else;
+5. **forwards the request** to the provider (only the provider's own headers: `anthropic-version`, `anthropic-beta`, `openai-beta`), and the response back. Streams (SSE) are passed on as they come. Pylon reads the usage from the response or the stream's events; for OpenAI and Ollama it adds `stream_options.include_usage`. A `429`, a `5xx` or no answer is tried again (`PROVIDER_RETRIES`, 2, honouring `retry-after` up to 10 seconds) before anything reaches the caller, so callers' SDKs shouldn't retry too; after that the provider's answer goes back as it is, or `502 PROVIDER_UNAVAILABLE` when it never answered;
+6. **records the call** (`model_calls`, `models.md`, Metering) with its cost at the catalogue's price, and checks the budgets' thresholds, **before the answer ends**, so a caller reading usage once a call returned finds it. A caller that goes away stops the provider's answer, and what it used so far is recorded (`aborted`); a provider's refusal isn't recorded.
 
-For Ollama, Pylon calls the organization's own server through the same guarded fetch Hephaestus uses today (`https://`, no private addresses unless `MODEL_ENDPOINT_ALLOW_PRIVATE`).
+Pylon doesn't ask Polis on every call: a suspended organization's tasks stop where Hephaestus runs them, and its tokens expire within minutes (`identity.md`).
+
+For Ollama, Pylon calls the organization's own server through Krepis's `guardedFetch`, as Hephaestus does for tool servers (`https://`, no private addresses unless `MODEL_ENDPOINT_ALLOW_PRIVATE`).
 
 ### Embeddings
 
 ```
 POST /v1/organizations/{organizationId}/projects/{projectId}/embeddings
-{ "model": "openai/text-embedding-4-small", "input": ["…", "…"], "purpose": "knowledge" }
-→ { "model": "…", "dimensions": 1536, "data": [{ "index": 0, "embedding": [ … ] }], "usage": { "inputTokens": 42 } }
+X-Aether-Purpose: knowledge
+{ "provider": "openai", "model": "text-embedding-3-small", "input": ["…", "…"] }
+→ { "provider": "openai", "model": "…", "dimensions": 1536, "data": [{ "index": 0, "embedding": [ … ] }], "usage": { "inputTokens": 42, "costUsd": "0.000001" } }
 ```
 
-- Allowed for a task token of that project (`model:invoke`).
+- Providers with OpenAI's embeddings API: `openai`, `mistral`, `ollama`; models of the catalogue with `kind: embedding` (OpenAI's `text-embedding-3-small` and `-large` are seeded), or any of an organization's Ollama server.
+- Allowed for a task token of that project, or a service account's token, with `model:invoke`.
 - Allowed for a platform service's own token with `model:invoke` (Seshat), charged to the project in the path.
 - Not allowed for people's tokens: Iris doesn't embed. Seshat embeds a search query itself when a person searches.
 
-Inputs are batched up to the provider's limit, metered and checked against the project's and organization's budgets like any call.
+Up to 256 inputs per request, sent in one call; the vectors come back in input order. Checked against the budgets that apply and metered like any call; a provider's refusal is `502 PROVIDER_REFUSED`, saying what it answered.
 
 ### Catalogue, keys, budgets and usage
 
@@ -84,7 +91,7 @@ The routes Hephaestus serves today, moved unchanged. Iris calls Pylon for them (
 - `…/budget` on organizations, projects and agents, and task trees (below).
 - Usage: `GET /v1/organizations/{organizationId}/usage` (`org:read`), totals by project, agent, task tree or execution, for a period. Iris's budget pages and Hephaestus's execution costs read it.
 
-Agora checks a new agent version's model against the catalogue here instead of in Hephaestus's version check. It calls `GET /v1/models/{provider}/{model}`; Hephaestus still checks the version's tools and skills.
+Agora checks a new agent version's model against the catalogue here instead of in Hephaestus's version check. It calls `GET /v1/models?provider=…&model=…`; Hephaestus still checks the version's tools and skills.
 
 ## Identity
 
@@ -95,7 +102,7 @@ Task tokens carry new claims, which Pistis adds when Hephaestus exchanges for th
 | `task_tree_id` | The task tree's budget |
 | `agent_id`, `agent_version_id` | The agent's budget, its own keys, and attribution |
 
-A token without them (a person's, a service account's API key) can't make model calls; only embeddings with a project, as above.
+Model calls need a task token (`task_id` and `project_id`); until Hephaestus sends the new claims, a task's tree and agent budgets and its agent's own keys simply don't apply to its calls. People's tokens and service accounts' API key tokens make no model calls (embeddings with a project, as above).
 
 A new permission, `model:invoke` (project), is held by task tokens, through their service account's project role (`editor` and above). Platform services get it as a scope on their own tokens (`identity.md`).
 
@@ -105,8 +112,8 @@ Pylon checks; Hephaestus pauses.
 
 - **Before an execution starts or resumes**, the runner asks `POST /v1/organizations/{id}/budget-checks` with the task's tree, agent and project. A budget that has no room keeps the task queued or paused, as now.
 - **During a run**, a model call refused with `402 BUDGET_EXHAUSTED` ends the execution `paused`, with `pausedFor` set to the budget that ran out (from the problem's `budget`). Pylon publishes `budget.exhausted`.
-- **Resuming**: Pylon publishes `budget.changed` when a limit is raised and `budget.window-started` when a month starts. Hephaestus consumes both and resumes the paused tasks that now have room, checking again first.
-- **Task tree budgets**: Hephaestus sets them, keyed by the tree's top-level task ID, when a tree is created with `budgetUsd` or its budget is changed (`PUT …/tasks/{taskId}/budget` stays Hephaestus's API: it knows the tree and the `task:create` permission). It calls Pylon's `PUT /v1/organizations/{id}/projects/{projectId}/task-trees/{treeId}/budget` with its own token (`platform:manage`).
+- **Resuming**: as now, each runner round asks the budget check for its paused tasks and resumes those with room (a raised limit, or a new month). Pylon publishes `budget.changed` when a limit is set, so Hephaestus can check at once rather than at its next round.
+- **Task tree budgets**: Hephaestus sets them, keyed by the tree's top-level task ID, when a tree is created with `budgetUsd` or its budget is changed (`PUT …/tasks/{taskId}/budget` stays Hephaestus's API: it knows the tree and the `task:create` permission). It calls Pylon's `PUT /v1/organizations/{id}/projects/{projectId}/task-trees/{treeId}/budget` with the caller's token, which needs `task:create` in the project there too (Pylon can't know the tree belongs to the project, but a wrong tree ID only limits nothing).
 - **Thresholds**: `budget.threshold-reached` moves from Hephaestus to Pylon, same payload; Kerykes consumes it from `pylon.events`.
 
 ## Events (`pylon.events`)
@@ -114,22 +121,21 @@ Pylon checks; Hephaestus pauses.
 | Event | Payload | Consumers |
 |---|---|---|
 | `budget.threshold-reached` | `budgetId`, `scope`, `scopeId`, `limitUsd`, `spentUsd`, `windowStart` | Kerykes, Iris |
-| `budget.exhausted` | the same | Iris |
-| `budget.changed` | `budgetId`, `scope`, `scopeId`, `limitUsd` | Hephaestus (resume) |
-| `budget.window-started` | `windowStart` | Hephaestus (resume) |
-| `model.changed` | `provider`, `model`, `status` | Agora, Iris (later) |
+| `budget.exhausted` | the same, once per window | Iris |
+| `budget.changed` | `budgetId`, `scope`, `scopeId`, `limitUsd` | Hephaestus (checks its paused tasks at once) |
 
 Pylon publishes no per-call events: a task's cost is read with the usage API when it's shown, and Kriterion gets costs from Hephaestus's `task.outcome-recorded`, which reads them from Pylon.
 
 ## Observability
 
-- Each call is a span in the caller's trace (`traceparent` crosses into Pylon) with the GenAI semantic attributes: model, tokens, cost, key source. Never prompt content.
+- Each call is a span in the caller's trace (`traceparent` crosses into Pylon, and the call to the provider is a span within it, through Krepis's telemetry). Later: the GenAI semantic attributes on it (model, tokens, cost, key source), never prompt content.
 - Prompts and completions keep going to Langfuse from the agent's side (Mastra in Hephaestus), where the agent's steps and tools are, so they aren't recorded twice.
 - Logs carry the organization, project, task and execution (Krepis's `createLogger`); request and response bodies are never logged.
 
 ## Moving there
 
-1. **Pylon**: the service with Hephaestus's catalogue, keys, metering and budgets, the pass-through and embeddings endpoints, budget checks and events, and `pnpm import:hephaestus` copying the tables (keys stay in OpenBao, at the same paths). Pistis's new claims and `model:invoke`.
+1. **Pylon** (built): the service with Hephaestus's catalogue, keys, metering and budgets, the pass-through and embeddings endpoints, budget checks and events, and `pnpm import:hephaestus` copying the tables (keys stay in OpenBao, at the same paths). Pistis's new claims and `model:invoke`.
+   **Trying it:** Hephaestus's `USE_PYLON=true` (with `PYLON_URL`) sends agents' model calls through Pylon, with the task token, while Hephaestus keeps its own metering and budgets; `false` (the default) calls providers as before (`../hephaestus/CLAUDE.md`, Through Pylon). Task tokens carry the new claims either way.
 2. **Switching**:
    - Hephaestus's `ModelGateway` becomes an HTTP client of Pylon (the AI SDK providers with Pylon's `baseURL` and the task token);
    - the runner pauses and resumes from Pylon's answers and events;

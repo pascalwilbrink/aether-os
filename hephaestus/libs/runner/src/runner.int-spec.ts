@@ -214,6 +214,10 @@ describe('TaskRunner (Postgres)', () => {
       organizationId: t.organizationId,
       projectId: t.projectId,
       taskId: first.id,
+      // For Pylon: the tree's and the agent's budgets, the agent's keys.
+      taskTreeId: first.topLevelTaskId,
+      agentId: first.agentId,
+      agentVersionId: first.agentVersionId,
       expiresInSeconds: 120,
     });
     expect(sandboxes.destroyed).toContainEqual({

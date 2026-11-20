@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { SecretsModule, type Env } from '@hephaestus/core';
 
 import { LanguageModels, MastraModelRouter } from './language-models.js';
+import { HttpPylonModels, PylonModels } from './pylon-models.js';
 import { TenancyModule } from '@hephaestus/tenancy';
 
 import { BudgetEntity } from './budget.entity.js';
@@ -55,6 +56,18 @@ import { OllamaModelsService } from './ollama-models.service.js';
             infer: true,
           }),
         }),
+    },
+    {
+      // Through Pylon with USE_PYLON (../docs/pylon.md); else the gateway
+      // calls providers itself.
+      provide: PylonModels,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => {
+        const url = config.get('PYLON_URL', { infer: true });
+        return config.get('USE_PYLON', { infer: true }) && url
+          ? new HttpPylonModels(url)
+          : null;
+      },
     },
     ModelMapper,
     ModelCatalogService,

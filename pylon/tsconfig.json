@@ -1,0 +1,71 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "types": [
+      "vitest/globals",
+      "node"
+    ],
+    "paths": {
+      "@pylon/core": [
+        "./libs/core/src/index.ts"
+      ],
+      "@pylon/core/*": [
+        "./libs/core/src/*"
+      ],
+      "@pylon/tenancy": [
+        "./libs/tenancy/src/index.ts"
+      ],
+      "@pylon/tenancy/*": [
+        "./libs/tenancy/src/*"
+      ],
+      "@pylon/agents": [
+        "./libs/agents/src/index.ts"
+      ],
+      "@pylon/agents/*": [
+        "./libs/agents/src/*"
+      ],
+      "@pylon/catalog": [
+        "./libs/catalog/src/index.ts"
+      ],
+      "@pylon/catalog/*": [
+        "./libs/catalog/src/*"
+      ],
+      "@pylon/keys": [
+        "./libs/keys/src/index.ts"
+      ],
+      "@pylon/keys/*": [
+        "./libs/keys/src/*"
+      ],
+      "@pylon/usage": [
+        "./libs/usage/src/index.ts"
+      ],
+      "@pylon/usage/*": [
+        "./libs/usage/src/*"
+      ],
+      "@pylon/gateway": [
+        "./libs/gateway/src/index.ts"
+      ],
+      "@pylon/gateway/*": [
+        "./libs/gateway/src/*"
+      ]
+    },
+    "rewriteRelativeImportExtensions": true
+  }
+}

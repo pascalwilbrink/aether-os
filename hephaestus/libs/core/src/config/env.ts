@@ -52,6 +52,14 @@ export const zEnv = z
      * production.
      */
     MODEL_ENDPOINT_ALLOW_PRIVATE: z.stringbool().default(false),
+    /**
+     * Pylon (../docs/pylon.md), while the gateway moves there: with
+     * `USE_PYLON`, agents' model calls go through Pylon (`PYLON_URL`, with
+     * the task token) instead of to the providers with keys Hephaestus
+     * reads. Metering and budgets stay Hephaestus's either way, until step 2.
+     */
+    USE_PYLON: z.stringbool().default(false),
+    PYLON_URL: z.url({ protocol: /^https?$/ }).optional(),
     /** How often the runner looks for queued tasks and stale executions. */
     RUNNER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
     /** Executions one Hephaestus instance runs at once. */
@@ -176,6 +184,13 @@ export const zEnv = z
       .default(25 * 1024 * 1024),
   })
   .superRefine((env, ctx) => {
+    if (env.USE_PYLON && !env.PYLON_URL) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['PYLON_URL'],
+        message: 'PYLON_URL is required with USE_PYLON=true',
+      });
+    }
     if (env.AGENT_RUNTIME === 'mastra') {
       for (const key of ['OPENBAO_ADDR', 'OPENBAO_TOKEN'] as const) {
         if (!env[key]) {

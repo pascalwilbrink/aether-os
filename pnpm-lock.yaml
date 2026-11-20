@@ -155,6 +155,18 @@ importers:
       '@aether-os/krepis':
         specifier: workspace:*
         version: file:krepis(ea9e3b2e4c9ca4971679d24f8d5bdab0)
+      '@ai-sdk/anthropic':
+        specifier: 4.0.94
+        version: 4.0.94(zod@4.6.7)
+      '@ai-sdk/google':
+        specifier: 4.0.109
+        version: 4.0.109(zod@4.6.7)
+      '@ai-sdk/mistral':
+        specifier: 3.0.78
+        version: 3.0.78(zod@4.6.7)
+      '@ai-sdk/openai':
+        specifier: 4.0.106
+        version: 4.0.106(zod@4.6.7)
       '@ai-sdk/openai-compatible':
         specifier: 3.0.92
         version: 3.0.92(zod@4.6.7)
@@ -684,6 +696,9 @@ importers:
       nest-winston:
         specifier: 2.0.0
         version: 2.0.0(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(winston@3.19.0)
+      undici:
+        specifier: ^7.30.2
+        version: 7.30.2
       uuid:
         specifier: ^14.0.3
         version: 14.0.3
@@ -1323,6 +1338,139 @@ importers:
         specifier: ^4.1.2
         version: 4.1.12(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(@vitest/coverage-v8@4.1.12)(vite@8.3.8(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
+  pylon:
+    dependencies:
+      '@aether-os/krepis':
+        specifier: workspace:*
+        version: file:krepis(ea9e3b2e4c9ca4971679d24f8d5bdab0)
+      '@golevelup/nestjs-rabbitmq':
+        specifier: ^9.1.2
+        version: 9.1.2(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.5.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common':
+        specifier: ^12.0.1
+        version: 12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/config':
+        specifier: ^12.1.1
+        version: 12.1.1(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@nestjs/core':
+        specifier: ^12.0.1
+        version: 12.5.0(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@12.5.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/event-emitter':
+        specifier: ^12.0.3
+        version: 12.0.3(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.5.0)
+      '@nestjs/platform-express':
+        specifier: ^12.0.1
+        version: 12.5.0(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.5.0)(rxjs@7.8.2)
+      '@nestjs/typeorm':
+        specifier: ^12.0.3
+        version: 12.0.3(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.5.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typeorm@1.1.3(pg@8.23.1))
+      '@opentelemetry/api':
+        specifier: ^1.10.0
+        version: 1.10.0
+      jose:
+        specifier: ^6.2.17
+        version: 6.2.17
+      nestjs-zod:
+        specifier: ^5.6.0
+        version: 5.6.0(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)(zod@4.6.7)
+      pg:
+        specifier: ^8.23.1
+        version: 8.23.1
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      rxjs:
+        specifier: ^7.8.1
+        version: 7.8.2
+      typeorm:
+        specifier: ^1.1.3
+        version: 1.1.3(pg@8.23.1)
+      typeorm-transactional:
+        specifier: ^0.5.0
+        version: 0.5.0(reflect-metadata@0.2.2)(typeorm@1.1.3(pg@8.23.1))
+      uuid:
+        specifier: ^14.0.3
+        version: 14.0.3
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    dependenciesMeta:
+      '@aether-os/krepis':
+        injected: true
+    devDependencies:
+      '@aether-os/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@hey-api/openapi-ts':
+        specifier: ^0.99.0
+        version: 0.99.0(magicast@0.5.5)(typescript@6.0.3)
+      '@nestjs/cli':
+        specifier: ^12.0.0
+        version: 12.0.13(@types/node@24.19.2)(prettier@3.10.1)
+      '@nestjs/mau':
+        specifier: ^0.2.6
+        version: 0.2.9
+      '@nestjs/schematics':
+        specifier: ^12.0.0
+        version: 12.0.13(chokidar@5.0.0)(prettier@3.10.1)(typescript@6.0.3)
+      '@nestjs/testing':
+        specifier: ^12.0.1
+        version: 12.5.0(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.5.0)(@nestjs/platform-express@12.5.0)
+      '@testcontainers/postgresql':
+        specifier: ^12.2.1
+        version: 12.2.1(bare-buffer@3.7.2)
+      '@testcontainers/rabbitmq':
+        specifier: ^12.2.1
+        version: 12.2.1(bare-buffer@3.7.2)
+      '@types/amqplib':
+        specifier: ^0.10.8
+        version: 0.10.8
+      '@types/express':
+        specifier: ^5.0.0
+        version: 5.0.6
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.19.2
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      '@types/supertest':
+        specifier: ^7.0.0
+        version: 7.2.1
+      '@vitest/coverage-v8':
+        specifier: ^4.1.2
+        version: 4.1.12(vitest@4.1.12)
+      amqplib:
+        specifier: ^0.10.9
+        version: 0.10.9
+      oxlint:
+        specifier: ^1.58.0
+        version: 1.93.0(oxlint-tsgolint@7.0.2007)
+      oxlint-tsgolint:
+        specifier: ^7.0.2001
+        version: 7.0.2007
+      prettier:
+        specifier: ^3.4.2
+        version: 3.10.1
+      source-map-support:
+        specifier: ^0.5.21
+        version: 0.5.21
+      supertest:
+        specifier: ^7.0.0
+        version: 7.3.2
+      testcontainers:
+        specifier: ^12.2.1
+        version: 12.2.1(bare-buffer@3.7.2)
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.3
+      vite:
+        specifier: ^8.0.0
+        version: 8.3.8(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
+      vitest:
+        specifier: ^4.1.2
+        version: 4.1.12(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(@vitest/coverage-v8@4.1.12)(vite@8.3.8(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+
   seshat:
     dependencies:
       '@aether-os/krepis':
@@ -1509,15 +1657,51 @@ packages:
       '@testcontainers/rabbitmq':
         optional: true
 
+  '@ai-sdk/anthropic@4.0.94':
+    resolution: {integrity: sha512-gD0KmsUZTRuhiYleM2SdMrY0c7m+VeRckLX2VVPnEAlQmaKqSw8+noHiK5ED+SHy4tuDf9VQqcHxlGeObzMNyw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/google@4.0.109':
+    resolution: {integrity: sha512-BZd6F2vI53t1xb1Qtzfr6zDkUR7unzmKpI3UhDp9TxDl+JLw2DLRiTGWBeaqLJEdjt5myS4yqzjIhI9cDC9bfw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/mistral@3.0.78':
+    resolution: {integrity: sha512-e6rygIawd+48VUo7j2s2PraQ2gIw69qt/rJCQCy4KFG2j0DIDQuhNbXYhbCjXIR2Z24dQQ8Wj+o1lInyOgSJ1A==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/openai-compatible@3.0.92':
     resolution: {integrity: sha512-2gV7HHV4qpx+8GotOZMmGqY270ExkftwFG5+DM6nChLmRaP6WP9JKj4e9WjLhih/GsPL9dSGnZHzwCsofHwiAQ==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/openai@4.0.106':
+    resolution: {integrity: sha512-xBhSJCrgeTMZ4kCKABX8BJFtp5ZIJSS2qxvGMALA34TMyR6OVMe93cpU0mGWPFaVwPsWy2DWKb5+x7gkJ9SJ8w==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider-utils@4.0.63':
+    resolution: {integrity: sha512-QSrfUn7pnb+2EZLLtpkcY6208ZZVi15QEJFyp/1jAYEH2UecthgAsyYWOJbpMSLtraviCByd6ii2meISIhkTZA==}
+    engines: {node: '>=18.17'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/provider-utils@4.0.66':
     resolution: {integrity: sha512-tITCIYBJlxD4PmDIAI2VXb67yEbWRepvJBJrv2pIY5vMRUta51AFRxLlxm0IexRGdIBGuQ10+ClClZMXtawkbA==}
     engines: {node: '>=18.17'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider-utils@5.0.72':
+    resolution: {integrity: sha512-M6QAztI84jWumQSvKcGOL91DxhChsWxn3D3gYtV0/7E1TPQg9BmLdIerOolUC/jghQbMlQrHyzp0hqdIhUZ2Rw==}
+    engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
@@ -1534,6 +1718,10 @@ packages:
   '@ai-sdk/provider@3.0.19':
     resolution: {integrity: sha512-5lWq7zSfRaU5ylDESn3sDQjgGl2AI1vjZKO/6JY3aFW70ct4zcP1kN+ZUYOuTXr28fVsYbyu2YFhddLdIgQFZQ==}
     engines: {node: '>=18'}
+
+  '@ai-sdk/provider@4.0.35':
+    resolution: {integrity: sha512-yBz6fmLS8MSCIzy7NiHEUAq56ZLD4ZA1GR6bpXBxgbwUacP1La7LuwAr/xy9jSzthem4F8Xu2OrhvU/JrE9fYA==}
+    engines: {node: '>=22'}
 
   '@ai-sdk/provider@4.0.38':
     resolution: {integrity: sha512-GElz70UUCuDFFyD6m6aQJFgRY0HEABQzB5otzgkrisYaF5mnss7o0upAmbBTSD6KWiM9h7lZm1ls2c7xzHR8CA==}
@@ -7696,6 +7884,7 @@ snapshots:
       nestjs-zod: 5.6.0(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)(zod@4.6.7)
       typeorm: 1.1.3(pg@8.23.1)
       typeorm-transactional: 0.5.0(reflect-metadata@0.2.2)(typeorm@1.1.3(pg@8.23.1))
+      undici: 7.30.2
       uuid: 14.0.3
       winston: 3.19.0
       winston-transport: 4.9.0
@@ -7706,10 +7895,42 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@ai-sdk/anthropic@4.0.94(zod@4.6.7)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.35
+      '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
+      zod: 4.6.7
+
+  '@ai-sdk/google@4.0.109(zod@4.6.7)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.35
+      '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
+      zod: 4.6.7
+
+  '@ai-sdk/mistral@3.0.78(zod@4.6.7)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.19
+      '@ai-sdk/provider-utils': 4.0.63(zod@4.6.7)
+      zod: 4.6.7
+
   '@ai-sdk/openai-compatible@3.0.92(zod@4.6.7)':
     dependencies:
       '@ai-sdk/provider': 4.0.38
       '@ai-sdk/provider-utils': 5.0.81(zod@4.6.7)
+      zod: 4.6.7
+
+  '@ai-sdk/openai@4.0.106(zod@4.6.7)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.35
+      '@ai-sdk/provider-utils': 5.0.72(zod@4.6.7)
+      zod: 4.6.7
+
+  '@ai-sdk/provider-utils@4.0.63(zod@4.6.7)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.19
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.1.1
+      undici: 6.29.1
       zod: 4.6.7
 
   '@ai-sdk/provider-utils@4.0.66(zod@4.6.7)':
@@ -7718,6 +7939,15 @@ snapshots:
       '@standard-schema/spec': 1.1.0
       eventsource-parser: 3.1.1
       undici: 6.29.1
+      zod: 4.6.7
+
+  '@ai-sdk/provider-utils@5.0.72(zod@4.6.7)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.35
+      '@standard-schema/spec': 1.1.0
+      '@workflow/serde': 4.1.0
+      eventsource-parser: 3.1.1
+      undici: 7.30.2
       zod: 4.6.7
 
   '@ai-sdk/provider-utils@5.0.81(zod@4.6.7)':
@@ -7733,6 +7963,10 @@ snapshots:
       json-schema: 0.4.0
 
   '@ai-sdk/provider@3.0.19':
+    dependencies:
+      json-schema: 0.4.0
+
+  '@ai-sdk/provider@4.0.35':
     dependencies:
       json-schema: 0.4.0
 

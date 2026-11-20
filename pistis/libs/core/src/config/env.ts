@@ -143,6 +143,17 @@ const DEV_CLIENTS = [
     token_endpoint_auth_method: 'client_secret_basic',
     platform_permissions: ['platform:read'],
   },
+  // Pylon's own token (client credentials): organizations and projects
+  // from Polis.
+  {
+    client_id: 'pylon',
+    client_secret: 'pylon-dev-secret',
+    redirect_uris: [],
+    response_types: [],
+    grant_types: ['client_credentials'],
+    token_endpoint_auth_method: 'client_secret_basic',
+    platform_permissions: ['platform:read'],
+  },
   // Operator tooling for local development: create users, suspend
   // organizations (README: "Creating a user").
   {

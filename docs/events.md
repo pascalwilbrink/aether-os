@@ -124,17 +124,15 @@ Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created` (with
 | `document.deleted` | `documentId` | Seshat, Loculus cleanup |
 | `budget.threshold-reached` | `budgetId`, `scope` (task tree / project / organization), `scopeId`, `limitUsd`, `spentUsd`, `windowStart` | Kerykes, Iris (moves to Pylon, below) |
 
-### Pylon (`pylon.events`, Proposal)
+### Pylon (`pylon.events`)
 
-The model gateway's budgets, moving from Hephaestus (`pylon.md`). No per-call events.
+The model gateway's budgets (`pylon.md`, `../contracts/pylon.asyncapi.yaml`), with the budget as aggregate. Published; the consumers below switch over from Hephaestus's `budget.threshold-reached` in step 2. No per-call events.
 
 | Event | Payload | Consumers |
 |---|---|---|
 | `budget.threshold-reached` | `budgetId`, `scope`, `scopeId`, `limitUsd`, `spentUsd`, `windowStart` | Kerykes, Iris |
-| `budget.exhausted` | the same | Iris |
-| `budget.changed` | `budgetId`, `scope`, `scopeId`, `limitUsd` | Hephaestus (resumes paused tasks) |
-| `budget.window-started` | `windowStart` | Hephaestus (resumes paused tasks) |
-| `model.changed` | `provider`, `model`, `status` | later Agora, Iris |
+| `budget.exhausted` | the same, once per window | Iris |
+| `budget.changed` | `budgetId`, `scope`, `scopeId`, `limitUsd` | Hephaestus (checks its paused tasks at once) |
 
 ### Seshat (`seshat.events`)
 

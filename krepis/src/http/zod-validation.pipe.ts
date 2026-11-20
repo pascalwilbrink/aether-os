@@ -23,7 +23,9 @@ type Location = ArgumentMetadata['type'];
  *   false` says, by comparing the input with the parsed output: Zod drops
  *   keys it doesn't know, so every dropped key was unknown.
  * - **Query and path parameters arrive as strings**, so numeric and boolean
- *   strings are converted where the schema expects a number or boolean.
+ *   strings are converted where the schema expects a number or boolean, and
+ *   a single value is wrapped where it expects an array (a repeated
+ *   parameter given once).
  *
  * Parameters that aren't Zod DTOs pass through unchanged.
  */
@@ -201,6 +203,10 @@ function coerceStrings(schema: z.ZodType, value: unknown): unknown {
       }
       if (type === 'boolean' && (raw === 'true' || raw === 'false')) {
         return [key, raw === 'true'];
+      }
+      // A repeated parameter (`?id=a&id=b`) given once arrives as a string.
+      if (type === 'array') {
+        return [key, [raw]];
       }
       return [key, raw];
     }),

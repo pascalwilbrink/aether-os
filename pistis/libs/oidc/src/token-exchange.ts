@@ -45,7 +45,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
  * - **Task token:** a platform service whose client may (`token_exchange:
  *   ['task-token']`, i.e. Hephaestus) exchanges for a token of a service
  *   account, `subject_token` = its ID, limited to `project_id`, carrying
- *   `task_id` and `act` (the service), for at most an hour (`expires_in`).
+ *   `task_id` and `act` (the service), for at most an hour (`expires_in`);
+ *   optionally `task_tree_id`, `agent_id` and `agent_version_id`, which
+ *   Pylon uses for budgets, keys and attribution (docs/pylon.md).
  *
  * Both ask Polis, like every token: the service account must be a member
  * of an active organization, and its roles go in the token. A task token
@@ -82,6 +84,9 @@ export class TokenExchange {
         'scope',
         'project_id',
         'task_id',
+        'task_tree_id',
+        'agent_id',
+        'agent_version_id',
         'expires_in',
       ],
     );
@@ -148,6 +153,16 @@ export class TokenExchange {
           'project_id and task_id (UUIDs) are required',
         );
       }
+      const optional = {
+        task_tree_id: params.task_tree_id,
+        agent_id: params.agent_id,
+        agent_version_id: params.agent_version_id,
+      };
+      for (const [name, value] of Object.entries(optional)) {
+        if (value !== undefined && !UUID.test(value)) {
+          throw new errors.InvalidRequest(`${name} must be a UUID`);
+        }
+      }
       const requested = params.expires_in
         ? Number(params.expires_in)
         : TASK_TOKEN_MAX_TTL;
@@ -166,6 +181,9 @@ export class TokenExchange {
         projectId,
         taskId,
         actor: client.clientId,
+        claims: Object.fromEntries(
+          Object.entries(optional).filter(([, value]) => value !== undefined),
+        ),
       });
     }
 
@@ -177,7 +195,13 @@ export class TokenExchange {
   private async issue(
     identity: ServiceAccountIdentity,
     ttl: number,
-    task: { projectId?: string; taskId?: string; actor?: string },
+    task: {
+      projectId?: string;
+      taskId?: string;
+      actor?: string;
+      /** Task tokens' optional claims (`task_tree_id`, `agent_id`, `agent_version_id`). */
+      claims?: Record<string, string | undefined>;
+    },
   ) {
     const { serviceAccountId, organizationId } = identity;
     const [roles, status, projectRoles] = await Promise.all([
@@ -219,7 +243,7 @@ export class TokenExchange {
         project_roles: projectRoles,
         scope: API_SCOPE,
         ...(task.projectId
-          ? { project_id: task.projectId, task_id: task.taskId }
+          ? { project_id: task.projectId, task_id: task.taskId, ...task.claims }
           : {}),
         ...(task.actor
           ? { act: { sub: task.actor, sub_type: 'service' } }

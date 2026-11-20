@@ -16,6 +16,7 @@ import request from 'supertest';
 import { z } from 'zod';
 
 import { DomainError } from '../error/domain-error.js';
+import { ProblemException } from './problem.exception.js';
 import { InvalidCursorError } from '../pagination/cursor.js';
 import { configureHttpApp } from './http-app.js';
 import { createZodDto, ZodSerializerDto } from './index.js';
@@ -31,6 +32,7 @@ const zWidgetPath = z.object({ widgetId: z.uuid() });
 const zWidgetQuery = z.object({
   limit: z.int().gte(1).lte(100).optional().default(50),
   archived: z.boolean().optional(),
+  id: z.array(z.string()).optional(),
 });
 const zWidget = z.object({ id: z.string(), name: z.string() });
 const zThingsQuery = z.object({
@@ -88,6 +90,14 @@ class ThingsController {
   @Get('archived')
   archived() {
     throw new ThingArchivedError();
+  }
+
+  @Get('spent')
+  spent() {
+    throw new ProblemException(402, 'BUDGET_EXHAUSTED', 'The budget ran out.', {
+      budget: { scope: 'project' },
+      status: 999,
+    });
   }
 
   @Get('missing')
@@ -175,6 +185,17 @@ describe('configureHttpApp', () => {
       code: 'THING_ARCHIVED',
       traceId: '4bf92f3577b34da6a3ce929d0e0e4736',
       errors: [],
+    });
+  });
+
+  it('maps a ProblemException with its extension members', async () => {
+    const res = await http().get('/v1/things/spent').expect(402);
+    expect(res.body).toMatchObject({
+      type: 'urn:aether-os:problem:budget-exhausted',
+      status: 402,
+      detail: 'The budget ran out.',
+      code: 'BUDGET_EXHAUSTED',
+      budget: { scope: 'project' },
     });
   });
 
@@ -292,6 +313,12 @@ describe('configureHttpApp', () => {
         .get('/v1/widgets?limit=5&archived=true')
         .expect(200);
       expect(res.body).toEqual({ limit: 5, archived: true });
+
+      // A repeated parameter, given once or more.
+      const one = await http().get('/v1/widgets?id=a').expect(200);
+      expect(one.body).toEqual({ limit: 50, id: ['a'] });
+      const two = await http().get('/v1/widgets?id=a&id=b').expect(200);
+      expect(two.body).toEqual({ limit: 50, id: ['a', 'b'] });
 
       const defaults = await http().get('/v1/widgets').expect(200);
       expect(defaults.body).toEqual({ limit: 50 });

@@ -46,6 +46,7 @@ describe('zEnv', () => {
       ]),
       TOOL_SERVER_ALLOW_PRIVATE: false,
       MODEL_ENDPOINT_ALLOW_PRIVATE: false,
+      USE_PYLON: false,
       TOOL_SERVER_TRUSTED_ORIGINS: [],
       TOOL_CALL_TIMEOUT_MS: 60_000,
       TASK_FILE_MAX_BYTES: 25 * 1024 * 1024,
@@ -114,5 +115,19 @@ describe('zEnv', () => {
     expect(zEnv.safeParse({ ...valid, RABBITMQ_URL: 'http://h' }).success).toBe(
       false,
     );
+  });
+
+  it('needs PYLON_URL with USE_PYLON', () => {
+    const result = zEnv.safeParse({ ...valid, USE_PYLON: 'true' });
+    expect(result.error?.issues.map((issue) => issue.path[0])).toEqual([
+      'PYLON_URL',
+    ]);
+    expect(
+      zEnv.parse({
+        ...valid,
+        USE_PYLON: 'true',
+        PYLON_URL: 'http://localhost:3011',
+      }).USE_PYLON,
+    ).toBe(true);
   });
 });
