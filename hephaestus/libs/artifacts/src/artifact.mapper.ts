@@ -4,6 +4,7 @@ import { v7 as uuidv7 } from 'uuid';
 import type { ArtifactResponse } from './dto/artifact.response.js';
 import {
   ArtifactEntity,
+  type FileContent,
   type JsonContent,
   type PullRequestContent,
   type TextContent,
@@ -83,6 +84,18 @@ export class ArtifactMapper {
         pullRequest: body.pullRequest,
       };
     }
+    if (entity.kind === 'file') {
+      const body = entity.body as FileContent;
+      return {
+        ...base,
+        kind: 'file',
+        fileId: body.fileId,
+        fileName: body.fileName,
+        contentType: body.contentType,
+        sizeBytes: body.sizeBytes,
+        sha256: body.sha256,
+      };
+    }
     if (entity.kind === 'verification') {
       const body = entity.body as VerificationContent;
       return {
@@ -104,8 +117,21 @@ export class ArtifactMapper {
 
 function bodyOf(
   input: NewArtifact | NewPullRequest | NewVerification,
-): TextContent | JsonContent | VerificationContent | PullRequestContent {
+):
+  | TextContent
+  | JsonContent
+  | VerificationContent
+  | PullRequestContent
+  | FileContent {
   switch (input.kind) {
+    case 'file':
+      return {
+        fileId: input.fileId,
+        fileName: input.fileName,
+        contentType: input.contentType,
+        sizeBytes: input.sizeBytes,
+        sha256: input.sha256,
+      };
     case 'pull_request':
       return {
         linkId: input.linkId,

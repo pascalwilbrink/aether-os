@@ -1745,6 +1745,25 @@ export interface components {
              */
             kind: "pull_request";
         };
+        FileArtifact: components["schemas"]["ArtifactBase"] & {
+            /** @constant */
+            kind: "file";
+            /**
+             * Format: uuid
+             * @description The file in Loculus.
+             */
+            fileId: string;
+            fileName: string;
+            contentType: string;
+            sizeBytes: number;
+            sha256: string;
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "file";
+        };
         CriterionResult: {
             key: string;
             /** @enum {string} */
@@ -1753,7 +1772,7 @@ export interface components {
             output: string;
         };
         /** @description One artifact; `kind` says which (an open set). */
-        ArtifactResponse: components["schemas"]["TextArtifact"] | components["schemas"]["JsonArtifact"] | components["schemas"]["VerificationArtifact"] | components["schemas"]["PullRequestArtifact"];
+        ArtifactResponse: components["schemas"]["TextArtifact"] | components["schemas"]["JsonArtifact"] | components["schemas"]["VerificationArtifact"] | components["schemas"]["PullRequestArtifact"] | components["schemas"]["FileArtifact"];
         ArtifactReview: {
             /** @enum {string} */
             decision: "approved" | "rejected" | "changes_requested";

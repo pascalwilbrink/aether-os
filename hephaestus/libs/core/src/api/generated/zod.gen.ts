@@ -457,6 +457,15 @@ export const zPullRequestArtifact = zArtifactBase.and(z.object({
     }).nullable()
 }));
 
+export const zFileArtifact = zArtifactBase.and(z.object({
+    kind: z.literal('file'),
+    fileId: z.uuid(),
+    fileName: z.string(),
+    contentType: z.string(),
+    sizeBytes: z.int().gte(0),
+    sha256: z.string().regex(/^[0-9a-f]{64}$/)
+}));
+
 /**
  * One artifact; `kind` says which (an open set).
  */
@@ -472,7 +481,10 @@ export const zArtifactResponse = z.union([
     }).and(zVerificationArtifact),
     z.object({
         kind: z.literal('pull_request')
-    }).and(zPullRequestArtifact)
+    }).and(zPullRequestArtifact),
+    z.object({
+        kind: z.literal('file')
+    }).and(zFileArtifact)
 ]);
 
 export const zReviewDecisionRequest = z.object({

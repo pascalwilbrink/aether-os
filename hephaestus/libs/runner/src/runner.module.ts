@@ -32,7 +32,9 @@ import { GitClient } from './git-client.js';
 import { GitHubPullRequests, PullRequests } from './pull-requests.js';
 import { TaskRepositoryAccess } from './task-repository-access.js';
 import { PistisTaskTokens } from './pistis-task-tokens.js';
+import { FileStore, LoculusFileStore, NoFileStore } from './file-store.js';
 import { RepositoryCheckouts } from './repository-checkouts.js';
+import { SandboxFiles } from './sandbox-files.js';
 import {
   HttpRepositoryTokens,
   NoRepositoryTokens,
@@ -82,6 +84,7 @@ import {
         BudgetsService,
         ToolServersService,
         SkillsService,
+        FileStore,
       ],
       useFactory: (
         config: ConfigService<Env, true>,
@@ -89,6 +92,7 @@ import {
         budgets: BudgetsService,
         toolServers: ToolServersService,
         skills: SkillsService,
+        files: FileStore,
       ) => {
         switch (config.get('AGENT_RUNTIME', { infer: true })) {
           case 'mastra':
@@ -99,6 +103,10 @@ import {
               skills,
               // Mastra's spans, when Hephaestus traces (main.ts started an SDK).
               agentTracing(process.env),
+              new SandboxFiles(
+                files,
+                config.get('FILE_ARTIFACT_MAX_BYTES', { infer: true }),
+              ),
             );
           case 'echo':
             return new EchoAgentRuntime();
@@ -168,6 +176,14 @@ import {
       useFactory: (config: ConfigService<Env, true>) => {
         const url = config.get('PROXENOS_URL', { infer: true });
         return url ? new HttpRepositoryTokens(url) : new NoRepositoryTokens();
+      },
+    },
+    {
+      provide: FileStore,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => {
+        const url = config.get('LOCULUS_URL', { infer: true });
+        return url ? new LoculusFileStore(url) : new NoFileStore();
       },
     },
     { provide: GitClient, useFactory: () => new GitClient() },

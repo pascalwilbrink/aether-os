@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.23.0
+  version: 0.24.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -2564,6 +2564,23 @@ components:
                     url: { type: string, format: uri }
                     state: { type: string, enum: [open, merged, closed] }
                 - { type: 'null' }
+    FileArtifact:
+      allOf:
+        - $ref: '#/components/schemas/ArtifactBase'
+        - type: object
+          required: [kind, fileId, fileName, contentType, sizeBytes, sha256]
+          description: |
+            A file the agent produced in its sandbox, kept in Loculus
+            (docs/files.md): the file's ID there (in the artifact's
+            project), never a URL. Download it with Loculus's
+            `GET …/projects/{projectId}/files/{fileId}/download`.
+          properties:
+            kind: { type: string, const: file }
+            fileId: { type: string, format: uuid, description: The file in Loculus. }
+            fileName: { type: string }
+            contentType: { type: string }
+            sizeBytes: { type: integer, minimum: 0 }
+            sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
     CriterionResult:
       type: object
       additionalProperties: false
@@ -2579,6 +2596,7 @@ components:
         - $ref: '#/components/schemas/JsonArtifact'
         - $ref: '#/components/schemas/VerificationArtifact'
         - $ref: '#/components/schemas/PullRequestArtifact'
+        - $ref: '#/components/schemas/FileArtifact'
       discriminator:
         propertyName: kind
         mapping:
@@ -2586,6 +2604,7 @@ components:
           json: '#/components/schemas/JsonArtifact'
           verification: '#/components/schemas/VerificationArtifact'
           pull_request: '#/components/schemas/PullRequestArtifact'
+          file: '#/components/schemas/FileArtifact'
     ArtifactReview:
       type: object
       additionalProperties: false
