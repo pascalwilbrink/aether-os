@@ -96,7 +96,7 @@ describe('HttpPylonModels', () => {
     const created = new HttpPylonModels(url).create(provider, model, {
       token: 'task-token',
       executionId: 'execution-1',
-    }) as {
+    }) as unknown as {
       doGenerate: (options: unknown) => Promise<{
         content: { type: string; text?: string }[];
       }>;

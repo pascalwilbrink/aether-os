@@ -12,19 +12,17 @@ import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
 import { AgentVersionChecks } from '@hephaestus/agents';
 import { ArtifactsService } from '@hephaestus/artifacts';
 import { SecretStore } from '@hephaestus/core';
-import {
-  LanguageModels,
-  BudgetsService,
-  ModelGateway,
-} from '@hephaestus/models';
+import { ModelGateway } from '@hephaestus/models';
 import { SkillsService } from '@hephaestus/skills';
 import { TasksService } from '@hephaestus/tasks';
 import { TOOL_SERVER_POLICY, ToolServersService } from '@hephaestus/tools';
 
 import type { FakePolis } from '../../../test/fake-polis.js';
 import {
+  budgetExhausted,
   FakeSecretStore,
-  ScriptedLanguageModels,
+  type FakePylon,
+  type ScriptedPylonModels,
 } from '../../../test/fake-models.js';
 import {
   FakeSandboxProvisioner,
@@ -51,7 +49,8 @@ describe('MastraAgentRuntime (Postgres)', () => {
   let moduleRef: TestingModule;
   let polis: FakePolis;
   let secrets: FakeSecretStore;
-  let models: ScriptedLanguageModels;
+  let models: ScriptedPylonModels;
+  let pylon: FakePylon;
   let organizationId: string;
   let projectId: string;
   let tasks: TasksService;
@@ -61,8 +60,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
   beforeEach(async () => {
     toolServer = await new FakeToolServer().start();
     secrets = new FakeSecretStore();
-    models = new ScriptedLanguageModels();
-    ({ moduleRef, polis } = await createTestingModuleWith(
+    ({ moduleRef, polis, models, pylon } = await createTestingModuleWith(
       (builder) =>
         builder
           // One execution per round, so a retried failure waits for the next.
@@ -72,7 +70,6 @@ describe('MastraAgentRuntime (Postgres)', () => {
           .useFactory({
             factory: (
               gateway: ModelGateway,
-              budgets: BudgetsService,
               toolServers: ToolServersService,
               skills: SkillsService,
             ) =>
@@ -80,17 +77,11 @@ describe('MastraAgentRuntime (Postgres)', () => {
               // work alike, and the traces test reads its spans.
               new MastraAgentRuntime(
                 gateway,
-                budgets,
                 toolServers,
                 skills,
                 mastraWithTracing(),
               ),
-            inject: [
-              ModelGateway,
-              BudgetsService,
-              ToolServersService,
-              SkillsService,
-            ],
+            inject: [ModelGateway, ToolServersService, SkillsService],
           })
           // The test tool server is one of Aether-os's own.
           .overrideProvider(TOOL_SERVER_POLICY)
@@ -100,8 +91,6 @@ describe('MastraAgentRuntime (Postgres)', () => {
           })
           .overrideProvider(SecretStore)
           .useValue(secrets)
-          .overrideProvider(LanguageModels)
-          .useValue(models)
           .overrideProvider(TaskTokens)
           .useValue(new FakeTaskTokens())
           .overrideProvider(SandboxProvisioner)
@@ -134,7 +123,6 @@ describe('MastraAgentRuntime (Postgres)', () => {
     skills?: { name: string; version: string; enabled: boolean }[];
   }) =>
     moduleRef.get(AgentVersionChecks).assertChoosable(organizationId, {
-      model: { provider: 'scripted', model: 'scripted-model' },
       tools: choices.tools ?? [],
       skills: choices.skills ?? [],
     });
@@ -195,10 +183,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
         .list(organizationId, projectId, id, { limit: 50 })
     ).items;
 
-  it("runs the agent version with the organization's key, and meters the call", async () => {
-    secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
-      apiKey: 'sk-organization',
-    });
+  it('runs the agent version through Pylon with the task token', async () => {
     models.replies = [
       {
         text: 'Lowercased emails at sign-in.',
@@ -207,7 +192,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
         cachedInputTokens: 100,
       },
     ];
-    const { task: created, versionId } = await taskFor();
+    const { task: created } = await taskFor();
 
     await runOnce();
 
@@ -218,21 +203,23 @@ describe('MastraAgentRuntime (Postgres)', () => {
     expect(execution).toMatchObject({
       status: 'completed',
       summary: 'Lowercased emails at sign-in.',
-      // At the test catalogue's price ($3 in, $0.30 cache reads, $15 out):
-      // 20 × 3 + 100 × 0.3 + 9 × 15 = 225 millionths of a dollar.
+      // Pylon's usage for the execution.
       usage: {
         modelCalls: 1,
         inputTokens: 120,
         outputTokens: 9,
         cacheReadTokens: 100,
-        cacheWriteTokens: 0,
-        costUsd: '0.000225',
       },
     });
 
-    // The pinned version's model, settings and instructions, with the key.
+    // The pinned version's model, called with the task's own token and the
+    // execution as its label; its settings and instructions.
     expect(models.created).toEqual([
-      { id: 'scripted/scripted-model', apiKey: 'sk-organization' },
+      {
+        id: 'scripted/scripted-model',
+        token: `task-token-for-${created.id}`,
+        executionId: execution.id,
+      },
     ]);
     const [call] = models.calls;
     expect(call).toMatchObject({ temperature: 0.3, maxOutputTokens: 2000 });
@@ -243,32 +230,18 @@ describe('MastraAgentRuntime (Postgres)', () => {
     expect(JSON.stringify(call.prompt.at(-1))).toContain(
       '# Fix the login bug\\n\\nUppercase emails cannot sign in.',
     );
-
-    const [row] = (await moduleRef
-      .get(DataSource)
-      .query('SELECT * FROM model_calls')) as Record<string, unknown>[];
-    expect(row).toMatchObject({
-      organization_id: organizationId,
-      project_id: projectId,
-      task_id: created.id,
-      execution_id: execution.id,
-      agent_version_id: versionId,
-      provider: 'scripted',
-      model: 'scripted-model',
-      key_source: 'organization',
-      input_tokens: 120,
-      output_tokens: 9,
-      cache_read_tokens: 100,
-      cache_write_tokens: null,
-      cost_usd: '0.000225',
-      finish_reason: 'stop',
-    });
+    // The budgets were checked before it started.
+    expect(pylon.checks).toEqual([
+      {
+        organizationId,
+        projectId,
+        agentId: created.agentId,
+        topLevelTaskId: created.id,
+      },
+    ]);
   });
 
   it('records what the agent submits with submit_artifact', async () => {
-    secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
-      apiKey: 'sk-organization',
-    });
     models.replies = [
       {
         toolCall: {
@@ -322,9 +295,6 @@ describe('MastraAgentRuntime (Postgres)', () => {
   });
 
   it("keeps the execution's activity: the runner's steps, each model call and each tool call", async () => {
-    secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
-      apiKey: 'sk-organization',
-    });
     models.replies = [
       {
         toolCall: {
@@ -407,35 +377,16 @@ describe('MastraAgentRuntime (Postgres)', () => {
     });
   });
 
-  it("runs an Ollama model with the organization's server, unpriced", async () => {
-    secrets.secrets.set(`orgs/${organizationId}/llm/ollama`, {
-      baseUrl: 'http://127.0.0.1:11434',
-    });
+  it('fails without retrying when Pylon refuses the call (no key, a retired model)', async () => {
     models.replies = [
-      { text: 'Local answer.', inputTokens: 10, outputTokens: 3 },
+      {
+        error: {
+          message: 'No key for model provider scripted',
+          statusCode: 409,
+          responseBody: JSON.stringify({ code: 'MODEL_KEY_MISSING' }),
+        },
+      },
     ];
-    const { task: created } = await taskFor({
-      model: { provider: 'ollama', model: 'qwen3:8b' },
-    });
-
-    await runOnce();
-
-    await expect(task(created.id)).resolves.toMatchObject({
-      status: 'succeeded',
-    });
-    expect(models.created).toEqual([
-      { id: 'ollama/qwen3:8b', baseUrl: 'http://127.0.0.1:11434' },
-    ]);
-    const [execution] = await executionsOf(created.id);
-    // Not in the catalogue: counted, not priced.
-    expect(execution.usage).toMatchObject({
-      modelCalls: 1,
-      inputTokens: 10,
-      costUsd: null,
-    });
-  });
-
-  it('fails without retrying when no key is stored for the provider', async () => {
     const { task: created } = await taskFor();
 
     await runOnce();
@@ -444,15 +395,12 @@ describe('MastraAgentRuntime (Postgres)', () => {
       status: 'failed',
       failureReason: 'infrastructure',
     });
-    const [execution] = await executionsOf(created.id);
-    expect(execution.error).toContain('No key for model provider scripted');
-    expect(execution.usage.modelCalls).toBe(0);
+    expect((await executionsOf(created.id))[0].error).toContain(
+      'The model provider refused the call (409)',
+    );
   });
 
   it('fails without retrying when the provider refuses the key', async () => {
-    secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
-      apiKey: 'sk-revoked',
-    });
     models.replies = [
       { error: { message: 'invalid x-api-key', statusCode: 401 } },
     ];
@@ -469,22 +417,8 @@ describe('MastraAgentRuntime (Postgres)', () => {
     );
   });
 
-  it('pauses the task when Pylon refuses a call for a budget (USE_PYLON)', async () => {
-    secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
-      apiKey: 'sk-organization',
-    });
-    models.replies = [
-      {
-        error: {
-          message: 'Payment Required',
-          statusCode: 402,
-          responseBody: JSON.stringify({
-            code: 'BUDGET_EXHAUSTED',
-            budget: { scope: 'project', scopeId: projectId },
-          }),
-        },
-      },
-    ];
+  it('pauses the task when Pylon refuses a call for a budget', async () => {
+    models.replies = [budgetExhausted('project', projectId)];
     const { task: created } = await taskFor();
 
     await runOnce();
@@ -497,9 +431,6 @@ describe('MastraAgentRuntime (Postgres)', () => {
   });
 
   it('retries the task when the provider is overloaded', async () => {
-    secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
-      apiKey: 'sk-organization',
-    });
     models.replies = [
       { error: { message: 'Overloaded', statusCode: 529 } },
       { text: 'Fixed.', inputTokens: 10, outputTokens: 2 },
@@ -534,11 +465,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
         }),
       );
 
-    beforeEach(() => {
-      secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
-        apiKey: 'sk-organization',
-      });
-    });
+    beforeEach(() => {});
 
     it('gives the agent the chosen tools, as the task, and closes them after', async () => {
       await toolServers().create(organizationId, {
@@ -678,9 +605,6 @@ describe('MastraAgentRuntime (Postgres)', () => {
       }),
     );
     try {
-      secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
-        apiKey: 'sk-organization',
-      });
       models.replies = [
         {
           toolCall: {
@@ -757,11 +681,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
     const skillMd = (body: string) =>
       `---\nname: login-fixes\ndescription: How we fix sign-in bugs\n---\n\n${body}`;
 
-    beforeEach(() => {
-      secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
-        apiKey: 'sk-organization',
-      });
-    });
+    beforeEach(() => {});
 
     it('gives the agent the pinned version of its skills, through the skill tool', async () => {
       const skill = await skills().create(organizationId, {
@@ -854,16 +774,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
     });
   });
 
-  describe('budgets (docs/models.md)', () => {
-    const owner = () =>
-      testPrincipal({
-        sub: 'user-1',
-        subType: 'user',
-        organizationId,
-        organizationRoles: ['owner'],
-        scopes: [],
-      });
-    const budgets = () => actingAs(moduleRef.get(BudgetsService), owner());
+  describe('budgets (Pylon, docs/models.md)', () => {
     /** Events of a type in the outbox, oldest first. */
     const published = async (eventType: string) =>
       (
@@ -875,14 +786,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
           )) as { payload: Record<string, unknown> }[]
       ).map((row) => row.payload);
 
-    beforeEach(() => {
-      secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
-        apiKey: 'sk-organization',
-      });
-    });
-
-    it('pauses a run when its task tree budget runs out, and resumes it once raised', async () => {
-      // The tool call costs 1 × $3 + 1 × $15 per million tokens: $0.000018.
+    it('pauses a run when Pylon refuses its next call, and resumes once the budget has room', async () => {
       models.replies = [
         {
           toolCall: {
@@ -890,20 +794,12 @@ describe('MastraAgentRuntime (Postgres)', () => {
             input: { kind: 'text', title: 'Notes', content: 'Half done.' },
           },
         },
-        { text: 'Done.' },
+        budgetExhausted('task_tree', 'tree'),
       ];
       const { task: created } = await taskFor();
-      await budgets().setTaskTree(
-        organizationId,
-        projectId,
-        created.id,
-        '0.00001',
-      );
 
       await runOnce();
 
-      // Stopped after the first call: the second never happened.
-      expect(models.calls).toHaveLength(1);
       await expect(task(created.id)).resolves.toMatchObject({
         status: 'paused',
         pausedFor: 'task_tree',
@@ -912,17 +808,13 @@ describe('MastraAgentRuntime (Postgres)', () => {
       expect(paused).toMatchObject({
         status: 'paused',
         error: 'The task tree budget ran out',
-        usage: { modelCalls: 1, costUsd: '0.000018' },
       });
       // Its unfinished work isn't carried over.
       expect(
         (
-          await actingAs(moduleRef.get(ArtifactsService), owner()).list(
-            organizationId,
-            projectId,
-            created.id,
-            { limit: 50 },
-          )
+          await moduleRef
+            .get(ArtifactsService)
+            .list(organizationId, projectId, created.id, { limit: 50 })
         ).items.map((artifact) => artifact.status),
       ).toEqual(['partial']);
       expect(await published('task.paused')).toEqual([
@@ -933,23 +825,16 @@ describe('MastraAgentRuntime (Postgres)', () => {
           scope: 'task_tree',
         },
       ]);
-      expect(await published('budget.threshold-reached')).toEqual([
-        expect.objectContaining({
-          scope: 'task_tree',
-          scopeId: created.id,
-          limitUsd: '0.000010',
-          spentUsd: '0.000018',
-          windowStart: null,
-        }),
-      ]);
 
-      // Still paused while the budget has no room.
+      // Still paused while Pylon says the budget has no room.
+      pylon.exhaustedScope = { scope: 'task_tree', scopeId: created.id };
       await runOnce();
       await expect(task(created.id)).resolves.toMatchObject({
         status: 'paused',
       });
 
-      await budgets().setTaskTree(organizationId, projectId, created.id, '1');
+      pylon.exhaustedScope = null;
+      models.replies = [{ text: 'Done.' }];
       await runOnce();
 
       await expect(task(created.id)).resolves.toMatchObject({
@@ -960,13 +845,10 @@ describe('MastraAgentRuntime (Postgres)', () => {
       expect(await published('task.resumed')).toEqual([
         { taskId: created.id, topLevelTaskId: created.id },
       ]);
-      await expect(
-        budgets().getTaskTree(organizationId, created.id),
-      ).resolves.toMatchObject({ limitUsd: '1.000000', spentUsd: '0.000018' });
     });
 
-    it('pauses a task before it starts when the organization spent its month', async () => {
-      await budgets().setOrganization(organizationId, '0');
+    it('pauses a task before it starts when a budget has no room', async () => {
+      pylon.exhaustedScope = { scope: 'organization', scopeId: organizationId };
       const { task: created } = await taskFor();
 
       await runOnce();
@@ -981,74 +863,11 @@ describe('MastraAgentRuntime (Postgres)', () => {
         error: 'The organization budget ran out',
       });
 
-      // Removing the limit lets it run.
-      await budgets().setOrganization(organizationId, null);
+      pylon.exhaustedScope = null;
       await runOnce();
       await expect(task(created.id)).resolves.toMatchObject({
         status: 'succeeded',
       });
-    });
-
-    it("pauses an agent's tasks in every project once it spent its month", async () => {
-      const { task: first } = await taskFor();
-      await budgets().setAgent(organizationId, first.agentId, '0.00001');
-      models.replies = [{ text: 'Done.', inputTokens: 1, outputTokens: 1 }];
-
-      await runOnce();
-
-      // The first run used the month up: its answer stays, the next pauses.
-      await expect(task(first.id)).resolves.toMatchObject({
-        status: 'succeeded',
-      });
-      await expect(
-        budgets().getAgent(organizationId, first.agentId),
-      ).resolves.toMatchObject({ scope: 'agent', spentUsd: '0.000018' });
-      // Another task of the same agent, in another project.
-      const otherProject = polis.project(organizationId);
-      const { task: second } = await tasks.create(
-        organizationId,
-        otherProject,
-        {
-          title: 'Fix another bug',
-          instructions: 'Please.',
-          agentId: first.agentId,
-          serviceAccountId: SERVICE_ACCOUNT,
-        },
-        `key-${++key}`,
-      );
-      await runOnce();
-      expect(models.calls).toHaveLength(1);
-      await expect(
-        tasks.findById(organizationId, otherProject, second.id),
-      ).resolves.toMatchObject({ status: 'paused', pausedFor: 'agent' });
-
-      await budgets().setAgent(organizationId, first.agentId, '1');
-      models.replies = [{ text: 'Done again.' }];
-      await runOnce();
-      await expect(
-        tasks.findById(organizationId, otherProject, second.id),
-      ).resolves.toMatchObject({ status: 'succeeded', pausedFor: null });
-    });
-
-    it("keeps a run's answer when its last call used up the budget", async () => {
-      models.replies = [{ text: 'Fixed.', inputTokens: 10, outputTokens: 2 }];
-      await budgets().setProject(organizationId, projectId, '0.00001');
-      const { task: created } = await taskFor();
-
-      await runOnce();
-
-      // The run ended on its own: the budget pauses the next one, not this.
-      await expect(task(created.id)).resolves.toMatchObject({
-        status: 'succeeded',
-      });
-      await expect(
-        budgets().exceeded({
-          organizationId,
-          projectId,
-          agentId: created.agentId,
-          topLevelTaskId: created.id,
-        }),
-      ).resolves.toBe('project');
     });
   });
 });

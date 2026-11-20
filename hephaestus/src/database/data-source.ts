@@ -15,14 +15,9 @@ import { ProjectStateEntity } from '../../libs/tenancy/src/project-state.entity.
 import { ArtifactEntity } from '../../libs/artifacts/src/artifact.entity.js';
 import { TaskTemplateVersionEntity } from '../../libs/templates/src/task-template-version.entity.js';
 import { TaskTemplateEntity } from '../../libs/templates/src/task-template.entity.js';
-import { ModelCallEntity } from '../../libs/models/src/model-call.entity.js';
-import { ModelEntity } from '../../libs/models/src/model.entity.js';
-import { ModelPriceEntity } from '../../libs/models/src/model-price.entity.js';
-import { BudgetEntity } from '../../libs/models/src/budget.entity.js';
 import { SkillVersionEntity } from '../../libs/skills/src/skill-version.entity.js';
 import { SkillEntity } from '../../libs/skills/src/skill.entity.js';
 import { ToolServerEntity } from '../../libs/tools/src/tool-server.entity.js';
-import { ModelKeyEntity } from '../../libs/models/src/model-key.entity.js';
 import { ExecutionEntity } from '../../libs/runner/src/execution.entity.js';
 import { ExecutionEventEntity } from '../../libs/runner/src/execution-event.entity.js';
 import { TaskEntity } from '../../libs/tasks/src/task.entity.js';
@@ -60,11 +55,6 @@ export default new DataSource(
       TaskEntity,
       ExecutionEntity,
       ExecutionEventEntity,
-      ModelCallEntity,
-      ModelEntity,
-      ModelPriceEntity,
-      BudgetEntity,
-      ModelKeyEntity,
       ToolServerEntity,
       SkillEntity,
       SkillVersionEntity,

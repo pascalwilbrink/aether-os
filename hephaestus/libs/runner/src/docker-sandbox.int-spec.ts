@@ -3,21 +3,13 @@ import Docker from 'dockerode';
 import { DataSource } from 'typeorm';
 
 import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
-import { SecretStore } from '@hephaestus/core';
-import {
-  LanguageModels,
-  BudgetsService,
-  ModelGateway,
-} from '@hephaestus/models';
+import { ModelGateway } from '@hephaestus/models';
 import { SkillsService } from '@hephaestus/skills';
 import { TasksService } from '@hephaestus/tasks';
 import { ToolServersService } from '@hephaestus/tools';
 import { WorkspacesService } from '@hephaestus/workspaces';
 
-import {
-  FakeSecretStore,
-  ScriptedLanguageModels,
-} from '../../../test/fake-models.js';
+import type { ScriptedPylonModels } from '../../../test/fake-models.js';
 import { FakeLoculus } from '../../../test/fake-loculus.js';
 import type { FakePolis } from '../../../test/fake-polis.js';
 import {
@@ -328,7 +320,7 @@ describe('DockerSandboxDriver (Docker)', () => {
 describe('Sandboxes for executions (Docker, Postgres)', () => {
   let moduleRef: TestingModule;
   let polis: FakePolis;
-  let models: ScriptedLanguageModels;
+  let models: ScriptedPylonModels;
   let organizationId: string;
   let projectId: string;
   let tasks: TasksService;
@@ -336,10 +328,8 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
   let key = 0;
 
   beforeEach(async () => {
-    const secrets = new FakeSecretStore();
     loculus = await new FakeLoculus().start();
-    models = new ScriptedLanguageModels();
-    ({ moduleRef, polis } = await createTestingModuleWith(
+    ({ moduleRef, polis, models } = await createTestingModuleWith(
       (builder) =>
         builder
           .overrideProvider(RUNNER_OPTIONS)
@@ -348,24 +338,17 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
           .useFactory({
             factory: (
               gateway: ModelGateway,
-              budgets: BudgetsService,
               toolServers: ToolServersService,
               skills: SkillsService,
             ) =>
               new MastraAgentRuntime(
                 gateway,
-                budgets,
                 toolServers,
                 skills,
                 undefined,
                 new SandboxFiles(new LoculusFileStore(loculus.url), 1024),
               ),
-            inject: [
-              ModelGateway,
-              BudgetsService,
-              ToolServersService,
-              SkillsService,
-            ],
+            inject: [ModelGateway, ToolServersService, SkillsService],
           })
           .overrideProvider(SANDBOX_OPTIONS)
           .useValue(sandboxOptions)
@@ -380,19 +363,12 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
           })
           .overrideProvider(FileStore)
           .useValue(new LoculusFileStore(loculus.url))
-          .overrideProvider(SecretStore)
-          .useValue(secrets)
-          .overrideProvider(LanguageModels)
-          .useValue(models)
           .overrideProvider(TaskTokens)
           .useValue(new FakeTaskTokens()),
       RunnerModule,
     ));
     organizationId = polis.organization();
     projectId = polis.project(organizationId);
-    secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
-      apiKey: 'sk-test',
-    });
     tasks = actingAs(moduleRef.get(TasksService), caller());
   });
 

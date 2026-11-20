@@ -5,15 +5,10 @@ import { createTool } from '@mastra/core/tools';
 import { Workspace } from '@mastra/core/workspace';
 import { z } from 'zod';
 
-import { SecretStoreUnavailableError } from '@hephaestus/core';
 import {
   BudgetExceededError,
-  BudgetsService,
   ModelGateway,
-  ModelEndpointUnavailableError,
-  ModelKeyMissingError,
   type BudgetScope,
-  ModelRetiredError,
   type ModelCallContext,
   type ResolvedModel,
 } from '@hephaestus/models';
@@ -52,8 +47,9 @@ const MAX_STEPS = 20;
 /**
  * Runs an agent version with Mastra (../../CLAUDE.md): the version's
  * instructions and model become a Mastra `Agent`, the model resolved by the
- * model gateway (key from OpenBao), and the task's title and instructions
- * are its input. Every step is metered. With a sandbox, the agent gets a
+ * model called through Pylon (which picks the key, checks the budgets and
+ * meters every call), and the task's title and instructions are its input.
+ * With a sandbox, the agent gets a
  * Mastra workspace on it (shell tools: run a command, read a background
  * process's output, stop it). The version's enabled tools come from the
  * organization's tool servers (MCP, libs/tools), connected for this run and
@@ -67,7 +63,6 @@ export class MastraAgentRuntime extends AgentRuntime {
 
   constructor(
     private readonly gateway: ModelGateway,
-    private readonly budgets: BudgetsService,
     private readonly toolServers: ToolServersService,
     private readonly skills: SkillsService,
     /**
@@ -109,7 +104,7 @@ export class MastraAgentRuntime extends AgentRuntime {
       executionId,
       agentVersionId: agentVersion.id,
     };
-    const resolved = await this.resolve(context, agentVersion.model, token);
+    const resolved = this.gateway.resolve(context, agentVersion.model, token);
     const skills = await this.loadSkills(task.organizationId, agentVersion);
     await copySkills(sandbox, skills);
     const connected = await this.connectTools(
@@ -216,32 +211,6 @@ export class MastraAgentRuntime extends AgentRuntime {
         : {}),
     });
 
-    // Every call is metered, including those of a run that fails, and
-    // after each one the budgets are checked (docs/models.md). Mastra asks
-    // its stop conditions before it reports a step (onStepFinish), so each
-    // step is metered by whichever sees it first: the stop condition, for
-    // every step before another call (a run whose budget ran out stops
-    // there), and onStepFinish for the last one.
-    const metering: Promise<void>[] = [];
-    let metered = 0;
-    let reported = 0;
-    let ranOut: BudgetScope | null = null;
-    const budget = {
-      organizationId: task.organizationId,
-      projectId: task.projectId,
-      agentId: task.agentId,
-      topLevelTaskId: task.topLevelTaskId,
-    };
-    const meter = (step: MeteredStep): Promise<void> => {
-      const done = this.gateway
-        .record(context, resolved, usageOf(step))
-        .then(() => this.budgets.afterCall(budget))
-        .then((scope) => {
-          ranOut ??= scope;
-        });
-      metering.push(done);
-      return done;
-    };
     try {
       const result = await agent.generate(
         withKeeping(
@@ -273,41 +242,22 @@ export class MastraAgentRuntime extends AgentRuntime {
           modelSettings: {
             temperature: agentVersion.model.temperature,
             maxOutputTokens: agentVersion.model.maxTokens,
-            maxRetries: resolved.retries,
-          },
-          stopWhen: async ({ steps }: { steps: readonly unknown[] }) => {
-            while (metered < steps.length) {
-              await meter(steps[metered++] as MeteredStep).catch(
-                () => undefined,
-              );
-            }
-            return ranOut !== null;
+            // Pylon retries a call before answering.
+            maxRetries: 0,
           },
           onStepFinish: (step) => {
             if (activity) {
               recordStep(activity, step as ReportedStep);
             }
-            if (reported++ >= metered) {
-              metered++;
-              void meter(step as MeteredStep).catch(() => undefined);
-            }
           },
         },
       );
-      await Promise.all(metering);
-      // A run that ended on its own keeps its answer, even if its last call
-      // used up the budget; one stopped for it pauses.
-      if (ranOut && result.finishReason !== 'stop') {
-        throw new BudgetExceededError(ranOut);
-      }
       if (result.finishReason === 'error' || result.error) {
         throw failureOf(result.error);
       }
       return { outcome: 'completed', summary: result.text };
     } catch (error) {
-      await Promise.allSettled(metering);
       if (error instanceof BudgetExceededError) throw error;
-      if (ranOut) throw new BudgetExceededError(ranOut);
       throw failureOf(error);
     }
   }
@@ -346,29 +296,6 @@ export class MastraAgentRuntime extends AgentRuntime {
           'infrastructure',
           error.retryable,
         );
-      }
-      throw error;
-    }
-  }
-
-  private async resolve(
-    context: ModelCallContext,
-    model: AgentRunInput['agentVersion']['model'],
-    token: string,
-  ): Promise<ResolvedModel> {
-    try {
-      return await this.gateway.resolve(context, model, token);
-    } catch (error) {
-      if (
-        error instanceof ModelKeyMissingError ||
-        error instanceof ModelRetiredError ||
-        error instanceof ModelEndpointUnavailableError
-      ) {
-        // Configuration problems: retrying won't add a key or revive a model.
-        throw new RunnerFailure(error.message, 'infrastructure', false);
-      }
-      if (error instanceof SecretStoreUnavailableError) {
-        throw new RunnerFailure(error.message, 'infrastructure');
       }
       throw error;
     }
@@ -795,8 +722,10 @@ function submitFileTool(
  * execution) may.
  */
 function failureOf(error: unknown): RunnerFailure | BudgetExceededError {
-  const scope = pylonBudget(error);
-  return scope ? new BudgetExceededError(scope) : toFailure(error);
+  const budget = pylonBudget(error);
+  return budget
+    ? new BudgetExceededError(budget.scope, budget.scopeId)
+    : toFailure(error);
 }
 
 const BUDGET_SCOPES: readonly BudgetScope[] = [
@@ -808,11 +737,13 @@ const BUDGET_SCOPES: readonly BudgetScope[] = [
 
 /**
  * A call Pylon refused because a budget ran out (`402 BUDGET_EXHAUSTED`,
- * `USE_PYLON`): the budget's scope, so the task pauses as it does when
- * Hephaestus's own budget runs out. Looks through the error's causes, as
- * Mastra may wrap the AI SDK's.
+ * which Pylon checks before every call): the budget's scope, so the task
+ * pauses. Looks through the error's causes, as Mastra may wrap the AI
+ * SDK's.
  */
-function pylonBudget(error: unknown): BudgetScope | null {
+function pylonBudget(
+  error: unknown,
+): { scope: BudgetScope; scopeId: string | null } | null {
   for (let current = error, depth = 0; current && depth < 5; depth++) {
     const { statusCode, responseBody, cause } = current as {
       statusCode?: unknown;
@@ -823,14 +754,18 @@ function pylonBudget(error: unknown): BudgetScope | null {
       try {
         const problem = JSON.parse(responseBody) as {
           code?: unknown;
-          budget?: { scope?: unknown };
+          budget?: { scope?: unknown; scopeId?: unknown };
         };
         const scope = problem.budget?.scope;
         if (
           problem.code === 'BUDGET_EXHAUSTED' &&
           BUDGET_SCOPES.includes(scope as BudgetScope)
         ) {
-          return scope as BudgetScope;
+          const scopeId = problem.budget?.scopeId;
+          return {
+            scope: scope as BudgetScope,
+            scopeId: typeof scopeId === 'string' ? scopeId : null,
+          };
         }
       } catch {
         // Not Pylon's problem details.
@@ -864,26 +799,4 @@ function toFailure(error: unknown): RunnerFailure {
       : `The model call failed: ${message}`,
     'infrastructure',
   );
-}
-
-/** What the gateway meters of a step (Mastra's normalized usage). */
-interface MeteredStep {
-  finishReason?: string;
-  usage?: {
-    inputTokens?: number;
-    outputTokens?: number;
-    cachedInputTokens?: number;
-    cacheCreationInputTokens?: number;
-  };
-}
-
-/** Reads and writes of the provider's prompt cache are both part of input. */
-function usageOf(step: MeteredStep) {
-  return {
-    inputTokens: step.usage?.inputTokens,
-    outputTokens: step.usage?.outputTokens,
-    cacheReadTokens: step.usage?.cachedInputTokens,
-    cacheWriteTokens: step.usage?.cacheCreationInputTokens,
-    finishReason: step.finishReason,
-  };
 }

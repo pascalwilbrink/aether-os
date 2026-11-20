@@ -4,6 +4,7 @@ import type { App } from 'supertest/types.js';
 
 import { createApp, MISSING_ID } from './app.js';
 import { asMember, type Client } from './auth.js';
+import type { FakePylon } from './fake-models.js';
 import { projectArchived, type FakePolis } from './fake-polis.js';
 import { archiveAgent, createAgent, publishedAgent } from './agora.js';
 
@@ -24,6 +25,7 @@ const versionBody = {
 describe('Tasks (e2e)', () => {
   let app: INestApplication<App>;
   let polis: FakePolis;
+  let pylon: FakePylon;
   let orgId: string;
   let projectId: string;
   let owner: Client;
@@ -33,7 +35,7 @@ describe('Tasks (e2e)', () => {
   let key = 0;
 
   beforeEach(async () => {
-    ({ app, polis } = await createApp());
+    ({ app, polis, pylon } = await createApp());
     orgId = polis.organization();
     projectId = polis.project(orgId);
     owner = await asMember(app, orgId, ['owner']);
@@ -62,6 +64,41 @@ describe('Tasks (e2e)', () => {
     idempotencyKey = `key-${++key}`,
   ) =>
     client.post(base).set('idempotency-key', idempotencyKey).send(body(extra));
+
+  it("sets a tree's budget in Pylon with the caller's own token", async () => {
+    const created = await create(owner, { budgetUsd: '2' }).expect(201);
+    const tree = pylon.treeBudgets.get(created.body.id);
+    // The request's own token (a JWT), not Hephaestus's.
+    expect(tree).toEqual({
+      limitUsd: '2',
+      token: expect.stringMatching(/^eyJ/),
+    });
+
+    // Read and raised through any task of the tree.
+    const subtask = await create(owner, { parentTaskId: created.body.id });
+    await owner
+      .get(`${base}/${subtask.body.id}/budget`)
+      .expect(200)
+      .expect(({ body }) =>
+        expect(body).toMatchObject({
+          scope: 'task_tree',
+          scopeId: created.body.id,
+          limitUsd: '2.000000',
+        }),
+      );
+    await owner
+      .put(`${base}/${subtask.body.id}/budget`)
+      .send({ limitUsd: '5' })
+      .expect(200);
+    expect(pylon.treeBudgets.get(created.body.id)?.limitUsd).toBe('5');
+
+    // Only on a top-level task.
+    const refused = await create(owner, {
+      parentTaskId: created.body.id,
+      budgetUsd: '1',
+    }).expect(409);
+    expect(refused.body.code).toBe('TASK_BUDGET_INVALID');
+  });
 
   it('creates a task with the agent version pinned, once per idempotency key', async () => {
     const first = await create(owner, {}, 'issue-42').expect(201);

@@ -193,7 +193,6 @@ describe('Tool servers (e2e)', () => {
       );
     const version = (tools: unknown) =>
       agora.post(`/v1/organizations/${orgId}/agent-version-checks`).send({
-        model: { provider: 'anthropic', model: 'claude' },
         tools,
         skills: [],
       });

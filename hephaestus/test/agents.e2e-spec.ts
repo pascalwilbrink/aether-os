@@ -146,17 +146,11 @@ describe('Agents (e2e)', () => {
         `Bearer ${await tokens.service('agora', ['platform:read'])}`,
       );
     const choices = {
-      model: versionBody.model,
       tools: versionBody.tools,
       skills: versionBody.skills,
     };
 
     await agora.post(checks).send(choices).expect(204);
-    const model = await agora
-      .post(checks)
-      .send({ ...choices, model: { provider: 'anthropic', model: 'gone' } })
-      .expect(409);
-    expect(model.body.code).toBe('MODEL_NOT_AVAILABLE');
     const tools = await agora
       .post(checks)
       .send({ ...choices, tools: [{ name: 'search', enabled: true }] })
@@ -170,7 +164,11 @@ describe('Agents (e2e)', () => {
       })
       .expect(409);
     expect(skills.body.code).toBe('SKILL_INVALID');
-    await agora.post(checks).send({ model: versionBody.model }).expect(400);
+    // The model is Pylon's to check (Agora asks its catalogue).
+    await agora
+      .post(checks)
+      .send({ ...choices, model: versionBody.model })
+      .expect(400);
 
     // Only platform services: an organization token is refused.
     await owner.post(checks).send(choices).expect(403);
