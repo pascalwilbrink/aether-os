@@ -15,7 +15,16 @@ import {
 } from './model-catalog.service.js';
 import { costOf } from './model-cost.js';
 import { modelKeyPath } from './model-keys.service.js';
-import { ModelKeyMissingError, ModelRetiredError } from './model.errors.js';
+import {
+  checkModelKeySettings,
+  isSelfHosted,
+  type ModelKeySettings,
+} from './model-key-settings.js';
+import {
+  ModelEndpointUnavailableError,
+  ModelKeyMissingError,
+  ModelRetiredError,
+} from './model.errors.js';
 
 /** Who a model call is for: every call is attributed (docs/models.md). */
 export interface ModelCallContext {
@@ -90,8 +99,20 @@ export class ModelGateway {
       throw new ModelRetiredError(provider, modelId);
     }
     const key = await this.keyFor(context, provider);
+    // The platform's rules for model endpoints may have changed since the
+    // server was set.
+    if (key.settings.baseUrl) {
+      const checked = checkModelKeySettings(provider, key.settings, {
+        allowPrivate: this.config.get('MODEL_ENDPOINT_ALLOW_PRIVATE', {
+          infer: true,
+        }),
+      });
+      if ('problem' in checked) {
+        throw new ModelEndpointUnavailableError(checked.problem);
+      }
+    }
     return {
-      model: this.languageModels.create(`${provider}/${modelId}`, key.apiKey),
+      model: this.languageModels.create(`${provider}/${modelId}`, key.settings),
       provider,
       modelId,
       keySource: key.source,
@@ -189,35 +210,52 @@ export class ModelGateway {
   private async keyFor(
     { organizationId, agentId }: ModelCallContext,
     provider: string,
-  ): Promise<{ apiKey: string; source: KeySource }> {
-    const agents = apiKeyOf(
+  ): Promise<{ settings: ModelKeySettings; source: KeySource }> {
+    const agents = settingsOf(
+      provider,
       await this.secrets.read(modelKeyPath(organizationId, provider, agentId)),
     );
     if (agents) {
-      return { apiKey: agents, source: 'agent' };
+      return { settings: agents, source: 'agent' };
     }
-    const own = apiKeyOf(
+    const own = settingsOf(
+      provider,
       await this.secrets.read(modelKeyPath(organizationId, provider)),
     );
     if (own) {
-      return { apiKey: own, source: 'organization' };
+      return { settings: own, source: 'organization' };
     }
     if (this.config.get('PLATFORM_MODEL_KEYS', { infer: true })) {
-      const platform = apiKeyOf(
+      const platform = settingsOf(
+        provider,
         await this.secrets.read(`platform/llm/${provider}`),
       );
       if (platform) {
-        return { apiKey: platform, source: 'platform' };
+        return { settings: platform, source: 'platform' };
       }
     }
     throw new ModelKeyMissingError(provider);
   }
 }
 
-/** A provider key is stored as `{ apiKey }`. */
-function apiKeyOf(secret: Record<string, unknown> | null): string | null {
-  const apiKey = secret?.['apiKey'];
-  return typeof apiKey === 'string' && apiKey.length > 0 ? apiKey : null;
+/**
+ * A provider's stored settings (`{ apiKey }`; for Ollama `{ baseUrl,
+ * apiKey? }`), or null when there are none to use.
+ */
+function settingsOf(
+  provider: string,
+  secret: Record<string, unknown> | null,
+): ModelKeySettings | null {
+  const text = (name: string) => {
+    const value = secret?.[name];
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
+  };
+  const apiKey = text('apiKey');
+  if (isSelfHosted(provider)) {
+    const baseUrl = text('baseUrl');
+    return baseUrl ? { baseUrl, ...(apiKey ? { apiKey } : {}) } : null;
+  }
+  return apiKey ? { apiKey } : null;
 }
 
 function tokens(value: number | undefined): number | null {

@@ -219,9 +219,13 @@ export const setModelKey = (
   token: string,
   organizationId: string,
   provider: string,
-  apiKey: string,
+  body: ApiSchema<"SetModelKeyRequest">,
   agentId?: string,
-) => hephaestus<ModelKey>(`${keysOf(organizationId, agentId)}/${provider}`, token, { method: "PUT", body: { apiKey } });
+) => hephaestus<ModelKey>(`${keysOf(organizationId, agentId)}/${provider}`, token, { method: "PUT", body });
+
+/** The models the organization's Ollama server has now. */
+export const listOllamaModels = (token: string, organizationId: string) =>
+  hephaestus<ApiSchema<"OllamaModelList">>(`/v1/organizations/${organizationId}/ollama/models`, token);
 
 export const deleteModelKey = (token: string, organizationId: string, provider: string, agentId?: string) =>
   hephaestus<void>(`${keysOf(organizationId, agentId)}/${provider}`, token, { method: "DELETE" });

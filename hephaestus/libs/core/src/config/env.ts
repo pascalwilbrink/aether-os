@@ -45,6 +45,13 @@ export const zEnv = z
      * platform's (`platform/llm/<provider>`): off unless plans allow it.
      */
     PLATFORM_MODEL_KEYS: z.stringbool().default(false),
+    /**
+     * Model endpoints organizations run (Ollama's `baseUrl`): whether
+     * Hephaestus may call private, loopback and link-local addresses, and
+     * over `http://` (an Ollama next to Hephaestus, locally). Off in
+     * production.
+     */
+    MODEL_ENDPOINT_ALLOW_PRIVATE: z.stringbool().default(false),
     /** How often the runner looks for queued tasks and stale executions. */
     RUNNER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
     /** Executions one Hephaestus instance runs at once. */

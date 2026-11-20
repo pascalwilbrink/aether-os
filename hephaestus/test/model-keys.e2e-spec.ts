@@ -6,6 +6,7 @@ import { SecretStore, SecretStoreUnavailableError } from '@hephaestus/core';
 import { createApp, MISSING_ID } from './app.js';
 import { asMember, type Client } from './auth.js';
 import { FakeSecretStore } from './fake-models.js';
+import { FakeOllama } from './fake-ollama.js';
 import type { FakePolis } from './fake-polis.js';
 
 const KEY = 'sk-ant-api03-secret-value-a1b2';
@@ -51,6 +52,7 @@ describe('Model keys (e2e)', () => {
       scope: 'organization',
       agentId: null,
       hint: '…a1b2',
+      baseUrl: null,
       updatedBy: 'user-1',
       updatedAt: expect.any(String),
     });
@@ -120,6 +122,114 @@ describe('Model keys (e2e)', () => {
     expect(
       secrets.secrets.has(`orgs/${orgId}/agents/${agentId}/llm/openai`),
     ).toBe(false);
+  });
+
+  it('takes the right settings for each provider', async () => {
+    const refused = async (provider: string, body: object) =>
+      (await owner.put(`${orgKeys()}/${provider}`).send(body).expect(409)).body;
+
+    expect(await refused('openai', {})).toMatchObject({
+      code: 'MODEL_KEY_INVALID',
+      detail: 'A openai key needs its apiKey.',
+    });
+    expect(
+      await refused('openai', {
+        apiKey: KEY,
+        baseUrl: 'https://x.example.com',
+      }),
+    ).toMatchObject({ code: 'MODEL_KEY_INVALID' });
+    expect(await refused('ollama', { apiKey: KEY })).toMatchObject({
+      detail: expect.stringContaining('needs its baseUrl'),
+    });
+    await owner.put(`${orgKeys()}/cohere`).send({ apiKey: KEY }).expect(400);
+  });
+
+  describe('Ollama', () => {
+    let ollama: FakeOllama;
+    beforeEach(async () => {
+      ollama = await new FakeOllama().start();
+    });
+    afterEach(async () => {
+      await ollama.stop();
+    });
+
+    it("stores a server's URL and optional key, and lists its models", async () => {
+      // No server yet: nothing to list.
+      const none = await owner
+        .get(`/v1/organizations/${orgId}/ollama/models`)
+        .expect(409);
+      expect(none.body.code).toBe('MODEL_KEY_INVALID');
+
+      const set = await owner
+        .put(`${orgKeys()}/ollama`)
+        .send({ baseUrl: `${ollama.url}/` })
+        .expect(200);
+      expect(set.body).toMatchObject({
+        provider: 'ollama',
+        hint: null,
+        baseUrl: ollama.url,
+      });
+      expect(secrets.secrets.get(`orgs/${orgId}/llm/ollama`)).toEqual({
+        baseUrl: ollama.url,
+      });
+
+      const member = await asMember(app, orgId, ['member']);
+      const listed = await member
+        .get(`/v1/organizations/${orgId}/ollama/models`)
+        .expect(200);
+      expect(listed.body.items).toEqual([
+        { name: 'llama3.2:latest', sizeBytes: 2_000_000_000 },
+        { name: 'qwen3:8b', sizeBytes: 5_200_000_000 },
+      ]);
+      expect(ollama.requests.at(-1)!.headers.authorization).toBeUndefined();
+
+      // With a key, the server is asked with it.
+      const keyed = await owner
+        .put(`${orgKeys()}/ollama`)
+        .send({ baseUrl: ollama.url, apiKey: 'ollama-key-1234' })
+        .expect(200);
+      expect(keyed.body).toMatchObject({ hint: '…1234', baseUrl: ollama.url });
+      await member.get(`/v1/organizations/${orgId}/ollama/models`).expect(200);
+      expect(ollama.requests.at(-1)!.headers.authorization).toBe(
+        'Bearer ollama-key-1234',
+      );
+
+      // A server that's gone is a 503 that says so.
+      await ollama.stop();
+      const down = await member
+        .get(`/v1/organizations/${orgId}/ollama/models`)
+        .expect(503);
+      expect(down.body.detail).toContain("didn't answer");
+      ollama = await new FakeOllama().start();
+    });
+
+    it('lets agent versions choose any of its models, outside the catalogue', async () => {
+      const agentId2 = (
+        await owner
+          .post(`/v1/organizations/${orgId}/agents`)
+          .send({ name: 'Local', description: '' })
+          .expect(201)
+      ).body.id;
+      const version = await owner
+        .post(`/v1/organizations/${orgId}/agents/${agentId2}/versions`)
+        .send({
+          instructions: 'Be helpful.',
+          model: { provider: 'ollama', model: 'qwen3:8b' },
+          capabilities: [],
+          tools: [],
+          skills: [],
+          runtime: {
+            provider: 'mastra',
+            executionMode: 'standard',
+            sandboxRequired: false,
+          },
+        })
+        .expect(201);
+      expect(version.body.model).toEqual({
+        provider: 'ollama',
+        model: 'qwen3:8b',
+      });
+    });
   });
 
   it("stores nothing when OpenBao can't take the key", async () => {

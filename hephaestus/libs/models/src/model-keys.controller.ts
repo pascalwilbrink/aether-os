@@ -37,14 +37,14 @@ export class ModelKeysController {
   @ZodSerializerDto(ModelKeyResponse)
   set(
     @Param() { organizationId, provider }: OrganizationModelKeyParams,
-    @Body() { apiKey }: SetModelKeyRequest,
+    @Body() body: SetModelKeyRequest,
   ) {
     return this.keys.set(
       organizationId,
       'organization',
       organizationId,
       provider,
-      apiKey,
+      body,
     );
   }
 

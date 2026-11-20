@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { SecretsModule } from '@hephaestus/core';
+import { ConfigService } from '@nestjs/config';
+
+import { SecretsModule, type Env } from '@hephaestus/core';
 
 import { LanguageModels, MastraModelRouter } from './language-models.js';
 import { TenancyModule } from '@hephaestus/tenancy';
@@ -21,6 +23,8 @@ import { ModelPriceEntity } from './model-price.entity.js';
 import { ModelEntity } from './model.entity.js';
 import { ModelMapper } from './model.mapper.js';
 import { ModelsController } from './models.controller.js';
+import { OllamaModelsController } from './ollama-models.controller.js';
+import { OllamaModelsService } from './ollama-models.service.js';
 
 /** The model catalogue, the gateway, OpenBao, metering and budgets (docs/models.md). */
 @Module({
@@ -35,9 +39,23 @@ import { ModelsController } from './models.controller.js';
     TenancyModule,
     SecretsModule,
   ],
-  controllers: [ModelsController, BudgetsController, ModelKeysController],
+  controllers: [
+    ModelsController,
+    BudgetsController,
+    ModelKeysController,
+    OllamaModelsController,
+  ],
   providers: [
-    { provide: LanguageModels, useClass: MastraModelRouter },
+    {
+      provide: LanguageModels,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) =>
+        new MastraModelRouter({
+          allowPrivate: config.get('MODEL_ENDPOINT_ALLOW_PRIVATE', {
+            infer: true,
+          }),
+        }),
+    },
     ModelMapper,
     ModelCatalogService,
     ModelGateway,
@@ -45,6 +63,7 @@ import { ModelsController } from './models.controller.js';
     BudgetsService,
     ModelKeyMapper,
     ModelKeysService,
+    OllamaModelsService,
   ],
   exports: [
     ModelGateway,

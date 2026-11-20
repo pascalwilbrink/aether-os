@@ -3,6 +3,7 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
@@ -12,11 +13,14 @@ import {
   SecretStoreUnavailableError,
   Transactional,
   type ApiTypes,
+  type Env,
 } from '@hephaestus/core';
 import { OrganizationsService } from '@hephaestus/tenancy';
 
 import { ModelKeyEntity, type ModelKeyScope } from './model-key.entity.js';
 import { hintOf, ModelKeyMapper } from './model-key.mapper.js';
+import { checkModelKeySettings } from './model-key-settings.js';
+import { ModelKeyInvalidError } from './model.errors.js';
 
 /** Where a provider key lives in OpenBao (docs/models.md, Keys). */
 export function modelKeyPath(
@@ -58,6 +62,7 @@ export class ModelKeysService {
     private readonly secrets: SecretStore,
     private readonly organizations: OrganizationsService,
     private readonly access: AccessControl,
+    private readonly config: ConfigService<Env, true>,
   ) {}
 
   async list(
@@ -78,9 +83,17 @@ export class ModelKeysService {
     scope: ModelKeyScope,
     scopeId: string,
     provider: ApiTypes.ModelProvider,
-    apiKey: string,
+    input: ApiTypes.SetModelKeyRequest,
   ): Promise<ApiTypes.ModelKeyResponse> {
     await this.organizations.assertAcceptsWrites(organizationId);
+    const settings = checkModelKeySettings(provider, input, {
+      allowPrivate: this.config.get('MODEL_ENDPOINT_ALLOW_PRIVATE', {
+        infer: true,
+      }),
+    });
+    if ('problem' in settings) {
+      throw new ModelKeyInvalidError(settings.problem);
+    }
     const now = new Date();
     const entity =
       (await this.keys.findOne({
@@ -88,13 +101,14 @@ export class ModelKeysService {
         lock: { mode: 'pessimistic_write' },
       })) ??
       this.mapper.toEntity(organizationId, scope, scopeId, provider, now);
-    entity.hint = hintOf(apiKey);
+    entity.hint = settings.apiKey ? hintOf(settings.apiKey) : null;
+    entity.baseUrl = settings.baseUrl ?? null;
     entity.updatedBy = this.access.principal().sub;
     entity.updatedAt = now;
     await this.keys.save(entity);
     await this.store(() =>
       this.secrets.write(this.path(organizationId, scope, scopeId, provider), {
-        apiKey: apiKey.trim(),
+        ...settings,
       }),
     );
     return this.mapper.toResponse(entity);

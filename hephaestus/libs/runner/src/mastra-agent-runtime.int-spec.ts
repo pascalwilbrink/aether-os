@@ -129,6 +129,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
   async function taskFor(
     version: {
       tools?: { name: string; enabled: boolean; tools?: string[] }[];
+      model?: { provider: string; model: string };
       skills?: { name: string; version: string; enabled: boolean }[];
     } = {},
   ) {
@@ -146,7 +147,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
     ).id;
     const created = await versions.create(organizationId, agentId, {
       instructions: 'You fix bugs. Answer with what you changed.',
-      model: {
+      model: version.model ?? {
         // Not in Mastra's model registry: for providers it knows, it drops
         // settings it believes a model doesn't support (e.g. temperature).
         provider: 'scripted',
@@ -315,6 +316,34 @@ describe('MastraAgentRuntime (Postgres)', () => {
     expect(execution).toMatchObject({
       summary: 'All done.',
       usage: { modelCalls: 3 },
+    });
+  });
+
+  it("runs an Ollama model with the organization's server, unpriced", async () => {
+    secrets.secrets.set(`orgs/${organizationId}/llm/ollama`, {
+      baseUrl: 'http://127.0.0.1:11434',
+    });
+    models.replies = [
+      { text: 'Local answer.', inputTokens: 10, outputTokens: 3 },
+    ];
+    const { task: created } = await taskFor({
+      model: { provider: 'ollama', model: 'qwen3:8b' },
+    });
+
+    await runOnce();
+
+    await expect(task(created.id)).resolves.toMatchObject({
+      status: 'succeeded',
+    });
+    expect(models.created).toEqual([
+      { id: 'ollama/qwen3:8b', baseUrl: 'http://127.0.0.1:11434' },
+    ]);
+    const [execution] = await executionsOf(created.id);
+    // Not in the catalogue: counted, not priced.
+    expect(execution.usage).toMatchObject({
+      modelCalls: 1,
+      inputTokens: 10,
+      costUsd: null,
     });
   });
 

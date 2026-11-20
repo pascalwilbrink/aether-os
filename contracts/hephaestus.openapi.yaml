@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.22.0
+  version: 0.23.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -1175,7 +1175,11 @@ paths:
       tags: [model-keys]
       operationId: setOrganizationModelKey
       x-permission: '`org:secret:write`'
-      description: Stores (or replaces) the organization's key for the provider, in OpenBao.
+      description: |
+        Stores (or replaces) the organization's key for the provider, in
+        OpenBao: `apiKey` for the hosted providers; for `ollama`, its server's
+        `baseUrl` and, when the server wants one, an `apiKey`
+        (`MODEL_KEY_INVALID` otherwise, or for a `baseUrl` Hephaestus won't call).
       requestBody:
         required: true
         content:
@@ -1656,6 +1660,30 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1/organizations/{organizationId}/ollama/models:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [model-keys]
+      operationId: listOllamaModels
+      x-permission: '`agent:read`'
+      description: |
+        The models the organization's Ollama server has now (its `/api/tags`),
+        to choose from for an agent version: asked of the server with the
+        organization's settings. `409 MODEL_KEY_INVALID` when the
+        organization has no Ollama server set; `503` when it doesn't answer.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: By name
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OllamaModelList' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
 components:
   parameters:
     OrganizationId:
@@ -1773,6 +1801,7 @@ components:
         - TASK_TEMPLATE_INVALID
         - TOOL_SERVER_ALREADY_EXISTS
         - TOOL_SERVER_INVALID
+        - MODEL_KEY_INVALID
         - SKILL_ALREADY_EXISTS
         - SKILL_ARCHIVED
         - SKILL_INVALID
@@ -2746,7 +2775,10 @@ components:
         Providers the model gateway can call: each needs code (Mastra's
         model router) and a key in OpenBao (`orgs/{organizationId}/llm/{provider}`
         or `platform/llm/{provider}`), so this list only changes with a release.
-      enum: [anthropic, openai, google, mistral]
+        `ollama` is a server the organization runs: its settings are a
+        `baseUrl` and an optional key, its models aren't in the catalogue
+        (any model the server has can be chosen) and its calls are unpriced.
+      enum: [anthropic, openai, google, mistral, ollama]
     ModelStatus:
       type: string
       description: |
@@ -2950,16 +2982,25 @@ components:
     SetModelKeyRequest:
       type: object
       additionalProperties: false
-      required: [apiKey]
       properties:
         apiKey:
           type: string
           minLength: 8
           maxLength: 1000
-          description: The provider's API key; write-only (stored in OpenBao, never returned).
+          description: The provider's API key; write-only (stored in OpenBao, never returned). Required except for `ollama`, where it's optional.
+        baseUrl:
+          type: string
+          format: uri
+          maxLength: 2000
+          pattern: '^https?://'
+          description: |
+            For `ollama` only (and required there): where its server is, e.g.
+            `https://ollama.example.com` (Hephaestus calls its OpenAI-compatible
+            API at `<baseUrl>/v1`). `https://`; `http://` and private addresses
+            only where `MODEL_ENDPOINT_ALLOW_PRIVATE` allows them.
     ModelKeyResponse:
       type: object
-      required: [provider, scope, agentId, hint, updatedBy, updatedAt]
+      required: [provider, scope, agentId, hint, baseUrl, updatedBy, updatedAt]
       properties:
         provider: { $ref: '#/components/schemas/ModelProvider' }
         scope:
@@ -2967,10 +3008,27 @@ components:
           enum: [organization, agent]
         agentId: { type: [string, 'null'], format: uuid }
         hint:
-          type: string
-          description: The key's last four characters (`…a1b2`), to tell keys apart.
+          type: [string, 'null']
+          description: The key's last four characters (`…a1b2`), to tell keys apart; null for an `ollama` server without one.
+        baseUrl:
+          type: [string, 'null']
+          description: For `ollama`, its server; null otherwise.
         updatedBy: { type: string }
         updatedAt: { type: string, format: date-time }
+    OllamaModelList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, sizeBytes]
+            properties:
+              name: { type: string, description: 'As an agent version names it, e.g. `qwen3:8b`.' }
+              sizeBytes: { type: [integer, 'null'], minimum: 0 }
     ModelKeyList:
       type: object
       required: [items]

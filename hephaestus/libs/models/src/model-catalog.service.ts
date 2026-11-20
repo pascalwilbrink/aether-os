@@ -27,6 +27,7 @@ import {
   ModelNotAvailableError,
   ModelPriceInvalidError,
 } from './model.errors.js';
+import { isSelfHosted } from './model-key-settings.js';
 
 /** What the gateway needs to call and price a model. */
 export interface CatalogEntry {
@@ -161,6 +162,10 @@ export class ModelCatalogService {
 
   /** Agent versions: only an active model of the catalogue (`MODEL_NOT_AVAILABLE`). */
   async assertAvailable(provider: string, model: string): Promise<void> {
+    // An organization's own server (Ollama) has whatever models it has.
+    if (isSelfHosted(provider)) {
+      return;
+    }
     const entity = await this.models.findOneBy({ provider, model });
     if (entity?.status !== 'active') {
       throw new ModelNotAvailableError(provider, model);

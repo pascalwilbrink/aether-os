@@ -142,7 +142,21 @@ describe('Concurrency keys (e2e)', () => {
       await create(concurrency('queue', 'acme/api#13')).expect(201)
     ).body;
 
-    await round();
+    // The runs wait until the round has claimed what it can: a run that
+    // finished first would rightly free its key within the same round.
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    runtime.behaviour = async () => {
+      await held;
+      return { outcome: 'completed', summary: 'Done.' };
+    };
+    const runner = app.get(TaskRunner);
+    await runner.tick();
+    expect(await status(first.id)).not.toBe('queued');
+    expect(await status(other.id)).not.toBe('queued');
+    expect(await status(second.id)).toBe('queued');
+    release();
+    await runner.drain();
     expect(await status(first.id)).toBe('succeeded');
     expect(await status(other.id)).toBe('succeeded');
     expect(await status(second.id)).toBe('queued');

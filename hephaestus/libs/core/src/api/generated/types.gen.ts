@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ARTIFACT_NOT_DRAFT' | 'TASK_BUDGET_INVALID' | 'TASK_CONCURRENCY_INVALID' | 'TASK_CONCURRENCY_SKIPPED' | 'MODEL_ALREADY_EXISTS' | 'MODEL_NOT_AVAILABLE' | 'MODEL_PRICE_INVALID' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'TASK_TEMPLATE_ARCHIVED' | 'TASK_TEMPLATE_INPUTS_INVALID' | 'TASK_TEMPLATE_INVALID' | 'TOOL_SERVER_ALREADY_EXISTS' | 'TOOL_SERVER_INVALID' | 'SKILL_ALREADY_EXISTS' | 'SKILL_ARCHIVED' | 'SKILL_INVALID' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
+export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'AGENT_VERSION_CONFLICT' | 'AGENT_VERSION_INVALID_TRANSITION' | 'ARTIFACT_NOT_DRAFT' | 'TASK_BUDGET_INVALID' | 'TASK_CONCURRENCY_INVALID' | 'TASK_CONCURRENCY_SKIPPED' | 'MODEL_ALREADY_EXISTS' | 'MODEL_NOT_AVAILABLE' | 'MODEL_PRICE_INVALID' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'TASK_TEMPLATE_ARCHIVED' | 'TASK_TEMPLATE_INPUTS_INVALID' | 'TASK_TEMPLATE_INVALID' | 'TOOL_SERVER_ALREADY_EXISTS' | 'TOOL_SERVER_INVALID' | 'MODEL_KEY_INVALID' | 'SKILL_ALREADY_EXISTS' | 'SKILL_ARCHIVED' | 'SKILL_INVALID' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
 
 /**
  * Problem details for a business-rule violation.
@@ -828,9 +828,12 @@ export type PageMeta = {
  * Providers the model gateway can call: each needs code (Mastra's
  * model router) and a key in OpenBao (`orgs/{organizationId}/llm/{provider}`
  * or `platform/llm/{provider}`), so this list only changes with a release.
+ * `ollama` is a server the organization runs: its settings are a
+ * `baseUrl` and an optional key, its models aren't in the catalogue
+ * (any model the server has can be chosen) and its calls are unpriced.
  *
  */
-export type ModelProvider = 'anthropic' | 'openai' | 'google' | 'mistral';
+export type ModelProvider = 'anthropic' | 'openai' | 'google' | 'mistral' | 'ollama';
 
 /**
  * `active`: new agent versions can choose it. `deprecated`: versions
@@ -992,9 +995,17 @@ export type BudgetResponse = {
 
 export type SetModelKeyRequest = {
     /**
-     * The provider's API key; write-only (stored in OpenBao, never returned).
+     * The provider's API key; write-only (stored in OpenBao, never returned). Required except for `ollama`, where it's optional.
      */
-    apiKey: string;
+    apiKey?: string;
+    /**
+     * For `ollama` only (and required there): where its server is, e.g.
+     * `https://ollama.example.com` (Hephaestus calls its OpenAI-compatible
+     * API at `<baseUrl>/v1`). `https://`; `http://` and private addresses
+     * only where `MODEL_ENDPOINT_ALLOW_PRIVATE` allows them.
+     *
+     */
+    baseUrl?: string;
 };
 
 export type ModelKeyResponse = {
@@ -1002,11 +1013,25 @@ export type ModelKeyResponse = {
     scope: 'organization' | 'agent';
     agentId: string | null;
     /**
-     * The key's last four characters (`…a1b2`), to tell keys apart.
+     * The key's last four characters (`…a1b2`), to tell keys apart; null for an `ollama` server without one.
      */
-    hint: string;
+    hint: string | null;
+    /**
+     * For `ollama`, its server; null otherwise.
+     */
+    baseUrl: string | null;
     updatedBy: string;
     updatedAt: string;
+};
+
+export type OllamaModelList = {
+    items: Array<{
+        /**
+         * As an agent version names it, e.g. `qwen3:8b`.
+         */
+        name: string;
+        sizeBytes: number | null;
+    }>;
 };
 
 export type ModelKeyList = {
@@ -5085,3 +5110,53 @@ export type GetSkillVersionResponses = {
 };
 
 export type GetSkillVersionResponse = GetSkillVersionResponses[keyof GetSkillVersionResponses];
+
+export type ListOllamaModelsData = {
+    body?: never;
+    path: {
+        organizationId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/ollama/models';
+};
+
+export type ListOllamaModelsErrors = {
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type ListOllamaModelsError = ListOllamaModelsErrors[keyof ListOllamaModelsErrors];
+
+export type ListOllamaModelsResponses = {
+    /**
+     * By name
+     */
+    200: OllamaModelList;
+};
+
+export type ListOllamaModelsResponse = ListOllamaModelsResponses[keyof ListOllamaModelsResponses];

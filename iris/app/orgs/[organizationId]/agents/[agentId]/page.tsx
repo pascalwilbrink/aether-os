@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 
 import { ActionButton } from "@/app/components/action-forms";
@@ -12,12 +13,13 @@ import {
   listActiveModels,
   listAgentVersions,
   listModelKeys,
+  listOllamaModels,
   listSkills,
   listToolServers,
 } from "@/lib/api/hephaestus";
 import { getOrganization } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
-import { keyInUse, providerName, type ModelKey } from "@/lib/model-keys";
+import { isSelfHosted, keyInUse, providerName, type ModelKey } from "@/lib/model-keys";
 import { formatTime } from "@/lib/tasks";
 
 import { ArchiveButton, PublishButton, VersionForm } from "../agent-forms";
@@ -52,6 +54,16 @@ async function AgentDetails({ params }: Props) {
   ]);
   const ref = { organizationId, agentId };
   const [latest] = versions.items;
+  // The organization's Ollama server's models, to choose from (none when it
+  // has no server, or the server doesn't answer).
+  const ollamaModels = organizationKeys.items.some((key) => key.provider === "ollama")
+    ? await listOllamaModels(token, organizationId)
+        .then((list) => list.items.map((model) => model.name))
+        .catch((error: unknown) => {
+          unstable_rethrow(error);
+          return [];
+        })
+    : [];
   const published = versions.items.find((version) => version.status === "published");
 
   return (
@@ -131,6 +143,7 @@ async function AgentDetails({ params }: Props) {
           {/* After a save, React resets the form to its defaults: the new latest version. */}
           <VersionForm agent={ref} from={latest} models={models.items} toolServers={toolServers.items}
             skills={skills.items}
+            ollamaModels={ollamaModels}
           />
         </section>
       ) : null}
@@ -226,16 +239,17 @@ function ModelKeySection({
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           {inUse.source === "agent" ? (
             <>
-              Calls {name} with its own key <span className="font-mono">{inUse.hint}</span>, instead of the
+              Calls {name} with its own {inUse.baseUrl ? <>server <span className="font-mono">{inUse.baseUrl}</span></> : <>key <span className="font-mono">{inUse.hint}</span></>}, instead of the
               organization&apos;s.
             </>
           ) : inUse.source === "organization" ? (
             <>
               Calls {name} with the{" "}
               <Link href={`/orgs/${organizationId}/model-keys`} className="underline">
-                organization&apos;s key
+                organization&apos;s {inUse.baseUrl ? "server" : "key"}
               </Link>{" "}
-              <span className="font-mono">{inUse.hint}</span>. Give it its own to bill a separate {name} account.
+              <span className="font-mono">{inUse.baseUrl ?? inUse.hint}</span>.{" "}
+              {inUse.baseUrl ? "Give it its own to use another server." : `Give it its own to bill a separate ${name} account.`}
             </>
           ) : (
             <span className="text-amber-700 dark:text-amber-300">
@@ -250,8 +264,9 @@ function ModelKeySection({
       </div>
       <ModelKeyForm
         action={setModelKeyAction.bind(null, ref)}
-        label={`This agent's ${name} API key`}
+        label={isSelfHosted(provider) ? `This agent's ${name} API key (optional)` : `This agent's ${name} API key`}
         replacing={inUse.source === "agent"}
+        baseUrl={isSelfHosted(provider) ? (inUse.source === "agent" ? (inUse.baseUrl ?? "") : "") : undefined}
       />
       {inUse.source === "agent" ? (
         <ActionButton

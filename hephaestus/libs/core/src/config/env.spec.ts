@@ -45,6 +45,7 @@ describe('zEnv', () => {
         'pypi.org',
       ]),
       TOOL_SERVER_ALLOW_PRIVATE: false,
+      MODEL_ENDPOINT_ALLOW_PRIVATE: false,
       TOOL_SERVER_TRUSTED_ORIGINS: [],
       TOOL_CALL_TIMEOUT_MS: 60_000,
       SANDBOX_PROXY_IMAGE: 'node:22-alpine',
