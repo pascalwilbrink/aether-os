@@ -4,4614 +4,4530 @@
  */
 
 export interface paths {
-  "/v1/organizations/{organizationId}/agents": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listAgents"];
+        put?: never;
+        post: operations["createAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["listAgents"];
-    put?: never;
-    post: operations["createAgent"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/agents/{agentId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/agents/{agentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getAgent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["getAgent"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/agents/{agentId}/archive": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/agents/{agentId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["archiveAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations["archiveAgent"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/agents/{agentId}/versions": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/agents/{agentId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listAgentVersions"];
+        put?: never;
+        /**
+         * @description Creates a draft version; the version number is assigned by the
+         *     server. Its model must be an `active` model of the catalogue
+         *     (`MODEL_NOT_AVAILABLE` otherwise), and each enabled entry of `tools`
+         *     must name one of the organization's tool servers, each at most once
+         *     (`TOOL_SERVER_INVALID` otherwise); each enabled entry of `skills` a
+         *     version of one of its active skills, each skill at most once
+         *     (`SKILL_INVALID`).
+         */
+        post: operations["createAgentVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["listAgentVersions"];
-    put?: never;
-    /**
-     * @description Creates a draft version; the version number is assigned by the
-     *     server. Its model must be an `active` model of the catalogue
-     *     (`MODEL_NOT_AVAILABLE` otherwise), and each enabled entry of `tools`
-     *     must name one of the organization's tool servers, each at most once
-     *     (`TOOL_SERVER_INVALID` otherwise); each enabled entry of `skills` a
-     *     version of one of its active skills, each skill at most once
-     *     (`SKILL_INVALID`).
-     */
-    post: operations["createAgentVersion"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/agents/{agentId}/versions/{versionId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-        versionId: components["parameters"]["VersionId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/agents/{agentId}/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+                versionId: components["parameters"]["VersionId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getAgentVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["getAgentVersion"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/agents/{agentId}/versions/{versionId}/publish": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-        versionId: components["parameters"]["VersionId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/agents/{agentId}/versions/{versionId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+                versionId: components["parameters"]["VersionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Publishes a draft and deprecates the previously published version.
+         *     Publishing the version that's already published returns it unchanged;
+         *     a deprecated version can't be published again (409).
+         */
+        post: operations["publishAgentVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * @description Publishes a draft and deprecates the previously published version.
-     *     Publishing the version that's already published returns it unchanged;
-     *     a deprecated version can't be published again (409).
-     */
-    post: operations["publishAgentVersion"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/workspaces": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listWorkspaces"];
+        put?: never;
+        post: operations["createWorkspace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["listWorkspaces"];
-    put?: never;
-    post: operations["createWorkspace"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/workspaces/{workspaceId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        workspaceId: components["parameters"]["WorkspaceId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/workspaces/{workspaceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getWorkspace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["getWorkspace"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/workspaces/{workspaceId}/acquire": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        workspaceId: components["parameters"]["WorkspaceId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/workspaces/{workspaceId}/acquire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["acquireWorkspace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations["acquireWorkspace"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/workspaces/{workspaceId}/release": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        workspaceId: components["parameters"]["WorkspaceId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/workspaces/{workspaceId}/release": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["releaseWorkspace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations["releaseWorkspace"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/workspaces/{workspaceId}/suspend": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        workspaceId: components["parameters"]["WorkspaceId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/workspaces/{workspaceId}/suspend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["suspendWorkspace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations["suspendWorkspace"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/workspaces/{workspaceId}/resume": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        workspaceId: components["parameters"]["WorkspaceId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/workspaces/{workspaceId}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resumeWorkspace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post: operations["resumeWorkspace"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/workspaces/{workspaceId}/destroy": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        workspaceId: components["parameters"]["WorkspaceId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/workspaces/{workspaceId}/destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Starts teardown (status `stopping`); the provisioner completes it. */
+        post: operations["destroyWorkspace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** @description Starts teardown (status `stopping`); the provisioner completes it. */
-    post: operations["destroyWorkspace"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/task-templates": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/task-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listTaskTemplates"];
+        put?: never;
+        /**
+         * @description A template and its first version (docs/tasks.md, Task templates).
+         *     Without `projectId` it's organization-wide, visible to every
+         *     project; with one, only to that project.
+         */
+        post: operations["createTaskTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["listTaskTemplates"];
-    put?: never;
-    /**
-     * @description A template and its first version (docs/tasks.md, Task templates).
-     *     Without `projectId` it's organization-wide, visible to every
-     *     project; with one, only to that project.
-     */
-    post: operations["createTaskTemplate"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/task-templates/{templateId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        templateId: components["parameters"]["TemplateId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/task-templates/{templateId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getTaskTemplate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["getTaskTemplate"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/task-templates/{templateId}/archive": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        templateId: components["parameters"]["TemplateId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/task-templates/{templateId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description No new tasks from it (`TASK_TEMPLATE_ARCHIVED`); existing tasks and templates extending it keep their pinned version. Idempotent. */
+        post: operations["archiveTaskTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** @description No new tasks from it (`TASK_TEMPLATE_ARCHIVED`); existing tasks and templates extending it keep their pinned version. Idempotent. */
-    post: operations["archiveTaskTemplate"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/task-templates/{templateId}/versions": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        templateId: components["parameters"]["TemplateId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/task-templates/{templateId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listTaskTemplateVersions"];
+        put?: never;
+        /** @description Editing a template is a new version; earlier ones never change. */
+        post: operations["createTaskTemplateVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["listTaskTemplateVersions"];
-    put?: never;
-    /** @description Editing a template is a new version; earlier ones never change. */
-    post: operations["createTaskTemplateVersion"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/task-templates/{templateId}/versions/{version}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        templateId: components["parameters"]["TemplateId"];
-        version: number;
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/task-templates/{templateId}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+                version: number;
+            };
+            cookie?: never;
+        };
+        get: operations["getTaskTemplateVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["getTaskTemplateVersion"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/task-templates/{templateId}/tasks": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        templateId: components["parameters"]["TemplateId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/task-templates/{templateId}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description A task from a template version (its latest unless given), pinned
+         *     on the task: its title and instructions with the inputs filled in,
+         *     its agent, and its acceptance criteria, plus any added here. Like
+         *     creating a task: `Idempotency-Key` required, 201 or 200.
+         */
+        post: operations["createTaskFromTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * @description A task from a template version (its latest unless given), pinned
-     *     on the task: its title and instructions with the inputs filled in,
-     *     its agent, and its acceptance criteria, plus any added here. Like
-     *     creating a task: `Idempotency-Key` required, 201 or 200.
-     */
-    post: operations["createTaskFromTemplate"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/tasks": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listTasks"];
+        put?: never;
+        /**
+         * @description Creates a task (or, with `parentTaskId`, a subtask) that runs as a
+         *     service account (`docs/identity.md`: tasks never run as a user; the
+         *     caller is recorded as `requestedBy`). The agent's published version
+         *     is pinned now (`AGENT_NOT_PUBLISHED` without one). A task starts
+         *     `blocked` until every task in `dependsOn` has succeeded, otherwise
+         *     `queued`. `dependsOn` may only name tasks under the same top-level
+         *     task (`TASK_DEPENDENCY_INVALID`).
+         *
+         *     Idempotent per `Idempotency-Key`: a repeated key returns the task it
+         *     created (`200`) instead of creating another.
+         */
+        post: operations["createTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["listTasks"];
-    put?: never;
-    /**
-     * @description Creates a task (or, with `parentTaskId`, a subtask) that runs as a
-     *     service account (`docs/identity.md`: tasks never run as a user; the
-     *     caller is recorded as `requestedBy`). The agent's published version
-     *     is pinned now (`AGENT_NOT_PUBLISHED` without one). A task starts
-     *     `blocked` until every task in `dependsOn` has succeeded, otherwise
-     *     `queued`. `dependsOn` may only name tasks under the same top-level
-     *     task (`TASK_DEPENDENCY_INVALID`).
-     *
-     *     Idempotent per `Idempotency-Key`: a repeated key returns the task it
-     *     created (`200`) instead of creating another.
-     */
-    post: operations["createTask"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getTask"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["getTask"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/cancel": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Cancels the task and every unfinished task under it. Idempotent for
+         *     a cancelled task; a task that already succeeded or failed can't be
+         *     cancelled (`TASK_INVALID_TRANSITION`).
+         */
+        post: operations["cancelTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * @description Cancels the task and every unfinished task under it. Idempotent for
-     *     a cancelled task; a task that already succeeded or failed can't be
-     *     cancelled (`TASK_INVALID_TRANSITION`).
-     */
-    post: operations["cancelTask"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/retry": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Retries a failed task with the same pinned inputs (a new attempt of
+         *     the same task, so dependents keep pointing at it). Only failed tasks
+         *     (`TASK_INVALID_TRANSITION`).
+         */
+        post: operations["retryTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * @description Retries a failed task with the same pinned inputs (a new attempt of
-     *     the same task, so dependents keep pointing at it). Only failed tasks
-     *     (`TASK_INVALID_TRANSITION`).
-     */
-    post: operations["retryTask"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description What the task produced (docs/tasks.md, Artifacts), across its
+         *     executions: the primary artifact and others once it succeeded,
+         *     `partial` ones from failed executions, `pending` ones while it runs.
+         */
+        get: operations["listTaskArtifacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * @description What the task produced (docs/tasks.md, Artifacts), across its
-     *     executions: the primary artifact and others once it succeeded,
-     *     `partial` ones from failed executions, `pending` ones while it runs.
-     */
-    get: operations["listTaskArtifacts"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-        artifactId: components["parameters"]["ArtifactId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getTaskArtifact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["getTaskArtifact"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}/approve": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-        artifactId: components["parameters"]["ArtifactId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Approves a draft: it becomes `final`. The task succeeds once none of
+         *     its drafts is waiting any more and none needs changes.
+         */
+        post: operations["approveArtifact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * @description Approves a draft: it becomes `final`. The task succeeds once none of
-     *     its drafts is waiting any more and none needs changes.
-     */
-    post: operations["approveArtifact"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}/reject": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-        artifactId: components["parameters"]["ArtifactId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Rejects a draft: it becomes `rejected`, and the task fails with
+         *     `rejected` (its other drafts become `partial`).
+         */
+        post: operations["rejectArtifact"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * @description Rejects a draft: it becomes `rejected`, and the task fails with
-     *     `rejected` (its other drafts become `partial`).
-     */
-    post: operations["rejectArtifact"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}/request-changes": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-        artifactId: components["parameters"]["ArtifactId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/artifacts/{artifactId}/request-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Sends a draft back with comments: it becomes `changes_requested`.
+         *     Once none of the task's drafts is waiting, the agent runs again with
+         *     the comments and produces revised drafts (`revisionOf`). Refused
+         *     after the last review round (`TASK_REVIEW_ROUNDS_EXHAUSTED`):
+         *     approve or reject then.
+         */
+        post: operations["requestArtifactChanges"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * @description Sends a draft back with comments: it becomes `changes_requested`.
-     *     Once none of the task's drafts is waiting, the agent runs again with
-     *     the comments and produces revised drafts (`revisionOf`). Refused
-     *     after the last review round (`TASK_REVIEW_ROUNDS_EXHAUSTED`):
-     *     approve or reject then.
-     */
-    post: operations["requestArtifactChanges"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/executions": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/executions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description The task's executions (docs/tasks.md, Executions): one per try in a
+         *     sandbox, including the automatic retries after infrastructure
+         *     failures and those of later attempts.
+         */
+        get: operations["listTaskExecutions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * @description The task's executions (docs/tasks.md, Executions): one per try in a
-     *     sandbox, including the automatic retries after infrastructure
-     *     failures and those of later attempts.
-     */
-    get: operations["listTaskExecutions"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/models": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/v1/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The model catalogue (`../docs/models.md`, Models): the models agent
+         *     versions can name, by name, each with the price in force now.
+         */
+        get: operations["listModels"];
+        put?: never;
+        /** @description Adds a model to the catalogue, with its first price. */
+        post: operations["createModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * @description The model catalogue (`../docs/models.md`, Models): the models agent
-     *     versions can name, by name, each with the price in force now.
-     */
-    get: operations["listModels"];
-    put?: never;
-    /** @description Adds a model to the catalogue, with its first price. */
-    post: operations["createModel"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/models/{modelId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        modelId: components["parameters"]["ModelId"];
-      };
-      cookie?: never;
+    "/v1/models/{modelId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: components["parameters"]["ModelId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getModel"];
+        /**
+         * @description Replaces the model's editable fields. `provider` and `model` never
+         *     change (agent versions name them); prices change with
+         *     `POST …/prices`. `deprecated`: new agent versions can't choose it;
+         *     `retired`: the gateway refuses to call it.
+         */
+        put: operations["updateModel"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["getModel"];
-    /**
-     * @description Replaces the model's editable fields. `provider` and `model` never
-     *     change (agent versions name them); prices change with
-     *     `POST …/prices`. `deprecated`: new agent versions can't choose it;
-     *     `retired`: the gateway refuses to call it.
-     */
-    put: operations["updateModel"];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/models/{modelId}/prices": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        modelId: components["parameters"]["ModelId"];
-      };
-      cookie?: never;
+    "/v1/models/{modelId}/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: components["parameters"]["ModelId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listModelPrices"];
+        put?: never;
+        /**
+         * @description A new price from `effectiveFrom` (now if absent). Prices never
+         *     change once recorded, so past calls keep the cost they had; a price
+         *     must start after the model's latest one (`MODEL_PRICE_INVALID`).
+         */
+        post: operations["addModelPrice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["listModelPrices"];
-    put?: never;
-    /**
-     * @description A new price from `effectiveFrom` (now if absent). Prices never
-     *     change once recorded, so past calls keep the cost they had; a price
-     *     must start after the model's latest one (`MODEL_PRICE_INVALID`).
-     */
-    post: operations["addModelPrice"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/budget": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        /** @description The organization's monthly budget for model calls, and what this month's calls cost so far. */
+        get: operations["getOrganizationBudget"];
+        /**
+         * @description Sets (or, with `limitUsd: null`, removes) the organization's monthly
+         *     limit. Tasks it paused resume within a runner round once it has room.
+         */
+        put: operations["setOrganizationBudget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** @description The organization's monthly budget for model calls, and what this month's calls cost so far. */
-    get: operations["getOrganizationBudget"];
-    /**
-     * @description Sets (or, with `limitUsd: null`, removes) the organization's monthly
-     *     limit. Tasks it paused resume within a runner round once it has room.
-     */
-    put: operations["setOrganizationBudget"];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/budget": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getProjectBudget"];
+        /** @description Sets (or removes) the project's monthly limit. */
+        put: operations["setProjectBudget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["getProjectBudget"];
-    /** @description Sets (or removes) the project's monthly limit. */
-    put: operations["setProjectBudget"];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/budget": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        /** @description The budget of the task's tree (its top-level task's), for the tree's whole life. */
+        get: operations["getTaskTreeBudget"];
+        /** @description Sets (or removes) the limit of the task's tree; its paused tasks resume once it has room. */
+        put: operations["setTaskTreeBudget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** @description The budget of the task's tree (its top-level task's), for the tree's whole life. */
-    get: operations["getTaskTreeBudget"];
-    /** @description Sets (or removes) the limit of the task's tree; its paused tasks resume once it has room. */
-    put: operations["setTaskTreeBudget"];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/model-keys": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/model-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description The organization's provider keys (docs/models.md, Keys): which are
+         *     set, their last characters, who set them and when; never a key.
+         *     Every agent of the organization uses its key for its model's
+         *     provider, unless the agent has its own.
+         */
+        get: operations["listOrganizationModelKeys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * @description The organization's provider keys (docs/models.md, Keys): which are
-     *     set, their last characters, who set them and when; never a key.
-     *     Every agent of the organization uses its key for its model's
-     *     provider, unless the agent has its own.
-     */
-    get: operations["listOrganizationModelKeys"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/model-keys/{provider}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        provider: components["parameters"]["Provider"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/model-keys/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                provider: components["parameters"]["Provider"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Stores (or replaces) the organization's key for the provider, in
+         *     OpenBao: `apiKey` for the hosted providers; for `ollama`, its server's
+         *     `baseUrl` and, when the server wants one, an `apiKey`
+         *     (`MODEL_KEY_INVALID` otherwise, or for a `baseUrl` Hephaestus won't call).
+         */
+        put: operations["setOrganizationModelKey"];
+        post?: never;
+        /** @description Removes it, with every earlier version; agents without their own key then use the platform's, if allowed, or fail. */
+        delete: operations["deleteOrganizationModelKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    /**
-     * @description Stores (or replaces) the organization's key for the provider, in
-     *     OpenBao: `apiKey` for the hosted providers; for `ollama`, its server's
-     *     `baseUrl` and, when the server wants one, an `apiKey`
-     *     (`MODEL_KEY_INVALID` otherwise, or for a `baseUrl` Hephaestus won't call).
-     */
-    put: operations["setOrganizationModelKey"];
-    post?: never;
-    /** @description Removes it, with every earlier version; agents without their own key then use the platform's, if allowed, or fail. */
-    delete: operations["deleteOrganizationModelKey"];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/agents/{agentId}/budget": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/agents/{agentId}/budget": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        /** @description The agent's monthly budget for model calls (all its versions, in every project), and what this month's calls cost so far. */
+        get: operations["getAgentBudget"];
+        /**
+         * @description Sets (or, with `limitUsd: null`, removes) the agent's monthly limit.
+         *     Tasks it paused resume within a runner round once it has room.
+         */
+        put: operations["setAgentBudget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** @description The agent's monthly budget for model calls (all its versions, in every project), and what this month's calls cost so far. */
-    get: operations["getAgentBudget"];
-    /**
-     * @description Sets (or, with `limitUsd: null`, removes) the agent's monthly limit.
-     *     Tasks it paused resume within a runner round once it has room.
-     */
-    put: operations["setAgentBudget"];
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/agents/{agentId}/model-keys": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/agents/{agentId}/model-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        /** @description The agent's own provider keys, used instead of the organization's (e.g. to bill another provider account). */
+        get: operations["listAgentModelKeys"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** @description The agent's own provider keys, used instead of the organization's (e.g. to bill another provider account). */
-    get: operations["listAgentModelKeys"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/agents/{agentId}/model-keys/{provider}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-        provider: components["parameters"]["Provider"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/agents/{agentId}/model-keys/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+                provider: components["parameters"]["Provider"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Stores (or replaces) the agent's own key for the provider, in OpenBao. */
+        put: operations["setAgentModelKey"];
+        post?: never;
+        /** @description Removes the agent's own key; it uses the organization's again. */
+        delete: operations["deleteAgentModelKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    /** @description Stores (or replaces) the agent's own key for the provider, in OpenBao. */
-    put: operations["setAgentModelKey"];
-    post?: never;
-    /** @description Removes the agent's own key; it uses the organization's again. */
-    delete: operations["deleteAgentModelKey"];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/tool-servers": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/tool-servers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        /** @description The organization's tool servers, by name (at most 50). */
+        get: operations["listToolServers"];
+        put?: never;
+        /**
+         * @description Registers an MCP server (Streamable HTTP) that the organization's agent
+         *     versions can take tools from (`tools[].name` is its `name`).
+         *     Hephaestus connects to it, never the sandbox. A `header` credential is
+         *     set separately (`PUT …/credential`) and kept in OpenBao.
+         */
+        post: operations["createToolServer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** @description The organization's tool servers, by name (at most 50). */
-    get: operations["listToolServers"];
-    put?: never;
-    /**
-     * @description Registers an MCP server (Streamable HTTP) that the organization's agent
-     *     versions can take tools from (`tools[].name` is its `name`).
-     *     Hephaestus connects to it, never the sandbox. A `header` credential is
-     *     set separately (`PUT …/credential`) and kept in OpenBao.
-     */
-    post: operations["createToolServer"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/tool-servers/{toolServerId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        toolServerId: components["parameters"]["ToolServerId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/tool-servers/{toolServerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getToolServer"];
+        /**
+         * @description Replaces its description, URL and authentication (the name stays: agent
+         *     versions refer to it). Changing the URL or the authentication removes
+         *     the credential, so it isn't sent somewhere new without being set again.
+         */
+        put: operations["updateToolServer"];
+        post?: never;
+        /**
+         * @description Removes it and its credential. Tasks of agent versions that use it
+         *     then fail without retrying until a server with its name exists again.
+         */
+        delete: operations["deleteToolServer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["getToolServer"];
-    /**
-     * @description Replaces its description, URL and authentication (the name stays: agent
-     *     versions refer to it). Changing the URL or the authentication removes
-     *     the credential, so it isn't sent somewhere new without being set again.
-     */
-    put: operations["updateToolServer"];
-    post?: never;
-    /**
-     * @description Removes it and its credential. Tasks of agent versions that use it
-     *     then fail without retrying until a server with its name exists again.
-     */
-    delete: operations["deleteToolServer"];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/tool-servers/{toolServerId}/credential": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        toolServerId: components["parameters"]["ToolServerId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/tool-servers/{toolServerId}/credential": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Sets the value sent in the server's `auth.headerName` header (for
+         *     `Authorization`, include the scheme: `Bearer …`). Kept in OpenBao and
+         *     never returned; only its last four characters are.
+         */
+        put: operations["setToolServerCredential"];
+        post?: never;
+        delete: operations["deleteToolServerCredential"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    /**
-     * @description Sets the value sent in the server's `auth.headerName` header (for
-     *     `Authorization`, include the scheme: `Bearer …`). Kept in OpenBao and
-     *     never returned; only its last four characters are.
-     */
-    put: operations["setToolServerCredential"];
-    post?: never;
-    delete: operations["deleteToolServerCredential"];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/tool-servers/{toolServerId}/tools": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        toolServerId: components["parameters"]["ToolServerId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/tool-servers/{toolServerId}/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description Connects to the server and lists the tools it offers now, to choose
+         *     from for an agent version. A `task-token` server is sent the caller's
+         *     own token.
+         */
+        get: operations["listToolServerTools"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * @description Connects to the server and lists the tools it offers now, to choose
-     *     from for an agent version. A `task-token` server is sent the caller's
-     *     own token.
-     */
-    get: operations["listToolServerTools"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/skills": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        /** @description The organization's skills, by name, without their files. */
+        get: operations["listSkills"];
+        put?: never;
+        /**
+         * @description Creates a skill with its first version: a folder of text files in the
+         *     Agent Skills format, with `SKILL.md` at its root (YAML front matter
+         *     with `name`, the skill's name, and `description`, then the
+         *     instructions). Agent versions pin a version of it (`skills[]`).
+         */
+        post: operations["createSkill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** @description The organization's skills, by name, without their files. */
-    get: operations["listSkills"];
-    put?: never;
-    /**
-     * @description Creates a skill with its first version: a folder of text files in the
-     *     Agent Skills format, with `SKILL.md` at its root (YAML front matter
-     *     with `name`, the skill's name, and `description`, then the
-     *     instructions). Agent versions pin a version of it (`skills[]`).
-     */
-    post: operations["createSkill"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/skills/{skillId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        skillId: components["parameters"]["SkillId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/skills/{skillId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getSkill"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["getSkill"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/skills/{skillId}/archive": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        skillId: components["parameters"]["SkillId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/skills/{skillId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Archives it (idempotent): new agent versions can't choose it, and it
+         *     gets no new versions. Agent versions that already pin one of its
+         *     versions keep running with it.
+         */
+        post: operations["archiveSkill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * @description Archives it (idempotent): new agent versions can't choose it, and it
-     *     gets no new versions. Agent versions that already pin one of its
-     *     versions keep running with it.
-     */
-    post: operations["archiveSkill"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/skills/{skillId}/versions": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        skillId: components["parameters"]["SkillId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/skills/{skillId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+            };
+            cookie?: never;
+        };
+        /** @description Newest first, without their files. */
+        get: operations["listSkillVersions"];
+        put?: never;
+        /**
+         * @description A new version (versions never change): the whole folder again, its
+         *     `SKILL.md` naming the same skill. Numbered by the server.
+         */
+        post: operations["createSkillVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** @description Newest first, without their files. */
-    get: operations["listSkillVersions"];
-    put?: never;
-    /**
-     * @description A new version (versions never change): the whole folder again, its
-     *     `SKILL.md` naming the same skill. Numbered by the server.
-     */
-    post: operations["createSkillVersion"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/skills/{skillId}/versions/{version}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        skillId: components["parameters"]["SkillId"];
-        version: number;
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/skills/{skillId}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+                version: number;
+            };
+            cookie?: never;
+        };
+        /** @description The version with its files. */
+        get: operations["getSkillVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** @description The version with its files. */
-    get: operations["getSkillVersion"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/ollama/models": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/ollama/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description The models the organization's Ollama server has now (its `/api/tags`),
+         *     to choose from for an agent version: asked of the server with the
+         *     organization's settings. `409 MODEL_KEY_INVALID` when the
+         *     organization has no Ollama server set; `503` when it doesn't answer.
+         */
+        get: operations["listOllamaModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * @description The models the organization's Ollama server has now (its `/api/tags`),
-     *     to choose from for an agent version: asked of the server with the
-     *     organization's settings. `409 MODEL_KEY_INVALID` when the
-     *     organization has no Ollama server set; `503` when it doesn't answer.
-     */
-    get: operations["listOllamaModels"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    /**
-     * @description Problem details (RFC 9457), served as `application/problem+json`.
-     *     `code`, `traceId` and `errors` are Aether-os extensions. Clients switch
-     *     on `code`; `detail` is for people.
-     */
-    Problem: {
-      /**
-       * @description `urn:aether-os:problem:<code in kebab case>`, one per `code`.
-       * @example urn:aether-os:problem:organization-suspended
-       */
-      type: string;
-      /** @description Short summary, the same for every occurrence of the type. */
-      title: string;
-      /** @description The HTTP status, repeated. */
-      status: number;
-      /** @description Explanation of this occurrence. Safe to show; not stable. */
-      detail: string;
-      /** @description The request path. */
-      instance: string;
-      /**
-       * @description Stable, machine-readable code: `VALIDATION_FAILED`,
-       *     `INVALID_CURSOR`, `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`,
-       *     `VERSION_MISMATCH`, `RATE_LIMITED`, `INTERNAL`, `UNAVAILABLE`, or
-       *     a domain error code listed by the operation.
-       */
-      code: string;
-      /** @description The request's trace ID, for finding it in Jaeger. */
-      traceId: string | null;
-      /** @description One entry per invalid input (`VALIDATION_FAILED`); otherwise empty. */
-      errors: components["schemas"]["ProblemFieldError"][];
-    };
-    /** @enum {string} */
-    DomainErrorCode:
-      | "AGENT_ARCHIVED"
-      | "AGENT_NOT_PUBLISHED"
-      | "AGENT_VERSION_CONFLICT"
-      | "AGENT_VERSION_INVALID_TRANSITION"
-      | "ARTIFACT_NOT_DRAFT"
-      | "TASK_BUDGET_INVALID"
-      | "TASK_CONCURRENCY_INVALID"
-      | "TASK_CONCURRENCY_SKIPPED"
-      | "MODEL_ALREADY_EXISTS"
-      | "MODEL_NOT_AVAILABLE"
-      | "MODEL_PRICE_INVALID"
-      | "ORGANIZATION_SUSPENDED"
-      | "PROJECT_ARCHIVED"
-      | "TASK_CRITERIA_INVALID"
-      | "TASK_DEPENDENCY_INVALID"
-      | "TASK_INVALID_TRANSITION"
-      | "TASK_PARENT_FINISHED"
-      | "TASK_REVIEW_ROUNDS_EXHAUSTED"
-      | "TASK_TEMPLATE_ARCHIVED"
-      | "TASK_TEMPLATE_INPUTS_INVALID"
-      | "TASK_TEMPLATE_INVALID"
-      | "TOOL_SERVER_ALREADY_EXISTS"
-      | "TOOL_SERVER_INVALID"
-      | "MODEL_KEY_INVALID"
-      | "SKILL_ALREADY_EXISTS"
-      | "SKILL_ARCHIVED"
-      | "SKILL_INVALID"
-      | "WORKSPACE_INVALID_EXPIRY"
-      | "WORKSPACE_INVALID_TRANSITION";
-    /** @description Problem details for a business-rule violation. */
-    DomainProblem: components["schemas"]["Problem"] & {
-      code: components["schemas"]["DomainErrorCode"];
-    };
-    /** Format: date-time */
-    Timestamp: string;
-    /** @enum {string} */
-    AgentStatus: "active" | "archived";
-    CreateAgentRequest: {
-      name: string;
-      description: string;
-    };
-    AgentResponse: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      organizationId: string;
-      name: string;
-      description: string;
-      status: components["schemas"]["AgentStatus"];
-      /**
-       * Format: uuid
-       * @description The currently published version, if any.
-       */
-      latestVersionId: string | null;
-      createdBy: string;
-      createdAt: components["schemas"]["Timestamp"];
-      updatedAt: components["schemas"]["Timestamp"];
-    };
-    AgentPage: components["schemas"]["PageMeta"] & {
-      items: components["schemas"]["AgentResponse"][];
-    };
-    /** @enum {string} */
-    AgentVersionStatus: "draft" | "published" | "deprecated";
-    AgentModelConfiguration: {
-      provider: string;
-      model: string;
-      temperature?: number;
-      maxTokens?: number;
-    };
-    /**
-     * @description Tools from one of the organization's tool servers (MCP): the agent
-     *     gets them as `<name>_<tool>`. An enabled entry must name an existing
-     *     tool server when the version is created.
-     */
-    AgentToolConfiguration: {
-      name: components["schemas"]["ToolServerName"];
-      enabled: boolean;
-      /** @description Which of the server's tools, by name; all of them when left out. */
-      tools?: components["schemas"]["ToolName"][];
-    };
-    /**
-     * @description A version of one of the organization's skills (`/skills`), pinned:
-     *     `version` is its number (`"3"`). An enabled entry must name an
-     *     active skill and one of its versions when the agent version is
-     *     created (`SKILL_INVALID` otherwise).
-     */
-    AgentSkillConfiguration: {
-      name: string;
-      version: string;
-      enabled: boolean;
-    };
-    /** @enum {string} */
-    AgentExecutionMode: "standard" | "coding";
-    AgentRuntimeConfiguration: {
-      provider: string;
-      executionMode: components["schemas"]["AgentExecutionMode"];
-      sandboxRequired: boolean;
-      /**
-       * @description The sandbox's network (../CLAUDE.md, sandboxes): `none` (the
-       *     default) or `restricted`, where it reaches only allowed hosts
-       *     through an allowlisting proxy: the platform's (package
-       *     registries, `SANDBOX_ALLOWED_HOSTS`) and `allowedHosts`.
-       * @enum {string}
-       */
-      networkAccess?: "none" | "restricted";
-      /** @description Hosts a `restricted` sandbox may reach on ports 80 and 443, besides the platform's; `*.example.com` for its subdomains. */
-      allowedHosts?: components["schemas"]["HostPattern"][];
-    };
-    HostPattern: string;
-    CreateAgentVersionRequest: {
-      instructions: string;
-      model: components["schemas"]["AgentModelConfiguration"];
-      capabilities: string[];
-      tools: components["schemas"]["AgentToolConfiguration"][];
-      skills: components["schemas"]["AgentSkillConfiguration"][];
-      runtime: components["schemas"]["AgentRuntimeConfiguration"];
-    };
-    AgentVersionResponse: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      agentId: string;
-      /** Format: uuid */
-      organizationId: string;
-      version: number;
-      status: components["schemas"]["AgentVersionStatus"];
-      instructions: string;
-      model: components["schemas"]["AgentModelConfiguration"];
-      capabilities: string[];
-      tools: components["schemas"]["AgentToolConfiguration"][];
-      skills: components["schemas"]["AgentSkillConfiguration"][];
-      runtime: components["schemas"]["AgentRuntimeConfiguration"];
-      createdBy: string;
-      createdAt: components["schemas"]["Timestamp"];
-      /** Format: date-time */
-      publishedAt: string | null;
-    };
-    AgentVersionPage: components["schemas"]["PageMeta"] & {
-      items: components["schemas"]["AgentVersionResponse"][];
-    };
-    /** @enum {string} */
-    WorkspaceStatus:
-      | "requested"
-      | "provisioning"
-      | "ready"
-      | "in_use"
-      | "suspended"
-      | "stopping"
-      | "destroyed"
-      | "failed"
-      | "expired";
-    /** @enum {string} */
-    RepositoryProvider: "github" | "gitlab" | "bitbucket";
-    RepositoryConfiguration: {
-      provider: components["schemas"]["RepositoryProvider"];
-      /** Format: uri */
-      repositoryUrl: string;
-      branch: string;
-      commitSha?: string;
-    };
-    /** @enum {string} */
-    NetworkAccess: "none" | "restricted" | "full";
-    SandboxConfiguration: {
-      provider: string;
-      image: string;
-      cpuLimit: number;
-      memoryLimitMb: number;
-      networkAccess: components["schemas"]["NetworkAccess"];
-      /** @description For `restricted` access, every host it may reach. */
-      allowedHosts?: components["schemas"]["HostPattern"][];
-    };
-    SandboxReference: {
-      provider: string;
-      resourceId: string;
-    };
-    CreateWorkspaceRequest: {
-      /** Format: uuid */
-      projectId: string;
-      /** Format: uuid */
-      executionId: string;
-      /** @description The repository to check out; none for a sandbox without one. */
-      repository?: components["schemas"]["RepositoryConfiguration"] | null;
-      sandbox: components["schemas"]["SandboxConfiguration"];
-      /** @description Absolute path inside the sandbox. */
-      workingDirectory: string;
-      /**
-       * Format: date-time
-       * @description Must be in the future.
-       */
-      expiresAt: string;
-    };
-    WorkspaceResponse: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      organizationId: string;
-      /** Format: uuid */
-      projectId: string;
-      /** Format: uuid */
-      executionId: string;
-      status: components["schemas"]["WorkspaceStatus"];
-      repository: components["schemas"]["RepositoryConfiguration"] | null;
-      sandbox: components["schemas"]["SandboxConfiguration"];
-      sandboxReference: components["schemas"]["SandboxReference"] | null;
-      workingDirectory: string;
-      /** @description Hosts the sandbox tried to reach and its proxy refused (`restricted` access), recorded when it's destroyed. */
-      blockedHosts: string[];
-      failureReason: string | null;
-      expiresAt: components["schemas"]["Timestamp"];
-      createdAt: components["schemas"]["Timestamp"];
-      updatedAt: components["schemas"]["Timestamp"];
-      /** Format: date-time */
-      startedAt: string | null;
-      /** Format: date-time */
-      destroyedAt: string | null;
-    };
-    WorkspacePage: components["schemas"]["PageMeta"] & {
-      items: components["schemas"]["WorkspaceResponse"][];
-    };
-    /**
-     * @description The lifecycle in `docs/tasks.md` (Task lifecycle).
-     * @enum {string}
-     */
-    TaskStatus:
-      | "blocked"
-      | "queued"
-      | "provisioning"
-      | "running"
-      | "verifying"
-      | "awaiting_review"
-      | "waiting"
-      | "paused"
-      | "delivering"
-      | "succeeded"
-      | "failed"
-      | "cancelled";
-    /**
-     * @description Why a task failed. `access_denied`: Pistis refused a task token for
-     *     its service account (no role in the project, disabled, or not a
-     *     member of the organization).
-     * @enum {string}
-     */
-    TaskFailureReason:
-      | "agent_failed"
-      | "verification_failed"
-      | "rejected"
-      | "timeout"
-      | "budget_exceeded"
-      | "infrastructure"
-      | "subtask_failed"
-      | "access_denied";
-    CreateTaskRequest: {
-      title: string;
-      instructions: string;
-      /**
-       * Format: uuid
-       * @description Its published version is pinned when the task is created.
-       */
-      agentId: string;
-      /**
-       * Format: uuid
-       * @description The Pistis service account the task runs as.
-       */
-      serviceAccountId: string;
-      /** @description Makes this a subtask (in the same project). */
-      parentTaskId?: string | null;
-      /** @description Tasks under the same top-level task that must succeed first. */
-      dependsOn?: string[];
-      review?: components["schemas"]["TaskReviewSettings"];
-      /** @description The definition of done (docs/tasks.md); checked after every run. Keys are unique. */
-      acceptanceCriteria?: components["schemas"]["AcceptanceCriterionRequest"][];
-      /**
-       * @description The repository the task works in: one of its project's links in
-       *     Proxenos (`docs/git.md`). A subtask without one works in its
-       *     parent's (the tree shares a branch).
-       */
-      repository?: components["schemas"]["TaskRepository"] | null;
-      /**
-       * @description A limit for the whole task tree's model calls (docs/models.md,
-       *     Budgets); only on a top-level task (`TASK_BUDGET_INVALID`).
-       *     Raise it later with `PUT …/tasks/{taskId}/budget`.
-       */
-      budgetUsd?: components["schemas"]["Usd"] | null;
-      concurrency?: components["schemas"]["TaskConcurrency"] | null;
-      /**
-       * @description Files the task starts from: files of its project in Loculus
-       *     (docs/files.md), uploaded first. The agent finds them in its
-       *     sandbox, in `/workspace/inputs`, so its version needs one
-       *     (else the execution fails without retrying).
-       */
-      inputFiles?: components["schemas"]["TaskInputFile"][];
-    };
-    TaskInputFile: {
-      /**
-       * Format: uuid
-       * @description A file of the task's project in Loculus.
-       */
-      fileId: string;
-    };
-    TaskRepository: {
-      /**
-       * Format: uuid
-       * @description A repository link of the task's project (Proxenos). Checked when the task runs.
-       */
-      linkId: string;
-    };
-    AcceptanceCriterionRequest: {
-      key: string;
-      description: string;
-      check: components["schemas"]["CriterionCheck"];
-    };
-    AcceptanceCriterion: components["schemas"]["AcceptanceCriterionRequest"] & {
-      /**
-       * @description Where it came from (spec requirements later).
-       * @enum {string}
-       */
-      source: "template" | "task";
-    };
-    /** @description How a criterion is checked; by Hephaestus, never by the agent's word. */
-    CriterionCheck:
-      | components["schemas"]["CommandCheck"]
-      | components["schemas"]["ArtifactCheck"]
-      | components["schemas"]["ManualCheck"];
-    /** @description Run in the task's sandbox (the agent version must need one); exit code 0 passes. */
-    CommandCheck: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: "command";
-      command: string;
-      /** @description 300 if left out. */
-      timeoutSeconds?: number;
-    };
-    /** @description A structural check on the run's artifacts; every given condition must hold. */
-    ArtifactCheck: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: "artifact";
-      /** @description The primary artifact's kind. */
-      primaryKind?: string;
-      /** @description Artifacts with these titles exist. */
-      titles?: string[];
-    };
-    /** @description Left to the reviewer; approving the draft confirms it. */
-    ManualCheck: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: "manual";
-    };
-    TemplateInput: {
-      /** @description Referred to as `{{name}}` in the title and instructions. */
-      name: string;
-      description?: string;
-      /** @description true if left out. */
-      required?: boolean;
-    };
-    /** @description An organization-wide template version this project template builds on. */
-    TemplateExtends: {
-      /** Format: uuid */
-      templateId: string;
-      version: number;
-    };
-    /**
-     * @description One version of a template. A project template that `extends` an
-     *     organization template inherits its agent, title, inputs, criteria
-     *     and review settings, appends its own instructions to the
-     *     organization's, and can only add inputs and criteria.
-     */
-    TaskTemplateContent: {
-      title?: string;
-      instructions?: string;
-      /** Format: uuid */
-      agentId?: string;
-      inputs?: components["schemas"]["TemplateInput"][];
-      acceptanceCriteria?: components["schemas"]["AcceptanceCriterionRequest"][];
-      review?: components["schemas"]["TaskReviewSettings"];
-      extends?: components["schemas"]["TemplateExtends"];
-    };
-    CreateTaskTemplateRequest: components["schemas"]["TaskTemplateContent"] & {
-      name: string;
-      description?: string;
-      /**
-       * Format: uuid
-       * @description A project template; organization-wide without it.
-       */
-      projectId?: string;
-    };
-    TaskTemplateResponse: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      organizationId: string;
-      /** Format: uuid */
-      projectId: string | null;
-      name: string;
-      description: string;
-      /** @enum {string} */
-      status: "active" | "archived";
-      latestVersion: number;
-      createdBy: string;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      updatedAt: string;
-    };
-    TaskTemplatePage: components["schemas"]["PageMeta"] & {
-      items: components["schemas"]["TaskTemplateResponse"][];
-    };
-    /** @description What a task from this version gets, with what it extends merged in. */
-    EffectiveTaskTemplate: {
-      title: string;
-      instructions: string;
-      /** Format: uuid */
-      agentId: string;
-      inputs: components["schemas"]["TemplateInput"][];
-      acceptanceCriteria: components["schemas"]["AcceptanceCriterionRequest"][];
-      review: components["schemas"]["TaskReviewSettings"];
-    };
-    TaskTemplateVersionResponse: {
-      /** Format: uuid */
-      templateId: string;
-      version: number;
-      content: components["schemas"]["TaskTemplateContent"];
-      effective: components["schemas"]["EffectiveTaskTemplate"];
-      createdBy: string;
-      /** Format: date-time */
-      createdAt: string;
-    };
-    TaskTemplateVersionPage: components["schemas"]["PageMeta"] & {
-      items: components["schemas"]["TaskTemplateVersionResponse"][];
-    };
-    CreateTaskFromTemplateRequest: {
-      /** @description The latest if left out. */
-      version?: number;
-      /** @description Values for the template's inputs, by name. */
-      inputs?: {
-        [key: string]: string;
-      };
-      /** Format: uuid */
-      serviceAccountId: string;
-      /** Format: uuid */
-      parentTaskId?: string;
-      dependsOn?: string[];
-      /** @description Added to the template's (never replacing them). */
-      acceptanceCriteria?: components["schemas"]["AcceptanceCriterionRequest"][];
-      /** @description Added to the template's. */
-      review?: components["schemas"]["TaskReviewSettings"];
-      /** @description The repository the task works in, as for a task written by hand. */
-      repository?: components["schemas"]["TaskRepository"];
-      concurrency?: components["schemas"]["TaskConcurrency"] | null;
-    };
-    /**
-     * @description A concurrency key (docs/tasks.md, Concurrency): what to do with a new
-     *     top-level task while an unfinished one with the same key exists in
-     *     the project. `queue`: it waits until those have finished (the
-     *     runner doesn't start it before); `cancel-previous`: they're
-     *     cancelled; `skip`: it isn't created (`TASK_CONCURRENCY_SKIPPED`).
-     *     Only on top-level tasks (`TASK_CONCURRENCY_INVALID`).
-     */
-    TaskConcurrency: {
-      key: string;
-      /** @enum {string} */
-      policy: "queue" | "cancel-previous" | "skip";
-    };
-    /**
-     * @description Which of the task's artifacts need approval before they're final
-     *     (docs/tasks.md, What needs approval). Pinned when the task is
-     *     created; automations and Themis policy will add to it later.
-     */
-    TaskReviewSettings: {
-      /** @description Artifact kinds that need approval; `*` for every kind. Empty for none. */
-      artifactKinds: string[];
-    };
-    TaskResponse: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      organizationId: string;
-      /** Format: uuid */
-      projectId: string;
-      /** Format: uuid */
-      parentTaskId: string | null;
-      /**
-       * Format: uuid
-       * @description The tree's root (its own ID for a top-level task).
-       */
-      topLevelTaskId: string;
-      title: string;
-      instructions: string;
-      /** Format: uuid */
-      agentId: string;
-      /**
-       * Format: uuid
-       * @description The agent version pinned when the task was created.
-       */
-      agentVersionId: string;
-      /** Format: uuid */
-      serviceAccountId: string;
-      /** @description The `sub` of whoever created the task. */
-      requestedBy: string;
-      status: components["schemas"]["TaskStatus"];
-      /** @description While `paused`, the budget that ran out; null otherwise. */
-      pausedFor: components["schemas"]["BudgetScope"] | null;
-      failureReason: components["schemas"]["TaskFailureReason"] | null;
-      dependsOn: string[];
-      /** @description 1, plus one per retry. */
-      attempt: number;
-      /**
-       * Format: uuid
-       * @description The outcome of a succeeded task (docs/tasks.md, Primary artifact); null otherwise.
-       */
-      primaryArtifactId: string | null;
-      review: components["schemas"]["TaskReviewSettings"];
-      /** @description How many times the task has waited for review (0 before the first). */
-      reviewRound: number;
-      acceptanceCriteria: components["schemas"]["AcceptanceCriterion"][];
-      /** @description The repository it works in (its own, or its parent's), if any. */
-      repository: components["schemas"]["TaskRepository"] | null;
-      concurrency: components["schemas"]["TaskConcurrency"] | null;
-      /** @description Files the task starts from (Loculus), in `/workspace/inputs` of its sandbox. */
-      inputFiles: components["schemas"]["TaskInputFile"][];
-      /**
-       * Format: uuid
-       * @description The template it was created from, if any.
-       */
-      taskTemplateId: string | null;
-      /** @description Pinned when it was created, like the agent version. */
-      taskTemplateVersion: number | null;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      updatedAt: string;
-      /** Format: date-time */
-      finishedAt: string | null;
-      /** @description The `aggregateVersion` of its latest event. */
-      version: number;
-    };
-    TaskPage: components["schemas"]["PageMeta"] & {
-      items: components["schemas"]["TaskResponse"][];
-    };
-    /**
-     * @description `pending`: recorded while its execution runs; becomes `final` when
-     *     the task succeeds, `partial` when the execution fails. `draft`,
-     *     `rejected` and `changes_requested` come with reviews.
-     * @enum {string}
-     */
-    ArtifactStatus:
-      | "pending"
-      | "draft"
-      | "final"
-      | "rejected"
-      | "changes_requested"
-      | "partial";
-    ArtifactBase: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      organizationId: string;
-      /** Format: uuid */
-      projectId: string;
-      /** Format: uuid */
-      taskId: string;
-      /** Format: uuid */
-      executionId: string;
-      /** Format: uuid */
-      agentVersionId: string;
-      kind: string;
-      status: components["schemas"]["ArtifactStatus"];
-      primary: boolean;
-      /** Format: uuid */
-      revisionOf: string | null;
-      title: string;
-      metadata: {
-        [key: string]: string;
-      };
-      /** @description The decision on a draft; null until someone made one. */
-      review: components["schemas"]["ArtifactReview"] | null;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      updatedAt: string;
-      version: number;
-    };
-    TextArtifact: components["schemas"]["ArtifactBase"] & {
-      /** @constant */
-      kind: "text";
-      /** @enum {string} */
-      format: "markdown" | "plain";
-      content: string;
-    } & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      kind: "text";
-    };
-    JsonArtifact: components["schemas"]["ArtifactBase"] & {
-      /** @constant */
-      kind: "json";
-      /** @description An optional identifier of the content's schema. */
-      schema: string | null;
-      content: unknown;
-    } & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      kind: "json";
-    };
-    VerificationArtifact: components["schemas"]["ArtifactBase"] & {
-      /** @constant */
-      kind: "verification";
-      /** @description Within its execution: 1, plus one per run after failed checks. */
-      round: number;
-      results: components["schemas"]["CriterionResult"][];
-    } & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      kind: "verification";
-    };
-    PullRequestArtifact: components["schemas"]["ArtifactBase"] & {
-      /** @constant */
-      kind: "pull_request";
-      /**
-       * Format: uuid
-       * @description The repository link (Proxenos).
-       */
-      linkId: string;
-      /** @description `owner/name`. */
-      repository: string;
-      /** @description `aether/<top-level task ID>`. */
-      branch: string;
-      /** @description What the pull request goes into (the default branch). */
-      baseBranch: string;
-      /** @description The branch's head when it was pushed. */
-      headSha: string;
-      /** @description The pull request's body (Markdown). */
-      description: string;
-      /** @description The pull request on GitHub, once delivered; null before. */
-      pullRequest: {
-        number: number;
-        /** Format: uri */
-        url: string;
+    schemas: {
+        /**
+         * @description Problem details (RFC 9457), served as `application/problem+json`.
+         *     `code`, `traceId` and `errors` are Aether-os extensions. Clients switch
+         *     on `code`; `detail` is for people.
+         */
+        Problem: {
+            /**
+             * @description `urn:aether-os:problem:<code in kebab case>`, one per `code`.
+             * @example urn:aether-os:problem:organization-suspended
+             */
+            type: string;
+            /** @description Short summary, the same for every occurrence of the type. */
+            title: string;
+            /** @description The HTTP status, repeated. */
+            status: number;
+            /** @description Explanation of this occurrence. Safe to show; not stable. */
+            detail: string;
+            /** @description The request path. */
+            instance: string;
+            /**
+             * @description Stable, machine-readable code: `VALIDATION_FAILED`,
+             *     `INVALID_CURSOR`, `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`,
+             *     `VERSION_MISMATCH`, `RATE_LIMITED`, `INTERNAL`, `UNAVAILABLE`, or
+             *     a domain error code listed by the operation.
+             */
+            code: string;
+            /** @description The request's trace ID, for finding it in Jaeger. */
+            traceId: string | null;
+            /** @description One entry per invalid input (`VALIDATION_FAILED`); otherwise empty. */
+            errors: components["schemas"]["ProblemFieldError"][];
+        };
         /** @enum {string} */
-        state: "open" | "merged" | "closed";
-      } | null;
-    } & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      kind: "pull_request";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "MODEL_ALREADY_EXISTS" | "MODEL_NOT_AVAILABLE" | "MODEL_PRICE_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "MODEL_KEY_INVALID" | "SKILL_ALREADY_EXISTS" | "SKILL_ARCHIVED" | "SKILL_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        /** @description Problem details for a business-rule violation. */
+        DomainProblem: components["schemas"]["Problem"] & {
+            code: components["schemas"]["DomainErrorCode"];
+        };
+        /** Format: date-time */
+        Timestamp: string;
+        /** @enum {string} */
+        AgentStatus: "active" | "archived";
+        CreateAgentRequest: {
+            name: string;
+            description: string;
+        };
+        AgentResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            name: string;
+            description: string;
+            status: components["schemas"]["AgentStatus"];
+            /**
+             * Format: uuid
+             * @description The currently published version, if any.
+             */
+            latestVersionId: string | null;
+            createdBy: string;
+            createdAt: components["schemas"]["Timestamp"];
+            updatedAt: components["schemas"]["Timestamp"];
+        };
+        AgentPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["AgentResponse"][];
+        };
+        /** @enum {string} */
+        AgentVersionStatus: "draft" | "published" | "deprecated";
+        AgentModelConfiguration: {
+            provider: string;
+            model: string;
+            temperature?: number;
+            maxTokens?: number;
+        };
+        /**
+         * @description Tools from one of the organization's tool servers (MCP): the agent
+         *     gets them as `<name>_<tool>`. An enabled entry must name an existing
+         *     tool server when the version is created.
+         */
+        AgentToolConfiguration: {
+            name: components["schemas"]["ToolServerName"];
+            enabled: boolean;
+            /** @description Which of the server's tools, by name; all of them when left out. */
+            tools?: components["schemas"]["ToolName"][];
+        };
+        /**
+         * @description A version of one of the organization's skills (`/skills`), pinned:
+         *     `version` is its number (`"3"`). An enabled entry must name an
+         *     active skill and one of its versions when the agent version is
+         *     created (`SKILL_INVALID` otherwise).
+         */
+        AgentSkillConfiguration: {
+            name: string;
+            version: string;
+            enabled: boolean;
+        };
+        /** @enum {string} */
+        AgentExecutionMode: "standard" | "coding";
+        AgentRuntimeConfiguration: {
+            provider: string;
+            executionMode: components["schemas"]["AgentExecutionMode"];
+            sandboxRequired: boolean;
+            /**
+             * @description The sandbox's network (../CLAUDE.md, sandboxes): `none` (the
+             *     default) or `restricted`, where it reaches only allowed hosts
+             *     through an allowlisting proxy: the platform's (package
+             *     registries, `SANDBOX_ALLOWED_HOSTS`) and `allowedHosts`.
+             * @enum {string}
+             */
+            networkAccess?: "none" | "restricted";
+            /** @description Hosts a `restricted` sandbox may reach on ports 80 and 443, besides the platform's; `*.example.com` for its subdomains. */
+            allowedHosts?: components["schemas"]["HostPattern"][];
+        };
+        HostPattern: string;
+        CreateAgentVersionRequest: {
+            instructions: string;
+            model: components["schemas"]["AgentModelConfiguration"];
+            capabilities: string[];
+            tools: components["schemas"]["AgentToolConfiguration"][];
+            skills: components["schemas"]["AgentSkillConfiguration"][];
+            runtime: components["schemas"]["AgentRuntimeConfiguration"];
+        };
+        AgentVersionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            agentId: string;
+            /** Format: uuid */
+            organizationId: string;
+            version: number;
+            status: components["schemas"]["AgentVersionStatus"];
+            instructions: string;
+            model: components["schemas"]["AgentModelConfiguration"];
+            capabilities: string[];
+            tools: components["schemas"]["AgentToolConfiguration"][];
+            skills: components["schemas"]["AgentSkillConfiguration"][];
+            runtime: components["schemas"]["AgentRuntimeConfiguration"];
+            createdBy: string;
+            createdAt: components["schemas"]["Timestamp"];
+            /** Format: date-time */
+            publishedAt: string | null;
+        };
+        AgentVersionPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["AgentVersionResponse"][];
+        };
+        /** @enum {string} */
+        WorkspaceStatus: "requested" | "provisioning" | "ready" | "in_use" | "suspended" | "stopping" | "destroyed" | "failed" | "expired";
+        /** @enum {string} */
+        RepositoryProvider: "github" | "gitlab" | "bitbucket";
+        RepositoryConfiguration: {
+            provider: components["schemas"]["RepositoryProvider"];
+            /** Format: uri */
+            repositoryUrl: string;
+            branch: string;
+            commitSha?: string;
+        };
+        /** @enum {string} */
+        NetworkAccess: "none" | "restricted" | "full";
+        SandboxConfiguration: {
+            provider: string;
+            image: string;
+            cpuLimit: number;
+            memoryLimitMb: number;
+            networkAccess: components["schemas"]["NetworkAccess"];
+            /** @description For `restricted` access, every host it may reach. */
+            allowedHosts?: components["schemas"]["HostPattern"][];
+        };
+        SandboxReference: {
+            provider: string;
+            resourceId: string;
+        };
+        CreateWorkspaceRequest: {
+            /** Format: uuid */
+            projectId: string;
+            /** Format: uuid */
+            executionId: string;
+            /** @description The repository to check out; none for a sandbox without one. */
+            repository?: components["schemas"]["RepositoryConfiguration"] | null;
+            sandbox: components["schemas"]["SandboxConfiguration"];
+            /** @description Absolute path inside the sandbox. */
+            workingDirectory: string;
+            /**
+             * Format: date-time
+             * @description Must be in the future.
+             */
+            expiresAt: string;
+        };
+        WorkspaceResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            projectId: string;
+            /** Format: uuid */
+            executionId: string;
+            status: components["schemas"]["WorkspaceStatus"];
+            repository: components["schemas"]["RepositoryConfiguration"] | null;
+            sandbox: components["schemas"]["SandboxConfiguration"];
+            sandboxReference: components["schemas"]["SandboxReference"] | null;
+            workingDirectory: string;
+            /** @description Hosts the sandbox tried to reach and its proxy refused (`restricted` access), recorded when it's destroyed. */
+            blockedHosts: string[];
+            failureReason: string | null;
+            expiresAt: components["schemas"]["Timestamp"];
+            createdAt: components["schemas"]["Timestamp"];
+            updatedAt: components["schemas"]["Timestamp"];
+            /** Format: date-time */
+            startedAt: string | null;
+            /** Format: date-time */
+            destroyedAt: string | null;
+        };
+        WorkspacePage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["WorkspaceResponse"][];
+        };
+        /**
+         * @description The lifecycle in `docs/tasks.md` (Task lifecycle).
+         * @enum {string}
+         */
+        TaskStatus: "blocked" | "queued" | "provisioning" | "running" | "verifying" | "awaiting_review" | "waiting" | "paused" | "delivering" | "succeeded" | "failed" | "cancelled";
+        /**
+         * @description Why a task failed. `access_denied`: Pistis refused a task token for
+         *     its service account (no role in the project, disabled, or not a
+         *     member of the organization).
+         * @enum {string}
+         */
+        TaskFailureReason: "agent_failed" | "verification_failed" | "rejected" | "timeout" | "budget_exceeded" | "infrastructure" | "subtask_failed" | "access_denied";
+        CreateTaskRequest: {
+            title: string;
+            instructions: string;
+            /**
+             * Format: uuid
+             * @description Its published version is pinned when the task is created.
+             */
+            agentId: string;
+            /**
+             * Format: uuid
+             * @description The Pistis service account the task runs as.
+             */
+            serviceAccountId: string;
+            /** @description Makes this a subtask (in the same project). */
+            parentTaskId?: string | null;
+            /** @description Tasks under the same top-level task that must succeed first. */
+            dependsOn?: string[];
+            review?: components["schemas"]["TaskReviewSettings"];
+            /** @description The definition of done (docs/tasks.md); checked after every run. Keys are unique. */
+            acceptanceCriteria?: components["schemas"]["AcceptanceCriterionRequest"][];
+            /**
+             * @description The repository the task works in: one of its project's links in
+             *     Proxenos (`docs/git.md`). A subtask without one works in its
+             *     parent's (the tree shares a branch).
+             */
+            repository?: components["schemas"]["TaskRepository"] | null;
+            /**
+             * @description A limit for the whole task tree's model calls (docs/models.md,
+             *     Budgets); only on a top-level task (`TASK_BUDGET_INVALID`).
+             *     Raise it later with `PUT …/tasks/{taskId}/budget`.
+             */
+            budgetUsd?: components["schemas"]["Usd"] | null;
+            concurrency?: components["schemas"]["TaskConcurrency"] | null;
+            /**
+             * @description Files the task starts from: files of its project in Loculus
+             *     (docs/files.md), uploaded first. The agent finds them in its
+             *     sandbox, in `/workspace/inputs`, so its version needs one
+             *     (else the execution fails without retrying).
+             */
+            inputFiles?: components["schemas"]["TaskInputFile"][];
+        };
+        TaskInputFile: {
+            /**
+             * Format: uuid
+             * @description A file of the task's project in Loculus.
+             */
+            fileId: string;
+        };
+        TaskRepository: {
+            /**
+             * Format: uuid
+             * @description A repository link of the task's project (Proxenos). Checked when the task runs.
+             */
+            linkId: string;
+        };
+        AcceptanceCriterionRequest: {
+            key: string;
+            description: string;
+            check: components["schemas"]["CriterionCheck"];
+        };
+        AcceptanceCriterion: components["schemas"]["AcceptanceCriterionRequest"] & {
+            /**
+             * @description Where it came from (spec requirements later).
+             * @enum {string}
+             */
+            source: "template" | "task";
+        };
+        /** @description How a criterion is checked; by Hephaestus, never by the agent's word. */
+        CriterionCheck: components["schemas"]["CommandCheck"] | components["schemas"]["ArtifactCheck"] | components["schemas"]["ManualCheck"];
+        /** @description Run in the task's sandbox (the agent version must need one); exit code 0 passes. */
+        CommandCheck: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "command";
+            command: string;
+            /** @description 300 if left out. */
+            timeoutSeconds?: number;
+        };
+        /** @description A structural check on the run's artifacts; every given condition must hold. */
+        ArtifactCheck: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "artifact";
+            /** @description The primary artifact's kind. */
+            primaryKind?: string;
+            /** @description Artifacts with these titles exist. */
+            titles?: string[];
+        };
+        /** @description Left to the reviewer; approving the draft confirms it. */
+        ManualCheck: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "manual";
+        };
+        TemplateInput: {
+            /** @description Referred to as `{{name}}` in the title and instructions. */
+            name: string;
+            description?: string;
+            /** @description true if left out. */
+            required?: boolean;
+        };
+        /** @description An organization-wide template version this project template builds on. */
+        TemplateExtends: {
+            /** Format: uuid */
+            templateId: string;
+            version: number;
+        };
+        /**
+         * @description One version of a template. A project template that `extends` an
+         *     organization template inherits its agent, title, inputs, criteria
+         *     and review settings, appends its own instructions to the
+         *     organization's, and can only add inputs and criteria.
+         */
+        TaskTemplateContent: {
+            title?: string;
+            instructions?: string;
+            /** Format: uuid */
+            agentId?: string;
+            inputs?: components["schemas"]["TemplateInput"][];
+            acceptanceCriteria?: components["schemas"]["AcceptanceCriterionRequest"][];
+            review?: components["schemas"]["TaskReviewSettings"];
+            extends?: components["schemas"]["TemplateExtends"];
+        };
+        CreateTaskTemplateRequest: components["schemas"]["TaskTemplateContent"] & {
+            name: string;
+            description?: string;
+            /**
+             * Format: uuid
+             * @description A project template; organization-wide without it.
+             */
+            projectId?: string;
+        };
+        TaskTemplateResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            projectId: string | null;
+            name: string;
+            description: string;
+            /** @enum {string} */
+            status: "active" | "archived";
+            latestVersion: number;
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        TaskTemplatePage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["TaskTemplateResponse"][];
+        };
+        /** @description What a task from this version gets, with what it extends merged in. */
+        EffectiveTaskTemplate: {
+            title: string;
+            instructions: string;
+            /** Format: uuid */
+            agentId: string;
+            inputs: components["schemas"]["TemplateInput"][];
+            acceptanceCriteria: components["schemas"]["AcceptanceCriterionRequest"][];
+            review: components["schemas"]["TaskReviewSettings"];
+        };
+        TaskTemplateVersionResponse: {
+            /** Format: uuid */
+            templateId: string;
+            version: number;
+            content: components["schemas"]["TaskTemplateContent"];
+            effective: components["schemas"]["EffectiveTaskTemplate"];
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        TaskTemplateVersionPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["TaskTemplateVersionResponse"][];
+        };
+        CreateTaskFromTemplateRequest: {
+            /** @description The latest if left out. */
+            version?: number;
+            /** @description Values for the template's inputs, by name. */
+            inputs?: {
+                [key: string]: string;
+            };
+            /** Format: uuid */
+            serviceAccountId: string;
+            /** Format: uuid */
+            parentTaskId?: string;
+            dependsOn?: string[];
+            /** @description Added to the template's (never replacing them). */
+            acceptanceCriteria?: components["schemas"]["AcceptanceCriterionRequest"][];
+            /** @description Added to the template's. */
+            review?: components["schemas"]["TaskReviewSettings"];
+            /** @description The repository the task works in, as for a task written by hand. */
+            repository?: components["schemas"]["TaskRepository"];
+            concurrency?: components["schemas"]["TaskConcurrency"] | null;
+        };
+        /**
+         * @description A concurrency key (docs/tasks.md, Concurrency): what to do with a new
+         *     top-level task while an unfinished one with the same key exists in
+         *     the project. `queue`: it waits until those have finished (the
+         *     runner doesn't start it before); `cancel-previous`: they're
+         *     cancelled; `skip`: it isn't created (`TASK_CONCURRENCY_SKIPPED`).
+         *     Only on top-level tasks (`TASK_CONCURRENCY_INVALID`).
+         */
+        TaskConcurrency: {
+            key: string;
+            /** @enum {string} */
+            policy: "queue" | "cancel-previous" | "skip";
+        };
+        /**
+         * @description Which of the task's artifacts need approval before they're final
+         *     (docs/tasks.md, What needs approval). Pinned when the task is
+         *     created; automations and Themis policy will add to it later.
+         */
+        TaskReviewSettings: {
+            /** @description Artifact kinds that need approval; `*` for every kind. Empty for none. */
+            artifactKinds: string[];
+        };
+        TaskResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            projectId: string;
+            /** Format: uuid */
+            parentTaskId: string | null;
+            /**
+             * Format: uuid
+             * @description The tree's root (its own ID for a top-level task).
+             */
+            topLevelTaskId: string;
+            title: string;
+            instructions: string;
+            /** Format: uuid */
+            agentId: string;
+            /**
+             * Format: uuid
+             * @description The agent version pinned when the task was created.
+             */
+            agentVersionId: string;
+            /** Format: uuid */
+            serviceAccountId: string;
+            /** @description The `sub` of whoever created the task. */
+            requestedBy: string;
+            status: components["schemas"]["TaskStatus"];
+            /** @description While `paused`, the budget that ran out; null otherwise. */
+            pausedFor: components["schemas"]["BudgetScope"] | null;
+            failureReason: components["schemas"]["TaskFailureReason"] | null;
+            dependsOn: string[];
+            /** @description 1, plus one per retry. */
+            attempt: number;
+            /**
+             * Format: uuid
+             * @description The outcome of a succeeded task (docs/tasks.md, Primary artifact); null otherwise.
+             */
+            primaryArtifactId: string | null;
+            review: components["schemas"]["TaskReviewSettings"];
+            /** @description How many times the task has waited for review (0 before the first). */
+            reviewRound: number;
+            acceptanceCriteria: components["schemas"]["AcceptanceCriterion"][];
+            /** @description The repository it works in (its own, or its parent's), if any. */
+            repository: components["schemas"]["TaskRepository"] | null;
+            concurrency: components["schemas"]["TaskConcurrency"] | null;
+            /** @description Files the task starts from (Loculus), in `/workspace/inputs` of its sandbox. */
+            inputFiles: components["schemas"]["TaskInputFile"][];
+            /**
+             * Format: uuid
+             * @description The template it was created from, if any.
+             */
+            taskTemplateId: string | null;
+            /** @description Pinned when it was created, like the agent version. */
+            taskTemplateVersion: number | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            finishedAt: string | null;
+            /** @description The `aggregateVersion` of its latest event. */
+            version: number;
+        };
+        TaskPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["TaskResponse"][];
+        };
+        /**
+         * @description `pending`: recorded while its execution runs; becomes `final` when
+         *     the task succeeds, `partial` when the execution fails. `draft`,
+         *     `rejected` and `changes_requested` come with reviews.
+         * @enum {string}
+         */
+        ArtifactStatus: "pending" | "draft" | "final" | "rejected" | "changes_requested" | "partial";
+        ArtifactBase: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            projectId: string;
+            /** Format: uuid */
+            taskId: string;
+            /** Format: uuid */
+            executionId: string;
+            /** Format: uuid */
+            agentVersionId: string;
+            kind: string;
+            status: components["schemas"]["ArtifactStatus"];
+            primary: boolean;
+            /** Format: uuid */
+            revisionOf: string | null;
+            title: string;
+            metadata: {
+                [key: string]: string;
+            };
+            /** @description The decision on a draft; null until someone made one. */
+            review: components["schemas"]["ArtifactReview"] | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            version: number;
+        };
+        TextArtifact: components["schemas"]["ArtifactBase"] & {
+            /** @constant */
+            kind: "text";
+            /** @enum {string} */
+            format: "markdown" | "plain";
+            content: string;
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "text";
+        };
+        JsonArtifact: components["schemas"]["ArtifactBase"] & {
+            /** @constant */
+            kind: "json";
+            /** @description An optional identifier of the content's schema. */
+            schema: string | null;
+            content: unknown;
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "json";
+        };
+        VerificationArtifact: components["schemas"]["ArtifactBase"] & {
+            /** @constant */
+            kind: "verification";
+            /** @description Within its execution: 1, plus one per run after failed checks. */
+            round: number;
+            results: components["schemas"]["CriterionResult"][];
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "verification";
+        };
+        PullRequestArtifact: components["schemas"]["ArtifactBase"] & {
+            /** @constant */
+            kind: "pull_request";
+            /**
+             * Format: uuid
+             * @description The repository link (Proxenos).
+             */
+            linkId: string;
+            /** @description `owner/name`. */
+            repository: string;
+            /** @description `aether/<top-level task ID>`. */
+            branch: string;
+            /** @description What the pull request goes into (the default branch). */
+            baseBranch: string;
+            /** @description The branch's head when it was pushed. */
+            headSha: string;
+            /** @description The pull request's body (Markdown). */
+            description: string;
+            /** @description The pull request on GitHub, once delivered; null before. */
+            pullRequest: {
+                number: number;
+                /** Format: uri */
+                url: string;
+                /** @enum {string} */
+                state: "open" | "merged" | "closed";
+            } | null;
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "pull_request";
+        };
+        FileArtifact: components["schemas"]["ArtifactBase"] & {
+            /** @constant */
+            kind: "file";
+            /**
+             * Format: uuid
+             * @description The file in Loculus.
+             */
+            fileId: string;
+            fileName: string;
+            contentType: string;
+            sizeBytes: number;
+            sha256: string;
+        } & {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "file";
+        };
+        CriterionResult: {
+            key: string;
+            /** @enum {string} */
+            outcome: "passed" | "failed" | "manual";
+            /** @description What the check said: a command's output (its last 16 KiB), or why it failed. */
+            output: string;
+        };
+        /** @description One artifact; `kind` says which (an open set). */
+        ArtifactResponse: components["schemas"]["TextArtifact"] | components["schemas"]["JsonArtifact"] | components["schemas"]["VerificationArtifact"] | components["schemas"]["PullRequestArtifact"] | components["schemas"]["FileArtifact"];
+        ArtifactReview: {
+            /** @enum {string} */
+            decision: "approved" | "rejected" | "changes_requested";
+            comments: components["schemas"]["ReviewComment"][];
+            /** @description The reviewer's `sub`. */
+            decidedBy: string;
+            /** Format: date-time */
+            decidedAt: string;
+        };
+        ReviewComment: {
+            body: string;
+            /** @description Where in the artifact it points (a line, a JSON pointer, a heading); free-form. */
+            anchor?: string;
+        };
+        ReviewDecisionRequest: {
+            comment?: string;
+        };
+        RequestChangesRequest: {
+            comments: components["schemas"]["ReviewComment"][];
+        };
+        ArtifactPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["ArtifactResponse"][];
+        };
+        /**
+         * @description `paused`: a budget ran out (docs/models.md); the task resumes in a new execution.
+         * @enum {string}
+         */
+        ExecutionStatus: "provisioning" | "running" | "completed" | "failed" | "cancelled" | "paused";
+        /**
+         * @description `infrastructure` (a crash, a missed heartbeat, a provisioning timeout,
+         *     an unreachable dependency) is retried automatically, up to a limit;
+         *     `interrupted` (Hephaestus shut down) is retried without counting
+         *     against it. The others fail the task.
+         * @enum {string}
+         */
+        ExecutionFailureReason: "agent_failed" | "timeout" | "infrastructure" | "access_denied" | "interrupted" | "verification_failed";
+        ExecutionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            taskId: string;
+            /** @description The task's attempt it belongs to. */
+            attempt: number;
+            /** @description 1, 2, … within the task. */
+            number: number;
+            status: components["schemas"]["ExecutionStatus"];
+            failureReason: components["schemas"]["ExecutionFailureReason"] | null;
+            /** @description What went wrong, for people; never contains secrets. */
+            error: string | null;
+            /** @description What the agent reported when it finished (until artifacts exist). */
+            summary: string | null;
+            usage: components["schemas"]["ExecutionUsage"];
+            repository: components["schemas"]["ExecutionRepository"] | null;
+            sandbox: components["schemas"]["ExecutionSandbox"] | null;
+            /**
+             * @description The execution's trace (OpenTelemetry, 32 hex characters): its
+             *     agent run, model and tool calls, in Jaeger and Langfuse. Null
+             *     when Hephaestus wasn't tracing (no `OTEL_EXPORTER_OTLP_ENDPOINT`).
+             */
+            traceId: string | null;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            endedAt: string | null;
+        };
+        /**
+         * @description The sandbox the execution ran in (its workspace), and what it could
+         *     reach: none for a version without `runtime.sandboxRequired`. Seen
+         *     with `task:read`, unlike the workspace itself.
+         */
+        ExecutionSandbox: {
+            /** Format: uuid */
+            workspaceId: string;
+            networkAccess: components["schemas"]["NetworkAccess"];
+            /** @description For `restricted` access, every host it could reach (the platform's and the agent version's); empty otherwise. */
+            allowedHosts: string[];
+            /**
+             * @description Hosts it tried to reach and its proxy refused, recorded when the
+             *     sandbox is destroyed (so empty while it runs). Candidates for
+             *     the agent version's `allowedHosts`.
+             */
+            blockedHosts: string[];
+        };
+        /**
+         * @description The repository the execution worked in (`docs/git.md`, Inside the
+         *     sandbox): checked out at `branch` from `baseSha`, and, once the run
+         *     succeeded, what the agent committed on top (taken out of the sandbox
+         *     as a bundle) and the branch's head once they were pushed (rebased
+         *     onto whatever the branch had by then). Null until then.
+         */
+        ExecutionRepository: {
+            /** Format: uuid */
+            linkId: string;
+            /** @description `owner/name`. */
+            fullName: string;
+            /** @description The task tree's branch, `aether/<top-level task ID>`. */
+            branch: string;
+            /** @description The commit the execution started from. */
+            baseSha: string;
+            /** @description The last commit at the end (the base if nothing was committed). */
+            headSha: string | null;
+            /** @description Commits on top of the base. */
+            commits: number | null;
+            /** @description Changes left uncommitted in the sandbox; they're not kept. */
+            uncommittedChanges: boolean | null;
+            /** @description The branch's head after the push (differs from `headSha` when the commits were rebased); null when nothing was pushed. */
+            pushedSha: string | null;
+        };
+        /**
+         * @description The model calls the execution made through the model gateway, and
+         *     their tokens (docs/models.md, Metering). Tokens a provider didn't
+         *     report count as 0.
+         */
+        ExecutionUsage: {
+            modelCalls: number;
+            /** @description Every input token, cache reads and writes included. */
+            inputTokens: number;
+            outputTokens: number;
+            cacheReadTokens: number;
+            cacheWriteTokens: number;
+            /**
+             * @description The calls' cost at the prices in force when they were made;
+             *     null when none of them had a price (a model outside the
+             *     catalogue).
+             */
+            costUsd: components["schemas"]["Usd"] | null;
+        };
+        ExecutionPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["ExecutionResponse"][];
+        };
+        PageMeta: {
+            nextCursor: components["schemas"]["NextCursor"];
+        };
+        /**
+         * @description Providers the model gateway can call: each needs code (Mastra's
+         *     model router) and a key in OpenBao (`orgs/{organizationId}/llm/{provider}`
+         *     or `platform/llm/{provider}`), so this list only changes with a release.
+         *     `ollama` is a server the organization runs: its settings are a
+         *     `baseUrl` and an optional key, its models aren't in the catalogue
+         *     (any model the server has can be chosen) and its calls are unpriced.
+         * @enum {string}
+         */
+        ModelProvider: "anthropic" | "openai" | "google" | "mistral" | "ollama";
+        /**
+         * @description `active`: new agent versions can choose it. `deprecated`: versions
+         *     that already have it keep running, new ones can't choose it.
+         *     `retired`: the gateway refuses to call it.
+         * @enum {string}
+         */
+        ModelStatus: "active" | "deprecated" | "retired";
+        /** @description US dollars as a decimal string, at most 6 decimals (`../docs/api.md`). */
+        Usd: string;
+        /** @description US dollars per million tokens, a decimal string with at most 6 decimals. */
+        PricePerMTok: string;
+        /**
+         * @description Prices per million tokens. Cache reads and writes without a price
+         *     cost what other input does (e.g. OpenAI doesn't charge for writing
+         *     its cache).
+         */
+        ModelRates: {
+            inputPerMTok: components["schemas"]["PricePerMTok"];
+            outputPerMTok: components["schemas"]["PricePerMTok"];
+            cacheReadPerMTok?: components["schemas"]["PricePerMTok"] | null;
+            /** @description Writing to the provider's shortest-lived cache (Anthropic's 5 minutes). */
+            cacheWritePerMTok?: components["schemas"]["PricePerMTok"] | null;
+        };
+        /**
+         * @description Higher prices for a call whose input (cache reads and writes
+         *     included) is over `aboveInputTokens`: the whole call is priced at
+         *     these rates (e.g. Claude Haiku 5.5 above 100,000 tokens).
+         */
+        LongContextRates: components["schemas"]["ModelRates"] & {
+            aboveInputTokens: number;
+        };
+        ModelPriceInput: components["schemas"]["ModelRates"] & {
+            longContext?: components["schemas"]["LongContextRates"] | null;
+        };
+        AddModelPriceRequest: components["schemas"]["ModelPriceInput"] & {
+            /**
+             * Format: date-time
+             * @description When the price starts; now if absent. After the model's latest price.
+             */
+            effectiveFrom?: string;
+        };
+        ModelPriceResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            modelId: string;
+            /** Format: date-time */
+            effectiveFrom: string;
+            inputPerMTok: components["schemas"]["PricePerMTok"];
+            outputPerMTok: components["schemas"]["PricePerMTok"];
+            cacheReadPerMTok: components["schemas"]["PricePerMTok"] | null;
+            cacheWritePerMTok: components["schemas"]["PricePerMTok"] | null;
+            longContext: components["schemas"]["LongContextRates"] | null;
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ModelPricePage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["ModelPriceResponse"][];
+        };
+        CreateModelRequest: {
+            provider: components["schemas"]["ModelProvider"];
+            /** @description The provider's API model ID (`claude-sonnet-5-5`), as agent versions name it. */
+            model: string;
+            /** @description For people (`Claude Sonnet 5.5`). */
+            name: string;
+            contextWindow?: number | null;
+            maxOutputTokens?: number | null;
+            price: components["schemas"]["ModelPriceInput"];
+        };
+        UpdateModelRequest: {
+            name: string;
+            status: components["schemas"]["ModelStatus"];
+            contextWindow: number | null;
+            maxOutputTokens: number | null;
+        };
+        ModelResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @description A `ModelProvider` (a string here, so a provider removed from the list still reads). */
+            provider: string;
+            model: string;
+            name: string;
+            status: components["schemas"]["ModelStatus"];
+            contextWindow: number | null;
+            maxOutputTokens: number | null;
+            /** @description The price in force now; null before its first one starts. */
+            price: components["schemas"]["ModelPriceResponse"] | null;
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ModelPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["ModelResponse"][];
+        };
+        /**
+         * @description What a budget limits (docs/models.md, Budgets): an organization's,
+         *     a project's or an agent's model calls per calendar month (UTC), or a
+         *     task tree's over its whole life.
+         * @enum {string}
+         */
+        BudgetScope: "organization" | "project" | "agent" | "task_tree";
+        SetBudgetRequest: {
+            /** @description The limit; null for none. */
+            limitUsd: components["schemas"]["Usd"] | null;
+        };
+        BudgetResponse: {
+            scope: components["schemas"]["BudgetScope"];
+            /**
+             * Format: uuid
+             * @description The organization, project, agent or top-level task.
+             */
+            scopeId: string;
+            limitUsd: components["schemas"]["Usd"] | null;
+            /** @description What the scope's model calls cost in the window (this month; a task tree's whole life). */
+            spentUsd: components["schemas"]["Usd"];
+            /**
+             * Format: date-time
+             * @description The start of this month (UTC); null for a task tree.
+             */
+            windowStart: string | null;
+            /** @description At this share of the limit, `budget.threshold-reached` is published (once per window). */
+            thresholdPercent: number;
+            /**
+             * Format: date-time
+             * @description When the limit was last set; null if it never was.
+             */
+            updatedAt: string | null;
+        };
+        SetModelKeyRequest: {
+            /** @description The provider's API key; write-only (stored in OpenBao, never returned). Required except for `ollama`, where it's optional. */
+            apiKey?: string;
+            /**
+             * Format: uri
+             * @description For `ollama` only (and required there): where its server is, e.g.
+             *     `https://ollama.example.com` (Hephaestus calls its OpenAI-compatible
+             *     API at `<baseUrl>/v1`). `https://`; `http://` and private addresses
+             *     only where `MODEL_ENDPOINT_ALLOW_PRIVATE` allows them.
+             */
+            baseUrl?: string;
+        };
+        ModelKeyResponse: {
+            provider: components["schemas"]["ModelProvider"];
+            /** @enum {string} */
+            scope: "organization" | "agent";
+            /** Format: uuid */
+            agentId: string | null;
+            /** @description The key's last four characters (`…a1b2`), to tell keys apart; null for an `ollama` server without one. */
+            hint: string | null;
+            /** @description For `ollama`, its server; null otherwise. */
+            baseUrl: string | null;
+            updatedBy: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        OllamaModelList: {
+            items: {
+                /** @description As an agent version names it, e.g. `qwen3:8b`. */
+                name: string;
+                sizeBytes: number | null;
+            }[];
+        };
+        ModelKeyList: {
+            items: components["schemas"]["ModelKeyResponse"][];
+        };
+        /** @description Lowercase letters, digits and hyphens, starting with a letter; unique in the organization. */
+        ToolServerName: string;
+        ToolName: string;
+        /**
+         * @description How Hephaestus authenticates to the server: `none`; `header`, sending
+         *     the credential in `headerName`; or `task-token`, sending the running
+         *     task's own Pistis token as a bearer token (only to servers whose
+         *     origin the platform trusts, `TOOL_SERVER_TRUSTED_ORIGINS`: Aether-os's
+         *     own, such as Seshat).
+         * @enum {string}
+         */
+        ToolServerAuthType: "none" | "header" | "task-token";
+        ToolServerAuth: {
+            type: components["schemas"]["ToolServerAuthType"];
+            /** @description For `header`; `Authorization` when left out. */
+            headerName?: string;
+        };
+        /**
+         * Format: uri
+         * @description The MCP endpoint (Streamable HTTP); `https://`, or `http://` only where Hephaestus may reach private addresses (local development).
+         */
+        ToolServerUrl: string;
+        CreateToolServerRequest: {
+            name: components["schemas"]["ToolServerName"];
+            description?: string;
+            url: components["schemas"]["ToolServerUrl"];
+            auth: components["schemas"]["ToolServerAuth"];
+        };
+        UpdateToolServerRequest: {
+            description: string;
+            url: components["schemas"]["ToolServerUrl"];
+            auth: components["schemas"]["ToolServerAuth"];
+        };
+        SetToolServerCredentialRequest: {
+            value: string;
+        };
+        ToolServerCredential: {
+            /** @description The last four characters, e.g. `…ab12`. */
+            hint: string;
+            updatedBy: string;
+            updatedAt: components["schemas"]["Timestamp"];
+        };
+        ToolServerResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            name: components["schemas"]["ToolServerName"];
+            description: string;
+            url: string;
+            auth: {
+                type: components["schemas"]["ToolServerAuthType"];
+                headerName: string | null;
+            };
+            /** @description That a `header` credential is set; null when none is. */
+            credential: components["schemas"]["ToolServerCredential"] | null;
+            createdBy: string;
+            createdAt: components["schemas"]["Timestamp"];
+            updatedAt: components["schemas"]["Timestamp"];
+        };
+        ToolServerList: {
+            items: components["schemas"]["ToolServerResponse"][];
+        };
+        ToolDescription: {
+            name: string;
+            description: string;
+        };
+        ToolList: {
+            items: components["schemas"]["ToolDescription"][];
+        };
+        /** @description Lowercase letters, digits and hyphens (the Agent Skills format), unique in the organization. */
+        SkillName: string;
+        /** @enum {string} */
+        SkillStatus: "active" | "archived";
+        SkillFile: {
+            /** @description Relative to the skill's folder, e.g. `SKILL.md` or `references/checklist.md`; no `..`. */
+            path: string;
+            /** @description The file's text (UTF-8). */
+            content: string;
+        };
+        /** @description The skill's folder, with `SKILL.md` at its root; at most 100 files and 1 MiB in all. */
+        SkillFiles: components["schemas"]["SkillFile"][];
+        CreateSkillRequest: {
+            name: components["schemas"]["SkillName"];
+            files: components["schemas"]["SkillFiles"];
+        };
+        CreateSkillVersionRequest: {
+            files: components["schemas"]["SkillFiles"];
+        };
+        SkillResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            name: components["schemas"]["SkillName"];
+            /** @description The latest version's, from its `SKILL.md`. */
+            description: string;
+            status: components["schemas"]["SkillStatus"];
+            latestVersion: number;
+            createdBy: string;
+            createdAt: components["schemas"]["Timestamp"];
+            updatedAt: components["schemas"]["Timestamp"];
+        };
+        SkillPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["SkillResponse"][];
+        };
+        SkillVersionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            skillId: string;
+            /** Format: uuid */
+            organizationId: string;
+            name: components["schemas"]["SkillName"];
+            version: number;
+            description: string;
+            sizeBytes: number;
+            fileCount: number;
+            /** @description Only when reading one version. */
+            files?: components["schemas"]["SkillFile"][];
+            createdBy: string;
+            createdAt: components["schemas"]["Timestamp"];
+        };
+        SkillVersionPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["SkillVersionResponse"][];
+        };
+        /** @description Pass as `cursor` to get the next page; `null` on the last page. */
+        NextCursor: string | null;
+        /** @description One invalid input. Exactly one of `pointer` and `parameter` is set. */
+        ProblemFieldError: {
+            /** @description JSON Pointer (RFC 6901) into the request body, e.g. `/name`. */
+            pointer: string | null;
+            /** @description Name of the invalid query or path parameter. */
+            parameter: string | null;
+            /** @enum {string} */
+            code: "REQUIRED" | "UNKNOWN_FIELD" | "INVALID";
+            detail: string;
+        };
     };
-    FileArtifact: components["schemas"]["ArtifactBase"] & {
-      /** @constant */
-      kind: "file";
-      /**
-       * Format: uuid
-       * @description The file in Loculus.
-       */
-      fileId: string;
-      fileName: string;
-      contentType: string;
-      sizeBytes: number;
-      sha256: string;
-    } & {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      kind: "file";
+    responses: {
+        /**
+         * @description `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+         *     access token (signature, issuer, audience, expiry).
+         */
+        Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description `FORBIDDEN`: the token is valid but lacks the permission
+         *     (`x-permission` on the operation). Another organization's resources
+         *     are 404, not 403.
+         */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        ValidationError: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content?: never;
+        };
+        /** @description `NOT_FOUND`: the resource doesn't exist. */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description `UNAVAILABLE`: a service this request depends on can't be reached
+         *     right now. Safe to retry.
+         */
+        Unavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description A business rule forbids this (409, with a `DomainErrorCode`). */
+        DomainError: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["DomainProblem"];
+            };
+        };
+        /** @description Transition applied */
+        WorkspaceTransition: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["WorkspaceResponse"];
+            };
+        };
+        /**
+         * @description The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+         *     `INVALID_CURSOR`.
+         */
+        BadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
     };
-    CriterionResult: {
-      key: string;
-      /** @enum {string} */
-      outcome: "passed" | "failed" | "manual";
-      /** @description What the check said: a command's output (its last 16 KiB), or why it failed. */
-      output: string;
+    parameters: {
+        OrganizationId: string;
+        AgentId: string;
+        VersionId: string;
+        WorkspaceId: string;
+        ProjectId: string;
+        TaskId: string;
+        TemplateId: string;
+        ArtifactId: string;
+        Provider: components["schemas"]["ModelProvider"];
+        ModelId: string;
+        SkillId: string;
+        ToolServerId: string;
+        /** @description Page size. */
+        Limit: number;
+        /**
+         * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+         *     the first page. A cursor only works with the filters it was made with
+         *     (otherwise `400 INVALID_CURSOR`).
+         */
+        Cursor: string;
     };
-    /** @description One artifact; `kind` says which (an open set). */
-    ArtifactResponse:
-      | components["schemas"]["TextArtifact"]
-      | components["schemas"]["JsonArtifact"]
-      | components["schemas"]["VerificationArtifact"]
-      | components["schemas"]["PullRequestArtifact"]
-      | components["schemas"]["FileArtifact"];
-    ArtifactReview: {
-      /** @enum {string} */
-      decision: "approved" | "rejected" | "changes_requested";
-      comments: components["schemas"]["ReviewComment"][];
-      /** @description The reviewer's `sub`. */
-      decidedBy: string;
-      /** Format: date-time */
-      decidedAt: string;
-    };
-    ReviewComment: {
-      body: string;
-      /** @description Where in the artifact it points (a line, a JSON pointer, a heading); free-form. */
-      anchor?: string;
-    };
-    ReviewDecisionRequest: {
-      comment?: string;
-    };
-    RequestChangesRequest: {
-      comments: components["schemas"]["ReviewComment"][];
-    };
-    ArtifactPage: components["schemas"]["PageMeta"] & {
-      items: components["schemas"]["ArtifactResponse"][];
-    };
-    /**
-     * @description `paused`: a budget ran out (docs/models.md); the task resumes in a new execution.
-     * @enum {string}
-     */
-    ExecutionStatus:
-      | "provisioning"
-      | "running"
-      | "completed"
-      | "failed"
-      | "cancelled"
-      | "paused";
-    /**
-     * @description `infrastructure` (a crash, a missed heartbeat, a provisioning timeout,
-     *     an unreachable dependency) is retried automatically, up to a limit;
-     *     `interrupted` (Hephaestus shut down) is retried without counting
-     *     against it. The others fail the task.
-     * @enum {string}
-     */
-    ExecutionFailureReason:
-      | "agent_failed"
-      | "timeout"
-      | "infrastructure"
-      | "access_denied"
-      | "interrupted"
-      | "verification_failed";
-    ExecutionResponse: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      taskId: string;
-      /** @description The task's attempt it belongs to. */
-      attempt: number;
-      /** @description 1, 2, … within the task. */
-      number: number;
-      status: components["schemas"]["ExecutionStatus"];
-      failureReason: components["schemas"]["ExecutionFailureReason"] | null;
-      /** @description What went wrong, for people; never contains secrets. */
-      error: string | null;
-      /** @description What the agent reported when it finished (until artifacts exist). */
-      summary: string | null;
-      usage: components["schemas"]["ExecutionUsage"];
-      repository: components["schemas"]["ExecutionRepository"] | null;
-      sandbox: components["schemas"]["ExecutionSandbox"] | null;
-      /**
-       * @description The execution's trace (OpenTelemetry, 32 hex characters): its
-       *     agent run, model and tool calls, in Jaeger and Langfuse. Null
-       *     when Hephaestus wasn't tracing (no `OTEL_EXPORTER_OTLP_ENDPOINT`).
-       */
-      traceId: string | null;
-      /** Format: date-time */
-      startedAt: string;
-      /** Format: date-time */
-      endedAt: string | null;
-    };
-    /**
-     * @description The sandbox the execution ran in (its workspace), and what it could
-     *     reach: none for a version without `runtime.sandboxRequired`. Seen
-     *     with `task:read`, unlike the workspace itself.
-     */
-    ExecutionSandbox: {
-      /** Format: uuid */
-      workspaceId: string;
-      networkAccess: components["schemas"]["NetworkAccess"];
-      /** @description For `restricted` access, every host it could reach (the platform's and the agent version's); empty otherwise. */
-      allowedHosts: string[];
-      /**
-       * @description Hosts it tried to reach and its proxy refused, recorded when the
-       *     sandbox is destroyed (so empty while it runs). Candidates for
-       *     the agent version's `allowedHosts`.
-       */
-      blockedHosts: string[];
-    };
-    /**
-     * @description The repository the execution worked in (`docs/git.md`, Inside the
-     *     sandbox): checked out at `branch` from `baseSha`, and, once the run
-     *     succeeded, what the agent committed on top (taken out of the sandbox
-     *     as a bundle) and the branch's head once they were pushed (rebased
-     *     onto whatever the branch had by then). Null until then.
-     */
-    ExecutionRepository: {
-      /** Format: uuid */
-      linkId: string;
-      /** @description `owner/name`. */
-      fullName: string;
-      /** @description The task tree's branch, `aether/<top-level task ID>`. */
-      branch: string;
-      /** @description The commit the execution started from. */
-      baseSha: string;
-      /** @description The last commit at the end (the base if nothing was committed). */
-      headSha: string | null;
-      /** @description Commits on top of the base. */
-      commits: number | null;
-      /** @description Changes left uncommitted in the sandbox; they're not kept. */
-      uncommittedChanges: boolean | null;
-      /** @description The branch's head after the push (differs from `headSha` when the commits were rebased); null when nothing was pushed. */
-      pushedSha: string | null;
-    };
-    /**
-     * @description The model calls the execution made through the model gateway, and
-     *     their tokens (docs/models.md, Metering). Tokens a provider didn't
-     *     report count as 0.
-     */
-    ExecutionUsage: {
-      modelCalls: number;
-      /** @description Every input token, cache reads and writes included. */
-      inputTokens: number;
-      outputTokens: number;
-      cacheReadTokens: number;
-      cacheWriteTokens: number;
-      /**
-       * @description The calls' cost at the prices in force when they were made;
-       *     null when none of them had a price (a model outside the
-       *     catalogue).
-       */
-      costUsd: components["schemas"]["Usd"] | null;
-    };
-    ExecutionPage: components["schemas"]["PageMeta"] & {
-      items: components["schemas"]["ExecutionResponse"][];
-    };
-    PageMeta: {
-      nextCursor: components["schemas"]["NextCursor"];
-    };
-    /**
-     * @description Providers the model gateway can call: each needs code (Mastra's
-     *     model router) and a key in OpenBao (`orgs/{organizationId}/llm/{provider}`
-     *     or `platform/llm/{provider}`), so this list only changes with a release.
-     *     `ollama` is a server the organization runs: its settings are a
-     *     `baseUrl` and an optional key, its models aren't in the catalogue
-     *     (any model the server has can be chosen) and its calls are unpriced.
-     * @enum {string}
-     */
-    ModelProvider: "anthropic" | "openai" | "google" | "mistral" | "ollama";
-    /**
-     * @description `active`: new agent versions can choose it. `deprecated`: versions
-     *     that already have it keep running, new ones can't choose it.
-     *     `retired`: the gateway refuses to call it.
-     * @enum {string}
-     */
-    ModelStatus: "active" | "deprecated" | "retired";
-    /** @description US dollars as a decimal string, at most 6 decimals (`../docs/api.md`). */
-    Usd: string;
-    /** @description US dollars per million tokens, a decimal string with at most 6 decimals. */
-    PricePerMTok: string;
-    /**
-     * @description Prices per million tokens. Cache reads and writes without a price
-     *     cost what other input does (e.g. OpenAI doesn't charge for writing
-     *     its cache).
-     */
-    ModelRates: {
-      inputPerMTok: components["schemas"]["PricePerMTok"];
-      outputPerMTok: components["schemas"]["PricePerMTok"];
-      cacheReadPerMTok?: components["schemas"]["PricePerMTok"] | null;
-      /** @description Writing to the provider's shortest-lived cache (Anthropic's 5 minutes). */
-      cacheWritePerMTok?: components["schemas"]["PricePerMTok"] | null;
-    };
-    /**
-     * @description Higher prices for a call whose input (cache reads and writes
-     *     included) is over `aboveInputTokens`: the whole call is priced at
-     *     these rates (e.g. Claude Haiku 5.5 above 100,000 tokens).
-     */
-    LongContextRates: components["schemas"]["ModelRates"] & {
-      aboveInputTokens: number;
-    };
-    ModelPriceInput: components["schemas"]["ModelRates"] & {
-      longContext?: components["schemas"]["LongContextRates"] | null;
-    };
-    AddModelPriceRequest: components["schemas"]["ModelPriceInput"] & {
-      /**
-       * Format: date-time
-       * @description When the price starts; now if absent. After the model's latest price.
-       */
-      effectiveFrom?: string;
-    };
-    ModelPriceResponse: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      modelId: string;
-      /** Format: date-time */
-      effectiveFrom: string;
-      inputPerMTok: components["schemas"]["PricePerMTok"];
-      outputPerMTok: components["schemas"]["PricePerMTok"];
-      cacheReadPerMTok: components["schemas"]["PricePerMTok"] | null;
-      cacheWritePerMTok: components["schemas"]["PricePerMTok"] | null;
-      longContext: components["schemas"]["LongContextRates"] | null;
-      createdBy: string;
-      /** Format: date-time */
-      createdAt: string;
-    };
-    ModelPricePage: components["schemas"]["PageMeta"] & {
-      items: components["schemas"]["ModelPriceResponse"][];
-    };
-    CreateModelRequest: {
-      provider: components["schemas"]["ModelProvider"];
-      /** @description The provider's API model ID (`claude-sonnet-5-5`), as agent versions name it. */
-      model: string;
-      /** @description For people (`Claude Sonnet 5.5`). */
-      name: string;
-      contextWindow?: number | null;
-      maxOutputTokens?: number | null;
-      price: components["schemas"]["ModelPriceInput"];
-    };
-    UpdateModelRequest: {
-      name: string;
-      status: components["schemas"]["ModelStatus"];
-      contextWindow: number | null;
-      maxOutputTokens: number | null;
-    };
-    ModelResponse: {
-      /** Format: uuid */
-      id: string;
-      /** @description A `ModelProvider` (a string here, so a provider removed from the list still reads). */
-      provider: string;
-      model: string;
-      name: string;
-      status: components["schemas"]["ModelStatus"];
-      contextWindow: number | null;
-      maxOutputTokens: number | null;
-      /** @description The price in force now; null before its first one starts. */
-      price: components["schemas"]["ModelPriceResponse"] | null;
-      version: number;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      updatedAt: string;
-    };
-    ModelPage: components["schemas"]["PageMeta"] & {
-      items: components["schemas"]["ModelResponse"][];
-    };
-    /**
-     * @description What a budget limits (docs/models.md, Budgets): an organization's,
-     *     a project's or an agent's model calls per calendar month (UTC), or a
-     *     task tree's over its whole life.
-     * @enum {string}
-     */
-    BudgetScope: "organization" | "project" | "agent" | "task_tree";
-    SetBudgetRequest: {
-      /** @description The limit; null for none. */
-      limitUsd: components["schemas"]["Usd"] | null;
-    };
-    BudgetResponse: {
-      scope: components["schemas"]["BudgetScope"];
-      /**
-       * Format: uuid
-       * @description The organization, project, agent or top-level task.
-       */
-      scopeId: string;
-      limitUsd: components["schemas"]["Usd"] | null;
-      /** @description What the scope's model calls cost in the window (this month; a task tree's whole life). */
-      spentUsd: components["schemas"]["Usd"];
-      /**
-       * Format: date-time
-       * @description The start of this month (UTC); null for a task tree.
-       */
-      windowStart: string | null;
-      /** @description At this share of the limit, `budget.threshold-reached` is published (once per window). */
-      thresholdPercent: number;
-      /**
-       * Format: date-time
-       * @description When the limit was last set; null if it never was.
-       */
-      updatedAt: string | null;
-    };
-    SetModelKeyRequest: {
-      /** @description The provider's API key; write-only (stored in OpenBao, never returned). Required except for `ollama`, where it's optional. */
-      apiKey?: string;
-      /**
-       * Format: uri
-       * @description For `ollama` only (and required there): where its server is, e.g.
-       *     `https://ollama.example.com` (Hephaestus calls its OpenAI-compatible
-       *     API at `<baseUrl>/v1`). `https://`; `http://` and private addresses
-       *     only where `MODEL_ENDPOINT_ALLOW_PRIVATE` allows them.
-       */
-      baseUrl?: string;
-    };
-    ModelKeyResponse: {
-      provider: components["schemas"]["ModelProvider"];
-      /** @enum {string} */
-      scope: "organization" | "agent";
-      /** Format: uuid */
-      agentId: string | null;
-      /** @description The key's last four characters (`…a1b2`), to tell keys apart; null for an `ollama` server without one. */
-      hint: string | null;
-      /** @description For `ollama`, its server; null otherwise. */
-      baseUrl: string | null;
-      updatedBy: string;
-      /** Format: date-time */
-      updatedAt: string;
-    };
-    OllamaModelList: {
-      items: {
-        /** @description As an agent version names it, e.g. `qwen3:8b`. */
-        name: string;
-        sizeBytes: number | null;
-      }[];
-    };
-    ModelKeyList: {
-      items: components["schemas"]["ModelKeyResponse"][];
-    };
-    /** @description Lowercase letters, digits and hyphens, starting with a letter; unique in the organization. */
-    ToolServerName: string;
-    ToolName: string;
-    /**
-     * @description How Hephaestus authenticates to the server: `none`; `header`, sending
-     *     the credential in `headerName`; or `task-token`, sending the running
-     *     task's own Pistis token as a bearer token (only to servers whose
-     *     origin the platform trusts, `TOOL_SERVER_TRUSTED_ORIGINS`: Aether-os's
-     *     own, such as Seshat).
-     * @enum {string}
-     */
-    ToolServerAuthType: "none" | "header" | "task-token";
-    ToolServerAuth: {
-      type: components["schemas"]["ToolServerAuthType"];
-      /** @description For `header`; `Authorization` when left out. */
-      headerName?: string;
-    };
-    /**
-     * Format: uri
-     * @description The MCP endpoint (Streamable HTTP); `https://`, or `http://` only where Hephaestus may reach private addresses (local development).
-     */
-    ToolServerUrl: string;
-    CreateToolServerRequest: {
-      name: components["schemas"]["ToolServerName"];
-      description?: string;
-      url: components["schemas"]["ToolServerUrl"];
-      auth: components["schemas"]["ToolServerAuth"];
-    };
-    UpdateToolServerRequest: {
-      description: string;
-      url: components["schemas"]["ToolServerUrl"];
-      auth: components["schemas"]["ToolServerAuth"];
-    };
-    SetToolServerCredentialRequest: {
-      value: string;
-    };
-    ToolServerCredential: {
-      /** @description The last four characters, e.g. `…ab12`. */
-      hint: string;
-      updatedBy: string;
-      updatedAt: components["schemas"]["Timestamp"];
-    };
-    ToolServerResponse: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      organizationId: string;
-      name: components["schemas"]["ToolServerName"];
-      description: string;
-      url: string;
-      auth: {
-        type: components["schemas"]["ToolServerAuthType"];
-        headerName: string | null;
-      };
-      /** @description That a `header` credential is set; null when none is. */
-      credential: components["schemas"]["ToolServerCredential"] | null;
-      createdBy: string;
-      createdAt: components["schemas"]["Timestamp"];
-      updatedAt: components["schemas"]["Timestamp"];
-    };
-    ToolServerList: {
-      items: components["schemas"]["ToolServerResponse"][];
-    };
-    ToolDescription: {
-      name: string;
-      description: string;
-    };
-    ToolList: {
-      items: components["schemas"]["ToolDescription"][];
-    };
-    /** @description Lowercase letters, digits and hyphens (the Agent Skills format), unique in the organization. */
-    SkillName: string;
-    /** @enum {string} */
-    SkillStatus: "active" | "archived";
-    SkillFile: {
-      /** @description Relative to the skill's folder, e.g. `SKILL.md` or `references/checklist.md`; no `..`. */
-      path: string;
-      /** @description The file's text (UTF-8). */
-      content: string;
-    };
-    /** @description The skill's folder, with `SKILL.md` at its root; at most 100 files and 1 MiB in all. */
-    SkillFiles: components["schemas"]["SkillFile"][];
-    CreateSkillRequest: {
-      name: components["schemas"]["SkillName"];
-      files: components["schemas"]["SkillFiles"];
-    };
-    CreateSkillVersionRequest: {
-      files: components["schemas"]["SkillFiles"];
-    };
-    SkillResponse: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      organizationId: string;
-      name: components["schemas"]["SkillName"];
-      /** @description The latest version's, from its `SKILL.md`. */
-      description: string;
-      status: components["schemas"]["SkillStatus"];
-      latestVersion: number;
-      createdBy: string;
-      createdAt: components["schemas"]["Timestamp"];
-      updatedAt: components["schemas"]["Timestamp"];
-    };
-    SkillPage: components["schemas"]["PageMeta"] & {
-      items: components["schemas"]["SkillResponse"][];
-    };
-    SkillVersionResponse: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      skillId: string;
-      /** Format: uuid */
-      organizationId: string;
-      name: components["schemas"]["SkillName"];
-      version: number;
-      description: string;
-      sizeBytes: number;
-      fileCount: number;
-      /** @description Only when reading one version. */
-      files?: components["schemas"]["SkillFile"][];
-      createdBy: string;
-      createdAt: components["schemas"]["Timestamp"];
-    };
-    SkillVersionPage: components["schemas"]["PageMeta"] & {
-      items: components["schemas"]["SkillVersionResponse"][];
-    };
-    /** @description Pass as `cursor` to get the next page; `null` on the last page. */
-    NextCursor: string | null;
-    /** @description One invalid input. Exactly one of `pointer` and `parameter` is set. */
-    ProblemFieldError: {
-      /** @description JSON Pointer (RFC 6901) into the request body, e.g. `/name`. */
-      pointer: string | null;
-      /** @description Name of the invalid query or path parameter. */
-      parameter: string | null;
-      /** @enum {string} */
-      code: "REQUIRED" | "UNKNOWN_FIELD" | "INVALID";
-      detail: string;
-    };
-  };
-  responses: {
-    /**
-     * @description `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
-     *     access token (signature, issuer, audience, expiry).
-     */
-    Unauthorized: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        "application/problem+json": components["schemas"]["Problem"];
-      };
-    };
-    /**
-     * @description `FORBIDDEN`: the token is valid but lacks the permission
-     *     (`x-permission` on the operation). Another organization's resources
-     *     are 404, not 403.
-     */
-    Forbidden: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        "application/problem+json": components["schemas"]["Problem"];
-      };
-    };
-    ValidationError: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content?: never;
-    };
-    /** @description `NOT_FOUND`: the resource doesn't exist. */
-    NotFound: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        "application/problem+json": components["schemas"]["Problem"];
-      };
-    };
-    /**
-     * @description `UNAVAILABLE`: a service this request depends on can't be reached
-     *     right now. Safe to retry.
-     */
-    Unavailable: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        "application/problem+json": components["schemas"]["Problem"];
-      };
-    };
-    /** @description A business rule forbids this (409, with a `DomainErrorCode`). */
-    DomainError: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        "application/problem+json": components["schemas"]["DomainProblem"];
-      };
-    };
-    /** @description Transition applied */
-    WorkspaceTransition: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        "application/json": components["schemas"]["WorkspaceResponse"];
-      };
-    };
-    /**
-     * @description The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-     *     `INVALID_CURSOR`.
-     */
-    BadRequest: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        "application/problem+json": components["schemas"]["Problem"];
-      };
-    };
-  };
-  parameters: {
-    OrganizationId: string;
-    AgentId: string;
-    VersionId: string;
-    WorkspaceId: string;
-    ProjectId: string;
-    TaskId: string;
-    TemplateId: string;
-    ArtifactId: string;
-    Provider: components["schemas"]["ModelProvider"];
-    ModelId: string;
-    SkillId: string;
-    ToolServerId: string;
-    /** @description Page size. */
-    Limit: number;
-    /**
-     * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-     *     the first page. A cursor only works with the filters it was made with
-     *     (otherwise `400 INVALID_CURSOR`).
-     */
-    Cursor: string;
-  };
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  listAgents: {
-    parameters: {
-      query?: {
-        /** @description Page size. */
-        limit?: components["parameters"]["Limit"];
-        /**
-         * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-         *     the first page. A cursor only works with the filters it was made with
-         *     (otherwise `400 INVALID_CURSOR`).
-         */
-        cursor?: components["parameters"]["Cursor"];
-      };
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Newest first */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AgentPage"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  createAgent: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateAgentRequest"];
-      };
-    };
-    responses: {
-      /** @description Created */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AgentResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  getAgent: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AgentResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  archiveAgent: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Archived (or already archived) */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AgentResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  listAgentVersions: {
-    parameters: {
-      query?: {
-        /** @description Page size. */
-        limit?: components["parameters"]["Limit"];
-        /**
-         * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-         *     the first page. A cursor only works with the filters it was made with
-         *     (otherwise `400 INVALID_CURSOR`).
-         */
-        cursor?: components["parameters"]["Cursor"];
-      };
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Highest version first */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AgentVersionPage"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  createAgentVersion: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateAgentVersionRequest"];
-      };
-    };
-    responses: {
-      /** @description Created */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AgentVersionResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  getAgentVersion: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-        versionId: components["parameters"]["VersionId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AgentVersionResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  publishAgentVersion: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-        versionId: components["parameters"]["VersionId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Published */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AgentVersionResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  listWorkspaces: {
-    parameters: {
-      query?: {
-        /** @description Page size. */
-        limit?: components["parameters"]["Limit"];
-        /**
-         * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-         *     the first page. A cursor only works with the filters it was made with
-         *     (otherwise `400 INVALID_CURSOR`).
-         */
-        cursor?: components["parameters"]["Cursor"];
-      };
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Newest first */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["WorkspacePage"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  createWorkspace: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateWorkspaceRequest"];
-      };
-    };
-    responses: {
-      /** @description Created */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["WorkspaceResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  getWorkspace: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        workspaceId: components["parameters"]["WorkspaceId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["WorkspaceResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  acquireWorkspace: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        workspaceId: components["parameters"]["WorkspaceId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: components["responses"]["WorkspaceTransition"];
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  releaseWorkspace: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        workspaceId: components["parameters"]["WorkspaceId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: components["responses"]["WorkspaceTransition"];
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  suspendWorkspace: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        workspaceId: components["parameters"]["WorkspaceId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: components["responses"]["WorkspaceTransition"];
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  resumeWorkspace: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        workspaceId: components["parameters"]["WorkspaceId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: components["responses"]["WorkspaceTransition"];
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  destroyWorkspace: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        workspaceId: components["parameters"]["WorkspaceId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: components["responses"]["WorkspaceTransition"];
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  listTaskTemplates: {
-    parameters: {
-      query?: {
-        /** @description The templates a project sees (its own and the organization's); without it, the organization-wide ones. */
-        projectId?: string;
-        /** @description Page size. */
-        limit?: components["parameters"]["Limit"];
-        /**
-         * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-         *     the first page. A cursor only works with the filters it was made with
-         *     (otherwise `400 INVALID_CURSOR`).
-         */
-        cursor?: components["parameters"]["Cursor"];
-      };
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Newest first */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskTemplatePage"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  createTaskTemplate: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateTaskTemplateRequest"];
-      };
-    };
-    responses: {
-      /** @description Created, with version 1 */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskTemplateResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-    };
-  };
-  getTaskTemplate: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        templateId: components["parameters"]["TemplateId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskTemplateResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  archiveTaskTemplate: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        templateId: components["parameters"]["TemplateId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Archived */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskTemplateResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  listTaskTemplateVersions: {
-    parameters: {
-      query?: {
-        /** @description Page size. */
-        limit?: components["parameters"]["Limit"];
-        /**
-         * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-         *     the first page. A cursor only works with the filters it was made with
-         *     (otherwise `400 INVALID_CURSOR`).
-         */
-        cursor?: components["parameters"]["Cursor"];
-      };
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        templateId: components["parameters"]["TemplateId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Newest first */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskTemplateVersionPage"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  createTaskTemplateVersion: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        templateId: components["parameters"]["TemplateId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["TaskTemplateContent"];
-      };
-    };
-    responses: {
-      /** @description Created */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskTemplateVersionResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-    };
-  };
-  getTaskTemplateVersion: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        templateId: components["parameters"]["TemplateId"];
-        version: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskTemplateVersionResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  createTaskFromTemplate: {
-    parameters: {
-      query?: never;
-      header: {
-        "Idempotency-Key": string;
-      };
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        templateId: components["parameters"]["TemplateId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateTaskFromTemplateRequest"];
-      };
-    };
-    responses: {
-      /** @description Already created with this `Idempotency-Key` */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskResponse"];
-        };
-      };
-      /** @description Created */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  listTasks: {
-    parameters: {
-      query?: {
-        /** @description Only the subtasks of this task. */
-        parentTaskId?: string;
-        status?: components["schemas"]["TaskStatus"];
-        /** @description Page size. */
-        limit?: components["parameters"]["Limit"];
-        /**
-         * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-         *     the first page. A cursor only works with the filters it was made with
-         *     (otherwise `400 INVALID_CURSOR`).
-         */
-        cursor?: components["parameters"]["Cursor"];
-      };
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Newest first */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskPage"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  createTask: {
-    parameters: {
-      query?: never;
-      header: {
-        "Idempotency-Key": string;
-      };
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateTaskRequest"];
-      };
-    };
-    responses: {
-      /** @description Already created with this `Idempotency-Key` */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskResponse"];
-        };
-      };
-      /** @description Created */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  getTask: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  cancelTask: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Cancelled (or already cancelled) */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-    };
-  };
-  retryTask: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Queued again (or blocked on its dependencies) */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-    };
-  };
-  listTaskArtifacts: {
-    parameters: {
-      query?: {
-        status?: components["schemas"]["ArtifactStatus"];
-        /** @description Page size. */
-        limit?: components["parameters"]["Limit"];
-        /**
-         * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-         *     the first page. A cursor only works with the filters it was made with
-         *     (otherwise `400 INVALID_CURSOR`).
-         */
-        cursor?: components["parameters"]["Cursor"];
-      };
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Oldest first */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ArtifactPage"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  getTaskArtifact: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-        artifactId: components["parameters"]["ArtifactId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ArtifactResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  approveArtifact: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-        artifactId: components["parameters"]["ArtifactId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["ReviewDecisionRequest"];
-      };
-    };
-    responses: {
-      /** @description The artifact, decided */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ArtifactResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-    };
-  };
-  rejectArtifact: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-        artifactId: components["parameters"]["ArtifactId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["ReviewDecisionRequest"];
-      };
-    };
-    responses: {
-      /** @description The artifact, decided */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ArtifactResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-    };
-  };
-  requestArtifactChanges: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-        artifactId: components["parameters"]["ArtifactId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["RequestChangesRequest"];
-      };
-    };
-    responses: {
-      /** @description The artifact, decided */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ArtifactResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-    };
-  };
-  listTaskExecutions: {
-    parameters: {
-      query?: {
-        /** @description Page size. */
-        limit?: components["parameters"]["Limit"];
-        /**
-         * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-         *     the first page. A cursor only works with the filters it was made with
-         *     (otherwise `400 INVALID_CURSOR`).
-         */
-        cursor?: components["parameters"]["Cursor"];
-      };
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Newest first */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ExecutionPage"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  listModels: {
-    parameters: {
-      query?: {
-        status?: components["schemas"]["ModelStatus"];
-        provider?: components["schemas"]["ModelProvider"];
-        /** @description Page size. */
-        limit?: components["parameters"]["Limit"];
-        /**
-         * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-         *     the first page. A cursor only works with the filters it was made with
-         *     (otherwise `400 INVALID_CURSOR`).
-         */
-        cursor?: components["parameters"]["Cursor"];
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description By name */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ModelPage"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-    };
-  };
-  createModel: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateModelRequest"];
-      };
-    };
-    responses: {
-      /** @description Created */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ModelResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      409: components["responses"]["DomainError"];
-    };
-  };
-  getModel: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        modelId: components["parameters"]["ModelId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ModelResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  updateModel: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        modelId: components["parameters"]["ModelId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["UpdateModelRequest"];
-      };
-    };
-    responses: {
-      /** @description Updated */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ModelResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  listModelPrices: {
-    parameters: {
-      query?: {
-        /** @description Page size. */
-        limit?: components["parameters"]["Limit"];
-        /**
-         * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-         *     the first page. A cursor only works with the filters it was made with
-         *     (otherwise `400 INVALID_CURSOR`).
-         */
-        cursor?: components["parameters"]["Cursor"];
-      };
-      header?: never;
-      path: {
-        modelId: components["parameters"]["ModelId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Newest `effectiveFrom` first, including scheduled ones */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ModelPricePage"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  addModelPrice: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        modelId: components["parameters"]["ModelId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["AddModelPriceRequest"];
-      };
-    };
-    responses: {
-      /** @description Created */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ModelPriceResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-    };
-  };
-  getOrganizationBudget: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BudgetResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  setOrganizationBudget: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SetBudgetRequest"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BudgetResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  getProjectBudget: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BudgetResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  setProjectBudget: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SetBudgetRequest"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BudgetResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  getTaskTreeBudget: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BudgetResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  setTaskTreeBudget: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        taskId: components["parameters"]["TaskId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SetBudgetRequest"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BudgetResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-    };
-  };
-  listOrganizationModelKeys: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description By provider */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ModelKeyList"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  setOrganizationModelKey: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        provider: components["parameters"]["Provider"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SetModelKeyRequest"];
-      };
-    };
-    responses: {
-      /** @description Stored in OpenBao; never returned */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ModelKeyResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  deleteOrganizationModelKey: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        provider: components["parameters"]["Provider"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Removed (also when there was none) */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  getAgentBudget: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BudgetResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  setAgentBudget: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SetBudgetRequest"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BudgetResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  listAgentModelKeys: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description By provider */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ModelKeyList"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  setAgentModelKey: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-        provider: components["parameters"]["Provider"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SetModelKeyRequest"];
-      };
-    };
-    responses: {
-      /** @description Stored in OpenBao; never returned */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ModelKeyResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  deleteAgentModelKey: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        agentId: components["parameters"]["AgentId"];
-        provider: components["parameters"]["Provider"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Removed (also when there was none) */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  listToolServers: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description By name */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ToolServerList"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  createToolServer: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateToolServerRequest"];
-      };
-    };
-    responses: {
-      /** @description Created */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ToolServerResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  getToolServer: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        toolServerId: components["parameters"]["ToolServerId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ToolServerResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  updateToolServer: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        toolServerId: components["parameters"]["ToolServerId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["UpdateToolServerRequest"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ToolServerResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  deleteToolServer: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        toolServerId: components["parameters"]["ToolServerId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Removed (also when there was none) */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  setToolServerCredential: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        toolServerId: components["parameters"]["ToolServerId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SetToolServerCredentialRequest"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ToolServerResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  deleteToolServerCredential: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        toolServerId: components["parameters"]["ToolServerId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Removed (also when there was none) */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  listToolServerTools: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        toolServerId: components["parameters"]["ToolServerId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description By name */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ToolList"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      /** @description The tool server couldn't be reached or refused the request (`UNAVAILABLE`); `detail` says what it answered. */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/problem+json": components["schemas"]["Problem"];
-        };
-      };
-    };
-  };
-  listSkills: {
-    parameters: {
-      query?: {
-        status?: components["schemas"]["SkillStatus"];
-        /** @description Page size. */
-        limit?: components["parameters"]["Limit"];
-        /**
-         * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-         *     the first page. A cursor only works with the filters it was made with
-         *     (otherwise `400 INVALID_CURSOR`).
-         */
-        cursor?: components["parameters"]["Cursor"];
-      };
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description By name */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SkillPage"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  createSkill: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateSkillRequest"];
-      };
-    };
-    responses: {
-      /** @description Created */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SkillResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  getSkill: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        skillId: components["parameters"]["SkillId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SkillResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  archiveSkill: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        skillId: components["parameters"]["SkillId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SkillResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  listSkillVersions: {
-    parameters: {
-      query?: {
-        /** @description Page size. */
-        limit?: components["parameters"]["Limit"];
-        /**
-         * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-         *     the first page. A cursor only works with the filters it was made with
-         *     (otherwise `400 INVALID_CURSOR`).
-         */
-        cursor?: components["parameters"]["Cursor"];
-      };
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        skillId: components["parameters"]["SkillId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Newest first */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SkillVersionPage"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  createSkillVersion: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        skillId: components["parameters"]["SkillId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateSkillVersionRequest"];
-      };
-    };
-    responses: {
-      /** @description Created */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SkillVersionResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  getSkillVersion: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        skillId: components["parameters"]["SkillId"];
-        version: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SkillVersionResponse"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  listOllamaModels: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description By name */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["OllamaModelList"];
-        };
-      };
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
+    listAgents: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAgentRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    archiveAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archived (or already archived) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listAgentVersions: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Highest version first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentVersionPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createAgentVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateAgentVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentVersionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getAgentVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+                versionId: components["parameters"]["VersionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentVersionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    publishAgentVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+                versionId: components["parameters"]["VersionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Published */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentVersionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listWorkspaces: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspacePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWorkspaceRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    acquireWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["WorkspaceTransition"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    releaseWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["WorkspaceTransition"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    suspendWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["WorkspaceTransition"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    resumeWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["WorkspaceTransition"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    destroyWorkspace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                workspaceId: components["parameters"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: components["responses"]["WorkspaceTransition"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listTaskTemplates: {
+        parameters: {
+            query?: {
+                /** @description The templates a project sees (its own and the organization's); without it, the organization-wide ones. */
+                projectId?: string;
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplatePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTaskTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTaskTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created, with version 1 */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplateResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    getTaskTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplateResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    archiveTaskTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archived */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplateResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listTaskTemplateVersions: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplateVersionPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTaskTemplateVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskTemplateContent"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplateVersionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    getTaskTemplateVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                templateId: components["parameters"]["TemplateId"];
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskTemplateVersionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTaskFromTemplate: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                templateId: components["parameters"]["TemplateId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTaskFromTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Already created with this `Idempotency-Key` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listTasks: {
+        parameters: {
+            query?: {
+                /** @description Only the subtasks of this task. */
+                parentTaskId?: string;
+                status?: components["schemas"]["TaskStatus"];
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTask: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTaskRequest"];
+            };
+        };
+        responses: {
+            /** @description Already created with this `Idempotency-Key` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    cancelTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelled (or already cancelled) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    retryTask: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Queued again (or blocked on its dependencies) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    listTaskArtifacts: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ArtifactStatus"];
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Oldest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTaskArtifact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    approveArtifact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReviewDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description The artifact, decided */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    rejectArtifact: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReviewDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description The artifact, decided */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    requestArtifactChanges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                artifactId: components["parameters"]["ArtifactId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestChangesRequest"];
+            };
+        };
+        responses: {
+            /** @description The artifact, decided */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    listTaskExecutions: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listModels: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ModelStatus"];
+                provider?: components["schemas"]["ModelProvider"];
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description By name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    createModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    getModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: components["parameters"]["ModelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: components["parameters"]["ModelId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listModelPrices: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                modelId: components["parameters"]["ModelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest `effectiveFrom` first, including scheduled ones */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelPricePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    addModelPrice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                modelId: components["parameters"]["ModelId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddModelPriceRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelPriceResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    getOrganizationBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setOrganizationBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetBudgetRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getProjectBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setProjectBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetBudgetRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getTaskTreeBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setTaskTreeBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetBudgetRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    listOrganizationModelKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description By provider */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelKeyList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setOrganizationModelKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                provider: components["parameters"]["Provider"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetModelKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description Stored in OpenBao; never returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelKeyResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    deleteOrganizationModelKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                provider: components["parameters"]["Provider"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed (also when there was none) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getAgentBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setAgentBudget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetBudgetRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listAgentModelKeys: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description By provider */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelKeyList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setAgentModelKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+                provider: components["parameters"]["Provider"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetModelKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description Stored in OpenBao; never returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelKeyResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    deleteAgentModelKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                agentId: components["parameters"]["AgentId"];
+                provider: components["parameters"]["Provider"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed (also when there was none) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listToolServers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description By name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolServerList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createToolServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateToolServerRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolServerResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getToolServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolServerResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateToolServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateToolServerRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolServerResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    deleteToolServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed (also when there was none) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    setToolServerCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetToolServerCredentialRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolServerResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    deleteToolServerCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed (also when there was none) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listToolServerTools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                toolServerId: components["parameters"]["ToolServerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description By name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            /** @description The tool server couldn't be reached or refused the request (`UNAVAILABLE`); `detail` says what it answered. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listSkills: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["SkillStatus"];
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description By name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createSkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSkillRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getSkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    archiveSkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listSkillVersions: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillVersionPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createSkillVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSkillVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillVersionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getSkillVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillVersionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listOllamaModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description By name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OllamaModelList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
 }
