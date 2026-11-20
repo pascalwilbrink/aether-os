@@ -12,7 +12,10 @@ import { openSession, SESSION_COOKIE, type Session } from "./session";
  * it inside a `<Suspense>` boundary.
  */
 export async function currentSession(): Promise<Session | null> {
-  return openSession((await cookies()).get(SESSION_COOKIE)?.value, config.sessionSecret);
+  return openSession(
+    (await cookies()).get(SESSION_COOKIE)?.value,
+    config.sessionSecret,
+  );
 }
 
 /** The current session, or off to sign in (coming back to `returnTo`). */
@@ -28,7 +31,10 @@ export async function requireSession(returnTo = "/"): Promise<Session> {
  * The session, with a token for `organizationId`: a token for another
  * organization (or none) means switching, through Pistis.
  */
-export async function requireOrganization(organizationId: string, returnTo: string): Promise<Session> {
+export async function requireOrganization(
+  organizationId: string,
+  returnTo: string,
+): Promise<Session> {
   const session = await requireSession(returnTo);
   if (session.organizationId !== organizationId) {
     redirect(

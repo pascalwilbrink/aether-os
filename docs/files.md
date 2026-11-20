@@ -1,6 +1,6 @@
 # Files (Loculus)
 
-Status: first form built (`../loculus`): files per project, uploaded and downloaded with signed URLs, stored in S3-compatible storage. File artifacts use it: agents submit files from their sandboxes (Hephaestus), downloaded from the task page (Iris). Not yet: uploads from Iris, previews, refusing uploads in a suspended organization or archived project, sweeping uploads that never finished, retention and deleting a task's files with it (`tasks.md`), events.
+Status: first form built (`../loculus`): files per project, uploaded and downloaded with signed URLs, stored in S3-compatible storage. File artifacts use it: agents submit files from their sandboxes (Hephaestus), downloaded and previewed on the task page (Iris). Not yet: uploads from Iris, refusing uploads in a suspended organization or archived project, sweeping uploads that never finished, retention and deleting a task's files with it (`tasks.md`), events.
 
 Loculus (Latin: a small compartment or niche) keeps Aether-os's files: what agents produce (file artifacts), and later what people upload (task inputs, documents). It holds each file's metadata and issues **signed URLs**; the bytes go straight between the client and the storage and never pass through Loculus or any other service (`../CLAUDE.md`, How the pieces fit).
 
@@ -35,4 +35,4 @@ Only `available` files can be downloaded.
 ## Who uses it
 
 - **Hephaestus:** the agent submits a file from its sandbox (`submit_file`, a path); Hephaestus reads it out of the sandbox (the sandbox has no network and never sees a URL), uploads it with the task's token (declare, `PUT`, complete) and records a `file` artifact with the file's ID (`tasks.md`, Artifacts). At most `FILE_ARTIFACT_MAX_BYTES` (25 MiB) per file; without `LOCULUS_URL` agents have no `submit_file`.
-- **Iris:** file artifacts on the task page, with **Download** (`/orgs/{org}/projects/{project}/files/{fileId}/download`: a fresh signed URL from Loculus with the person's own token, then a redirect). Later: previews and uploads.
+- **Iris:** file artifacts on the task page, with **Download** (`/orgs/{org}/projects/{project}/files/{fileId}/download`: a fresh signed URL from Loculus with the person's own token, then a redirect) and a preview: images through that route, text, and HTML in a sandboxed frame (an opaque origin with scripts only, and a Content-Security-Policy that loads nothing from outside), so an agent's page is never served from Iris's or the storage's origin as a page of its own. Later: uploads.

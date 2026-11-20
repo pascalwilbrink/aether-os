@@ -1,14 +1,24 @@
 import { describe, expect, it } from "vitest";
 
-import { formatBytes, skillFieldsOf, skillFilesFromForm, skillsFromForm, skillTemplate, versionChoices } from "./skills";
+import {
+  formatBytes,
+  skillFieldsOf,
+  skillFilesFromForm,
+  skillsFromForm,
+  skillTemplate,
+  versionChoices,
+} from "./skills";
 
 describe("skillFilesFromForm", () => {
   it("puts SKILL.md first and keeps the other files", () => {
     expect(
-      skillFilesFromForm({ name: " code-review ", skillMd: "---\nname: code-review\n---" }, [
-        { path: "SKILL.md", content: "old" },
-        { path: "references/a.md", content: "a" },
-      ]),
+      skillFilesFromForm(
+        { name: " code-review ", skillMd: "---\nname: code-review\n---" },
+        [
+          { path: "SKILL.md", content: "old" },
+          { path: "references/a.md", content: "a" },
+        ],
+      ),
     ).toEqual({
       name: "code-review",
       files: [
@@ -37,13 +47,19 @@ describe("skills on the version form", () => {
       { name: "a", version: "2", enabled: true },
       { name: "b", version: "1", enabled: true },
     ];
-    expect(skillsFromForm(skillFieldsOf([...skills, { name: "c", version: "1", enabled: false }]))).toEqual({
+    expect(
+      skillsFromForm(
+        skillFieldsOf([...skills, { name: "c", version: "1", enabled: false }]),
+      ),
+    ).toEqual({
       skills,
     });
   });
 
   it("wants a version for a checked skill", () => {
-    expect(skillsFromForm({ "skill:a": "on", "skillVersion:a": "" })).toEqual({ error: "Choose a version of a." });
+    expect(skillsFromForm({ "skill:a": "on", "skillVersion:a": "" })).toEqual({
+      error: "Choose a version of a.",
+    });
   });
 
   it("offers every version, newest first", () => {

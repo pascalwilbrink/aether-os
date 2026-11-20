@@ -49,7 +49,9 @@ describe("task helpers", () => {
   });
 
   it("explains failures", () => {
-    expect(failureLabel("verification_failed")).toBe("Acceptance criteria still failing");
+    expect(failureLabel("verification_failed")).toBe(
+      "Acceptance criteria still failing",
+    );
     expect(failureLabel(null)).toBeNull();
   });
 
@@ -99,13 +101,21 @@ describe("task helpers", () => {
       blockedHosts: hosts,
     });
     const executions = [
-      { number: 3, sandbox: sandbox("restricted", ["example.com", "api.github.com"]) },
+      {
+        number: 3,
+        sandbox: sandbox("restricted", ["example.com", "api.github.com"]),
+      },
       { number: 2, sandbox: null },
       { number: 1, sandbox: sandbox("restricted", ["example.com"]) },
       { number: 4, sandbox: sandbox("none", []) },
     ] as Execution[];
 
-    expect(executions.map(networkLabel)).toEqual(["Allowed hosts", "No sandbox", "Allowed hosts", "No network"]);
+    expect(executions.map(networkLabel)).toEqual([
+      "Allowed hosts",
+      "No sandbox",
+      "Allowed hosts",
+      "No network",
+    ]);
     expect(blockedHosts(executions)).toEqual([
       { host: "api.github.com", executions: [3] },
       { host: "example.com", executions: [1, 3] },

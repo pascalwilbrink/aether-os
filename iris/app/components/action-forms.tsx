@@ -34,7 +34,11 @@ export function ActionButton({
       }}
       className="inline-block"
     >
-      <button type="submit" disabled={pending} className={primary ? buttonClass : secondaryButtonClass}>
+      <button
+        type="submit"
+        disabled={pending}
+        className={primary ? buttonClass : secondaryButtonClass}
+      >
         {pending ? pendingLabel : label}
       </button>
       <FormError error={state.error} />

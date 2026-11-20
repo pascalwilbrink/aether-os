@@ -9,7 +9,10 @@ export interface TraceViewers {
  * HTTP and database calls, the agent) and Langfuse (the agent's run, model
  * and tool calls). None without a trace or a configured viewer.
  */
-export function traceLinks(traceId: string | null, viewers: TraceViewers): { label: string; href: string }[] {
+export function traceLinks(
+  traceId: string | null,
+  viewers: TraceViewers,
+): { label: string; href: string }[] {
   if (!traceId || !/^[0-9a-f]{32}$/.test(traceId)) {
     return [];
   }
@@ -22,7 +25,10 @@ export function traceLinks(traceId: string | null, viewers: TraceViewers): { lab
     });
   }
   if (viewers.jaegerUrl) {
-    links.push({ label: "Jaeger", href: `${base(viewers.jaegerUrl)}/trace/${traceId}` });
+    links.push({
+      label: "Jaeger",
+      href: `${base(viewers.jaegerUrl)}/trace/${traceId}`,
+    });
   }
   return links;
 }

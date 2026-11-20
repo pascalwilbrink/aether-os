@@ -4,4 +4,8 @@
  * person's input again (as `defaultValue`s).
  */
 export const valuesOf = (form: FormData): Record<string, string> =>
-  Object.fromEntries([...form.entries()].filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+  Object.fromEntries(
+    [...form.entries()].filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );

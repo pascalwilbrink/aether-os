@@ -25,11 +25,16 @@ export function keyFromForm(
 ): { body: { apiKey?: string; baseUrl?: string } } | { error: string } {
   const apiKey = (fields.apiKey ?? "").trim();
   if (!isSelfHosted(provider)) {
-    return apiKey.length < 8 ? { error: "Paste the whole API key." } : { body: { apiKey } };
+    return apiKey.length < 8
+      ? { error: "Paste the whole API key." }
+      : { body: { apiKey } };
   }
   const baseUrl = (fields.baseUrl ?? "").trim().replace(/\/+$/, "");
   if (!/^https?:\/\/./.test(baseUrl)) {
-    return { error: "The server's URL starts with https:// (e.g. https://ollama.example.com)." };
+    return {
+      error:
+        "The server's URL starts with https:// (e.g. https://ollama.example.com).",
+    };
   }
   if (apiKey && apiKey.length < 8) {
     return { error: "Paste the whole API key, or leave it empty." };
@@ -52,10 +57,21 @@ export function keyInUse(
   provider: string,
   organizationKeys: ModelKey[],
   agentKeys: ModelKey[],
-): { source: "agent" | "organization" | "none"; hint: string | null; baseUrl: string | null } {
+): {
+  source: "agent" | "organization" | "none";
+  hint: string | null;
+  baseUrl: string | null;
+} {
   const own = agentKeys.find((key) => key.provider === provider);
   if (own) return { source: "agent", hint: own.hint, baseUrl: own.baseUrl };
-  const organization = organizationKeys.find((key) => key.provider === provider);
-  if (organization) return { source: "organization", hint: organization.hint, baseUrl: organization.baseUrl };
+  const organization = organizationKeys.find(
+    (key) => key.provider === provider,
+  );
+  if (organization)
+    return {
+      source: "organization",
+      hint: organization.hint,
+      baseUrl: organization.baseUrl,
+    };
   return { source: "none", hint: null, baseUrl: null };
 }
