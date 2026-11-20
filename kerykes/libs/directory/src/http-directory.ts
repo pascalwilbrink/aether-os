@@ -1,8 +1,9 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import {
   createPistisHttpClient,
   createPolisHttpClient,
+  fetchFailure,
   PistisApi,
   PolisApi,
   ServiceTokens,
@@ -35,6 +36,7 @@ const MAX_PAGES = 100;
  */
 @Injectable()
 export class HttpDirectory extends Directory {
+  private readonly logger = new Logger(HttpDirectory.name);
   private readonly polis: ReturnType<typeof createPolisHttpClient>;
   private readonly pistis: ReturnType<typeof createPistisHttpClient>;
 
@@ -150,25 +152,35 @@ export class HttpDirectory extends Directory {
    */
   private async call<T>(
     service: 'Polis' | 'Pistis',
-    request: () => Promise<{ data?: T; response?: Response }>,
+    request: () => Promise<{
+      data?: T;
+      error?: unknown;
+      response?: Response;
+    }>,
   ): Promise<T | null> {
     let refreshed = false;
     for (let attempt = 1; ; attempt++) {
       try {
-        const { data, response } = await request();
-        if (response?.status === 404 || response?.status === 400) {
+        const { data, error, response } = await request();
+        if (!response) {
+          // The generated client returns a failed fetch (no connection, a
+          // timeout) as `error` instead of throwing it: retried below.
+          throw new NoAnswer(error);
+        }
+        if (response.status === 404 || response.status === 400) {
           return null;
         }
-        if (response?.status === 401 && !refreshed) {
+        if (response.status === 401 && !refreshed) {
           refreshed = true;
           attempt--;
           this.tokens.invalidate();
           continue;
         }
-        if (!response?.ok || data === undefined) {
+        if (!response.ok || data === undefined) {
+          this.logger.warn(`${service} answered ${response.status}`);
           throw new DirectoryUnavailableError(
             service,
-            `HTTP ${response?.status ?? '?'}`,
+            `HTTP ${response.status}`,
           );
         }
         return data;
@@ -177,12 +189,20 @@ export class HttpDirectory extends Directory {
           throw error;
         }
         if (attempt >= 2) {
-          throw new DirectoryUnavailableError(
-            service,
-            error instanceof Error ? error.message : String(error),
+          const reason = fetchFailure(
+            error instanceof NoAnswer ? error.error : error,
           );
+          this.logger.warn(`${service} didn't answer: ${reason}`);
+          throw new DirectoryUnavailableError(service, reason);
         }
       }
     }
+  }
+}
+
+/** A request that got no response: the generated client's `error`. */
+class NoAnswer extends Error {
+  constructor(readonly error: unknown) {
+    super('No answer');
   }
 }

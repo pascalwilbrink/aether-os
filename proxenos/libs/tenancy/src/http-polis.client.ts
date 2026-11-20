@@ -1,6 +1,11 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
-import { createPolisHttpClient, PolisApi, ServiceTokens } from '@proxenos/core';
+import {
+  createPolisHttpClient,
+  fetchFailure,
+  PolisApi,
+  ServiceTokens,
+} from '@proxenos/core';
 
 import {
   PolisClient,
@@ -23,6 +28,7 @@ export interface PolisClientOptions {
  */
 @Injectable()
 export class HttpPolisClient extends PolisClient {
+  private readonly logger = new Logger(HttpPolisClient.name);
   private readonly client: ReturnType<typeof createPolisHttpClient>;
 
   constructor(
@@ -85,23 +91,33 @@ export class HttpPolisClient extends PolisClient {
    * a fresh one.
    */
   private async call<T>(
-    request: () => Promise<{ data?: T; response?: Response }>,
+    request: () => Promise<{
+      data?: T;
+      error?: unknown;
+      response?: Response;
+    }>,
   ): Promise<T | null> {
     let refreshed = false;
     for (let attempt = 1; ; attempt++) {
       try {
-        const { data, response } = await request();
-        if (response?.status === 404) {
+        const { data, error, response } = await request();
+        if (!response) {
+          // The generated client returns a failed fetch (no connection, a
+          // timeout) as `error` instead of throwing it: retried below.
+          throw new NoAnswer(error);
+        }
+        if (response.status === 404) {
           return null;
         }
-        if (response?.status === 401 && !refreshed) {
+        if (response.status === 401 && !refreshed) {
           refreshed = true;
           attempt--;
           this.tokens.invalidate();
           continue;
         }
-        if (!response?.ok || data === undefined) {
-          throw new PolisUnavailableError(`HTTP ${response?.status ?? '?'}`);
+        if (!response.ok || data === undefined) {
+          this.logger.warn(`Polis answered ${response.status}`);
+          throw new PolisUnavailableError(`HTTP ${response.status}`);
         }
         return data;
       } catch (error) {
@@ -109,11 +125,20 @@ export class HttpPolisClient extends PolisClient {
           throw error;
         }
         if (attempt >= 2) {
-          throw new PolisUnavailableError(
-            error instanceof Error ? error.message : String(error),
+          const reason = fetchFailure(
+            error instanceof NoAnswer ? error.error : error,
           );
+          this.logger.warn(`Polis didn't answer: ${reason}`);
+          throw new PolisUnavailableError(reason);
         }
       }
     }
+  }
+}
+
+/** A request that got no response: the generated client's `error`. */
+class NoAnswer extends Error {
+  constructor(readonly error: unknown) {
+    super('No answer');
   }
 }
