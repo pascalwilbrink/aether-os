@@ -102,6 +102,7 @@ describe('Tasks (e2e)', () => {
       taskTemplateVersion: null,
       repository: null,
       concurrency: null,
+      inputFiles: [],
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
       finishedAt: null,
@@ -120,6 +121,25 @@ describe('Tasks (e2e)', () => {
 
     await owner.get(`${base}/${first.body.id}`).expect(200);
     await owner.get(`${base}/${MISSING_ID}`).expect(404);
+  });
+
+  it('keeps the files a task starts from, each once', async () => {
+    const fileId = '0195f2a0-0000-7000-8000-0000000000f1';
+    const created = await create(
+      owner,
+      { inputFiles: [{ fileId }, { fileId }] },
+      'with-files',
+    ).expect(201);
+    expect(created.body.inputFiles).toEqual([{ fileId }]);
+    expect(
+      (await owner.get(`${base}/${created.body.id}`).expect(200)).body
+        .inputFiles,
+    ).toEqual([{ fileId }]);
+    await create(
+      owner,
+      { inputFiles: Array.from({ length: 21 }, () => ({ fileId })) },
+      'too-many-files',
+    ).expect(400);
   });
 
   it('needs an idempotency key, a published agent and an active project', async () => {
