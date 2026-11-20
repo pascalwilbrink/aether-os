@@ -258,6 +258,21 @@ export type CreateTaskRequest = {
      */
     budgetUsd?: Usd | null;
     concurrency?: TaskConcurrency | null;
+    /**
+     * Files the task starts from: files of its project in Loculus
+     * (docs/files.md), uploaded first. The agent finds them in its
+     * sandbox, in `/workspace/inputs`, so its version needs one
+     * (else the execution fails without retrying).
+     *
+     */
+    inputFiles?: Array<TaskInputFile>;
+};
+
+export type TaskInputFile = {
+    /**
+     * A file of the task's project in Loculus.
+     */
+    fileId: string;
 };
 
 export type TaskRepository = {
@@ -516,6 +531,10 @@ export type TaskResponse = {
      */
     repository: TaskRepository | null;
     concurrency: TaskConcurrency | null;
+    /**
+     * Files the task starts from (Loculus), in `/workspace/inputs` of its sandbox.
+     */
+    inputFiles: Array<TaskInputFile>;
     /**
      * The template it was created from, if any.
      */

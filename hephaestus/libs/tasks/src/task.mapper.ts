@@ -67,6 +67,9 @@ export class TaskMapper {
       repositoryLinkId: task.repositoryLinkId,
       concurrencyKey: task.dto.concurrency?.key ?? null,
       concurrencyPolicy: task.dto.concurrency?.policy ?? null,
+      inputFileIds: [
+        ...new Set((task.dto.inputFiles ?? []).map((file) => file.fileId)),
+      ],
       taskTemplateId: task.template?.templateId ?? null,
       taskTemplateVersion: task.template?.version ?? null,
       attempt: 1,
@@ -111,6 +114,7 @@ export class TaskMapper {
         entity.concurrencyKey && entity.concurrencyPolicy
           ? { key: entity.concurrencyKey, policy: entity.concurrencyPolicy }
           : null,
+      inputFiles: entity.inputFileIds.map((fileId) => ({ fileId })),
       taskTemplateId: entity.taskTemplateId,
       taskTemplateVersion: entity.taskTemplateVersion,
       createdAt: entity.createdAt.toISOString(),

@@ -168,8 +168,8 @@ export const zEnv = z
      * sandboxes are kept. Without it agents have no `submit_file`.
      */
     LOCULUS_URL: z.url({ protocol: /^https?$/ }).optional(),
-    /** The largest file an agent can submit from its sandbox. */
-    FILE_ARTIFACT_MAX_BYTES: z.coerce
+    /** The largest file a task starts from, or an agent submits from its sandbox. */
+    TASK_FILE_MAX_BYTES: z.coerce
       .number()
       .int()
       .positive()

@@ -5,14 +5,24 @@ import { ActionButton } from "@/app/components/action-forms";
 import { getAutomation, listAutomationRuns } from "@/lib/api/kairos";
 import { getProject } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
-import { automationStatus, CONCURRENCY_POLICIES, fieldsOf, runStatusLabel, triggerSummary } from "@/lib/automations";
+import {
+  automationStatus,
+  CONCURRENCY_POLICIES,
+  fieldsOf,
+  runStatusLabel,
+  triggerSummary,
+} from "@/lib/automations";
 import { formatTime } from "@/lib/tasks";
 
-import { changeAutomationStatusAction, updateAutomationAction } from "../actions";
+import {
+  changeAutomationStatusAction,
+  updateAutomationAction,
+} from "../actions";
 import { AutomationForm } from "../automation-form";
 import { automationOptions } from "../options";
 
-type Props = PageProps<"/orgs/[organizationId]/projects/[projectId]/automations/[automationId]">;
+type Props =
+  PageProps<"/orgs/[organizationId]/projects/[projectId]/automations/[automationId]">;
 
 /** An automation: what fires it, its runs, and changing it. */
 export default function AutomationPage(props: Props) {
@@ -26,7 +36,10 @@ export default function AutomationPage(props: Props) {
 async function AutomationDetails({ params }: Props) {
   const { organizationId, projectId, automationId } = await params;
   const projectPath = `/orgs/${organizationId}/projects/${projectId}`;
-  const session = await requireOrganization(organizationId, `${projectPath}/automations/${automationId}`);
+  const session = await requireOrganization(
+    organizationId,
+    `${projectPath}/automations/${automationId}`,
+  );
   const token = session.accessToken;
   const [project, automation, runs, options] = await Promise.all([
     getProject(token, organizationId, projectId),
@@ -37,12 +50,22 @@ async function AutomationDetails({ params }: Props) {
   const ref = { organizationId, projectId, automationId };
   const status = automationStatus(automation.status);
   const repository =
-    options.repositories.find((choice) => choice.id === automation.trigger.repositoryLinkId)?.name ??
-    (automation.trigger.repositoryLinkId ? "a repository no longer linked" : null);
+    options.repositories.find(
+      (choice) => choice.id === automation.trigger.repositoryLinkId,
+    )?.name ??
+    (automation.trigger.repositoryLinkId
+      ? "a repository no longer linked"
+      : null);
   const { action } = automation;
-  const agent = options.agents.find((choice) => choice.id === action.task?.agentId)?.name;
-  const template = options.templates.find((choice) => choice.id === action.template?.templateId)?.name;
-  const runsAs = options.serviceAccounts.find((choice) => choice.id === action.serviceAccountId)?.name;
+  const agent = options.agents.find(
+    (choice) => choice.id === action.task?.agentId,
+  )?.name;
+  const template = options.templates.find(
+    (choice) => choice.id === action.template?.templateId,
+  )?.name;
+  const runsAs = options.serviceAccounts.find(
+    (choice) => choice.id === action.serviceAccountId,
+  )?.name;
 
   return (
     <div className="space-y-10">
@@ -55,27 +78,44 @@ async function AutomationDetails({ params }: Props) {
           </p>
           <h1 className="text-2xl font-semibold">
             {automation.name}{" "}
-            <span className={`ml-1 rounded-full px-2 py-0.5 align-middle text-xs font-medium ${status.classes}`}>
+            <span
+              className={`ml-1 rounded-full px-2 py-0.5 align-middle text-xs font-medium ${status.classes}`}
+            >
               {status.label}
             </span>
           </h1>
           {automation.description ? (
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{automation.description}</p>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              {automation.description}
+            </p>
           ) : null}
-          <p className="mt-2 text-sm">{triggerSummary(automation.trigger, repository)}</p>
+          <p className="mt-2 text-sm">
+            {triggerSummary(automation.trigger, repository)}
+          </p>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             Starts{" "}
             {action.template
               ? `a task from the template ${template ?? "(no longer available)"}`
               : `a task for ${agent ?? "an agent no longer available"}`}
             , running as {runsAs ?? "a service account without a role here"}
-            {action.workInRepository === false ? "" : ", in the issue's repository"}
-            {(action.reviewArtifactKinds ?? []).length > 0 ? "; everything it produces needs approval" : ""}.
+            {action.workInRepository === false
+              ? ""
+              : ", in the issue's repository"}
+            {(action.reviewArtifactKinds ?? []).length > 0
+              ? "; everything it produces needs approval"
+              : ""}
+            .
             {action.concurrency ? (
               <>
                 {" "}
-                One task at a time per <span className="font-mono">{action.concurrency.key}</span>:{" "}
-                {CONCURRENCY_POLICIES.find((entry) => entry.value === action.concurrency?.policy)?.label.toLowerCase()}.
+                One task at a time per{" "}
+                <span className="font-mono">
+                  {action.concurrency.key}
+                </span>:{" "}
+                {CONCURRENCY_POLICIES.find(
+                  (entry) => entry.value === action.concurrency?.policy,
+                )?.label.toLowerCase()}
+                .
               </>
             ) : null}
           </p>
@@ -84,20 +124,29 @@ async function AutomationDetails({ params }: Props) {
           <div className="flex gap-2">
             {automation.status === "active" ? (
               <ActionButton
-                action={changeAutomationStatusAction.bind(null, { ...ref, change: "pause" })}
+                action={changeAutomationStatusAction.bind(null, {
+                  ...ref,
+                  change: "pause",
+                })}
                 label="Pause"
                 pendingLabel="Pausing…"
               />
             ) : (
               <ActionButton
-                action={changeAutomationStatusAction.bind(null, { ...ref, change: "resume" })}
+                action={changeAutomationStatusAction.bind(null, {
+                  ...ref,
+                  change: "resume",
+                })}
                 label="Resume"
                 pendingLabel="Resuming…"
                 primary
               />
             )}
             <ActionButton
-              action={changeAutomationStatusAction.bind(null, { ...ref, change: "archive" })}
+              action={changeAutomationStatusAction.bind(null, {
+                ...ref,
+                change: "archive",
+              })}
               label="Archive"
               pendingLabel="Archiving…"
               confirmText={`Archive ${automation.name}? It stops for good; its runs stay.`}
@@ -109,7 +158,9 @@ async function AutomationDetails({ params }: Props) {
       <section className="space-y-3">
         <h2 className="font-medium">Runs</h2>
         {runs.items.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">It hasn&apos;t fired yet.</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            It hasn&apos;t fired yet.
+          </p>
         ) : (
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-zinc-500">
@@ -124,24 +175,36 @@ async function AutomationDetails({ params }: Props) {
               {runs.items.map((run) => (
                 <tr key={run.id} className="align-top">
                   <td className="py-2 pr-2">
-                    <a href={run.event.url} className="hover:underline" rel="noreferrer" target="_blank">
+                    <a
+                      href={run.event.url}
+                      className="hover:underline"
+                      rel="noreferrer"
+                      target="_blank"
+                    >
                       {run.event.repository}#{run.event.issueNumber}
                     </a>
                   </td>
                   <td className="py-2 pr-2">{run.event.author}</td>
                   <td className="py-2 pr-2">
                     {run.taskId ? (
-                      <Link href={`${projectPath}/tasks/${run.taskId}`} className="underline">
+                      <Link
+                        href={`${projectPath}/tasks/${run.taskId}`}
+                        className="underline"
+                      >
                         {runStatusLabel(run.status)}
                       </Link>
                     ) : (
                       runStatusLabel(run.status)
                     )}
                     {run.rejection ? (
-                      <p className="text-xs text-red-700 dark:text-red-300">{run.rejection.message}</p>
+                      <p className="text-xs text-red-700 dark:text-red-300">
+                        {run.rejection.message}
+                      </p>
                     ) : null}
                   </td>
-                  <td className="py-2 text-zinc-600 dark:text-zinc-400">{formatTime(run.createdAt)}</td>
+                  <td className="py-2 text-zinc-600 dark:text-zinc-400">
+                    {formatTime(run.createdAt)}
+                  </td>
                 </tr>
               ))}
             </tbody>

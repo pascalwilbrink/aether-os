@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { buttonClass, FormError, inputClass } from "@/app/components/form";
+import { formatBytes, INPUT_FILE_LIMITS } from "@/lib/files";
 
 import { createTaskAction, type FormState, type ProjectRef } from "./actions";
 
@@ -26,7 +27,10 @@ export function NewTaskForm({
   repositories: Option[];
   idempotencyKey: string;
 }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(createTaskAction.bind(null, project), {});
+  const [state, action, pending] = useActionState<FormState, FormData>(
+    createTaskAction.bind(null, project),
+    {},
+  );
   if (agents.length === 0 || serviceAccounts.length === 0) {
     return (
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -42,7 +46,13 @@ export function NewTaskForm({
       <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
       <label className="block text-sm">
         Title
-        <input name="title" required maxLength={200} defaultValue={state.values?.title} className={inputClass} />
+        <input
+          name="title"
+          required
+          maxLength={200}
+          defaultValue={state.values?.title}
+          className={inputClass}
+        />
       </label>
       <label className="block text-sm">
         Instructions
@@ -88,7 +98,25 @@ export function NewTaskForm({
           </select>
         </label>
       </div>
-      <RepositorySelect repositories={repositories} value={state.values?.repositoryLinkId} />
+      <RepositorySelect
+        repositories={repositories}
+        value={state.values?.repositoryLinkId}
+      />
+      <label className="block text-sm">
+        Files <span className="text-zinc-500">(optional)</span>
+        <input
+          type="file"
+          name="inputFiles"
+          multiple
+          className={`${inputClass} file:mr-3`}
+        />
+        <span className="mt-1 block text-xs text-zinc-500">
+          What the task starts from: the agent finds them in its sandbox, in
+          /workspace/inputs (its version needs a sandbox). At most{" "}
+          {INPUT_FILE_LIMITS.count}, {formatBytes(INPUT_FILE_LIMITS.bytes)}{" "}
+          each.
+        </span>
+      </label>
       <label className="block text-sm">
         Budget <span className="text-zinc-500">(optional)</span>
         <input
@@ -99,12 +127,18 @@ export function NewTaskForm({
           className={`${inputClass} w-40`}
         />
         <span className="mt-1 block text-xs text-zinc-500">
-          US dollars for this task and its subtasks&apos; model calls; it pauses when they reach it.
+          US dollars for this task and its subtasks&apos; model calls; it pauses
+          when they reach it.
         </span>
       </label>
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="review" value="all" defaultChecked={state.values?.review === "all"} /> Everything
-        it produces needs approval
+        <input
+          type="checkbox"
+          name="review"
+          value="all"
+          defaultChecked={state.values?.review === "all"}
+        />{" "}
+        Everything it produces needs approval
       </label>
       <button type="submit" disabled={pending} className={buttonClass}>
         {pending ? "Creating…" : "Create task"}
@@ -128,7 +162,12 @@ export function RepositorySelect({
     <label className="block text-sm">
       Repository
       {/* Keyed: a form reset doesn't move a select to a new defaultValue. */}
-      <select key={value} name="repositoryLinkId" defaultValue={value ?? ""} className={inputClass}>
+      <select
+        key={value}
+        name="repositoryLinkId"
+        defaultValue={value ?? ""}
+        className={inputClass}
+      >
         <option value="">None</option>
         {repositories.map((repository) => (
           <option key={repository.id} value={repository.id}>
@@ -137,7 +176,8 @@ export function RepositorySelect({
         ))}
       </select>
       <span className="mt-1 block text-xs text-zinc-500">
-        The agent works in a copy of it; its commits come back as a pull request (the agent version needs a sandbox).
+        The agent works in a copy of it; its commits come back as a pull request
+        (the agent version needs a sandbox).
       </span>
     </label>
   );

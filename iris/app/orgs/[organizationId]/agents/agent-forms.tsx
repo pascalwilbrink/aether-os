@@ -2,7 +2,12 @@
 
 import { useActionState } from "react";
 
-import { buttonClass, FormError, inputClass, secondaryButtonClass } from "@/app/components/form";
+import {
+  buttonClass,
+  FormError,
+  inputClass,
+  secondaryButtonClass,
+} from "@/app/components/form";
 import type { AgentVersion, Model, Skill, ToolServer } from "@/lib/api";
 import { fieldsOf, modelChoices } from "@/lib/agents";
 import { SKILL_FIELD, SKILL_VERSION_FIELD, versionChoices } from "@/lib/skills";
@@ -28,7 +33,13 @@ export function NewAgentForm({ organizationId }: { organizationId: string }) {
       <FormError error={state.error} />
       <label className="block text-sm">
         Name
-        <input name="name" required maxLength={200} defaultValue={state.values?.name} className={inputClass} />
+        <input
+          name="name"
+          required
+          maxLength={200}
+          defaultValue={state.values?.name}
+          className={inputClass}
+        />
       </label>
       <label className="block text-sm">
         Description
@@ -70,7 +81,10 @@ export function VersionForm({
   /** What the organization's Ollama server has (not in the catalogue). */
   ollamaModels?: string[];
 }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(createVersionAction.bind(null, agent), {});
+  const [state, action, pending] = useActionState<FormState, FormData>(
+    createVersionAction.bind(null, agent),
+    {},
+  );
   // A refused submit starts from what was sent; otherwise from `from`.
   const start = state.values ?? fieldsOf(from);
   const choices = modelChoices(models, start.model ?? "", ollamaModels);
@@ -78,7 +92,10 @@ export function VersionForm({
     <form action={action} className="space-y-3">
       <FormError error={state.error} />
       {state.notice ? (
-        <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300">
+        <p
+          role="status"
+          className="text-sm text-emerald-700 dark:text-emerald-300"
+        >
           {state.notice}
         </p>
       ) : null}
@@ -119,11 +136,13 @@ export function VersionForm({
           </select>
           {choices.groups.length === 0 ? (
             <span className="mt-1 block text-xs text-amber-700 dark:text-amber-300">
-              The model catalogue has no active models yet; a platform operator adds them.
+              The model catalogue has no active models yet; a platform operator
+              adds them.
             </span>
           ) : choices.unavailable ? (
             <span className="mt-1 block text-xs text-amber-700 dark:text-amber-300">
-              {choices.unavailable} is no longer available for new versions: choose another model.
+              {choices.unavailable} is no longer available for new versions:
+              choose another model.
             </span>
           ) : null}
         </label>
@@ -174,8 +193,12 @@ export function VersionForm({
         </label>
       </div>
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="sandboxRequired" defaultChecked={start.sandboxRequired === "on"} /> Runs in a
-        sandbox (a shell of its own; needed for command checks)
+        <input
+          type="checkbox"
+          name="sandboxRequired"
+          defaultChecked={start.sandboxRequired === "on"}
+        />{" "}
+        Runs in a sandbox (a shell of its own; needed for command checks)
       </label>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm">
@@ -187,11 +210,16 @@ export function VersionForm({
             className={inputClass}
           >
             <option value="none">None</option>
-            <option value="restricted">Package registries and the hosts below</option>
+            <option value="restricted">
+              Package registries and the hosts below
+            </option>
           </select>
         </label>
         <label className="block text-sm">
-          Also allowed <span className="text-zinc-500">(one host per line; *.example.com for subdomains)</span>
+          Also allowed{" "}
+          <span className="text-zinc-500">
+            (one host per line; *.example.com for subdomains)
+          </span>
           <textarea
             name="allowedHosts"
             rows={2}
@@ -201,15 +229,32 @@ export function VersionForm({
           />
         </label>
       </div>
-      <ToolChoices organizationId={agent.organizationId} toolServers={toolServers} start={start} />
-      <SkillChoices organizationId={agent.organizationId} skills={skills} start={start} />
-      <input type="hidden" name="runtimeProvider" value={start.runtimeProvider} />
+      <ToolChoices
+        organizationId={agent.organizationId}
+        toolServers={toolServers}
+        start={start}
+      />
+      <SkillChoices
+        organizationId={agent.organizationId}
+        skills={skills}
+        start={start}
+      />
+      <input
+        type="hidden"
+        name="runtimeProvider"
+        value={start.runtimeProvider}
+      />
       <div className="flex items-center gap-4">
         <button type="submit" disabled={pending} className={buttonClass}>
           {pending ? "Saving…" : "Save version"}
         </button>
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="publish" defaultChecked={start.publish === "on"} /> Publish it
+          <input
+            type="checkbox"
+            name="publish"
+            defaultChecked={start.publish === "on"}
+          />{" "}
+          Publish it
         </label>
       </div>
     </form>
@@ -235,8 +280,16 @@ function ToolChoices({
     .map((key) => key.slice(TOOL_FIELD.length))
     .filter((name) => !known.has(name));
   const rows = [
-    ...toolServers.map((server) => ({ name: server.name, text: server.description || server.url, gone: false })),
-    ...gone.map((name) => ({ name, text: "No tool server has this name any more: uncheck it.", gone: true })),
+    ...toolServers.map((server) => ({
+      name: server.name,
+      text: server.description || server.url,
+      gone: false,
+    })),
+    ...gone.map((name) => ({
+      name,
+      text: "No tool server has this name any more: uncheck it.",
+      gone: true,
+    })),
   ];
   return (
     <fieldset className="space-y-2 text-sm">
@@ -244,15 +297,22 @@ function ToolChoices({
       {rows.length === 0 ? (
         <p className="text-xs text-zinc-500">
           The organization has no{" "}
-          <a href={`/orgs/${organizationId}/tool-servers`} className="underline">
+          <a
+            href={`/orgs/${organizationId}/tool-servers`}
+            className="underline"
+          >
             tool servers
           </a>{" "}
-          yet. Without them the agent has its sandbox (if any) and submit_artifact.
+          yet. Without them the agent has its sandbox (if any) and
+          submit_artifact.
         </p>
       ) : (
         rows.map((row) => (
           // Keyed by what the form starts from: a reset doesn't move checkboxes to new defaults.
-          <div key={`${row.name}:${start[`${TOOL_FIELD}${row.name}`] ?? ""}`} className="grid gap-2 sm:grid-cols-2">
+          <div
+            key={`${row.name}:${start[`${TOOL_FIELD}${row.name}`] ?? ""}`}
+            className="grid gap-2 sm:grid-cols-2"
+          >
             <label className="flex items-start gap-2">
               <input
                 type="checkbox"
@@ -262,7 +322,9 @@ function ToolChoices({
               />
               <span>
                 <span className="font-mono">{row.name}</span>
-                <span className={`block text-xs ${row.gone ? "text-amber-700 dark:text-amber-300" : "text-zinc-500"}`}>
+                <span
+                  className={`block text-xs ${row.gone ? "text-amber-700 dark:text-amber-300" : "text-zinc-500"}`}
+                >
                   {row.text}
                 </span>
               </span>
@@ -296,7 +358,9 @@ function SkillChoices({
   start: Record<string, string | undefined>;
 }) {
   const chosen = (name: string) => start[`${SKILL_FIELD}${name}`] === "on";
-  const rows = skills.filter((skill) => skill.status === "active" || chosen(skill.name));
+  const rows = skills.filter(
+    (skill) => skill.status === "active" || chosen(skill.name),
+  );
   return (
     <fieldset className="space-y-2 text-sm">
       <legend>Skills</legend>
@@ -327,14 +391,19 @@ function SkillChoices({
                 <span
                   className={`block text-xs ${skill.status === "archived" ? "text-amber-700 dark:text-amber-300" : "text-zinc-500"}`}
                 >
-                  {skill.status === "archived" ? "Archived: uncheck it to save a new version." : skill.description}
+                  {skill.status === "archived"
+                    ? "Archived: uncheck it to save a new version."
+                    : skill.description}
                 </span>
               </span>
             </label>
             <select
               name={`${SKILL_VERSION_FIELD}${skill.name}`}
               aria-label={`Version of ${skill.name}`}
-              defaultValue={start[`${SKILL_VERSION_FIELD}${skill.name}`] ?? String(skill.latestVersion)}
+              defaultValue={
+                start[`${SKILL_VERSION_FIELD}${skill.name}`] ??
+                String(skill.latestVersion)
+              }
               className={`${inputClass} mt-0`}
             >
               {versionChoices(skill).map((version) => (
@@ -352,8 +421,15 @@ function SkillChoices({
 }
 
 /** Publishes a draft version. */
-export function PublishButton({ version }: { version: AgentRef & { versionId: string } }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(publishVersionAction.bind(null, version), {});
+export function PublishButton({
+  version,
+}: {
+  version: AgentRef & { versionId: string };
+}) {
+  const [state, action, pending] = useActionState<FormState, FormData>(
+    publishVersionAction.bind(null, version),
+    {},
+  );
   return (
     <form action={action} className="inline">
       <button type="submit" disabled={pending} className={secondaryButtonClass}>
@@ -366,12 +442,19 @@ export function PublishButton({ version }: { version: AgentRef & { versionId: st
 
 /** Archives the agent, after asking. */
 export function ArchiveButton({ agent }: { agent: AgentRef }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(archiveAgentAction.bind(null, agent), {});
+  const [state, action, pending] = useActionState<FormState, FormData>(
+    archiveAgentAction.bind(null, agent),
+    {},
+  );
   return (
     <form
       action={action}
       onSubmit={(event) => {
-        if (!confirm("Archive this agent? It can't get new versions or tasks; tasks it already has keep running.")) {
+        if (
+          !confirm(
+            "Archive this agent? It can't get new versions or tasks; tasks it already has keep running.",
+          )
+        ) {
           event.preventDefault();
         }
       }}

@@ -58,6 +58,45 @@ describe('LoculusFileStore (a stand-in Loculus)', () => {
     ]);
   });
 
+  it("reads a file of the task's project, checking it is what Loculus recorded", async () => {
+    const store = new LoculusFileStore(loculus.url);
+    const fileId = loculus.add(
+      task.organizationId,
+      task.projectId,
+      'brief.md',
+      'text/markdown',
+      Buffer.from('# Brief'),
+    );
+    expect(await store.fetch(task, 'task-token', fileId, 1024)).toEqual({
+      fileName: 'brief.md',
+      contentType: 'text/markdown',
+      bytes: Buffer.from('# Brief'),
+    });
+    expect(loculus.requests.at(-1)).toMatchObject({
+      authorization: 'Bearer task-token',
+    });
+
+    await expect(store.fetch(task, 'token', fileId, 3)).rejects.toThrow(
+      "a task's files are at most 3",
+    );
+    // Another project's file is a 404, not retried.
+    const elsewhere = loculus.add(
+      task.organizationId,
+      '0195f2a0-0000-7000-8000-000000000099',
+      'x.txt',
+      'text/plain',
+      Buffer.from('x'),
+    );
+    await expect(
+      store.fetch(task, 'token', elsewhere, 1024),
+    ).rejects.toMatchObject({ retryable: false });
+    // Bytes that changed under it.
+    loculus.files.get(fileId)!.bytes = Buffer.from('# Other');
+    await expect(store.fetch(task, 'token', fileId, 1024)).rejects.toThrow(
+      'its SHA-256 differs',
+    );
+  });
+
   it('says what Loculus said, or that it is gone', async () => {
     loculus.refuse = 403;
     const store = new LoculusFileStore(loculus.url);
@@ -70,9 +109,10 @@ describe('LoculusFileStore (a stand-in Loculus)', () => {
       new FileStoreError('Loculus refused the file: Refused by the test.'),
     );
     await loculus.stop();
-    await expect(store.store(task, 'token', file)).rejects.toThrow(
-      'Loculus could not be reached',
-    );
+    await expect(store.store(task, 'token', file)).rejects.toMatchObject({
+      message: expect.stringContaining('Loculus could not be reached'),
+      retryable: true,
+    });
     loculus = await new FakeLoculus().start();
   });
 });

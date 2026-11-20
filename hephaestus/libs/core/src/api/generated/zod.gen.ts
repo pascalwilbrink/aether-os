@@ -201,6 +201,10 @@ export const zTaskFailureReason = z.enum([
     'access_denied'
 ]);
 
+export const zTaskInputFile = z.object({
+    fileId: z.uuid()
+});
+
 export const zTaskRepository = z.object({
     linkId: z.uuid()
 });
@@ -637,7 +641,8 @@ export const zCreateTaskRequest = z.object({
     acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional(),
     repository: zTaskRepository.nullish(),
     budgetUsd: zUsd.nullish(),
-    concurrency: zTaskConcurrency.nullish()
+    concurrency: zTaskConcurrency.nullish(),
+    inputFiles: z.array(zTaskInputFile).max(20).optional()
 });
 
 /**
@@ -787,6 +792,7 @@ export const zTaskResponse = z.object({
     acceptanceCriteria: z.array(zAcceptanceCriterion),
     repository: zTaskRepository.nullable(),
     concurrency: zTaskConcurrency.nullable(),
+    inputFiles: z.array(zTaskInputFile),
     taskTemplateId: z.uuid().nullable(),
     taskTemplateVersion: z.int().gte(1).nullable(),
     createdAt: z.iso.datetime(),

@@ -8,17 +8,26 @@ import { ORGANIZATION_ROLES } from "@/lib/members";
 import { createServiceAccountAction, type FormState } from "./actions";
 
 /** A new service account and its organization role: member or viewer (it never needs to manage the organization). */
-export function NewServiceAccountForm({ organizationId }: { organizationId: string }) {
+export function NewServiceAccountForm({
+  organizationId,
+}: {
+  organizationId: string;
+}) {
   const [state, action, pending] = useActionState<FormState, FormData>(
     createServiceAccountAction.bind(null, organizationId),
     {},
   );
-  const roles = ORGANIZATION_ROLES.filter(({ role }) => role === "member" || role === "viewer");
+  const roles = ORGANIZATION_ROLES.filter(
+    ({ role }) => role === "member" || role === "viewer",
+  );
   return (
     <form action={action} className="max-w-xl space-y-3">
       <FormError error={state.error} />
       {state.notice ? (
-        <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300">
+        <p
+          role="status"
+          className="text-sm text-emerald-700 dark:text-emerald-300"
+        >
           {state.notice}
         </p>
       ) : null}

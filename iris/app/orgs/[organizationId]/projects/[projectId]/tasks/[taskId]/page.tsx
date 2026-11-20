@@ -13,10 +13,12 @@ import {
   listExecutionEvents,
   listExecutions,
 } from "@/lib/api/hephaestus";
+import { getFile } from "@/lib/api/loculus";
 import { getProject } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
 import { pausedMessage } from "@/lib/budgets";
 import { config } from "@/lib/config";
+import { downloadHref, formatBytes } from "@/lib/files";
 import { traceLinks } from "@/lib/traces";
 import {
   artifactsByExecution,
@@ -134,6 +136,16 @@ async function TaskView({
         <pre className="whitespace-pre-wrap rounded-md bg-zinc-100 p-3 text-sm dark:bg-zinc-900">
           {task.instructions}
         </pre>
+        {task.inputFiles.length > 0 ? (
+          <Suspense fallback={<p className="text-sm text-zinc-500">Files…</p>}>
+            <InputFiles
+              token={session.accessToken}
+              organizationId={organizationId}
+              projectId={projectId}
+              fileIds={task.inputFiles.map((file) => file.fileId)}
+            />
+          </Suspense>
+        ) : null}
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
           <Fact label="Attempt">{task.attempt}</Fact>
           <Fact label="Review round">{task.reviewRound}</Fact>
@@ -403,7 +415,7 @@ function Fact({
 /**
  * One execution's activity (docs/tasks.md, Activity): what's there now,
  * then followed live while it runs. The latest execution's, or the one
- * chosen in the table ().
+ * chosen in the table (`?execution=`).
  */
 function ActivitySection({
   token,
@@ -469,5 +481,60 @@ async function ActivityLoader({
       url={`${path}/executions/${execution.id}/events`}
       initial={initial}
     />
+  );
+}
+
+/** The files the task started from (Loculus), each with a download link. */
+async function InputFiles({
+  token,
+  organizationId,
+  projectId,
+  fileIds,
+}: {
+  token: string;
+  organizationId: string;
+  projectId: string;
+  fileIds: string[];
+}) {
+  const files = await Promise.allSettled(
+    fileIds.map((fileId) => getFile(token, organizationId, projectId, fileId)),
+  );
+  return (
+    <div className="text-sm">
+      <p className="text-zinc-600 dark:text-zinc-400">
+        Files it starts from, in /workspace/inputs:
+      </p>
+      <ul className="mt-1 space-y-1">
+        {files.map((result, index) => (
+          <li
+            key={fileIds[index]}
+            className="flex flex-wrap items-center gap-2"
+          >
+            {result.status === "fulfilled" ? (
+              <>
+                <a
+                  href={downloadHref(
+                    organizationId,
+                    projectId,
+                    result.value.id,
+                  )}
+                  className="font-mono underline"
+                >
+                  {result.value.fileName}
+                </a>
+                <span className="text-zinc-500">
+                  {result.value.contentType} ·{" "}
+                  {formatBytes(result.value.sizeBytes)}
+                </span>
+              </>
+            ) : (
+              <span className="text-zinc-500">
+                A file that can&apos;t be found ({fileIds[index]})
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

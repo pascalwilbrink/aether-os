@@ -44,6 +44,11 @@ export interface AgentRunInput {
    */
   repository?: AgentRepository | null;
   /**
+   * The files the task starts from, copied into the sandbox (Loculus,
+   * docs/files.md). Absent or empty without any.
+   */
+  inputFiles?: AgentInputFile[];
+  /**
    * After the task tree's branch moved and the agent's commits conflict
    * with it (docs/git.md): a rebase onto the branch is in progress in the
    * repository, stopped at these conflicts, for the agent to resolve and
@@ -66,6 +71,14 @@ export interface AgentRepository {
   branch: string;
   /** What it started from: the task branch itself, or the default branch. */
   startedFrom: string;
+}
+
+/** A file the task starts from, in the sandbox. */
+export interface AgentInputFile {
+  path: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
 }
 
 export interface BranchConflict {

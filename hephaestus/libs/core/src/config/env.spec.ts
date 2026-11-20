@@ -48,7 +48,7 @@ describe('zEnv', () => {
       MODEL_ENDPOINT_ALLOW_PRIVATE: false,
       TOOL_SERVER_TRUSTED_ORIGINS: [],
       TOOL_CALL_TIMEOUT_MS: 60_000,
-      FILE_ARTIFACT_MAX_BYTES: 25 * 1024 * 1024,
+      TASK_FILE_MAX_BYTES: 25 * 1024 * 1024,
       SANDBOX_PROXY_IMAGE: 'node:22-alpine',
       SANDBOX_EGRESS_NETWORK: 'bridge',
     });

@@ -17,6 +17,7 @@ export * from './verifier.js';
 export * from './repository-tokens.js';
 export * from './file-store.js';
 export * from './sandbox-files.js';
+export * from './task-inputs.js';
 export * from './repository-checkouts.js';
 export * from './git-client.js';
 export * from './pull-requests.js';

@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  contentTypeFor,
   downloadHref,
   formatBytes,
+  inputFilesProblem,
+  pickedFiles,
   PREVIEW_CSP,
   previewDocument,
   previewOf,
@@ -45,5 +48,29 @@ describe("files", () => {
     expect(document.endsWith("<h1>Hi</h1>")).toBe(true);
     expect(PREVIEW_CSP).toContain("default-src 'none'");
     expect(PREVIEW_CSP).not.toMatch(/https?:/);
+  });
+
+  it("takes the files a task starts from, within limits", () => {
+    const empty = { name: "", size: 0 };
+    const brief = { name: "brief.md", size: 10 };
+    expect(pickedFiles([empty, brief, "text"])).toEqual([brief]);
+    expect(inputFilesProblem([brief])).toBeNull();
+    expect(inputFilesProblem(Array.from({ length: 21 }, () => brief))).toBe(
+      "A task starts from at most 20 files.",
+    );
+    expect(
+      inputFilesProblem([{ name: "big.zip", size: 26 * 1024 * 1024 }]),
+    ).toBe("big.zip is 26 MB; a task's files are at most 25 MB.");
+    expect(inputFilesProblem([{ name: "a\nb", size: 1 }])).toContain(
+      "isn't a name",
+    );
+  });
+
+  it("types files as Loculus takes them", () => {
+    expect(contentTypeFor("text/markdown")).toBe("text/markdown");
+    expect(contentTypeFor("")).toBe("application/octet-stream");
+    expect(contentTypeFor("text/plain;charset=UTF-8")).toBe(
+      "application/octet-stream",
+    );
   });
 });

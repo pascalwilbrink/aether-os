@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.25.0
+  version: 0.26.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -2195,6 +2195,21 @@ components:
           oneOf:
             - $ref: '#/components/schemas/TaskConcurrency'
             - type: 'null'
+        inputFiles:
+          type: array
+          maxItems: 20
+          description: |
+            Files the task starts from: files of its project in Loculus
+            (docs/files.md), uploaded first. The agent finds them in its
+            sandbox, in `/workspace/inputs`, so its version needs one
+            (else the execution fails without retrying).
+          items: { $ref: '#/components/schemas/TaskInputFile' }
+    TaskInputFile:
+      type: object
+      additionalProperties: false
+      required: [fileId]
+      properties:
+        fileId: { type: string, format: uuid, description: A file of the task's project in Loculus. }
     TaskRepository:
       type: object
       additionalProperties: false
@@ -2436,7 +2451,7 @@ components:
           items: { type: string, minLength: 1, maxLength: 50 }
     TaskResponse:
       type: object
-      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, pausedFor, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, concurrency, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
+      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, pausedFor, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, concurrency, inputFiles, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -2490,6 +2505,10 @@ components:
           oneOf:
             - $ref: '#/components/schemas/TaskConcurrency'
             - type: 'null'
+        inputFiles:
+          type: array
+          description: Files the task starts from (Loculus), in `/workspace/inputs` of its sandbox.
+          items: { $ref: '#/components/schemas/TaskInputFile' }
         taskTemplateId:
           type: [string, 'null']
           format: uuid

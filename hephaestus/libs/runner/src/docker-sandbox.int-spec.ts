@@ -29,7 +29,7 @@ import { createTestingModuleWith } from '../../../test/testing-module.js';
 import { AgentRuntime } from './agent-runtime.js';
 import { DockerSandboxDriver } from './docker-sandbox-driver.js';
 import { ExecutionHistory } from './execution-history.js';
-import { LoculusFileStore } from './file-store.js';
+import { FileStore, LoculusFileStore } from './file-store.js';
 import { MastraAgentRuntime } from './mastra-agent-runtime.js';
 import { RunnerModule } from './runner.module.js';
 import { RUNNER_OPTIONS } from './runner.options.js';
@@ -378,6 +378,8 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
             ) => new WorkspaceSandboxProvisioner(workspaces, driver, options),
             inject: [WorkspacesService, SandboxDriver, SANDBOX_OPTIONS],
           })
+          .overrideProvider(FileStore)
+          .useValue(new LoculusFileStore(loculus.url))
           .overrideProvider(SecretStore)
           .useValue(secrets)
           .overrideProvider(LanguageModels)
@@ -584,6 +586,56 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
         },
       },
     ]);
+  });
+
+  it('copies the files the task starts from into its sandbox', async () => {
+    const briefId = loculus.add(
+      organizationId,
+      projectId,
+      'brief.md',
+      'text/markdown',
+      Buffer.from('Make it blink.'),
+    );
+    models.replies = [
+      {
+        toolCall: {
+          tool: 'execute_command',
+          input: { command: 'cat /workspace/inputs/brief.md' },
+        },
+      },
+      { text: 'Read the brief.' },
+    ];
+    // The agent (its task is cancelled: only the one below runs).
+    const first = await taskFor(true);
+    await tasks.cancel(organizationId, projectId, first.id);
+    const { agentId } = first;
+    const task = (
+      await tasks.create(
+        organizationId,
+        projectId,
+        {
+          title: 'Follow the brief',
+          instructions: 'See the input file.',
+          agentId,
+          serviceAccountId: SERVICE_ACCOUNT,
+          inputFiles: [{ fileId: briefId }, { fileId: briefId }],
+        },
+        `key-${++key}`,
+      )
+    ).task;
+    expect(task.inputFiles).toEqual([{ fileId: briefId }]);
+
+    await runner().tick();
+    await runner().drain();
+
+    await expect(
+      tasks.findById(organizationId, projectId, task.id),
+    ).resolves.toMatchObject({ status: 'succeeded' });
+    const runs = models.calls.slice(-2);
+    expect(JSON.stringify(runs[0].prompt.at(-1))).toContain(
+      '/workspace/inputs/brief.md (text/markdown, 14 bytes)',
+    );
+    expect(JSON.stringify(runs[1].prompt.at(-1))).toContain('Make it blink.');
   });
 
   it("copies the version's skills into the sandbox, to run their scripts", async () => {

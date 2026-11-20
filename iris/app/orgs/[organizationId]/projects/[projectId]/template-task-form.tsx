@@ -5,7 +5,11 @@ import { useActionState } from "react";
 import { buttonClass, FormError, inputClass } from "@/app/components/form";
 import type { TaskTemplateVersion } from "@/lib/api";
 
-import { createTaskFromTemplateAction, type FormState, type ProjectRef } from "./actions";
+import {
+  createTaskFromTemplateAction,
+  type FormState,
+  type ProjectRef,
+} from "./actions";
 import { RepositorySelect } from "./new-task-form";
 
 /** A task from a template version: its inputs, and the service account to run as. */
@@ -34,8 +38,14 @@ export function TemplateTaskForm({
       {version.effective.inputs.map((input) => (
         <label key={input.name} className="block text-sm">
           {input.name}
-          {input.required === false ? <span className="text-zinc-500"> (optional)</span> : null}
-          {input.description ? <span className="block text-xs text-zinc-500">{input.description}</span> : null}
+          {input.required === false ? (
+            <span className="text-zinc-500"> (optional)</span>
+          ) : null}
+          {input.description ? (
+            <span className="block text-xs text-zinc-500">
+              {input.description}
+            </span>
+          ) : null}
           <input
             name={`input:${input.name}`}
             required={input.required !== false}
@@ -60,8 +70,15 @@ export function TemplateTaskForm({
           ))}
         </select>
       </label>
-      <RepositorySelect repositories={repositories} value={state.values?.repositoryLinkId} />
-      <button type="submit" disabled={pending || serviceAccounts.length === 0} className={buttonClass}>
+      <RepositorySelect
+        repositories={repositories}
+        value={state.values?.repositoryLinkId}
+      />
+      <button
+        type="submit"
+        disabled={pending || serviceAccounts.length === 0}
+        className={buttonClass}
+      >
         {pending ? "Creating…" : "Create task"}
       </button>
     </form>

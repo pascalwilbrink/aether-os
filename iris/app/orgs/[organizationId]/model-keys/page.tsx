@@ -24,7 +24,10 @@ export default function ModelKeysPage(props: Props) {
 
 async function ModelKeys({ params }: Props) {
   const { organizationId } = await params;
-  const session = await requireOrganization(organizationId, `/orgs/${organizationId}/model-keys`);
+  const session = await requireOrganization(
+    organizationId,
+    `/orgs/${organizationId}/model-keys`,
+  );
   const token = session.accessToken;
   const [organization, keys] = await Promise.all([
     getOrganization(token, organizationId),
@@ -41,9 +44,11 @@ async function ModelKeys({ params }: Props) {
         </p>
         <h1 className="text-2xl font-semibold">Model keys</h1>
         <p className="mt-1 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
-          Your API keys for model providers. An agent calls its model with the organization&apos;s key for that
-          provider, unless the agent has its own (set on its page). Keys are stored in a secrets store and never shown
-          again: only their last characters, to tell them apart. Owners and admins can set them.
+          Your API keys for model providers. An agent calls its model with the
+          organization&apos;s key for that provider, unless the agent has its
+          own (set on its page). Keys are stored in a secrets store and never
+          shown again: only their last characters, to tell them apart. Owners
+          and admins can set them.
         </p>
       </div>
 
@@ -61,10 +66,12 @@ async function ModelKeys({ params }: Props) {
                       <>
                         {key.baseUrl ? (
                           <>
-                            Server: <span className="font-mono">{key.baseUrl}</span> ·{" "}
+                            Server:{" "}
+                            <span className="font-mono">{key.baseUrl}</span> ·{" "}
                             {key.hint ? (
                               <>
-                                key <span className="font-mono">{key.hint}</span>
+                                key{" "}
+                                <span className="font-mono">{key.hint}</span>
                               </>
                             ) : (
                               "no key"
@@ -95,9 +102,15 @@ async function ModelKeys({ params }: Props) {
               </div>
               <ModelKeyForm
                 action={setModelKeyAction.bind(null, ref)}
-                label={isSelfHosted(provider) ? `${name} API key (optional)` : `${name} API key`}
+                label={
+                  isSelfHosted(provider)
+                    ? `${name} API key (optional)`
+                    : `${name} API key`
+                }
                 replacing={Boolean(key)}
-                baseUrl={isSelfHosted(provider) ? (key?.baseUrl ?? "") : undefined}
+                baseUrl={
+                  isSelfHosted(provider) ? (key?.baseUrl ?? "") : undefined
+                }
               />
             </li>
           );

@@ -19,8 +19,14 @@ export default function NewAgentPage(props: Props) {
 
 async function NewAgent({ params }: Props) {
   const { organizationId } = await params;
-  const session = await requireOrganization(organizationId, `/orgs/${organizationId}/agents/new`);
-  const organization = await getOrganization(session.accessToken, organizationId);
+  const session = await requireOrganization(
+    organizationId,
+    `/orgs/${organizationId}/agents/new`,
+  );
+  const organization = await getOrganization(
+    session.accessToken,
+    organizationId,
+  );
   return (
     <div className="space-y-6">
       <div>

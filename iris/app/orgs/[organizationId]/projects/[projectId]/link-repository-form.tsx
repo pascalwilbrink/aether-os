@@ -5,7 +5,11 @@ import { useActionState } from "react";
 
 import { buttonClass, FormError, inputClass } from "@/app/components/form";
 
-import { linkRepositoryAction, type FormState, type ProjectRef } from "./actions";
+import {
+  linkRepositoryAction,
+  type FormState,
+  type ProjectRef,
+} from "./actions";
 
 /** Links one of the organization's repositories (connected through GitHub) to the project. */
 export function LinkRepositoryForm({
@@ -20,7 +24,10 @@ export function LinkRepositoryForm({
   connectHref: string;
   unavailable: boolean;
 }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(linkRepositoryAction.bind(null, project), {});
+  const [state, action, pending] = useActionState<FormState, FormData>(
+    linkRepositoryAction.bind(null, project),
+    {},
+  );
   if (unavailable) {
     return null;
   }

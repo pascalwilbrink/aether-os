@@ -54,12 +54,42 @@ export class FakeLoculus {
     return this;
   }
 
+  /** A file of a project, uploaded and available, as Iris would leave it. */
+  add(
+    organizationId: string,
+    projectId: string,
+    fileName: string,
+    contentType: string,
+    bytes: Buffer,
+  ): string {
+    const id = randomUUID();
+    this.files.set(id, {
+      id,
+      organizationId,
+      projectId,
+      fileName,
+      contentType,
+      sizeBytes: bytes.length,
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+      status: 'available',
+      bytes,
+    });
+    return id;
+  }
+
   async stop(): Promise<void> {
     await new Promise<void>((resolve) => this.server?.close(() => resolve()));
   }
 
   private handle(req: IncomingMessage, body: Buffer, res: ServerResponse) {
     const path = req.url ?? '';
+    const download = /^\/download\/([0-9a-f-]+)$/.exec(path);
+    if (req.method === 'GET' && download) {
+      const file = this.files.get(download[1]);
+      res.statusCode = file?.bytes ? 200 : 404;
+      res.end(file?.bytes ?? undefined);
+      return;
+    }
     const upload = /^\/upload\/([0-9a-f-]+)$/.exec(path);
     if (req.method === 'PUT' && upload) {
       const file = this.files.get(upload[1]);
@@ -85,6 +115,29 @@ export class FakeLoculus {
     });
     if (this.refuse) {
       return this.problem(res, this.refuse, 'Refused by the test.');
+    }
+    const one =
+      /^\/v1\/organizations\/([^/]+)\/projects\/([^/]+)\/files\/([^/]+)(\/download)?$/.exec(
+        path,
+      );
+    if (req.method === 'GET' && one) {
+      const file = this.files.get(one[3]);
+      if (
+        !file ||
+        file.organizationId !== one[1] ||
+        file.projectId !== one[2]
+      ) {
+        return this.problem(res, 404, `File ${one[3]} not found`);
+      }
+      if (one[4]) {
+        return file.status === 'available'
+          ? this.json(res, 200, {
+              url: `${this.url}/download/${file.id}`,
+              expiresAt: new Date(Date.now() + 300_000).toISOString(),
+            })
+          : this.problem(res, 409, 'Not uploaded yet.');
+      }
+      return this.json(res, 200, this.response(file));
     }
     const files =
       /^\/v1\/organizations\/([^/]+)\/projects\/([^/]+)\/files(?:\/([^/]+)\/complete)?$/.exec(
