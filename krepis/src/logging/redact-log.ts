@@ -20,9 +20,23 @@ const SECRET_PATTERNS: readonly [RegExp, string][] = [
   [/(\b[a-z][a-z0-9+.-]*:\/\/[^\s:/@]+:)[^\s@/]+@/gi, '$1[redacted]@'],
 ];
 
-export function redactText(text: string): string {
+const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+
+/**
+ * `text` with credentials redacted (bearer and basic credentials, JWTs,
+ * provider keys, GitHub tokens, passwords in URLs), and email addresses
+ * unless `keepEmails` (text people wrote for others to read, such as
+ * project knowledge, may name a contact).
+ */
+export function redactText(
+  text: string,
+  options: { keepEmails?: boolean } = {},
+): string {
   return SECRET_PATTERNS.reduce(
-    (result, [pattern, replacement]) => result.replace(pattern, replacement),
+    (result, [pattern, replacement]) =>
+      options.keepEmails && pattern.source === EMAIL.source
+        ? result
+        : result.replace(pattern, replacement),
     text,
   );
 }

@@ -61,8 +61,12 @@ export class FixedPermissionEvaluator extends PermissionEvaluator {
     projectId: string,
     permission: ProjectPermission,
   ): boolean {
-    // Only people approve: never a service account, whatever its roles.
-    if (permission === 'task:approve' && principal.subType !== 'user') {
+    // Only people approve, work or knowledge: never a service account,
+    // whatever its roles.
+    if (
+      (permission === 'task:approve' || permission === 'knowledge:approve') &&
+      principal.subType !== 'user'
+    ) {
       return false;
     }
     return projectRoleGrants(

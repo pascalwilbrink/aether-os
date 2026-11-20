@@ -1,0 +1,47 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "types": [
+      "vitest/globals",
+      "node"
+    ],
+    "paths": {
+      "@seshat/core": [
+        "./libs/core/src/index.ts"
+      ],
+      "@seshat/core/*": [
+        "./libs/core/src/*"
+      ],
+      "@seshat/tenancy": [
+        "./libs/tenancy/src/index.ts"
+      ],
+      "@seshat/tenancy/*": [
+        "./libs/tenancy/src/*"
+      ],
+      "@seshat/knowledge": [
+        "./libs/knowledge/src/index.ts"
+      ],
+      "@seshat/knowledge/*": [
+        "./libs/knowledge/src/*"
+      ]
+    },
+    "rewriteRelativeImportExtensions": true
+  }
+}

@@ -35,6 +35,8 @@ const ORGANIZATION_PERMISSIONS = {
   'org:task-template:manage': ['owner', 'admin'],
   'org:policy:write': ['owner', 'admin'],
   'org:secret:write': ['owner', 'admin'],
+  // Organization-wide project knowledge in Seshat (docs/knowledge.md).
+  'org:knowledge:write': ['owner', 'admin'],
 } as const satisfies Record<string, readonly OrganizationRole[]>;
 
 const PROJECT_PERMISSIONS = {
@@ -55,6 +57,12 @@ const PROJECT_PERMISSIONS = {
   // Files in Loculus (docs/files.md): reading them, and uploading or deleting.
   'file:read': ['admin', 'approver', 'editor', 'viewer'],
   'file:write': ['admin', 'approver', 'editor'],
+  // Project knowledge in Seshat (docs/knowledge.md): reading it, writing
+  // items and documents (agents only propose), and accepting proposals
+  // (people only, like task:approve).
+  'knowledge:read': ['admin', 'approver', 'editor', 'viewer'],
+  'knowledge:write': ['admin', 'approver', 'editor'],
+  'knowledge:approve': ['admin', 'approver'],
   // A short-lived token for a linked repository (Proxenos); only task tokens.
   'repository:token': ['admin', 'approver', 'editor'],
 } as const satisfies Record<string, readonly ProjectRole[]>;

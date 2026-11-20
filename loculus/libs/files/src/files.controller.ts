@@ -10,7 +10,11 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { RequirePermission, ZodSerializerDto } from '@loculus/core';
+import {
+  PlatformAccess,
+  RequirePermission,
+  ZodSerializerDto,
+} from '@loculus/core';
 
 import {
   CreatedFileResponse,
@@ -54,6 +58,8 @@ export class FilesController {
 
   @Get(':fileId')
   @RequirePermission('file:read', IN_PROJECT)
+  // Platform services read files too (Seshat indexes a project's documents).
+  @PlatformAccess('platform:read')
   @ZodSerializerDto(FileResponse)
   get(@Param() { organizationId, projectId, fileId }: FileParams) {
     return this.files.get(organizationId, projectId, fileId);
@@ -76,6 +82,7 @@ export class FilesController {
 
   @Get(':fileId/download')
   @RequirePermission('file:read', IN_PROJECT)
+  @PlatformAccess('platform:read')
   @ZodSerializerDto(FileDownload)
   download(@Param() { organizationId, projectId, fileId }: FileParams) {
     return this.files.download(organizationId, projectId, fileId);

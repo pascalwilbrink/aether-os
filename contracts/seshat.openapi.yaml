@@ -1,0 +1,636 @@
+openapi: 3.1.0
+info:
+  title: Seshat API
+  version: 0.1.0
+  description: |
+    Project knowledge (`../docs/knowledge.md`): what agents know about the
+    project they work in. Typed items (decisions, facts, conventions,
+    architecture notes, lessons learned) and documents (files of the project
+    in Loculus, indexed for search), each with where it came from, a
+    lifecycle (`proposed` → `accepted` → `superseded` / `retired`, or
+    `rejected`) and a history of versions.
+
+    People write knowledge directly; agents (task tokens) only propose it,
+    and someone with `knowledge:approve` accepts it. Every change is
+    published to `seshat.events` (`seshat.asyncapi.yaml`).
+
+    Follows `../docs/api.md`: paths under `/v1`, errors as problem details
+    (business-rule violations are 409 with a `DomainErrorCode`), cursor
+    pagination, UUIDs. Every operation needs a Pistis access token for the
+    organization with the permission in `x-permission`; a project the caller
+    can't read is a 404. Writes need an active organization and project
+    (Polis): `ORGANIZATION_SUSPENDED`, `PROJECT_ARCHIVED`.
+
+security:
+  - pistis: []
+
+tags:
+  - name: knowledge
+
+paths:
+  /v1/organizations/{organizationId}/projects/{projectId}/knowledge/items:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      tags: [knowledge]
+      operationId: createKnowledgeItem
+      x-permission: '`knowledge:write` in the project'
+      description: |
+        A decision, fact, convention, architecture note or lesson. A person's
+        item is `accepted` at once; one from a service account (an agent's task
+        token) is `proposed`, for someone with `knowledge:approve` to accept.
+        `supersedes` names an accepted item this one replaces: it becomes
+        `superseded` when this one is accepted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateKnowledgeItemRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    get:
+      tags: [knowledge]
+      operationId: listKnowledgeItems
+      x-permission: '`knowledge:read` in the project'
+      description: |
+        Newest first; `document` items too.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - { name: type, in: query, schema: { $ref: '#/components/schemas/KnowledgeItemType' } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/KnowledgeItemStatus' } }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/organizations/{organizationId}/projects/{projectId}/knowledge/items/{itemId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/ItemId'
+    get:
+      tags: [knowledge]
+      operationId: getKnowledgeItem
+      x-permission: '`knowledge:read` in the project'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [knowledge]
+      operationId: updateKnowledgeItem
+      x-permission: '`knowledge:write` in the project'
+      description: |
+        A new version of a proposed or accepted item (its title, body, tags,
+        references, `reviewBy`); the history is kept. A changed decision is better
+        a new item that supersedes this one. Documents change by `PUT …/documents/{itemId}`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateKnowledgeItemRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: The new version
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/organizations/{organizationId}/projects/{projectId}/knowledge/items/{itemId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/ItemId'
+    get:
+      tags: [knowledge]
+      operationId: listKnowledgeItemVersions
+      x-permission: '`knowledge:read` in the project'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemVersionPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/organizations/{organizationId}/projects/{projectId}/knowledge/items/{itemId}/accept:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/ItemId'
+    post:
+      tags: [knowledge]
+      operationId: acceptKnowledgeItem
+      x-permission: '`knowledge:approve` in the project (people only)'
+      description: |
+        A proposal becomes knowledge (people only); the item it supersedes becomes `superseded`. Accepting an accepted item returns it unchanged.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/organizations/{organizationId}/projects/{projectId}/knowledge/items/{itemId}/reject:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/ItemId'
+    post:
+      tags: [knowledge]
+      operationId: rejectKnowledgeItem
+      x-permission: '`knowledge:approve` in the project (people only)'
+      description: |
+        A proposal is turned down (people only). Rejecting a rejected item returns it unchanged.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/organizations/{organizationId}/projects/{projectId}/knowledge/items/{itemId}/retire:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/ItemId'
+    post:
+      tags: [knowledge]
+      operationId: retireKnowledgeItem
+      x-permission: '`knowledge:approve` in the project (people only)'
+      description: |
+        An accepted item is no longer true and nothing replaces it. Retiring a retired item returns it unchanged.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/organizations/{organizationId}/projects/{projectId}/knowledge/documents:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      tags: [knowledge]
+      operationId: createKnowledgeDocument
+      x-permission: '`knowledge:write` in the project'
+      description: |
+        Registers a file of the project in Loculus (uploaded first, `available`)
+        as a `document` item. Seshat indexes it in the background: it reads the
+        file from Loculus, extracts its text (Markdown, plain text, CSV, JSON,
+        HTML; other types are kept but `unsupported`), and splits it into chunks
+        for search. `indexing` says how far it got.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateKnowledgeDocumentRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/organizations/{organizationId}/projects/{projectId}/knowledge/documents/{itemId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/ItemId'
+    put:
+      tags: [knowledge]
+      operationId: updateKnowledgeDocument
+      x-permission: '`knowledge:write` in the project'
+      description: |
+        A new version of the document: another file (and title, tags), indexed again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateKnowledgeDocumentRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: The new version
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/organizations/{organizationId}/projects/{projectId}/knowledge/search:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      tags: [knowledge]
+      operationId: searchKnowledge
+      x-permission: '`knowledge:read` in the project'
+      description: |
+        Searches the project's knowledge: accepted items and indexed documents,
+        by their text (Postgres full-text search, best match first; items that
+        were superseded, retired or rejected never come back, proposed ones only
+        with `includeProposed`). Each result is an item with the passage that
+        matched. A read; `POST` only because the query is a body.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SearchKnowledgeRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Best first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeSearchResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Limit: { $ref: './common.openapi.yaml#/components/parameters/Limit' }
+    Cursor: { $ref: './common.openapi.yaml#/components/parameters/Cursor' }
+
+  securitySchemes:
+    pistis:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A Pistis access token (`../docs/identity.md`).
+  responses:
+    Unauthorized: { $ref: './common.openapi.yaml#/components/responses/Unauthorized' }
+    Forbidden: { $ref: './common.openapi.yaml#/components/responses/Forbidden' }
+    ValidationError: { $ref: './common.openapi.yaml#/components/responses/BadRequest' }
+    NotFound: { $ref: './common.openapi.yaml#/components/responses/NotFound' }
+    Unavailable: { $ref: './common.openapi.yaml#/components/responses/Unavailable' }
+    DomainError:
+      description: A business rule forbids this (409, with a `DomainErrorCode`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/DomainProblem' }
+
+  schemas:
+    Problem: { $ref: './common.openapi.yaml#/components/schemas/Problem' }
+    DomainErrorCode:
+      type: string
+      enum:
+        - KNOWLEDGE_ITEM_INVALID_TRANSITION
+        - KNOWLEDGE_ITEM_INVALID
+        - KNOWLEDGE_DOCUMENT_INVALID
+        - ORGANIZATION_SUSPENDED
+        - PROJECT_ARCHIVED
+    DomainProblem:
+      description: Problem details for a business-rule violation.
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          required: [code]
+          properties:
+            code: { $ref: '#/components/schemas/DomainErrorCode' }
+    PageMeta:
+      type: object
+      required: [nextCursor]
+      properties:
+        nextCursor: { $ref: './common.openapi.yaml#/components/schemas/NextCursor' }
+    Timestamp:
+      type: string
+      format: date-time
+
+    KnowledgeItemType:
+      type: string
+      description: What kind of knowledge it is (`../docs/knowledge.md`).
+      enum: [document, decision, fact, convention, architecture, lesson]
+    WritableKnowledgeItemType:
+      type: string
+      description: The types written as text; documents come from files.
+      enum: [decision, fact, convention, architecture, lesson]
+    KnowledgeItemStatus:
+      type: string
+      enum: [proposed, accepted, rejected, superseded, retired]
+    Tag:
+      type: string
+      minLength: 1
+      maxLength: 50
+      pattern: '^[a-z0-9][a-z0-9-]*$'
+    KnowledgeReference:
+      type: object
+      additionalProperties: false
+      required: [kind, id]
+      description: Something an item points at, e.g. the task or the document it came from.
+      properties:
+        kind: { type: string, enum: [item, document, file, task, artifact, url] }
+        id:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: An ID, or for `url` the URL.
+        title: { type: string, maxLength: 200 }
+    KnowledgeSource:
+      type: object
+      required: [kind]
+      description: |
+        Where the item came from, set by Seshat from the token: `person`
+        (a person wrote it), `task` (an agent proposed it, with `taskId`).
+      properties:
+        kind: { type: string, enum: [person, task] }
+        taskId:
+          type: [string, 'null']
+          format: uuid
+    DocumentIndexing:
+      type: object
+      required: [status, chunkCount, error, indexedAt]
+      properties:
+        status:
+          type: string
+          enum: [pending, indexed, failed, unsupported]
+          description: '`unsupported`: a type Seshat has no text for (yet), kept but not searchable.'
+        chunkCount: { type: integer, minimum: 0 }
+        error: { type: [string, 'null'] }
+        indexedAt:
+          type: [string, 'null']
+          format: date-time
+    KnowledgeDocumentFile:
+      type: object
+      required: [fileId, fileName, contentType, sizeBytes, sha256]
+      description: The document's file in Loculus (its ID; download it from Loculus).
+      properties:
+        fileId: { type: string, format: uuid }
+        fileName: { type: string }
+        contentType: { type: string }
+        sizeBytes: { type: integer, minimum: 0 }
+        sha256: { type: string }
+    KnowledgeDocument:
+      allOf:
+        - $ref: '#/components/schemas/KnowledgeDocumentFile'
+        - type: object
+          required: [indexing]
+          properties:
+            indexing: { $ref: '#/components/schemas/DocumentIndexing' }
+
+    CreateKnowledgeItemRequest:
+      type: object
+      additionalProperties: false
+      required: [type, title, body]
+      properties:
+        type: { $ref: '#/components/schemas/WritableKnowledgeItemType' }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        body:
+          type: string
+          minLength: 1
+          maxLength: 20000
+          description: Markdown. For a decision, its context, the decision and its consequences.
+        tags:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Tag' }
+        references:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/KnowledgeReference' }
+        supersedes:
+          type: [string, 'null']
+          format: uuid
+          description: An accepted item of the project this one replaces once accepted.
+        reviewBy:
+          type: [string, 'null']
+          format: date
+          description: After this date Iris flags it as possibly stale.
+    UpdateKnowledgeItemRequest:
+      type: object
+      additionalProperties: false
+      required: [title, body]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        body: { type: string, minLength: 1, maxLength: 20000 }
+        tags:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Tag' }
+        references:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/KnowledgeReference' }
+        reviewBy:
+          type: [string, 'null']
+          format: date
+    CreateKnowledgeDocumentRequest:
+      type: object
+      additionalProperties: false
+      required: [fileId]
+      properties:
+        fileId:
+          type: string
+          format: uuid
+          description: An `available` file of the project in Loculus.
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: The file's name when left out.
+        tags:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Tag' }
+    UpdateKnowledgeDocumentRequest:
+      type: object
+      additionalProperties: false
+      required: [fileId]
+      properties:
+        fileId: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        tags:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Tag' }
+
+    KnowledgeItemResponse:
+      type: object
+      required: [id, organizationId, projectId, type, title, body, status, version, tags, references, source, supersedes, supersededBy, reviewBy, document, createdBy, updatedBy, acceptedBy, acceptedAt, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/KnowledgeItemType' }
+        title: { type: string }
+        body:
+          type: string
+          description: Markdown; for a document, empty (its text is in its chunks).
+        status: { $ref: '#/components/schemas/KnowledgeItemStatus' }
+        version: { type: integer, minimum: 1 }
+        tags:
+          type: array
+          items: { type: string }
+        references:
+          type: array
+          items: { $ref: '#/components/schemas/KnowledgeReference' }
+        source: { $ref: '#/components/schemas/KnowledgeSource' }
+        supersedes:
+          type: [string, 'null']
+          format: uuid
+        supersededBy:
+          type: [string, 'null']
+          format: uuid
+        reviewBy:
+          type: [string, 'null']
+          format: date
+        document:
+          oneOf:
+            - $ref: '#/components/schemas/KnowledgeDocument'
+            - type: 'null'
+        createdBy: { type: string }
+        updatedBy: { type: string }
+        acceptedBy: { type: [string, 'null'] }
+        acceptedAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    KnowledgeItemPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+    KnowledgeItemVersionResponse:
+      type: object
+      required: [itemId, version, title, body, tags, references, document, createdBy, createdAt]
+      properties:
+        itemId: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        title: { type: string }
+        body: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        references:
+          type: array
+          items: { $ref: '#/components/schemas/KnowledgeReference' }
+        document:
+          oneOf:
+            - $ref: '#/components/schemas/KnowledgeDocumentFile'
+            - type: 'null'
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+    KnowledgeItemVersionPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/KnowledgeItemVersionResponse' }
+
+    SearchKnowledgeRequest:
+      type: object
+      additionalProperties: false
+      required: [query]
+      properties:
+        query: { type: string, minLength: 1, maxLength: 1000 }
+        types:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/KnowledgeItemType' }
+        includeProposed:
+          type: boolean
+          description: Also proposed items, marked by their status. Default false.
+        limit: { type: integer, minimum: 1, maximum: 50 }
+    KnowledgeSearchResult:
+      type: object
+      required: [item, passage, score]
+      properties:
+        item: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+        passage:
+          type: string
+          description: The part that matched best (for a document, a chunk of its text).
+        score:
+          type: number
+          description: Higher is better; only comparable within one search.
+    KnowledgeSearchResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items: { $ref: '#/components/schemas/KnowledgeSearchResult' }

@@ -61,3 +61,9 @@ export const asTask = async (
       projectId,
     }),
   );
+
+/** A platform service's own token (no organization), e.g. Seshat's. */
+export const asPlatform = async (
+  app: INestApplication<App>,
+  scopes: string[],
+) => client(app, await tokens.service('seshat', scopes));

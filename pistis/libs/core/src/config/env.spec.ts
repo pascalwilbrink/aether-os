@@ -16,7 +16,7 @@ describe('zEnv', () => {
       PISTIS_ISSUER: 'http://localhost:3003/oidc',
       ACCESS_TOKEN_TTL_SECONDS: 600,
     });
-    // Iris; Hephaestus, Proxenos, Kairos, Kerykes and Agora as platform services; operators.
+    // Iris; Hephaestus, Proxenos, Kairos, Kerykes, Agora and Seshat as platform services; operators.
     expect(env.PISTIS_CLIENTS.map((client) => client.client_id)).toEqual([
       'iris',
       'hephaestus',
@@ -24,6 +24,7 @@ describe('zEnv', () => {
       'kairos',
       'kerykes',
       'agora',
+      'seshat',
       'operator',
     ]);
     expect(env.PISTIS_SIGNING_KEYS).toBeUndefined();
