@@ -145,6 +145,8 @@ Every event has the knowledge item as its aggregate; the item's `revision` grows
 
 ### Learning, sessions and meetings (Proposal)
 
+Councils (`councils.md`) add Agora's `council.created`, `council.archived`, `council-version.published` and `council-version.deprecated`, and Hephaestus's `council-session.started` / `.ended`, `deliberation-round.concluded` and `council-plan.proposed`.
+
 From `learning.md`, `knowledge.md`, `skills.md` and `interaction.md`; none are published yet.
 
 | Producer | Event | Payload | Consumers |

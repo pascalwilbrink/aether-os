@@ -227,6 +227,7 @@ A plan has a list of `entries` and an optional `deliverableKey`. Each entry:
 | `templateId` | Optional task template to start from; its instructions, agent and acceptance criteria apply (see Task templates) |
 | `acceptanceCriteria` | Extra criteria on top of the template's |
 | `satisfies` | Spec requirement IDs this entry addresses; their acceptance criteria become the task's |
+| `milestoneKey` | The plan milestone the entry belongs to (Proposal, `councils.md`): a plan may also have `milestones` (`key`, `title`, `description`, `dependsOn` between milestones), each reached when its entries have succeeded; they create no tasks of their own |
 
 Rules:
 
@@ -235,7 +236,7 @@ Rules:
 - **Nothing is created until the plan is `final`.** A plan is an artifact like any other, so it can be a `draft` that needs approval first (by automation setting or Themis policy, e.g. "plans with more than 10 tasks need approval"), and only an approved plan is turned into tasks.
 - **No escalation.** Tasks created from a plan run as the same service account as the task that produced it, in the same project, under the same policy. A plan can't pick a more privileged identity or another project.
 - **Bounded.** Limits on entries per plan, nesting depth, and the total number of tasks descending from one top-level task, so an agent can't fan out without bound. Cost limits roll up to the top-level task.
-- **Traceable.** Every created task records the plan artifact it came from (`planArtifactId`, `planEntryKey`).
+- **Traceable.** Every created task records the plan artifact it came from (`planArtifactId`, `planEntryKey`), and (Proposal, `councils.md`) its assignment: who chose its agent (the planning agent, a council's facilitator, or a person reviewing the plan), from which council session, and why.
 - **Automation templates are plans.** An automation can define its subtasks up front as a predefined `task_plan` with the same entry format. Hephaestus materializes it when the trigger fires. A template was written by someone with `automation:manage`, so it doesn't need approval on each run unless Themis policy requires it.
 
 ### Subtask failure
