@@ -17,7 +17,10 @@ export default function AgentsPage({ params }: Props) {
 
 async function Agents({ params }: Pick<Props, "params">) {
   const { organizationId } = await params;
-  const session = await requireOrganization(organizationId, `/orgs/${organizationId}/agents`);
+  const session = await requireOrganization(
+    organizationId,
+    `/orgs/${organizationId}/agents`,
+  );
   const agents = await listAgents(session.accessToken, organizationId);
 
   return (
@@ -26,7 +29,8 @@ async function Agents({ params }: Pick<Props, "params">) {
         <div>
           <h1 className="text-2xl font-semibold">Agents</h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            What runs tasks: instructions, a model and a runtime, in versions. Tasks run the published version.
+            What runs tasks: instructions, a model and a runtime, in versions.
+            Tasks run the published version.
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
@@ -45,7 +49,9 @@ async function Agents({ params }: Pick<Props, "params">) {
         </div>
       </div>
       {agents.items.length === 0 ? (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">No agents yet.</p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          No agents yet.
+        </p>
       ) : (
         <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
           {agents.items.map((agent) => (
@@ -57,7 +63,9 @@ async function Agents({ params }: Pick<Props, "params">) {
                 <span className="min-w-0">
                   <span className="block font-medium">{agent.name}</span>
                   {agent.description ? (
-                    <span className="block truncate text-sm text-zinc-500">{agent.description}</span>
+                    <span className="block truncate text-sm text-zinc-500">
+                      {agent.description}
+                    </span>
                   ) : null}
                 </span>
                 <span className="shrink-0 text-sm text-zinc-500">

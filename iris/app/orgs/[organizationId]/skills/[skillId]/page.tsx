@@ -2,7 +2,11 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { ActionButton } from "@/app/components/action-forms";
-import { getSkill, getSkillVersion, listSkillVersions } from "@/lib/api/hephaestus";
+import {
+  getSkill,
+  getSkillVersion,
+  listSkillVersions,
+} from "@/lib/api/hephaestus";
 import { requireOrganization } from "@/lib/auth/current";
 import { formatBytes } from "@/lib/skills";
 import { formatTime } from "@/lib/tasks";
@@ -32,12 +36,19 @@ async function SkillDetails({ params, searchParams }: Props) {
     listSkillVersions(token, organizationId, skillId),
   ]);
   const asked = Number(typeof query.version === "string" ? query.version : NaN);
-  const shown = Number.isInteger(asked) && asked >= 1 && asked <= skill.latestVersion ? asked : skill.latestVersion;
+  const shown =
+    Number.isInteger(asked) && asked >= 1 && asked <= skill.latestVersion
+      ? asked
+      : skill.latestVersion;
   const [version, latest] = await Promise.all([
     getSkillVersion(token, organizationId, skillId, shown),
-    shown === skill.latestVersion ? null : getSkillVersion(token, organizationId, skillId, skill.latestVersion),
+    shown === skill.latestVersion
+      ? null
+      : getSkillVersion(token, organizationId, skillId, skill.latestVersion),
   ]);
-  const latestSkillMd = (latest ?? version).files?.find((file) => file.path === "SKILL.md")?.content ?? "";
+  const latestSkillMd =
+    (latest ?? version).files?.find((file) => file.path === "SKILL.md")
+      ?.content ?? "";
   const ref = { organizationId, skillId };
 
   return (
@@ -52,10 +63,14 @@ async function SkillDetails({ params, searchParams }: Props) {
           <h1 className="font-mono text-2xl font-semibold">
             {skill.name}{" "}
             {skill.status === "archived" ? (
-              <span className="align-middle font-sans text-sm font-normal text-zinc-500">(archived)</span>
+              <span className="align-middle font-sans text-sm font-normal text-zinc-500">
+                (archived)
+              </span>
             ) : null}
           </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">{skill.description}</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            {skill.description}
+          </p>
         </div>
         {skill.status === "active" ? (
           <ActionButton
@@ -78,8 +93,9 @@ async function SkillDetails({ params, searchParams }: Props) {
               >
                 <span className="font-medium">Version {item.version}</span>
                 <span className="text-zinc-500">
-                  {item.fileCount} {item.fileCount === 1 ? "file" : "files"} · {formatBytes(item.sizeBytes)} · by{" "}
-                  {item.createdBy} on {formatTime(item.createdAt)}
+                  {item.fileCount} {item.fileCount === 1 ? "file" : "files"} ·{" "}
+                  {formatBytes(item.sizeBytes)} · by {item.createdBy} on{" "}
+                  {formatTime(item.createdAt)}
                 </span>
               </Link>
             </li>
@@ -90,8 +106,14 @@ async function SkillDetails({ params, searchParams }: Props) {
       <section className="space-y-3">
         <h2 className="font-medium">Version {version.version}&apos;s files</h2>
         {(version.files ?? []).map((file) => (
-          <details key={file.path} open={file.path === "SKILL.md"} className="rounded-lg border border-zinc-200 dark:border-zinc-800">
-            <summary className="cursor-pointer px-4 py-2 font-mono text-sm">{file.path}</summary>
+          <details
+            key={file.path}
+            open={file.path === "SKILL.md"}
+            className="rounded-lg border border-zinc-200 dark:border-zinc-800"
+          >
+            <summary className="cursor-pointer px-4 py-2 font-mono text-sm">
+              {file.path}
+            </summary>
             <pre className="overflow-x-auto whitespace-pre-wrap border-t border-zinc-200 p-4 text-sm dark:border-zinc-800">
               {file.content}
             </pre>
@@ -101,9 +123,15 @@ async function SkillDetails({ params, searchParams }: Props) {
 
       {skill.status === "active" ? (
         <section className="space-y-3">
-          <h2 className="font-medium">New version, from version {skill.latestVersion}</h2>
+          <h2 className="font-medium">
+            New version, from version {skill.latestVersion}
+          </h2>
           {/* Keyed: after a save, the form starts from the new latest version. */}
-          <SkillForm key={skill.latestVersion} action={createSkillVersionAction.bind(null, ref)} skillMd={latestSkillMd} />
+          <SkillForm
+            key={skill.latestVersion}
+            action={createSkillVersionAction.bind(null, ref)}
+            skillMd={latestSkillMd}
+          />
         </section>
       ) : null}
     </div>

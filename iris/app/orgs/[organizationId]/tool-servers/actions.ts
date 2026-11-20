@@ -30,7 +30,8 @@ export interface ToolServerRef {
   toolServerId: string;
 }
 
-const listPath = (organizationId: string) => `/orgs/${organizationId}/tool-servers`;
+const listPath = (organizationId: string) =>
+  `/orgs/${organizationId}/tool-servers`;
 const serverPath = ({ organizationId, toolServerId }: ToolServerRef) =>
   `${listPath(organizationId)}/${toolServerId}`;
 
@@ -40,10 +41,13 @@ function toolServerMessageOf(error: unknown): string {
   }
   if (error.status === 503) {
     // Hephaestus says why (OpenBao, or the tool server).
-    return error.message || "That can't be done right now. Try again in a moment.";
+    return (
+      error.message || "That can't be done right now. Try again in a moment."
+    );
   }
   return messageOf(error, {
-    FORBIDDEN: "Only the organization's owners and admins manage tool servers and their credentials.",
+    FORBIDDEN:
+      "Only the organization's owners and admins manage tool servers and their credentials.",
     ORGANIZATION_SUSPENDED: "The organization is suspended.",
   });
 }
@@ -54,13 +58,18 @@ export async function createToolServerAction(
   _state: ToolServerFormState,
   form: FormData,
 ): Promise<ToolServerFormState> {
-  const session = await requireOrganization(organizationId, listPath(organizationId));
+  const session = await requireOrganization(
+    organizationId,
+    listPath(organizationId),
+  );
   const fields = valuesOf(form);
   const result = toolServerFromForm(fields, { creating: true });
   if ("error" in result) return { error: result.error, values: fields };
   let toolServerId: string;
   try {
-    toolServerId = (await createToolServer(session.accessToken, organizationId, result.body)).id;
+    toolServerId = (
+      await createToolServer(session.accessToken, organizationId, result.body)
+    ).id;
   } catch (error) {
     return { error: toolServerMessageOf(error), values: fields };
   }
@@ -73,17 +82,25 @@ export async function updateToolServerAction(
   _state: ToolServerFormState,
   form: FormData,
 ): Promise<ToolServerFormState> {
-  const session = await requireOrganization(ref.organizationId, serverPath(ref));
+  const session = await requireOrganization(
+    ref.organizationId,
+    serverPath(ref),
+  );
   const fields = valuesOf(form);
   const result = toolServerFromForm(fields, { creating: false });
   if ("error" in result) return { error: result.error, values: fields };
   const { description, url, auth } = result.body;
   try {
-    const updated = await updateToolServer(session.accessToken, ref.organizationId, ref.toolServerId, {
-      description: description ?? "",
-      url,
-      auth,
-    });
+    const updated = await updateToolServer(
+      session.accessToken,
+      ref.organizationId,
+      ref.toolServerId,
+      {
+        description: description ?? "",
+        url,
+        auth,
+      },
+    );
     refresh();
     return {
       notice:
@@ -97,10 +114,19 @@ export async function updateToolServerAction(
 }
 
 /** Removes it and its credential. */
-export async function deleteToolServerAction(ref: ToolServerRef): Promise<ActionState> {
-  const session = await requireOrganization(ref.organizationId, serverPath(ref));
+export async function deleteToolServerAction(
+  ref: ToolServerRef,
+): Promise<ActionState> {
+  const session = await requireOrganization(
+    ref.organizationId,
+    serverPath(ref),
+  );
   try {
-    await deleteToolServer(session.accessToken, ref.organizationId, ref.toolServerId);
+    await deleteToolServer(
+      session.accessToken,
+      ref.organizationId,
+      ref.toolServerId,
+    );
   } catch (error) {
     return { error: toolServerMessageOf(error) };
   }
@@ -113,24 +139,47 @@ export async function setCredentialAction(
   _state: KeyFormState,
   form: FormData,
 ): Promise<KeyFormState> {
-  const session = await requireOrganization(ref.organizationId, serverPath(ref));
+  const session = await requireOrganization(
+    ref.organizationId,
+    serverPath(ref),
+  );
   const value = String(form.get("apiKey") ?? "").trim();
   if (value.length < 8) {
-    return { error: "Paste the whole credential (with “Bearer ” for an Authorization header)." };
+    return {
+      error:
+        "Paste the whole credential (with “Bearer ” for an Authorization header).",
+    };
   }
   try {
-    await setToolServerCredential(session.accessToken, ref.organizationId, ref.toolServerId, value);
+    await setToolServerCredential(
+      session.accessToken,
+      ref.organizationId,
+      ref.toolServerId,
+      value,
+    );
   } catch (error) {
     return { error: toolServerMessageOf(error) };
   }
   refresh();
-  return { notice: "Saved. The credential is stored securely and won't be shown again." };
+  return {
+    notice:
+      "Saved. The credential is stored securely and won't be shown again.",
+  };
 }
 
-export async function deleteCredentialAction(ref: ToolServerRef): Promise<ActionState> {
-  const session = await requireOrganization(ref.organizationId, serverPath(ref));
+export async function deleteCredentialAction(
+  ref: ToolServerRef,
+): Promise<ActionState> {
+  const session = await requireOrganization(
+    ref.organizationId,
+    serverPath(ref),
+  );
   try {
-    await deleteToolServerCredential(session.accessToken, ref.organizationId, ref.toolServerId);
+    await deleteToolServerCredential(
+      session.accessToken,
+      ref.organizationId,
+      ref.toolServerId,
+    );
   } catch (error) {
     return { error: toolServerMessageOf(error) };
   }

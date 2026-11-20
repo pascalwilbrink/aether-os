@@ -19,7 +19,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
  */
 export async function GET(request: NextRequest) {
   const organization = request.nextUrl.searchParams.get("organization");
-  const organizationId = organization && UUID.test(organization) ? organization : null;
+  const organizationId =
+    organization && UUID.test(organization) ? organization : null;
   const returnTo = safeReturnTo(
     request.nextUrl.searchParams.get("returnTo") ??
       (organizationId ? `/orgs/${organizationId}` : "/"),

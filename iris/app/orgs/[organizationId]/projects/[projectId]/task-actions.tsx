@@ -16,14 +16,14 @@ export function TaskActions({
   cancel: boolean;
   retry: boolean;
 }) {
-  const [cancelState, cancelAction, cancelling] = useActionState<FormState, FormData>(
-    taskAction.bind(null, { ...task, action: "cancel" }),
-    {},
-  );
-  const [retryState, retryAction, retrying] = useActionState<FormState, FormData>(
-    taskAction.bind(null, { ...task, action: "retry" }),
-    {},
-  );
+  const [cancelState, cancelAction, cancelling] = useActionState<
+    FormState,
+    FormData
+  >(taskAction.bind(null, { ...task, action: "cancel" }), {});
+  const [retryState, retryAction, retrying] = useActionState<
+    FormState,
+    FormData
+  >(taskAction.bind(null, { ...task, action: "retry" }), {});
   if (!cancel && !retry) {
     return null;
   }
@@ -32,14 +32,22 @@ export function TaskActions({
       <div className="flex gap-2">
         {cancel ? (
           <form action={cancelAction}>
-            <button type="submit" disabled={cancelling} className={secondaryButtonClass}>
+            <button
+              type="submit"
+              disabled={cancelling}
+              className={secondaryButtonClass}
+            >
               {cancelling ? "Cancelling…" : "Cancel"}
             </button>
           </form>
         ) : null}
         {retry ? (
           <form action={retryAction}>
-            <button type="submit" disabled={retrying} className={secondaryButtonClass}>
+            <button
+              type="submit"
+              disabled={retrying}
+              className={secondaryButtonClass}
+            >
               {retrying ? "Retrying…" : "Retry"}
             </button>
           </form>

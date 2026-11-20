@@ -35,6 +35,7 @@ import { PistisTaskTokens } from './pistis-task-tokens.js';
 import { FileStore, LoculusFileStore, NoFileStore } from './file-store.js';
 import { RepositoryCheckouts } from './repository-checkouts.js';
 import { SandboxFiles } from './sandbox-files.js';
+import { TaskInputs } from './task-inputs.js';
 import {
   HttpRepositoryTokens,
   NoRepositoryTokens,
@@ -105,7 +106,7 @@ import {
               agentTracing(process.env),
               new SandboxFiles(
                 files,
-                config.get('FILE_ARTIFACT_MAX_BYTES', { infer: true }),
+                config.get('TASK_FILE_MAX_BYTES', { infer: true }),
               ),
             );
           case 'echo':
@@ -185,6 +186,15 @@ import {
         const url = config.get('LOCULUS_URL', { infer: true });
         return url ? new LoculusFileStore(url) : new NoFileStore();
       },
+    },
+    {
+      provide: TaskInputs,
+      inject: [FileStore, ConfigService],
+      useFactory: (files: FileStore, config: ConfigService<Env, true>) =>
+        new TaskInputs(
+          files,
+          config.get('TASK_FILE_MAX_BYTES', { infer: true }),
+        ),
     },
     { provide: GitClient, useFactory: () => new GitClient() },
     RepositoryCheckouts,

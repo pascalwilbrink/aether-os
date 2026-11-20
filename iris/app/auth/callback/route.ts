@@ -33,7 +33,11 @@ export async function GET(request: NextRequest) {
   const error = request.nextUrl.searchParams.get("error");
   if (error) {
     // An organization the person can't enter: back to choosing one.
-    return home(pending.organizationId ? `/orgs?error=${encodeURIComponent(error)}` : `/?error=${encodeURIComponent(error)}`);
+    return home(
+      pending.organizationId
+        ? `/orgs?error=${encodeURIComponent(error)}`
+        : `/?error=${encodeURIComponent(error)}`,
+    );
   }
 
   // openid-client checks the redirect URI against the URL Pistis called.

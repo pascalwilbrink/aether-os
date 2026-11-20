@@ -134,6 +134,13 @@ export class TaskEntity {
   @Column({ type: 'text', nullable: true })
   concurrencyPolicy: ConcurrencyPolicy | null;
 
+  /**
+   * Files it starts from (Loculus, docs/files.md), copied into its sandbox's
+   * `/workspace/inputs` when it runs.
+   */
+  @Column({ type: 'uuid', array: true, default: () => "'{}'" })
+  inputFileIds: string[];
+
   /** The template version it was created from (docs/tasks.md), if any. */
   @Column({ type: 'uuid', nullable: true })
   taskTemplateId: string | null;

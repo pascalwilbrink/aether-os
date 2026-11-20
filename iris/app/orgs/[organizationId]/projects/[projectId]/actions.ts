@@ -16,11 +16,17 @@ import {
   type ReviewDecision,
 } from "@/lib/api/hephaestus";
 import { ApiError } from "@/lib/api/http";
+import { uploadFile } from "@/lib/api/loculus";
 import { messageOf as baseMessageOf } from "@/lib/api/messages";
-import { createProjectMembership, deleteProjectMembership, updateProjectMembership } from "@/lib/api/polis";
+import {
+  createProjectMembership,
+  deleteProjectMembership,
+  updateProjectMembership,
+} from "@/lib/api/polis";
 import { linkRepository, unlinkRepository } from "@/lib/api/proxenos";
 import { requireOrganization } from "@/lib/auth/current";
 import { parseLimit } from "@/lib/budgets";
+import { contentTypeFor, inputFilesProblem, pickedFiles } from "@/lib/files";
 import { valuesOf } from "@/lib/forms";
 import { isProjectRole } from "@/lib/members";
 
@@ -37,26 +43,59 @@ export interface ProjectRef {
   projectId: string;
 }
 
-const projectPath = ({ organizationId, projectId }: ProjectRef) => `/orgs/${organizationId}/projects/${projectId}`;
+const projectPath = ({ organizationId, projectId }: ProjectRef) =>
+  `/orgs/${organizationId}/projects/${projectId}`;
 
-const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
+const text = (form: FormData, name: string) =>
+  String(form.get(name) ?? "").trim();
 
 const messageOf = (error: unknown, byCode: Record<string, string> = {}) =>
-  baseMessageOf(error, { FORBIDDEN: "You aren't allowed to do that in this project.", ...byCode });
+  baseMessageOf(error, {
+    FORBIDDEN: "You aren't allowed to do that in this project.",
+    ...byCode,
+  });
 
 /**
  * Creates a task, then opens it. Every Server Function checks the session
  * itself: it's an endpoint of its own. The idempotency key comes from the
  * rendered form, so a double submit gives the same task.
  */
-export async function createTaskAction(ref: ProjectRef, _state: FormState, form: FormData): Promise<FormState> {
-  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+export async function createTaskAction(
+  ref: ProjectRef,
+  _state: FormState,
+  form: FormData,
+): Promise<FormState> {
+  const session = await requireOrganization(
+    ref.organizationId,
+    projectPath(ref),
+  );
   const budget = parseLimit(text(form, "budgetUsd"));
   if ("error" in budget) {
     return { error: budget.error, values: valuesOf(form) };
   }
+  const picked = pickedFiles<File>(form.getAll("inputFiles"));
+  const problem = inputFilesProblem(picked);
+  if (problem) {
+    return { error: problem, values: valuesOf(form) };
+  }
   let taskId: string;
   try {
+    // The files first (Loculus, with the person's own token), then the task
+    // that starts from them.
+    const inputFiles = [];
+    for (const file of picked) {
+      const uploaded = await uploadFile(
+        session.accessToken,
+        ref.organizationId,
+        ref.projectId,
+        {
+          fileName: file.name,
+          contentType: contentTypeFor(file.type),
+          bytes: new Uint8Array(await file.arrayBuffer()),
+        },
+      );
+      inputFiles.push({ fileId: uploaded.id });
+    }
     taskId = (
       await createTask(
         session.accessToken,
@@ -70,6 +109,7 @@ export async function createTaskAction(ref: ProjectRef, _state: FormState, form:
           review: { artifactKinds: form.get("review") === "all" ? ["*"] : [] },
           ...repositoryOf(form),
           ...(budget.limitUsd === null ? {} : { budgetUsd: budget.limitUsd }),
+          ...(inputFiles.length > 0 ? { inputFiles } : {}),
         },
         text(form, "idempotencyKey"),
       )
@@ -92,7 +132,10 @@ export async function createTaskFromTemplateAction(
   _state: FormState,
   form: FormData,
 ): Promise<FormState> {
-  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+  const session = await requireOrganization(
+    ref.organizationId,
+    projectPath(ref),
+  );
   const inputs: Record<string, string> = {};
   for (const [name, value] of form.entries()) {
     if (name.startsWith("input:") && String(value).trim()) {
@@ -124,8 +167,13 @@ export async function createTaskFromTemplateAction(
 }
 
 /** Cancels a task (and everything under it), or retries a failed one. */
-export async function taskAction(ref: ProjectRef & { taskId: string; action: "cancel" | "retry" }): Promise<FormState> {
-  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+export async function taskAction(
+  ref: ProjectRef & { taskId: string; action: "cancel" | "retry" },
+): Promise<FormState> {
+  const session = await requireOrganization(
+    ref.organizationId,
+    projectPath(ref),
+  );
   try {
     await (ref.action === "cancel" ? cancelTask : retryTask)(
       session.accessToken,
@@ -146,7 +194,10 @@ export async function reviewAction(
   _state: FormState,
   form: FormData,
 ): Promise<FormState> {
-  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+  const session = await requireOrganization(
+    ref.organizationId,
+    projectPath(ref),
+  );
   const decision = text(form, "decision") as ReviewDecision;
   const comment = text(form, "comment");
   if (decision === "request-changes" && !comment) {
@@ -160,12 +211,17 @@ export async function reviewAction(
       ref.taskId,
       ref.artifactId,
       decision,
-      decision === "request-changes" ? { comments: [{ body: comment }] } : comment ? { comment } : {},
+      decision === "request-changes"
+        ? { comments: [{ body: comment }] }
+        : comment
+          ? { comment }
+          : {},
     );
   } catch (error) {
     return {
       error: messageOf(error, {
-        TASK_REVIEW_ROUNDS_EXHAUSTED: "This task has had its review rounds: approve or reject it now.",
+        TASK_REVIEW_ROUNDS_EXHAUSTED:
+          "This task has had its review rounds: approve or reject it now.",
       }),
       values: valuesOf(form),
     };
@@ -178,33 +234,50 @@ export async function reviewAction(
 
 const accessMessageOf = (error: unknown) =>
   messageOf(error, {
-    FORBIDDEN: "Only the organization's owners and admins manage who works in a project.",
+    FORBIDDEN:
+      "Only the organization's owners and admins manage who works in a project.",
     PROJECT_MEMBERSHIP_EXISTS: "They already have a role here.",
-    PROJECT_MEMBER_NOT_IN_ORGANIZATION: "They aren't a member of the organization any more.",
+    PROJECT_MEMBER_NOT_IN_ORGANIZATION:
+      "They aren't a member of the organization any more.",
     PROJECT_ROLE_EXCEEDS_CAP:
       "Their organization role doesn't allow that (viewers only view; service accounts never approve).",
     PROJECT_ARCHIVED: "The project is archived.",
   });
 
 /** Gives a member (`member` = `<subjectType>:<subject>`) a role in the project. */
-export async function grantProjectRoleAction(ref: ProjectRef, _state: FormState, form: FormData): Promise<FormState> {
-  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+export async function grantProjectRoleAction(
+  ref: ProjectRef,
+  _state: FormState,
+  form: FormData,
+): Promise<FormState> {
+  const session = await requireOrganization(
+    ref.organizationId,
+    projectPath(ref),
+  );
   const member = text(form, "member");
   const subjectType = member.slice(0, member.indexOf(":"));
   const subject = member.slice(member.indexOf(":") + 1);
   const role = form.get("role");
-  if ((subjectType !== "user" && subjectType !== "service_account") || !subject) {
+  if (
+    (subjectType !== "user" && subjectType !== "service_account") ||
+    !subject
+  ) {
     return { error: "Choose who.", values: valuesOf(form) };
   }
   if (!isProjectRole(role)) {
     return { error: "Choose a role.", values: valuesOf(form) };
   }
   try {
-    await createProjectMembership(session.accessToken, ref.organizationId, ref.projectId, {
-      subjectType,
-      subject,
-      role,
-    });
+    await createProjectMembership(
+      session.accessToken,
+      ref.organizationId,
+      ref.projectId,
+      {
+        subjectType,
+        subject,
+        role,
+      },
+    );
   } catch (error) {
     return { error: accessMessageOf(error), values: valuesOf(form) };
   }
@@ -217,13 +290,22 @@ export async function changeProjectRoleAction(
   _state: FormState,
   form: FormData,
 ): Promise<FormState> {
-  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+  const session = await requireOrganization(
+    ref.organizationId,
+    projectPath(ref),
+  );
   const role = form.get("role");
   if (!isProjectRole(role)) {
     return { error: "Choose a role." };
   }
   try {
-    await updateProjectMembership(session.accessToken, ref.organizationId, ref.projectId, ref.membershipId, role);
+    await updateProjectMembership(
+      session.accessToken,
+      ref.organizationId,
+      ref.projectId,
+      ref.membershipId,
+      role,
+    );
   } catch (error) {
     return { error: accessMessageOf(error) };
   }
@@ -231,10 +313,20 @@ export async function changeProjectRoleAction(
   return {};
 }
 
-export async function removeProjectRoleAction(ref: ProjectRef & { membershipId: string }): Promise<FormState> {
-  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+export async function removeProjectRoleAction(
+  ref: ProjectRef & { membershipId: string },
+): Promise<FormState> {
+  const session = await requireOrganization(
+    ref.organizationId,
+    projectPath(ref),
+  );
   try {
-    await deleteProjectMembership(session.accessToken, ref.organizationId, ref.projectId, ref.membershipId);
+    await deleteProjectMembership(
+      session.accessToken,
+      ref.organizationId,
+      ref.projectId,
+      ref.membershipId,
+    );
   } catch (error) {
     return { error: accessMessageOf(error) };
   }
@@ -250,23 +342,38 @@ function repositoryMessageOf(error: unknown): string {
   }
   return messageOf(error, {
     FORBIDDEN: "Only the project's admins link and unlink repositories.",
-    REPOSITORY_ALREADY_LINKED: "That repository is linked to this project already.",
-    REPOSITORY_UNAVAILABLE: "The GitHub App doesn't cover that repository any more. Sync on the GitHub page.",
-    INSTALLATION_NOT_ACTIVE: "That repository's GitHub installation is suspended or uninstalled.",
+    REPOSITORY_ALREADY_LINKED:
+      "That repository is linked to this project already.",
+    REPOSITORY_UNAVAILABLE:
+      "The GitHub App doesn't cover that repository any more. Sync on the GitHub page.",
+    INSTALLATION_NOT_ACTIVE:
+      "That repository's GitHub installation is suspended or uninstalled.",
     PROJECT_ARCHIVED: "The project is archived.",
     ORGANIZATION_SUSPENDED: "The organization is suspended.",
   });
 }
 
 /** Links one of the organization's repositories to the project. */
-export async function linkRepositoryAction(ref: ProjectRef, _state: FormState, form: FormData): Promise<FormState> {
-  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+export async function linkRepositoryAction(
+  ref: ProjectRef,
+  _state: FormState,
+  form: FormData,
+): Promise<FormState> {
+  const session = await requireOrganization(
+    ref.organizationId,
+    projectPath(ref),
+  );
   const repositoryId = text(form, "repositoryId");
   if (!repositoryId) {
     return { error: "Choose a repository." };
   }
   try {
-    await linkRepository(session.accessToken, ref.organizationId, ref.projectId, repositoryId);
+    await linkRepository(
+      session.accessToken,
+      ref.organizationId,
+      ref.projectId,
+      repositoryId,
+    );
   } catch (error) {
     return { error: repositoryMessageOf(error), values: valuesOf(form) };
   }
@@ -275,10 +382,20 @@ export async function linkRepositoryAction(ref: ProjectRef, _state: FormState, f
 }
 
 /** Unlinks a repository: new tasks can't use it; running ones keep their checkout. */
-export async function unlinkRepositoryAction(ref: ProjectRef & { linkId: string }): Promise<FormState> {
-  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+export async function unlinkRepositoryAction(
+  ref: ProjectRef & { linkId: string },
+): Promise<FormState> {
+  const session = await requireOrganization(
+    ref.organizationId,
+    projectPath(ref),
+  );
   try {
-    await unlinkRepository(session.accessToken, ref.organizationId, ref.projectId, ref.linkId);
+    await unlinkRepository(
+      session.accessToken,
+      ref.organizationId,
+      ref.projectId,
+      ref.linkId,
+    );
   } catch (error) {
     return { error: repositoryMessageOf(error) };
   }
@@ -301,19 +418,35 @@ export async function setProjectBudgetAction(
   _state: BudgetFormState,
   form: FormData,
 ): Promise<BudgetFormState> {
-  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+  const session = await requireOrganization(
+    ref.organizationId,
+    projectPath(ref),
+  );
   const limit = String(form.get("limit") ?? "");
   const parsed = parseLimit(limit);
   if ("error" in parsed) {
     return { error: parsed.error, limit };
   }
   try {
-    await setProjectBudget(session.accessToken, ref.organizationId, ref.projectId, parsed.limitUsd);
+    await setProjectBudget(
+      session.accessToken,
+      ref.organizationId,
+      ref.projectId,
+      parsed.limitUsd,
+    );
   } catch (error) {
-    return { error: budgetMessageOf(error, "Only the project's admins set its budget."), limit };
+    return {
+      error: budgetMessageOf(
+        error,
+        "Only the project's admins set its budget.",
+      ),
+      limit,
+    };
   }
   refresh();
-  return { notice: parsed.limitUsd === null ? "The limit is removed." : "Saved." };
+  return {
+    notice: parsed.limitUsd === null ? "The limit is removed." : "Saved.",
+  };
 }
 
 /** Sets (or removes) the limit of a task's tree; its paused tasks resume once it has room. */
@@ -322,17 +455,31 @@ export async function setTaskBudgetAction(
   _state: BudgetFormState,
   form: FormData,
 ): Promise<BudgetFormState> {
-  const session = await requireOrganization(ref.organizationId, projectPath(ref));
+  const session = await requireOrganization(
+    ref.organizationId,
+    projectPath(ref),
+  );
   const limit = String(form.get("limit") ?? "");
   const parsed = parseLimit(limit);
   if ("error" in parsed) {
     return { error: parsed.error, limit };
   }
   try {
-    await setTaskTreeBudget(session.accessToken, ref.organizationId, ref.projectId, ref.taskId, parsed.limitUsd);
+    await setTaskTreeBudget(
+      session.accessToken,
+      ref.organizationId,
+      ref.projectId,
+      ref.taskId,
+      parsed.limitUsd,
+    );
   } catch (error) {
-    return { error: budgetMessageOf(error, "You can't change this task's budget."), limit };
+    return {
+      error: budgetMessageOf(error, "You can't change this task's budget."),
+      limit,
+    };
   }
   refresh();
-  return { notice: parsed.limitUsd === null ? "The limit is removed." : "Saved." };
+  return {
+    notice: parsed.limitUsd === null ? "The limit is removed." : "Saved.",
+  };
 }

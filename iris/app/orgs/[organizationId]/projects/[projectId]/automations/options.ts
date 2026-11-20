@@ -20,22 +20,30 @@ export async function automationOptions(
   organizationId: string,
   projectId: string,
 ): Promise<AutomationOptions & { repositoriesUnavailable: boolean }> {
-  const [agents, templates, serviceAccounts, grants, links] = await Promise.all([
-    listAgents(token, organizationId),
-    listTaskTemplates(token, organizationId, projectId),
-    listServiceAccounts(token, organizationId).catch((error: unknown) => {
-      if (error instanceof ApiError && error.status === 403) return { items: [], nextCursor: null };
-      throw error;
-    }),
-    listProjectMemberships(token, organizationId, projectId),
-    orUnavailable(listRepositoryLinks(token, organizationId, projectId)),
-  ]);
+  const [agents, templates, serviceAccounts, grants, links] = await Promise.all(
+    [
+      listAgents(token, organizationId),
+      listTaskTemplates(token, organizationId, projectId),
+      listServiceAccounts(token, organizationId).catch((error: unknown) => {
+        if (error instanceof ApiError && error.status === 403)
+          return { items: [], nextCursor: null };
+        throw error;
+      }),
+      listProjectMemberships(token, organizationId, projectId),
+      orUnavailable(listRepositoryLinks(token, organizationId, projectId)),
+    ],
+  );
   return {
     agents: agents.items
       .filter((agent) => agent.status === "active" && agent.latestVersionId)
       .map(({ id, name }) => ({ id, name })),
-    serviceAccounts: runnableServiceAccounts(serviceAccounts.items, grants.items).map(({ id, name }) => ({ id, name })),
-    templates: templates.items.filter((template) => template.status === "active").map(({ id, name }) => ({ id, name })),
+    serviceAccounts: runnableServiceAccounts(
+      serviceAccounts.items,
+      grants.items,
+    ).map(({ id, name }) => ({ id, name })),
+    templates: templates.items
+      .filter((template) => template.status === "active")
+      .map(({ id, name }) => ({ id, name })),
     repositories: repositoryChoices(links.items),
     repositoriesUnavailable: links.unavailable,
   };

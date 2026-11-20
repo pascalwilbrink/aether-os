@@ -5,7 +5,11 @@ import { useActionState } from "react";
 import { buttonClass, FormError, inputClass } from "@/app/components/form";
 import { PROJECT_ROLES } from "@/lib/members";
 
-import { grantProjectRoleAction, type FormState, type ProjectRef } from "./actions";
+import {
+  grantProjectRoleAction,
+  type FormState,
+  type ProjectRef,
+} from "./actions";
 
 /** Gives an organization member without one a role in the project. */
 export function GrantAccessForm({
@@ -16,10 +20,15 @@ export function GrantAccessForm({
   /** `value` is `<subjectType>:<subject>`. */
   candidates: { value: string; label: string }[];
 }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(grantProjectRoleAction.bind(null, project), {});
+  const [state, action, pending] = useActionState<FormState, FormData>(
+    grantProjectRoleAction.bind(null, project),
+    {},
+  );
   if (candidates.length === 0) {
     return (
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">Everyone in the organization who could get a role here has one.</p>
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        Everyone in the organization who could get a role here has one.
+      </p>
     );
   }
   return (

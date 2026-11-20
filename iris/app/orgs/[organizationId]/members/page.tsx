@@ -5,7 +5,12 @@ import { ActionButton, RoleForm } from "@/app/components/action-forms";
 import { listOrganizationUsers, listServiceAccounts } from "@/lib/api/pistis";
 import { getOrganization, listMemberships } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
-import { ORGANIZATION_ROLES, people, roleLabel, serviceAccountRows } from "@/lib/members";
+import {
+  ORGANIZATION_ROLES,
+  people,
+  roleLabel,
+  serviceAccountRows,
+} from "@/lib/members";
 import { formatTime } from "@/lib/tasks";
 
 import {
@@ -27,19 +32,25 @@ export default function MembersPage(props: Props) {
   );
 }
 
-const SERVICE_ACCOUNT_ROLES = ORGANIZATION_ROLES.filter(({ role }) => role === "member" || role === "viewer");
+const SERVICE_ACCOUNT_ROLES = ORGANIZATION_ROLES.filter(
+  ({ role }) => role === "member" || role === "viewer",
+);
 
 async function Members({ params }: Props) {
   const { organizationId } = await params;
-  const session = await requireOrganization(organizationId, `/orgs/${organizationId}/members`);
+  const session = await requireOrganization(
+    organizationId,
+    `/orgs/${organizationId}/members`,
+  );
   const token = session.accessToken;
-  const [organization, userMemberships, accountMemberships, users, accounts] = await Promise.all([
-    getOrganization(token, organizationId),
-    listMemberships(token, organizationId, "user"),
-    listMemberships(token, organizationId, "service_account"),
-    listOrganizationUsers(token, organizationId),
-    listServiceAccounts(token, organizationId),
-  ]);
+  const [organization, userMemberships, accountMemberships, users, accounts] =
+    await Promise.all([
+      getOrganization(token, organizationId),
+      listMemberships(token, organizationId, "user"),
+      listMemberships(token, organizationId, "service_account"),
+      listOrganizationUsers(token, organizationId),
+      listServiceAccounts(token, organizationId),
+    ]);
   const members = people(userMemberships.items, users.items);
   const rows = serviceAccountRows(accounts.items, accountMemberships.items);
   const ref = (membershipId: string) => ({ organizationId, membershipId });
@@ -73,22 +84,38 @@ async function Members({ params }: Props) {
             {members.map((member) => {
               const self = member.subject === session.sub;
               return (
-                <tr key={member.membershipId} className="border-t border-zinc-200 align-top dark:border-zinc-800">
+                <tr
+                  key={member.membershipId}
+                  className="border-t border-zinc-200 align-top dark:border-zinc-800"
+                >
                   <td className="py-2">
                     <div>
                       {member.name}
-                      {self ? <span className="text-zinc-500"> (you)</span> : null}
-                      {member.disabled ? <span className="text-zinc-500"> (disabled)</span> : null}
+                      {self ? (
+                        <span className="text-zinc-500"> (you)</span>
+                      ) : null}
+                      {member.disabled ? (
+                        <span className="text-zinc-500"> (disabled)</span>
+                      ) : null}
                     </div>
-                    {member.detail ? <div className="text-xs text-zinc-500">{member.detail}</div> : null}
+                    {member.detail ? (
+                      <div className="text-xs text-zinc-500">
+                        {member.detail}
+                      </div>
+                    ) : null}
                   </td>
-                  <td className="py-2 text-zinc-600 dark:text-zinc-400">{formatTime(member.since)}</td>
+                  <td className="py-2 text-zinc-600 dark:text-zinc-400">
+                    {formatTime(member.since)}
+                  </td>
                   <td className="py-2">
                     {self ? (
                       member.roles.map(roleLabel).join(", ")
                     ) : (
                       <RoleForm
-                        action={changeRoleAction.bind(null, ref(member.membershipId))}
+                        action={changeRoleAction.bind(
+                          null,
+                          ref(member.membershipId),
+                        )}
                         roles={ORGANIZATION_ROLES}
                         current={member.roles[0]}
                       />
@@ -97,7 +124,10 @@ async function Members({ params }: Props) {
                   <td className="py-2 text-right">
                     {self ? null : (
                       <ActionButton
-                        action={removeMemberAction.bind(null, ref(member.membershipId))}
+                        action={removeMemberAction.bind(
+                          null,
+                          ref(member.membershipId),
+                        )}
                         label="Remove"
                         pendingLabel="Removing…"
                         confirmText={`Remove ${member.name} from ${organization.name}? They lose every role in its projects too.`}
@@ -110,17 +140,21 @@ async function Members({ params }: Props) {
           </tbody>
         </table>
         <p className="text-xs text-zinc-500">
-          People join by founding an organization for now; inviting someone by email comes with notifications.
+          People join by founding an organization for now; inviting someone by
+          email comes with notifications.
         </p>
       </section>
 
       <section className="space-y-3">
         <h2 className="font-medium">Service accounts</h2>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          What tasks and automations run as: never a person. A task runs as one with a role in its project.
+          What tasks and automations run as: never a person. A task runs as one
+          with a role in its project.
         </p>
         {rows.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">No service accounts yet.</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            No service accounts yet.
+          </p>
         ) : (
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-zinc-500">
@@ -133,18 +167,33 @@ async function Members({ params }: Props) {
             </thead>
             <tbody>
               {rows.map(({ account, membership }) => {
-                const accountRef = { organizationId, serviceAccountId: account.id };
+                const accountRef = {
+                  organizationId,
+                  serviceAccountId: account.id,
+                };
                 return (
-                  <tr key={account.id} className="border-t border-zinc-200 align-top dark:border-zinc-800">
+                  <tr
+                    key={account.id}
+                    className="border-t border-zinc-200 align-top dark:border-zinc-800"
+                  >
                     <td className="py-2">
                       <div>{account.name}</div>
-                      {account.description ? <div className="text-xs text-zinc-500">{account.description}</div> : null}
+                      {account.description ? (
+                        <div className="text-xs text-zinc-500">
+                          {account.description}
+                        </div>
+                      ) : null}
                     </td>
-                    <td className="py-2">{account.status === "active" ? "Active" : "Disabled"}</td>
+                    <td className="py-2">
+                      {account.status === "active" ? "Active" : "Disabled"}
+                    </td>
                     <td className="py-2">
                       {membership ? (
                         <RoleForm
-                          action={changeRoleAction.bind(null, ref(membership.id))}
+                          action={changeRoleAction.bind(
+                            null,
+                            ref(membership.id),
+                          )}
                           roles={SERVICE_ACCOUNT_ROLES}
                           current={membership.roles[0]}
                         />
@@ -154,7 +203,10 @@ async function Members({ params }: Props) {
                             No role: it can&apos;t do anything.
                           </p>
                           <RoleForm
-                            action={grantServiceAccountAction.bind(null, accountRef)}
+                            action={grantServiceAccountAction.bind(
+                              null,
+                              accountRef,
+                            )}
                             roles={SERVICE_ACCOUNT_ROLES}
                             label="Grant"
                           />
@@ -167,7 +219,9 @@ async function Members({ params }: Props) {
                           ...accountRef,
                           enabled: account.status !== "active",
                         })}
-                        label={account.status === "active" ? "Disable" : "Enable"}
+                        label={
+                          account.status === "active" ? "Disable" : "Enable"
+                        }
                         pendingLabel="Saving…"
                         confirmText={
                           account.status === "active"
@@ -177,7 +231,10 @@ async function Members({ params }: Props) {
                       />
                       {membership ? (
                         <ActionButton
-                          action={removeMemberAction.bind(null, ref(membership.id))}
+                          action={removeMemberAction.bind(
+                            null,
+                            ref(membership.id),
+                          )}
                           label="Remove role"
                           pendingLabel="Removing…"
                           confirmText={`Remove ${account.name}'s role? It loses its project roles too.`}

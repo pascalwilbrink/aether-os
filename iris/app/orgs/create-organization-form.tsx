@@ -2,16 +2,22 @@
 
 import { useActionState } from "react";
 
-import { createOrganizationAction, type CreateOrganizationState } from "./actions";
+import {
+  createOrganizationAction,
+  type CreateOrganizationState,
+} from "./actions";
 
 export function CreateOrganizationForm() {
-  const [state, action, pending] = useActionState<CreateOrganizationState, FormData>(
-    createOrganizationAction,
-    {},
-  );
+  const [state, action, pending] = useActionState<
+    CreateOrganizationState,
+    FormData
+  >(createOrganizationAction, {});
 
   return (
-    <form action={action} className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+    <form
+      action={action}
+      className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+    >
       <h2 className="font-medium">Create an organization</h2>
       {state.error ? (
         <p role="alert" className="text-sm text-red-700 dark:text-red-300">
@@ -20,7 +26,12 @@ export function CreateOrganizationForm() {
       ) : null}
       <label className="block text-sm">
         Name
-        <input name="name" required maxLength={200} className="mt-1 block w-full rounded-md border border-zinc-300 bg-transparent px-2 py-1 dark:border-zinc-700" />
+        <input
+          name="name"
+          required
+          maxLength={200}
+          className="mt-1 block w-full rounded-md border border-zinc-300 bg-transparent px-2 py-1 dark:border-zinc-700"
+        />
       </label>
       <label className="block text-sm">
         Slug

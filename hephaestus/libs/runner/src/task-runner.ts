@@ -254,6 +254,10 @@ export class TaskRunner
         this.preparer.checkout(task, token, sandbox),
         signal,
       );
+      const inputFiles = await this.untilStopped(
+        this.preparer.inputFiles(task, token, sandbox),
+        signal,
+      );
       if (checkout) {
         await this.executions.recordRepository(executionId, {
           linkId: checkout.linkId,
@@ -298,6 +302,7 @@ export class TaskRunner
           branch: checkout.branch,
           startedFrom: checkout.startedFrom,
         },
+        inputFiles,
         artifacts: {
           submit: async (artifact) => ({
             artifactId: await this.executions.recordArtifact(source, artifact),

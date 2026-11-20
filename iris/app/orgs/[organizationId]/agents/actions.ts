@@ -4,7 +4,12 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { versionFromForm } from "@/lib/agents";
-import { archiveAgent, createAgent, createAgentVersion, publishAgentVersion } from "@/lib/api/hephaestus";
+import {
+  archiveAgent,
+  createAgent,
+  createAgentVersion,
+  publishAgentVersion,
+} from "@/lib/api/hephaestus";
 import { messageOf as baseMessageOf } from "@/lib/api/messages";
 import { requireOrganization } from "@/lib/auth/current";
 import { valuesOf } from "@/lib/forms";
@@ -23,21 +28,32 @@ export interface AgentRef {
   agentId: string;
 }
 
-const agentPath = ({ organizationId, agentId }: AgentRef) => `/orgs/${organizationId}/agents/${agentId}`;
+const agentPath = ({ organizationId, agentId }: AgentRef) =>
+  `/orgs/${organizationId}/agents/${agentId}`;
 
-const text = (form: FormData, name: string) => String(form.get(name) ?? "").trim();
+const text = (form: FormData, name: string) =>
+  String(form.get(name) ?? "").trim();
 
 const messageOf = (error: unknown) =>
   baseMessageOf(error, {
-    FORBIDDEN: "You aren't allowed to do that with agents in this organization.",
+    FORBIDDEN:
+      "You aren't allowed to do that with agents in this organization.",
     AGENT_ARCHIVED: "This agent is archived: it can't get new versions.",
     AGENT_VERSION_INVALID_TRANSITION: "Only a draft can be published.",
-    AGENT_VERSION_CONFLICT: "Someone changed this agent at the same time. Try again.",
+    AGENT_VERSION_CONFLICT:
+      "Someone changed this agent at the same time. Try again.",
   });
 
 /** Creates an agent (`agent:write`), then opens it to write its first version. */
-export async function createAgentAction(organizationId: string, _state: FormState, form: FormData): Promise<FormState> {
-  const session = await requireOrganization(organizationId, `/orgs/${organizationId}/agents/new`);
+export async function createAgentAction(
+  organizationId: string,
+  _state: FormState,
+  form: FormData,
+): Promise<FormState> {
+  const session = await requireOrganization(
+    organizationId,
+    `/orgs/${organizationId}/agents/new`,
+  );
   const name = text(form, "name");
   if (!name) {
     return { error: "Give the agent a name.", values: valuesOf(form) };
@@ -60,7 +76,11 @@ export async function createAgentAction(organizationId: string, _state: FormStat
  * A new version (versions never change: editing is a new one), published
  * at once when asked and allowed (`agent:publish`).
  */
-export async function createVersionAction(ref: AgentRef, _state: FormState, form: FormData): Promise<FormState> {
+export async function createVersionAction(
+  ref: AgentRef,
+  _state: FormState,
+  form: FormData,
+): Promise<FormState> {
   const session = await requireOrganization(ref.organizationId, agentPath(ref));
   const fields = valuesOf(form);
   const result = versionFromForm(fields);
@@ -69,11 +89,21 @@ export async function createVersionAction(ref: AgentRef, _state: FormState, form
   }
   let version: number;
   try {
-    const created = await createAgentVersion(session.accessToken, ref.organizationId, ref.agentId, result.body);
+    const created = await createAgentVersion(
+      session.accessToken,
+      ref.organizationId,
+      ref.agentId,
+      result.body,
+    );
     version = created.version;
     if (form.get("publish") === "on") {
       try {
-        await publishAgentVersion(session.accessToken, ref.organizationId, ref.agentId, created.id);
+        await publishAgentVersion(
+          session.accessToken,
+          ref.organizationId,
+          ref.agentId,
+          created.id,
+        );
       } catch (error) {
         refresh();
         return {
@@ -86,15 +116,25 @@ export async function createVersionAction(ref: AgentRef, _state: FormState, form
   }
   refresh();
   return {
-    notice: form.get("publish") === "on" ? `Version ${version} is published.` : `Version ${version} saved.`,
+    notice:
+      form.get("publish") === "on"
+        ? `Version ${version} is published.`
+        : `Version ${version} saved.`,
   };
 }
 
 /** Publishes a draft; the published one before it becomes deprecated. */
-export async function publishVersionAction(ref: AgentRef & { versionId: string }): Promise<FormState> {
+export async function publishVersionAction(
+  ref: AgentRef & { versionId: string },
+): Promise<FormState> {
   const session = await requireOrganization(ref.organizationId, agentPath(ref));
   try {
-    await publishAgentVersion(session.accessToken, ref.organizationId, ref.agentId, ref.versionId);
+    await publishAgentVersion(
+      session.accessToken,
+      ref.organizationId,
+      ref.agentId,
+      ref.versionId,
+    );
   } catch (error) {
     return { error: messageOf(error) };
   }

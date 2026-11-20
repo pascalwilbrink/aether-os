@@ -3,7 +3,13 @@
 import { useActionState, useState } from "react";
 
 import { buttonClass, FormError, inputClass } from "@/app/components/form";
-import { CONCURRENCY_POLICIES, EVENTS, FIELDS, PERMISSIONS, type AutomationFields } from "@/lib/automations";
+import {
+  CONCURRENCY_POLICIES,
+  EVENTS,
+  FIELDS,
+  PERMISSIONS,
+  type AutomationFields,
+} from "@/lib/automations";
 
 import type { FormState } from "../actions";
 
@@ -37,18 +43,29 @@ export function AutomationForm({
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const values = state.values ?? defaults;
-  const [kind, setKind] = useState(values.kind === "template" ? "template" : "task");
+  const [kind, setKind] = useState(
+    values.kind === "template" ? "template" : "task",
+  );
   if (options.serviceAccounts.length === 0) {
     return (
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        An automation&apos;s tasks run as a service account with a role in this project: give one a role under Access,
-        on the project&apos;s page.
+        An automation&apos;s tasks run as a service account with a role in this
+        project: give one a role under Access, on the project&apos;s page.
       </p>
     );
   }
-  const select = (name: string, choices: { value: string; label: string }[], emptyLabel?: string) => (
+  const select = (
+    name: string,
+    choices: { value: string; label: string }[],
+    emptyLabel?: string,
+  ) => (
     // Keyed: a form reset doesn't move a select to a new defaultValue.
-    <select key={`${name}:${values[name]}`} name={name} defaultValue={values[name] ?? ""} className={inputClass}>
+    <select
+      key={`${name}:${values[name]}`}
+      name={name}
+      defaultValue={values[name] ?? ""}
+      className={inputClass}
+    >
       {emptyLabel !== undefined ? <option value="">{emptyLabel}</option> : null}
       {choices.map((choice) => (
         <option key={choice.value} value={choice.value}>
@@ -69,7 +86,8 @@ export function AutomationForm({
       {label}
     </label>
   );
-  const options_ = (list: Option[]) => list.map(({ id, name }) => ({ value: id, label: name }));
+  const options_ = (list: Option[]) =>
+    list.map(({ id, name }) => ({ value: id, label: name }));
 
   return (
     <form action={formAction} className="space-y-6">
@@ -77,11 +95,22 @@ export function AutomationForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm">
           Name
-          <input name="name" required maxLength={200} defaultValue={values.name} className={inputClass} />
+          <input
+            name="name"
+            required
+            maxLength={200}
+            defaultValue={values.name}
+            className={inputClass}
+          />
         </label>
         <label className="block text-sm">
           Description <span className="text-zinc-500">(optional)</span>
-          <input name="description" maxLength={2000} defaultValue={values.description} className={inputClass} />
+          <input
+            name="description"
+            maxLength={2000}
+            defaultValue={values.description}
+            className={inputClass}
+          />
         </label>
       </div>
 
@@ -97,13 +126,23 @@ export function AutomationForm({
           </label>
           <label className="block text-sm">
             Repository
-            {select("repositoryLinkId", options_(options.repositories), "Any repository linked to the project")}
+            {select(
+              "repositoryLinkId",
+              options_(options.repositories),
+              "Any repository linked to the project",
+            )}
           </label>
           <label className="block text-sm">
             Label <span className="text-zinc-500">(optional)</span>
-            <input name="label" maxLength={100} defaultValue={values.label} className={inputClass} />
+            <input
+              name="label"
+              maxLength={100}
+              defaultValue={values.label}
+              className={inputClass}
+            />
             <span className="mt-1 block text-xs text-zinc-500">
-              For “labelled”, the label added; otherwise one the issue must have.
+              For “labelled”, the label added; otherwise one the issue must
+              have.
             </span>
           </label>
           <label className="block text-sm">
@@ -113,13 +152,16 @@ export function AutomationForm({
               PERMISSIONS.map(({ value, label }) => ({ value, label })),
             )}
             <span className="mt-1 block text-xs text-zinc-500">
-              Issues are written by whoever opens them and reach the agent: keep this at write unless a label only
-              maintainers can add guards it.
+              Issues are written by whoever opens them and reach the agent: keep
+              this at write unless a label only maintainers can add guards it.
             </span>
           </label>
         </div>
         {checkbox("includePullRequests", "Also pull requests' conversations")}
-        {checkbox("includeAetherOs", "Also what Aether-os's own bot does (it could fire itself again)")}
+        {checkbox(
+          "includeAetherOs",
+          "Also what Aether-os's own bot does (it could fire itself again)",
+        )}
       </fieldset>
 
       <fieldset className="space-y-3">
@@ -127,7 +169,13 @@ export function AutomationForm({
         <div className="flex gap-4 text-sm">
           {(["task", "template"] as const).map((value) => (
             <label key={value} className="flex items-center gap-2">
-              <input type="radio" name="kind" value={value} checked={kind === value} onChange={() => setKind(value)} />
+              <input
+                type="radio"
+                name="kind"
+                value={value}
+                checked={kind === value}
+                onChange={() => setKind(value)}
+              />
               {value === "task" ? "Written here" : "From a template"}
             </label>
           ))}
@@ -135,7 +183,8 @@ export function AutomationForm({
         {kind === "task" ? (
           options.agents.length === 0 ? (
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              A task needs an agent with a published version: create one under Agents, on the organization&apos;s page.
+              A task needs an agent with a published version: create one under
+              Agents, on the organization&apos;s page.
             </p>
           ) : (
             <>
@@ -145,16 +194,28 @@ export function AutomationForm({
               </label>
               <label className="block text-sm">
                 Title
-                <input name="title" maxLength={200} defaultValue={values.title} className={inputClass} />
+                <input
+                  name="title"
+                  maxLength={200}
+                  defaultValue={values.title}
+                  className={inputClass}
+                />
               </label>
               <label className="block text-sm">
                 Instructions
-                <textarea name="instructions" rows={4} defaultValue={values.instructions} className={inputClass} />
+                <textarea
+                  name="instructions"
+                  rows={4}
+                  defaultValue={values.instructions}
+                  className={inputClass}
+                />
               </label>
             </>
           )
         ) : options.templates.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">No task templates for this project yet.</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            No task templates for this project yet.
+          </p>
         ) : (
           <>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -163,7 +224,10 @@ export function AutomationForm({
                 {select("templateId", options_(options.templates))}
               </label>
               <label className="block text-sm">
-                Version <span className="text-zinc-500">(empty: the latest when it fires)</span>
+                Version{" "}
+                <span className="text-zinc-500">
+                  (empty: the latest when it fires)
+                </span>
                 <input
                   name="templateVersion"
                   inputMode="numeric"
@@ -173,7 +237,8 @@ export function AutomationForm({
               </label>
             </div>
             <label className="block text-sm">
-              Inputs <span className="text-zinc-500">(one name=value per line)</span>
+              Inputs{" "}
+              <span className="text-zinc-500">(one name=value per line)</span>
               <textarea
                 name="inputs"
                 rows={3}
@@ -184,12 +249,17 @@ export function AutomationForm({
             </label>
           </>
         )}
-        <p className="text-xs text-zinc-500">The text can use {FIELDS.map((field) => `{{${field}}}`).join(", ")}.</p>
+        <p className="text-xs text-zinc-500">
+          The text can use {FIELDS.map((field) => `{{${field}}}`).join(", ")}.
+        </p>
         <label className="block text-sm">
           Runs as
           {select("serviceAccountId", options_(options.serviceAccounts))}
         </label>
-        {checkbox("workInRepository", "Works in the issue's repository (its commits come back as a pull request)")}
+        {checkbox(
+          "workInRepository",
+          "Works in the issue's repository (its commits come back as a pull request)",
+        )}
         {checkbox("review", "Everything it produces needs approval", "all")}
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-sm">
@@ -202,14 +272,18 @@ export function AutomationForm({
               className={`${inputClass} font-mono`}
             />
             <span className="mt-1 block text-xs text-zinc-500">
-              Tasks of this automation with the same key don&apos;t run side by side; empty for no limit.
+              Tasks of this automation with the same key don&apos;t run side by
+              side; empty for no limit.
             </span>
           </label>
           <label className="block text-sm">
             While one with the same key is unfinished
             {select(
               "concurrencyPolicy",
-              CONCURRENCY_POLICIES.map(({ value, label }) => ({ value, label })),
+              CONCURRENCY_POLICIES.map(({ value, label }) => ({
+                value,
+                label,
+              })),
             )}
           </label>
         </div>

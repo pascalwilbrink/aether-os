@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { config } from "@/lib/config";
-import { openSession, SESSION_COOKIE, tokenFingerprint } from "@/lib/auth/session";
+import {
+  openSession,
+  SESSION_COOKIE,
+  tokenFingerprint,
+} from "@/lib/auth/session";
 
 const MESSAGE = "Your session expired. Sign in again.";
 
@@ -12,9 +16,15 @@ const MESSAGE = "Your session expired. Sign in again.";
  * that token is dropped, so a link from elsewhere can't sign people out.
  */
 export async function GET(request: NextRequest) {
-  const session = await openSession(request.cookies.get(SESSION_COOKIE)?.value, config.sessionSecret);
+  const session = await openSession(
+    request.cookies.get(SESSION_COOKIE)?.value,
+    config.sessionSecret,
+  );
   const refused = request.nextUrl.searchParams.get("token");
-  const expired = session !== null && refused !== null && tokenFingerprint(session.accessToken) === refused;
+  const expired =
+    session !== null &&
+    refused !== null &&
+    tokenFingerprint(session.accessToken) === refused;
 
   const home = new URL("/", config.url);
   if (expired) home.searchParams.set("error", MESSAGE);

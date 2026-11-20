@@ -30,13 +30,27 @@ function githubMessageOf(error: unknown, forbidden: string): string {
  * GitHub's installation page. GitHub and Proxenos bring them back to this
  * organization's GitHub page with `?github=connected` or `failed`.
  */
-export async function connectGitHubAction(organizationId: string): Promise<ActionState> {
-  const session = await requireOrganization(organizationId, githubPath(organizationId));
+export async function connectGitHubAction(
+  organizationId: string,
+): Promise<ActionState> {
+  const session = await requireOrganization(
+    organizationId,
+    githubPath(organizationId),
+  );
   let installUrl: string;
   try {
-    ({ installUrl } = await connectGitHub(session.accessToken, organizationId, githubPath(organizationId)));
+    ({ installUrl } = await connectGitHub(
+      session.accessToken,
+      organizationId,
+      githubPath(organizationId),
+    ));
   } catch (error) {
-    return { error: githubMessageOf(error, "Only the organization's owners and admins connect GitHub.") };
+    return {
+      error: githubMessageOf(
+        error,
+        "Only the organization's owners and admins connect GitHub.",
+      ),
+    };
   }
   redirect(installUrl);
 }
@@ -46,11 +60,23 @@ export async function syncInstallationAction(ref: {
   organizationId: string;
   installationId: string;
 }): Promise<ActionState> {
-  const session = await requireOrganization(ref.organizationId, githubPath(ref.organizationId));
+  const session = await requireOrganization(
+    ref.organizationId,
+    githubPath(ref.organizationId),
+  );
   try {
-    await syncInstallation(session.accessToken, ref.organizationId, ref.installationId);
+    await syncInstallation(
+      session.accessToken,
+      ref.organizationId,
+      ref.installationId,
+    );
   } catch (error) {
-    return { error: githubMessageOf(error, "Only the organization's owners and admins sync GitHub.") };
+    return {
+      error: githubMessageOf(
+        error,
+        "Only the organization's owners and admins sync GitHub.",
+      ),
+    };
   }
   refresh();
   return {};

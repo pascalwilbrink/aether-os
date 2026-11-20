@@ -13,7 +13,15 @@ import { downloadHref } from "@/lib/files";
  */
 export async function GET(
   _request: Request,
-  { params }: { params: Promise<{ organizationId: string; projectId: string; fileId: string }> },
+  {
+    params,
+  }: {
+    params: Promise<{
+      organizationId: string;
+      projectId: string;
+      fileId: string;
+    }>;
+  },
 ) {
   const { organizationId, projectId, fileId } = await params;
   const here = downloadHref(organizationId, projectId, fileId);
@@ -24,18 +32,31 @@ export async function GET(
     );
   }
   try {
-    const { url } = await fileDownload(session.accessToken, organizationId, projectId, fileId);
+    const { url } = await fileDownload(
+      session.accessToken,
+      organizationId,
+      projectId,
+      fileId,
+    );
     return Response.redirect(url, 302);
   } catch (error) {
     if (error instanceof ApiError && error.status < 500) {
-      return new Response(error.status === 409 ? "This file isn't uploaded yet." : "This file can't be found.", {
-        status: error.status === 409 ? 409 : 404,
-        headers: { "content-type": "text/plain; charset=utf-8" },
-      });
+      return new Response(
+        error.status === 409
+          ? "This file isn't uploaded yet."
+          : "This file can't be found.",
+        {
+          status: error.status === 409 ? 409 : 404,
+          headers: { "content-type": "text/plain; charset=utf-8" },
+        },
+      );
     }
-    return new Response("Files can't be reached right now. Try again in a moment.", {
-      status: 503,
-      headers: { "content-type": "text/plain; charset=utf-8" },
-    });
+    return new Response(
+      "Files can't be reached right now. Try again in a moment.",
+      {
+        status: 503,
+        headers: { "content-type": "text/plain; charset=utf-8" },
+      },
+    );
   }
 }

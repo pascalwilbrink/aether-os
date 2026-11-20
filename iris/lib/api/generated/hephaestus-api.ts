@@ -1394,6 +1394,20 @@ export interface components {
              */
             budgetUsd?: components["schemas"]["Usd"] | null;
             concurrency?: components["schemas"]["TaskConcurrency"] | null;
+            /**
+             * @description Files the task starts from: files of its project in Loculus
+             *     (docs/files.md), uploaded first. The agent finds them in its
+             *     sandbox, in `/workspace/inputs`, so its version needs one
+             *     (else the execution fails without retrying).
+             */
+            inputFiles?: components["schemas"]["TaskInputFile"][];
+        };
+        TaskInputFile: {
+            /**
+             * Format: uuid
+             * @description A file of the task's project in Loculus.
+             */
+            fileId: string;
         };
         TaskRepository: {
             /**
@@ -1617,6 +1631,8 @@ export interface components {
             /** @description The repository it works in (its own, or its parent's), if any. */
             repository: components["schemas"]["TaskRepository"] | null;
             concurrency: components["schemas"]["TaskConcurrency"] | null;
+            /** @description Files the task starts from (Loculus), in `/workspace/inputs` of its sandbox. */
+            inputFiles: components["schemas"]["TaskInputFile"][];
             /**
              * Format: uuid
              * @description The template it was created from, if any.

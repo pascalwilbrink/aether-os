@@ -177,7 +177,7 @@ A plan has a list of `entries` and an optional `deliverableKey`. Each entry:
 | `agentId` | The agent to run it; its version is pinned when the task is created, like every task |
 | `parentKey` | Makes the entry a subtask of another entry in the plan |
 | `dependsOn` | Keys of entries that must succeed first |
-| `inputs` | References to artifacts the task starts from (e.g. a branch or file produced earlier) |
+| `inputs` | References to artifacts the task starts from (e.g. a branch or file produced earlier). Built so far: `inputFiles`, files of its project in Loculus (`files.md`), copied into the sandbox's `/workspace/inputs` |
 | `templateId` | Optional task template to start from; its instructions, agent and acceptance criteria apply (see Task templates) |
 | `acceptanceCriteria` | Extra criteria on top of the template's |
 | `satisfies` | Spec requirement IDs this entry addresses; their acceptance criteria become the task's |
