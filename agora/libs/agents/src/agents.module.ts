@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import type { Env } from '@agora/core';
+import { ServiceTokens, type Env } from '@agora/core';
 import { TenancyModule } from '@agora/tenancy';
 
 import { AgentVersionChecker } from './agent-version-checker.js';
@@ -19,8 +19,9 @@ import {
   HttpAgentVersionChecker,
   type HephaestusClientOptions,
 } from './http-agent-version-checker.js';
+import { HttpModelChecker } from './http-model-checker.js';
 
-/** Agents and their versions; new versions are checked by Hephaestus. */
+/** Agents and their versions; new versions' choices are checked by Pylon (the model) and Hephaestus (tools, skills). */
 @Module({
   imports: [
     TypeOrmModule.forFeature([AgentEntity, AgentVersionEntity]),
@@ -41,7 +42,23 @@ import {
         baseUrl: config.get('HEPHAESTUS_URL', { infer: true }),
       }),
     },
-    { provide: AgentVersionChecker, useClass: HttpAgentVersionChecker },
+    {
+      provide: AgentVersionChecker,
+      inject: [HEPHAESTUS_CLIENT_OPTIONS, ServiceTokens, ConfigService],
+      useFactory: (
+        hephaestus: HephaestusClientOptions,
+        tokens: ServiceTokens,
+        config: ConfigService<Env, true>,
+      ) =>
+        new HttpAgentVersionChecker(
+          hephaestus,
+          tokens,
+          new HttpModelChecker(
+            { baseUrl: config.get('PYLON_URL', { infer: true }) },
+            tokens,
+          ),
+        ),
+    },
   ],
   exports: [AgentsService, AgentVersionsService],
 })

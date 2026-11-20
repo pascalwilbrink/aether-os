@@ -1,6 +1,6 @@
 import type { ApiTypes } from '@agora/core';
 
-/** What an agent version chooses from Hephaestus: its model, tools and skills. */
+/** What an agent version chooses: its model (Pylon's), tools and skills (Hephaestus's). */
 export type AgentVersionChoices = Pick<
   ApiTypes.CreateAgentVersionRequest,
   'model' | 'tools' | 'skills'
@@ -8,10 +8,10 @@ export type AgentVersionChoices = Pick<
 
 /**
  * Whether a version's model, tools and skills can be chosen in an
- * organization. Hephaestus owns the model catalogue, the tool servers and
- * the skills, so it decides (`HttpAgentVersionChecker`); tests use a fake.
- * Throws `AgentVersionChoiceError` with Hephaestus's code when it refuses,
- * and `ServiceUnavailableException` when it can't be asked.
+ * organization. Pylon owns the model catalogue and Hephaestus the tool
+ * servers and skills, so they decide (`HttpAgentVersionChecker`); tests use
+ * a fake. Throws `AgentVersionChoiceError` with their code when one refuses,
+ * and `ServiceUnavailableException` when one can't be asked.
  */
 export abstract class AgentVersionChecker {
   abstract assertChoosable(

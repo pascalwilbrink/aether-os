@@ -12,9 +12,6 @@ import type {
   AcquireWorkspaceData,
   AcquireWorkspaceErrors,
   AcquireWorkspaceResponses,
-  AddModelPriceData,
-  AddModelPriceErrors,
-  AddModelPriceResponses,
   ApproveArtifactData,
   ApproveArtifactErrors,
   ApproveArtifactResponses,
@@ -30,9 +27,6 @@ import type {
   CheckAgentVersionData,
   CheckAgentVersionErrors,
   CheckAgentVersionResponses,
-  CreateModelData,
-  CreateModelErrors,
-  CreateModelResponses,
   CreateSkillData,
   CreateSkillErrors,
   CreateSkillResponses,
@@ -57,12 +51,6 @@ import type {
   CreateWorkspaceData,
   CreateWorkspaceErrors,
   CreateWorkspaceResponses,
-  DeleteAgentModelKeyData,
-  DeleteAgentModelKeyErrors,
-  DeleteAgentModelKeyResponses,
-  DeleteOrganizationModelKeyData,
-  DeleteOrganizationModelKeyErrors,
-  DeleteOrganizationModelKeyResponses,
   DeleteToolServerCredentialData,
   DeleteToolServerCredentialErrors,
   DeleteToolServerCredentialResponses,
@@ -72,18 +60,6 @@ import type {
   DestroyWorkspaceData,
   DestroyWorkspaceErrors,
   DestroyWorkspaceResponses,
-  GetAgentBudgetData,
-  GetAgentBudgetErrors,
-  GetAgentBudgetResponses,
-  GetModelData,
-  GetModelErrors,
-  GetModelResponses,
-  GetOrganizationBudgetData,
-  GetOrganizationBudgetErrors,
-  GetOrganizationBudgetResponses,
-  GetProjectBudgetData,
-  GetProjectBudgetErrors,
-  GetProjectBudgetResponses,
   GetSkillData,
   GetSkillErrors,
   GetSkillResponses,
@@ -111,24 +87,9 @@ import type {
   GetWorkspaceData,
   GetWorkspaceErrors,
   GetWorkspaceResponses,
-  ListAgentModelKeysData,
-  ListAgentModelKeysErrors,
-  ListAgentModelKeysResponses,
   ListExecutionEventsData,
   ListExecutionEventsErrors,
   ListExecutionEventsResponses,
-  ListModelPricesData,
-  ListModelPricesErrors,
-  ListModelPricesResponses,
-  ListModelsData,
-  ListModelsErrors,
-  ListModelsResponses,
-  ListOllamaModelsData,
-  ListOllamaModelsErrors,
-  ListOllamaModelsResponses,
-  ListOrganizationModelKeysData,
-  ListOrganizationModelKeysErrors,
-  ListOrganizationModelKeysResponses,
   ListSkillsData,
   ListSkillsErrors,
   ListSkillsResponses,
@@ -174,21 +135,6 @@ import type {
   RetryTaskData,
   RetryTaskErrors,
   RetryTaskResponses,
-  SetAgentBudgetData,
-  SetAgentBudgetErrors,
-  SetAgentBudgetResponses,
-  SetAgentModelKeyData,
-  SetAgentModelKeyErrors,
-  SetAgentModelKeyResponses,
-  SetOrganizationBudgetData,
-  SetOrganizationBudgetErrors,
-  SetOrganizationBudgetResponses,
-  SetOrganizationModelKeyData,
-  SetOrganizationModelKeyErrors,
-  SetOrganizationModelKeyResponses,
-  SetProjectBudgetData,
-  SetProjectBudgetErrors,
-  SetProjectBudgetResponses,
   SetTaskTreeBudgetData,
   SetTaskTreeBudgetErrors,
   SetTaskTreeBudgetResponses,
@@ -198,9 +144,6 @@ import type {
   SuspendWorkspaceData,
   SuspendWorkspaceErrors,
   SuspendWorkspaceResponses,
-  UpdateModelData,
-  UpdateModelErrors,
-  UpdateModelResponses,
   UpdateToolServerData,
   UpdateToolServerErrors,
   UpdateToolServerResponses,
@@ -225,10 +168,9 @@ export type Options<
 };
 
 /**
- * Whether an agent version's model, tools and skills are choosable in
- * the organization, for Agora to check before it creates the version:
- * the model is an `active` model of the catalogue
- * (`MODEL_NOT_AVAILABLE` otherwise); each enabled entry of `tools`
+ * Whether an agent version's tools and skills are choosable in the
+ * organization, for Agora to check before it creates the version (its
+ * model Agora checks with Pylon's catalogue): each enabled entry of `tools`
  * names one of the organization's tool servers, each at most once
  * (`TOOL_SERVER_INVALID`); each enabled entry of `skills` a version of
  * one of its active skills, each skill at most once (`SKILL_INVALID`).
@@ -817,209 +759,10 @@ export const listExecutionEvents = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * The model catalogue (`../docs/models.md`, Models): the models agent
- * versions can name, by name, each with the price in force now.
+ * The budget of the task's tree (its top-level task's), for the tree's
+ * whole life. Budgets are Pylon's (`../docs/pylon.md`): Hephaestus
+ * checks the task and reads it there with its own token.
  *
- */
-export const listModels = <ThrowOnError extends boolean = false>(
-  options?: Options<ListModelsData, ThrowOnError>,
-): RequestResult<ListModelsResponses, ListModelsErrors, ThrowOnError> =>
-  (options?.client ?? client).get<
-    ListModelsResponses,
-    ListModelsErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/models',
-    ...options,
-  });
-
-/**
- * Adds a model to the catalogue, with its first price.
- */
-export const createModel = <ThrowOnError extends boolean = false>(
-  options: Options<CreateModelData, ThrowOnError>,
-): RequestResult<CreateModelResponses, CreateModelErrors, ThrowOnError> =>
-  (options.client ?? client).post<
-    CreateModelResponses,
-    CreateModelErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/models',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-export const getModel = <ThrowOnError extends boolean = false>(
-  options: Options<GetModelData, ThrowOnError>,
-): RequestResult<GetModelResponses, GetModelErrors, ThrowOnError> =>
-  (options.client ?? client).get<
-    GetModelResponses,
-    GetModelErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/models/{modelId}',
-    ...options,
-  });
-
-/**
- * Replaces the model's editable fields. `provider` and `model` never
- * change (agent versions name them); prices change with
- * `POST …/prices`. `deprecated`: new agent versions can't choose it;
- * `retired`: the gateway refuses to call it.
- *
- */
-export const updateModel = <ThrowOnError extends boolean = false>(
-  options: Options<UpdateModelData, ThrowOnError>,
-): RequestResult<UpdateModelResponses, UpdateModelErrors, ThrowOnError> =>
-  (options.client ?? client).put<
-    UpdateModelResponses,
-    UpdateModelErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/models/{modelId}',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-export const listModelPrices = <ThrowOnError extends boolean = false>(
-  options: Options<ListModelPricesData, ThrowOnError>,
-): RequestResult<
-  ListModelPricesResponses,
-  ListModelPricesErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    ListModelPricesResponses,
-    ListModelPricesErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/models/{modelId}/prices',
-    ...options,
-  });
-
-/**
- * A new price from `effectiveFrom` (now if absent). Prices never
- * change once recorded, so past calls keep the cost they had; a price
- * must start after the model's latest one (`MODEL_PRICE_INVALID`).
- *
- */
-export const addModelPrice = <ThrowOnError extends boolean = false>(
-  options: Options<AddModelPriceData, ThrowOnError>,
-): RequestResult<AddModelPriceResponses, AddModelPriceErrors, ThrowOnError> =>
-  (options.client ?? client).post<
-    AddModelPriceResponses,
-    AddModelPriceErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/models/{modelId}/prices',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-/**
- * The organization's monthly budget for model calls, and what this month's calls cost so far.
- */
-export const getOrganizationBudget = <ThrowOnError extends boolean = false>(
-  options: Options<GetOrganizationBudgetData, ThrowOnError>,
-): RequestResult<
-  GetOrganizationBudgetResponses,
-  GetOrganizationBudgetErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    GetOrganizationBudgetResponses,
-    GetOrganizationBudgetErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/budget',
-    ...options,
-  });
-
-/**
- * Sets (or, with `limitUsd: null`, removes) the organization's monthly
- * limit. Tasks it paused resume within a runner round once it has room.
- *
- */
-export const setOrganizationBudget = <ThrowOnError extends boolean = false>(
-  options: Options<SetOrganizationBudgetData, ThrowOnError>,
-): RequestResult<
-  SetOrganizationBudgetResponses,
-  SetOrganizationBudgetErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).put<
-    SetOrganizationBudgetResponses,
-    SetOrganizationBudgetErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/budget',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-export const getProjectBudget = <ThrowOnError extends boolean = false>(
-  options: Options<GetProjectBudgetData, ThrowOnError>,
-): RequestResult<
-  GetProjectBudgetResponses,
-  GetProjectBudgetErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    GetProjectBudgetResponses,
-    GetProjectBudgetErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/projects/{projectId}/budget',
-    ...options,
-  });
-
-/**
- * Sets (or removes) the project's monthly limit.
- */
-export const setProjectBudget = <ThrowOnError extends boolean = false>(
-  options: Options<SetProjectBudgetData, ThrowOnError>,
-): RequestResult<
-  SetProjectBudgetResponses,
-  SetProjectBudgetErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).put<
-    SetProjectBudgetResponses,
-    SetProjectBudgetErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/projects/{projectId}/budget',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-/**
- * The budget of the task's tree (its top-level task's), for the tree's whole life.
  */
 export const getTaskTreeBudget = <ThrowOnError extends boolean = false>(
   options: Options<GetTaskTreeBudgetData, ThrowOnError>,
@@ -1039,7 +782,10 @@ export const getTaskTreeBudget = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Sets (or removes) the limit of the task's tree; its paused tasks resume once it has room.
+ * Sets (or removes) the limit of the task's tree, in Pylon, with the
+ * caller's own token; its paused tasks resume once it has room. `503`
+ * when Pylon doesn't answer.
+ *
  */
 export const setTaskTreeBudget = <ThrowOnError extends boolean = false>(
   options: Options<SetTaskTreeBudgetData, ThrowOnError>,
@@ -1055,182 +801,6 @@ export const setTaskTreeBudget = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/budget',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-/**
- * The organization's provider keys (docs/models.md, Keys): which are
- * set, their last characters, who set them and when; never a key.
- * Every agent of the organization uses its key for its model's
- * provider, unless the agent has its own.
- *
- */
-export const listOrganizationModelKeys = <ThrowOnError extends boolean = false>(
-  options: Options<ListOrganizationModelKeysData, ThrowOnError>,
-): RequestResult<
-  ListOrganizationModelKeysResponses,
-  ListOrganizationModelKeysErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    ListOrganizationModelKeysResponses,
-    ListOrganizationModelKeysErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/model-keys',
-    ...options,
-  });
-
-/**
- * Removes it, with every earlier version; agents without their own key then use the platform's, if allowed, or fail.
- */
-export const deleteOrganizationModelKey = <
-  ThrowOnError extends boolean = false,
->(
-  options: Options<DeleteOrganizationModelKeyData, ThrowOnError>,
-): RequestResult<
-  DeleteOrganizationModelKeyResponses,
-  DeleteOrganizationModelKeyErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).delete<
-    DeleteOrganizationModelKeyResponses,
-    DeleteOrganizationModelKeyErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/model-keys/{provider}',
-    ...options,
-  });
-
-/**
- * Stores (or replaces) the organization's key for the provider, in
- * OpenBao: `apiKey` for the hosted providers; for `ollama`, its server's
- * `baseUrl` and, when the server wants one, an `apiKey`
- * (`MODEL_KEY_INVALID` otherwise, or for a `baseUrl` Hephaestus won't call).
- *
- */
-export const setOrganizationModelKey = <ThrowOnError extends boolean = false>(
-  options: Options<SetOrganizationModelKeyData, ThrowOnError>,
-): RequestResult<
-  SetOrganizationModelKeyResponses,
-  SetOrganizationModelKeyErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).put<
-    SetOrganizationModelKeyResponses,
-    SetOrganizationModelKeyErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/model-keys/{provider}',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-/**
- * The agent's monthly budget for model calls (all its versions, in every project), and what this month's calls cost so far.
- */
-export const getAgentBudget = <ThrowOnError extends boolean = false>(
-  options: Options<GetAgentBudgetData, ThrowOnError>,
-): RequestResult<GetAgentBudgetResponses, GetAgentBudgetErrors, ThrowOnError> =>
-  (options.client ?? client).get<
-    GetAgentBudgetResponses,
-    GetAgentBudgetErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/agents/{agentId}/budget',
-    ...options,
-  });
-
-/**
- * Sets (or, with `limitUsd: null`, removes) the agent's monthly limit.
- * Tasks it paused resume within a runner round once it has room.
- *
- */
-export const setAgentBudget = <ThrowOnError extends boolean = false>(
-  options: Options<SetAgentBudgetData, ThrowOnError>,
-): RequestResult<SetAgentBudgetResponses, SetAgentBudgetErrors, ThrowOnError> =>
-  (options.client ?? client).put<
-    SetAgentBudgetResponses,
-    SetAgentBudgetErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/agents/{agentId}/budget',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-/**
- * The agent's own provider keys, used instead of the organization's (e.g. to bill another provider account).
- */
-export const listAgentModelKeys = <ThrowOnError extends boolean = false>(
-  options: Options<ListAgentModelKeysData, ThrowOnError>,
-): RequestResult<
-  ListAgentModelKeysResponses,
-  ListAgentModelKeysErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    ListAgentModelKeysResponses,
-    ListAgentModelKeysErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/agents/{agentId}/model-keys',
-    ...options,
-  });
-
-/**
- * Removes the agent's own key; it uses the organization's again.
- */
-export const deleteAgentModelKey = <ThrowOnError extends boolean = false>(
-  options: Options<DeleteAgentModelKeyData, ThrowOnError>,
-): RequestResult<
-  DeleteAgentModelKeyResponses,
-  DeleteAgentModelKeyErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).delete<
-    DeleteAgentModelKeyResponses,
-    DeleteAgentModelKeyErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/agents/{agentId}/model-keys/{provider}',
-    ...options,
-  });
-
-/**
- * Stores (or replaces) the agent's own key for the provider, in OpenBao.
- */
-export const setAgentModelKey = <ThrowOnError extends boolean = false>(
-  options: Options<SetAgentModelKeyData, ThrowOnError>,
-): RequestResult<
-  SetAgentModelKeyResponses,
-  SetAgentModelKeyErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).put<
-    SetAgentModelKeyResponses,
-    SetAgentModelKeyErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/agents/{agentId}/model-keys/{provider}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -1552,29 +1122,5 @@ export const getSkillVersion = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/skills/{skillId}/versions/{version}',
-    ...options,
-  });
-
-/**
- * The models the organization's Ollama server has now (its `/api/tags`),
- * to choose from for an agent version: asked of the server with the
- * organization's settings. `409 MODEL_KEY_INVALID` when the
- * organization has no Ollama server set; `503` when it doesn't answer.
- *
- */
-export const listOllamaModels = <ThrowOnError extends boolean = false>(
-  options: Options<ListOllamaModelsData, ThrowOnError>,
-): RequestResult<
-  ListOllamaModelsResponses,
-  ListOllamaModelsErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    ListOllamaModelsResponses,
-    ListOllamaModelsErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/ollama/models',
     ...options,
   });

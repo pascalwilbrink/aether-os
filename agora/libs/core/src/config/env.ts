@@ -19,10 +19,12 @@ export const zEnv = z.object({
   /** Polis's API: organizations (with Agora's own token). */
   POLIS_URL: z.url({ protocol: /^https?$/ }),
   /**
-   * Hephaestus's API: whether a new version's model, tools and skills can
-   * be chosen (with Agora's own token).
+   * Hephaestus's API: whether a new version's tools and skills can be
+   * chosen (with Agora's own token).
    */
   HEPHAESTUS_URL: z.url({ protocol: /^https?$/ }),
+  /** Pylon's API: whether a new version's model is in its catalogue. */
+  PYLON_URL: z.url({ protocol: /^https?$/ }),
   /** Agora's own client at Pistis (client credentials, `platform:read`). */
   PISTIS_CLIENT_ID: z.string().min(1).default('agora'),
   PISTIS_CLIENT_SECRET: z.string().min(16),

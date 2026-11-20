@@ -17,4 +17,5 @@ process.env.PISTIS_JWKS = JSON.stringify(tokens.jwks);
 process.env.PISTIS_CLIENT_SECRET = 'not-used-polis-is-faked';
 process.env.POLIS_URL = 'http://polis.invalid';
 process.env.HEPHAESTUS_URL = 'http://hephaestus.invalid';
+process.env.PYLON_URL = 'http://pylon.invalid';
 initializeTransactions();
