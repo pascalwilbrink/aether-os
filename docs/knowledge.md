@@ -30,7 +30,7 @@ Later: organization-wide items, repository documents, pinned context on tasks, p
 | Type | What it holds | Example |
 |---|---|---|
 | `document` | A file, indexed for search: specs, designs, manuals, uploaded references | `architecture-overview.pdf`, `specs/billing.md` in the repository |
-| `decision` | A choice and why it was made (an ADR): context, decision, consequences | "Use RabbitMQ topic exchanges, one per service" |
+| `decision` | A choice and why it was made (an ADR): context, decision, consequences; and (Proposal, `councils.md`) a structured `rationale` and the `alternatives` considered, each with why it wasn't chosen | "Use RabbitMQ topic exchanges, one per service" |
 | `fact` | Something true about the project, short and checkable | "Production runs in eu-west-1", "the API is versioned under `/v1`" |
 | `convention` | How things are done here | "Branches are `feature/<ticket>`", "money is stored in micro-dollars" |
 | `architecture` | How the system is put together: components, boundaries, data flows | "Kairos sends `task.create` to Hephaestus over RabbitMQ" |
@@ -44,6 +44,7 @@ Common fields: `id`, `organizationId`, `projectId` (organization-wide items, wit
 |---|---|
 | `person` | Written in Iris or through the API (built) |
 | `task` | Proposed by an agent during a task: the task token's `task_id` (built) |
+| `council` | Proposed by a council's facilitator in a session (the session and round, `councils.md`; Proposal) |
 | `document` | Extracted from or summarizing a document (which one, which version) |
 | `meeting` | Proposed from a meeting's transcript (meeting, and where in it) |
 | `repository` | Indexed from the project's repository (path, commit) |
