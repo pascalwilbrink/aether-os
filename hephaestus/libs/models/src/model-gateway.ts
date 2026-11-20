@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { MastraModelConfig } from '@mastra/core/llm';
@@ -14,6 +14,7 @@ import {
   type CatalogEntry,
 } from './model-catalog.service.js';
 import { costOf } from './model-cost.js';
+import { PylonModels } from './pylon-models.js';
 import { modelKeyPath } from './model-keys.service.js';
 import {
   checkModelKeySettings,
@@ -47,7 +48,15 @@ export interface ResolvedModel {
   keySource: KeySource;
   /** The catalogue's price in force when resolved; null: calls aren't priced. */
   price: CatalogEntry['price'];
+  /**
+   * Tries of a failed call the caller makes itself: none through Pylon,
+   * which retries before answering.
+   */
+  retries: number;
 }
+
+/** The AI SDK's own tries of a call that failed with a 429 or 5xx. */
+const DIRECT_RETRIES = 2;
 
 /** One call's usage, as Mastra reports it (input includes cache reads and writes). */
 export interface ModelCallUsage {
@@ -77,6 +86,8 @@ export class ModelGateway {
     private readonly languageModels: LanguageModels,
     private readonly config: ConfigService<Env, true>,
     private readonly catalog: ModelCatalogService,
+    // With `USE_PYLON`, calls go through Pylon (`PylonModels`); else null.
+    @Optional() private readonly pylon: PylonModels | null = null,
   ) {}
 
   /**
@@ -89,6 +100,8 @@ export class ModelGateway {
   async resolve(
     context: ModelCallContext,
     configuration: ApiTypes.AgentModelConfiguration,
+    /** The task token: Pylon's callers authenticate with it. */
+    taskToken?: string,
   ): Promise<ResolvedModel> {
     const { provider, model: modelId } = configuration;
     if (!PROVIDER.test(provider)) {
@@ -97,6 +110,24 @@ export class ModelGateway {
     const entry = await this.catalog.entryFor(provider, modelId, new Date());
     if (entry?.status === 'retired') {
       throw new ModelRetiredError(provider, modelId);
+    }
+    if (this.pylon) {
+      if (!taskToken) {
+        throw new Error('A model call through Pylon needs the task token');
+      }
+      // Pylon reads the key, checks its budgets and meters the call too;
+      // Hephaestus keeps its own metering and budgets until step 2.
+      return {
+        model: this.pylon.create(provider, modelId, {
+          token: taskToken,
+          executionId: context.executionId,
+        }),
+        provider,
+        modelId,
+        keySource: 'pylon',
+        price: entry?.price ?? null,
+        retries: 0,
+      };
     }
     const key = await this.keyFor(context, provider);
     // The platform's rules for model endpoints may have changed since the
@@ -117,6 +148,7 @@ export class ModelGateway {
       modelId,
       keySource: key.source,
       price: entry?.price ?? null,
+      retries: DIRECT_RETRIES,
     };
   }
 

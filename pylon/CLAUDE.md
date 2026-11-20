@@ -13,7 +13,7 @@ Pylon is Aether-os's **model gateway** (`../docs/pylon.md`, `../docs/models.md`)
 
 Callers keep their providers' SDKs: Pylon passes each provider's own API through. Nothing else holds a provider key.
 
-Status: the service is built (step 1 of `../docs/pylon.md`, Moving there); Hephaestus, Agora, Iris and Kerykes still use Hephaestus's own gateway until step 2. Planned: policy (Themis), fair sharing of platform keys' rate limits, the GenAI span attributes.
+Status: the service is built (step 1 of `../docs/pylon.md`, Moving there); Hephaestus, Agora, Iris and Kerykes still use Hephaestus's own gateway until step 2, except that Hephaestus's `USE_PYLON=true` sends agents' model calls here to try it (`../hephaestus/CLAUDE.md`, Through Pylon). Planned: policy (Themis), fair sharing of platform keys' rate limits, the GenAI span attributes.
 
 It follows `../docs/engineering.md` like Seshat: NestJS 12 (ESM, TypeScript 6), controller → service → TypeORM repository with mappers, Zod DTOs generated from the spec, `typeorm-transactional`, Postgres with migrations, tests against Postgres and RabbitMQ in containers.
 

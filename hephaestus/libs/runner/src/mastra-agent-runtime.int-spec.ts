@@ -469,6 +469,33 @@ describe('MastraAgentRuntime (Postgres)', () => {
     );
   });
 
+  it('pauses the task when Pylon refuses a call for a budget (USE_PYLON)', async () => {
+    secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
+      apiKey: 'sk-organization',
+    });
+    models.replies = [
+      {
+        error: {
+          message: 'Payment Required',
+          statusCode: 402,
+          responseBody: JSON.stringify({
+            code: 'BUDGET_EXHAUSTED',
+            budget: { scope: 'project', scopeId: projectId },
+          }),
+        },
+      },
+    ];
+    const { task: created } = await taskFor();
+
+    await runOnce();
+
+    await expect(task(created.id)).resolves.toMatchObject({
+      status: 'paused',
+      pausedFor: 'project',
+    });
+    expect((await executionsOf(created.id))[0].status).toBe('paused');
+  });
+
   it('retries the task when the provider is overloaded', async () => {
     secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
       apiKey: 'sk-organization',

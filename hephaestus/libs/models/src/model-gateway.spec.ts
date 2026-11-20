@@ -12,6 +12,7 @@ import type {
 } from './model-catalog.service.js';
 import { ModelGateway, type ModelCallContext } from './model-gateway.js';
 import { ModelKeyMissingError, ModelRetiredError } from './model.errors.js';
+import { PylonModels, type PylonCall } from './pylon-models.js';
 
 const context: ModelCallContext = {
   organizationId: 'org-1',
@@ -127,5 +128,66 @@ describe('ModelGateway keys', () => {
     await expect(
       gateway(true).resolve({ ...context, agentId: 'agent-2' }, model),
     ).resolves.toMatchObject({ keySource: 'organization' });
+  });
+});
+
+describe('ModelGateway through Pylon (USE_PYLON)', () => {
+  class RecordingPylonModels extends PylonModels {
+    readonly created: { provider: string; modelId: string; call: PylonCall }[] =
+      [];
+    create(provider: string, modelId: string, call: PylonCall) {
+      this.created.push({ provider, modelId, call });
+      return { id: `${provider}/${modelId}` as const };
+    }
+  }
+
+  it('reads no key: Pylon gets the task token, and retries itself', async () => {
+    const secrets = new FakeSecretStore();
+    const pylon = new RecordingPylonModels();
+    const entry: CatalogEntry = {
+      status: 'active',
+      price: {
+        id: 'price-1',
+        inputPerMTok: '1',
+        outputPerMTok: '2',
+        cacheReadPerMTok: null,
+        cacheWritePerMTok: null,
+        longContext: null,
+      },
+    };
+    const gateway = new ModelGateway(
+      null as never,
+      secrets,
+      new ScriptedLanguageModels(),
+      { get: () => false } as unknown as ConfigService<Env, true>,
+      {
+        entryFor: () => Promise.resolve(entry),
+      } as unknown as ModelCatalogService,
+      pylon,
+    );
+
+    await expect(
+      gateway.resolve(context, model, 'task-token'),
+    ).resolves.toMatchObject({
+      keySource: 'pylon',
+      retries: 0,
+      price: { id: 'price-1' },
+    });
+    expect(pylon.created).toEqual([
+      {
+        provider: 'anthropic',
+        modelId: 'claude-sonnet',
+        call: { token: 'task-token', executionId: 'execution-1' },
+      },
+    ]);
+    expect(secrets.reads).toEqual([]);
+
+    await expect(gateway.resolve(context, model)).rejects.toThrow(
+      /needs the task token/,
+    );
+    entry.status = 'retired';
+    await expect(
+      gateway.resolve(context, model, 'task-token'),
+    ).rejects.toBeInstanceOf(ModelRetiredError);
   });
 });

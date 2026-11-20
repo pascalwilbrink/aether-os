@@ -135,6 +135,7 @@ Pylon publishes no per-call events: a task's cost is read with the usage API whe
 ## Moving there
 
 1. **Pylon** (built): the service with Hephaestus's catalogue, keys, metering and budgets, the pass-through and embeddings endpoints, budget checks and events, and `pnpm import:hephaestus` copying the tables (keys stay in OpenBao, at the same paths). Pistis's new claims and `model:invoke`.
+   **Trying it:** Hephaestus's `USE_PYLON=true` (with `PYLON_URL`) sends agents' model calls through Pylon, with the task token, while Hephaestus keeps its own metering and budgets; `false` (the default) calls providers as before (`../hephaestus/CLAUDE.md`, Through Pylon). Task tokens carry the new claims either way.
 2. **Switching**:
    - Hephaestus's `ModelGateway` becomes an HTTP client of Pylon (the AI SDK providers with Pylon's `baseURL` and the task token);
    - the runner pauses and resumes from Pylon's answers and events;

@@ -35,7 +35,7 @@ export type ScriptedReply =
     }
   /** Calls the first offered tool whose name contains `tool`. */
   | { toolCall: { tool: string; input: Record<string, unknown> } }
-  | { error: { message: string; statusCode: number } };
+  | { error: { message: string; statusCode: number; responseBody?: string } };
 
 interface CallOptions {
   prompt: { role: string; content: unknown }[];
@@ -91,6 +91,7 @@ export class ScriptedLanguageModels extends LanguageModels {
           [Symbol.for('vercel.ai.error')]: true,
           [Symbol.for('vercel.ai.error.AI_APICallError')]: true,
           statusCode: reply.error.statusCode,
+          responseBody: reply.error.responseBody,
           // Not retried within the call, so tests don't wait for backoff.
           isRetryable: false,
         }),

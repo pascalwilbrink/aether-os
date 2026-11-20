@@ -49,9 +49,6 @@ import {
 
 /** Model calls (agent loop steps) one execution may make. */
 const MAX_STEPS = 20;
-/** Retries of a model call on 429 and 5xx, within the execution. */
-const MODEL_RETRIES = 2;
-
 /**
  * Runs an agent version with Mastra (../../CLAUDE.md): the version's
  * instructions and model become a Mastra `Agent`, the model resolved by the
@@ -112,7 +109,7 @@ export class MastraAgentRuntime extends AgentRuntime {
       executionId,
       agentVersionId: agentVersion.id,
     };
-    const resolved = await this.resolve(context, agentVersion.model);
+    const resolved = await this.resolve(context, agentVersion.model, token);
     const skills = await this.loadSkills(task.organizationId, agentVersion);
     await copySkills(sandbox, skills);
     const connected = await this.connectTools(
@@ -276,7 +273,7 @@ export class MastraAgentRuntime extends AgentRuntime {
           modelSettings: {
             temperature: agentVersion.model.temperature,
             maxOutputTokens: agentVersion.model.maxTokens,
-            maxRetries: MODEL_RETRIES,
+            maxRetries: resolved.retries,
           },
           stopWhen: async ({ steps }: { steps: readonly unknown[] }) => {
             while (metered < steps.length) {
@@ -304,14 +301,14 @@ export class MastraAgentRuntime extends AgentRuntime {
         throw new BudgetExceededError(ranOut);
       }
       if (result.finishReason === 'error' || result.error) {
-        throw toFailure(result.error);
+        throw failureOf(result.error);
       }
       return { outcome: 'completed', summary: result.text };
     } catch (error) {
       await Promise.allSettled(metering);
       if (error instanceof BudgetExceededError) throw error;
       if (ranOut) throw new BudgetExceededError(ranOut);
-      throw toFailure(error);
+      throw failureOf(error);
     }
   }
 
@@ -357,9 +354,10 @@ export class MastraAgentRuntime extends AgentRuntime {
   private async resolve(
     context: ModelCallContext,
     model: AgentRunInput['agentVersion']['model'],
+    token: string,
   ): Promise<ResolvedModel> {
     try {
-      return await this.gateway.resolve(context, model);
+      return await this.gateway.resolve(context, model, token);
     } catch (error) {
       if (
         error instanceof ModelKeyMissingError ||
@@ -796,13 +794,64 @@ function submitFileTool(
  * retrying; rate limits and server errors (already retried within the
  * execution) may.
  */
+function failureOf(error: unknown): RunnerFailure | BudgetExceededError {
+  const scope = pylonBudget(error);
+  return scope ? new BudgetExceededError(scope) : toFailure(error);
+}
+
+const BUDGET_SCOPES: readonly BudgetScope[] = [
+  'organization',
+  'project',
+  'agent',
+  'task_tree',
+];
+
+/**
+ * A call Pylon refused because a budget ran out (`402 BUDGET_EXHAUSTED`,
+ * `USE_PYLON`): the budget's scope, so the task pauses as it does when
+ * Hephaestus's own budget runs out. Looks through the error's causes, as
+ * Mastra may wrap the AI SDK's.
+ */
+function pylonBudget(error: unknown): BudgetScope | null {
+  for (let current = error, depth = 0; current && depth < 5; depth++) {
+    const { statusCode, responseBody, cause } = current as {
+      statusCode?: unknown;
+      responseBody?: unknown;
+      cause?: unknown;
+    };
+    if (statusCode === 402 && typeof responseBody === 'string') {
+      try {
+        const problem = JSON.parse(responseBody) as {
+          code?: unknown;
+          budget?: { scope?: unknown };
+        };
+        const scope = problem.budget?.scope;
+        if (
+          problem.code === 'BUDGET_EXHAUSTED' &&
+          BUDGET_SCOPES.includes(scope as BudgetScope)
+        ) {
+          return scope as BudgetScope;
+        }
+      } catch {
+        // Not Pylon's problem details.
+      }
+    }
+    current = cause;
+  }
+  return null;
+}
+
 function toFailure(error: unknown): RunnerFailure {
   if (error instanceof RunnerFailure) {
     return error;
   }
   const status = (error as { statusCode?: unknown } | null)?.statusCode;
   const message = error instanceof Error ? error.message : String(error);
-  if (typeof status === 'number' && [400, 401, 403, 404].includes(status)) {
+  // 409: Pylon refusing a call it never will make (no key, a retired model).
+  if (
+    typeof status === 'number' &&
+    [400, 401, 402, 403, 404, 409].includes(status)
+  ) {
     return new RunnerFailure(
       `The model provider refused the call (${status}): ${message}`,
       'infrastructure',

@@ -5,6 +5,10 @@ export interface TaskTokenRequest {
   taskId: string;
   /** At most 3600 (Pistis's limit). */
   expiresInSeconds: number;
+  /** For Pylon (../docs/pylon.md): the tree's and the agent's budgets, the agent's keys. */
+  taskTreeId?: string;
+  agentId?: string;
+  agentVersionId?: string;
 }
 
 /**

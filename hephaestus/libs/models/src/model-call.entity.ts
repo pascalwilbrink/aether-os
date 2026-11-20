@@ -1,6 +1,7 @@
 import { Check, Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
-export type KeySource = 'agent' | 'organization' | 'platform';
+/** `pylon`: Pylon picked the key (`USE_PYLON`); its own record says whose. */
+export type KeySource = 'agent' | 'organization' | 'platform' | 'pylon';
 
 /**
  * One call to a model provider through the gateway (docs/models.md,
@@ -10,7 +11,7 @@ export type KeySource = 'agent' | 'organization' | 'platform';
 @Entity({ name: 'model_calls' })
 @Check(
   'ck_model_calls_key_source',
-  `key_source IN ('agent', 'organization', 'platform')`,
+  `key_source IN ('agent', 'organization', 'platform', 'pylon')`,
 )
 @Index('ix_model_calls_execution_id', ['executionId'])
 // What budgets sum (docs/models.md): per project and month, per task tree.

@@ -42,6 +42,11 @@ export class PistisTaskTokens extends TaskTokens {
           subject_token_type: 'urn:aether-os:token-type:service-account',
           project_id: request.projectId,
           task_id: request.taskId,
+          ...(request.taskTreeId ? { task_tree_id: request.taskTreeId } : {}),
+          ...(request.agentId ? { agent_id: request.agentId } : {}),
+          ...(request.agentVersionId
+            ? { agent_version_id: request.agentVersionId }
+            : {}),
           expires_in: String(request.expiresInSeconds),
         }),
         signal: AbortSignal.timeout(this.options.timeoutMs ?? 5000),

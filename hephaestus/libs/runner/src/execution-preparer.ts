@@ -73,6 +73,9 @@ export class ExecutionPreparer {
       organizationId: task.organizationId,
       projectId: task.projectId,
       taskId: task.id,
+      taskTreeId: task.topLevelTaskId,
+      agentId: task.agentId,
+      agentVersionId: task.agentVersionId,
       expiresInSeconds: Math.min(
         MAX_TOKEN_SECONDS,
         Math.ceil(
