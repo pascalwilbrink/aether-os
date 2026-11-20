@@ -9,7 +9,8 @@ datasources:
     isDefault: true
     jsonData:
       derivedFields:
-        # Turns the trace ID on a log line into a link to the trace in Jaeger.
+        # Turns the trace ID on a log line (structured metadata, from OTLP)
+        # into a link to the trace in Jaeger.
         - name: traceId
           datasourceUid: jaeger
           matcherType: label
@@ -22,6 +23,11 @@ datasources:
     url: http://jaeger:16686
     jsonData:
       tracesToLogsV2:
-        # From a span, show the logs of the same trace.
+        # From a span, show the logs of the same trace. Services send logs
+        # over OTLP, so Loki keeps the trace ID as structured metadata
+        # (trace_id) rather than in the line's text.
         datasourceUid: loki
-        filterByTraceID: true
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
+        customQuery: true
+        query: '{service_name="$${__span.tags["service.name"]}"} | trace_id="$${__trace.traceId}"'

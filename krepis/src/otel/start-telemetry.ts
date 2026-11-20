@@ -3,6 +3,7 @@ import { register } from 'node:module';
 import { parseEnv } from 'node:util';
 
 import type { Span } from '@opentelemetry/api';
+import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-proto';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import type { Instrumentation } from '@opentelemetry/instrumentation';
 import {
@@ -13,6 +14,10 @@ import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { NestInstrumentation } from '@opentelemetry/instrumentation-nestjs-core';
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici';
+import {
+  BatchLogRecordProcessor,
+  type LogRecordProcessor,
+} from '@opentelemetry/sdk-logs';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import type { SpanExporter, SpanProcessor } from '@opentelemetry/sdk-trace';
 
@@ -30,6 +35,12 @@ export interface TelemetryOptions {
   exporter?: SpanExporter;
   /** Instead of the batch processor (tests: a simple one, to see spans at once). */
   spanProcessors?: SpanProcessor[];
+  /**
+   * Instead of exporting log records over OTLP (tests: a simple processor
+   * with an in-memory exporter). Krepis's logger (`createLogger`) writes
+   * every line to OpenTelemetry's logs API, which these receive.
+   */
+  logRecordProcessors?: LogRecordProcessor[];
   /** Skip registering the ESM loader hook (tests that already loaded everything). */
   registerHook?: boolean;
   /**
@@ -51,8 +62,11 @@ let started: Telemetry | undefined;
 /**
  * Starts OpenTelemetry for a service (../CLAUDE.md, Observability): spans
  * for incoming and outgoing HTTP (Node's `http` and `fetch`), Express and
- * Nest's handlers, and Postgres queries, exported over OTLP (protobuf over
- * HTTP) to `OTEL_EXPORTER_OTLP_ENDPOINT` (the Collector). Without that
+ * Nest's handlers, and Postgres queries, and the service's log lines
+ * (Krepis's `createLogger`), exported over OTLP (protobuf over HTTP) to
+ * `OTEL_EXPORTER_OTLP_ENDPOINT` (the Collector), which sends traces to
+ * Jaeger and logs to Loki. `OTEL_LOGS_EXPORTER=none` keeps logs on stdout
+ * only. Without that
  * variable, or with `OTEL_SDK_DISABLED=true`, nothing starts and nothing
  * changes.
  *
@@ -63,8 +77,8 @@ let started: Telemetry | undefined;
  *
  * Never in a span: query values (redacted), request or response bodies and
  * headers, or Postgres parameters. Health checks aren't traced, nor queries
- * and outgoing calls outside any trace (pollers). On
- * `SIGTERM` / `SIGINT` the spans waiting in the batch are flushed (for at
+ * and outgoing calls outside any trace (pollers). On `SIGTERM` / `SIGINT`
+ * the spans and log records waiting in their batches are flushed (for at
  * most 2 s) before the process ends as it would have.
  */
 export async function startTelemetry(
@@ -89,15 +103,20 @@ export async function startTelemetry(
   if (options.registerHook !== false) {
     register('@opentelemetry/instrumentation/hook.mjs', import.meta.url);
   }
-  // Traces only: logs and metrics go elsewhere (or nowhere) for now.
-  env.OTEL_LOGS_EXPORTER ??= 'none';
+  // Traces and logs; no metrics for now.
   env.OTEL_METRICS_EXPORTER ??= 'none';
+  const logRecordProcessors =
+    options.logRecordProcessors ??
+    (env.OTEL_LOGS_EXPORTER === 'none'
+      ? []
+      : [new BatchLogRecordProcessor({ exporter: new OTLPLogExporter() })]);
 
   const sdk = new NodeSDK({
     serviceName: options.serviceName,
     ...(options.spanProcessors
       ? { spanProcessors: options.spanProcessors }
       : { traceExporter: options.exporter ?? new OTLPTraceExporter() }),
+    logRecordProcessors,
     instrumentations: instrumentations(),
   });
   sdk.start();

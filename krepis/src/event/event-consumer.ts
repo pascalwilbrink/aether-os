@@ -15,6 +15,7 @@ import {
 } from '@opentelemetry/api';
 import type { ConfirmChannel, ConsumeMessage, Options } from 'amqplib';
 
+import { runWithLogContext } from '../logging/log-context.js';
 import { runWithTraceContext } from '../telemetry/trace-context.js';
 import { InvalidEventError, parseEventEnvelope } from './event-envelope.js';
 import { EventInbox } from './event-inbox.js';
@@ -170,8 +171,16 @@ export class EventConsumer implements OnApplicationBootstrap, OnModuleDestroy {
         propagation.extract(context.active(), traceHeaders),
         async (span) => {
           try {
+            // Every line logged while handling it carries the event's tenant.
             await runWithTraceContext(traceHeaders, () =>
-              this.inbox.receive(source, event),
+              runWithLogContext(
+                {
+                  organizationId: event.organizationId,
+                  projectId: event.projectId,
+                  eventId: event.eventId,
+                },
+                () => this.inbox.receive(source, event),
+              ),
             );
           } catch (error) {
             span.recordException(error as Error);
