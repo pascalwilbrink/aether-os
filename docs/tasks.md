@@ -28,6 +28,7 @@ Status: design in progress. Sections marked **Proposal** are not agreed yet. Bui
 | Retention | **A project-level setting**, with a **separate setting for `partial` artifacts**. |
 | What needs approval | **Both** the automation's own setting and Themis policy can require approval; either one is enough. |
 | Deleting a task | Whether deleting a task also deletes its artifacts is **a project-level setting** (like GitHub's "delete branch after merge"). |
+| Task fields | **A task says what, why, within which limits and with what result**: `title`, `description`, `requirements`, `expectedOutcome`, `acceptanceCriteria`, `context`, `constraints`, `deliverables` (see Task fields). Templates, plan entries and automations fill in the same fields. |
 
 ## Tasks and subtasks
 
@@ -48,6 +49,50 @@ Rules:
 
 When to use a subtask (Proposal): only when the work needs something of its own: a different agent version, its own sandbox, its own artifacts or approval, or retries independent of the parent. Ordinary steps inside one agent's run stay as Mastra workflow steps within a single task.
 
+## Task fields (Proposal)
+
+A task's brief is split into fields with one purpose each, instead of one block of instructions, so templates can extend each part, verification can check what was promised, and the agent gets a prompt in a fixed shape.
+
+| Field | Purpose | Shape | Today |
+|---|---|---|---|
+| `title` | Short, descriptive name | Text, at most 200 characters | Built |
+| `description` | What needs to be done and why | Markdown | Built as `instructions` (renamed; `instructions` stays accepted as an alias for one contract version) |
+| `requirements` | Explicit constraints on the result: things that must be implemented | List of `{ key, description }`, e.g. `{ key: 'REQ-1', description: 'Expose GET /v1/invoices' }` | New |
+| `expectedOutcome` | What the completed task should produce, in words: the end state | Markdown | New |
+| `acceptanceCriteria` | How the system decides the task is complete | List of criteria with checks (Definition of done, below) | Built |
+| `context` | Relevant project knowledge, documents and references | List of references (below), pinned when the task is created | New; `inputFiles` becomes its `file` entries |
+| `constraints` | Technical, architectural or operational limits on **how** it's done | List of `{ key, description }`, e.g. "No new dependencies", "Don't change the public API", "Finish within the existing schema" | New |
+| `deliverables` | The expected files, artifacts or outputs | List of `{ key, kind, description, primary?, path? }` (below) | New (templates had a free-form `artifacts` field) |
+
+**Requirements, constraints and acceptance criteria are different things.** A requirement says *what* must be built ("expose `GET /v1/invoices`"), a constraint limits *how* ("no new dependencies"), and an acceptance criterion says *how it's checked* ("`pnpm test` passes", "the endpoint is in the OpenAPI spec"). A requirement or constraint can come with criteria that check it (`requirementKey` on a criterion), as spec requirements already do (`satisfies`, Spec-driven development).
+
+### `context`
+
+References the agent should know about, each **resolved to a concrete version when the task is created** (like the agent version), so a retry or an evaluation sees exactly the same context:
+
+| `kind` | Points at | Pinned as |
+|---|---|---|
+| `knowledge` | A project knowledge item (`knowledge.md`) | The item's version |
+| `document` | An Aether-os document, or a document indexed by Seshat | The document's version |
+| `file` | A file of the project in Loculus | Its ID and SHA-256; copied into the sandbox's `/workspace/inputs` (today's `inputFiles`) |
+| `artifact` | An artifact of another task (e.g. a dependency's output) | Its ID (artifacts don't change) |
+| `repository` | A path in the task's repository | The path at the commit the checkout starts from |
+| `url` | A public web page | The URL, fetched and stored in Loculus at creation (so it can't change under the task) |
+
+Short items (facts, decisions, conventions) go into the prompt; long ones (documents, files) are listed with a summary and read with tools. Every entry is reference material, never instructions. The task's execution records what it actually read as well (`learning.md`).
+
+### `deliverables`
+
+What the task must hand over, each with a `key`, a `kind` (`pull_request`, `file`, `text`, `json`, `task_plan`, or `document`), a `description`, optionally `primary` (at most one), and for files a `path` or name pattern. Verification checks them: **every deliverable implies an `artifact` criterion** (source `deliverable`) that the task produced a final artifact of that kind matching it, so "the PR and a migration file" can't be forgotten. The agent is told the list and records each with `submit_artifact` / `submit_file` naming the deliverable's `key`.
+
+### How the fields are used
+
+- **Prompt.** The runtime builds the agent's input in a fixed order: title, description, expected outcome, requirements, constraints, deliverables, acceptance criteria (the checks the agent will be held to), then context. Fields that came from untrusted sources (an issue's body through an automation) are marked as data.
+- **Templates** have the same fields (with `{{placeholders}}` in the text ones). A project template extending an organization template **adds** requirements, constraints, deliverables, criteria and context and appends to the description; it can't remove or weaken the organization's.
+- **Plan entries** (`task_plan`) and **automations** fill in the same fields: Kairos maps an issue's title to `title` and its body to `description` (untrusted), and an automation can add constraints and context (e.g. "pin the project's conventions").
+- **Iris** shows them as separate sections on the new-task form and the task page; the copilot (`interaction.md`) can draft them for a person to review.
+- **Limits:** at most 50 requirements, 50 constraints, 20 deliverables and 50 context entries per task; text fields at most 64 KiB.
+
 ## Task templates
 
 A task template is a reusable definition of one task: what to do, which agent does it, what it takes as input, and when it counts as done. Examples: "Fix a bug from a GitHub issue", "Write a spec", "Review a PR".
@@ -57,11 +102,11 @@ A task template is a reusable definition of one task: what to do, which agent do
 | Field | Meaning |
 |---|---|
 | `id`, `organizationId`, `projectId` | Scope: `projectId` empty for an organization-wide template (see Scope below) |
-| `title`, `instructions` | What the task should do; may contain placeholders filled from inputs (e.g. `{{issue.title}}`) |
+| `title`, `description` (built as `instructions`), `requirements`, `expectedOutcome`, `constraints`, `context` | The task's brief (Task fields, above); text may contain placeholders filled from inputs (e.g. `{{issue.title}}`) |
 | `agentId` | The agent to run it; its version is pinned when a task is created |
 | `inputs` | The inputs a task from this template needs, with types (artifact, document version, repository file, plain value) |
 | `acceptanceCriteria` | The definition of done (see below) |
-| `artifacts` | What the task is expected to produce, e.g. "a `pull_request` as primary artifact" |
+| `deliverables` | What the task is expected to produce, e.g. "a `pull_request` as primary artifact" (Task fields, above) |
 
 Rules:
 
@@ -87,7 +132,8 @@ Every task has a definition of done: a list of **acceptance criteria**, collecte
 
 1. the task template it was created from;
 2. criteria added when the task was created (by a person, a plan entry or an automation);
-3. the spec requirements it satisfies (`satisfies: ['REQ-3']`), whose acceptance criteria are copied in (see Spec-driven development).
+3. one `artifact` criterion per deliverable (Task fields, above);
+4. the spec requirements it satisfies (`satisfies: ['REQ-3']`), whose acceptance criteria are copied in (see Spec-driven development).
 
 The list is fixed when the task is created, so the bar can't move while the task runs. Each criterion has:
 
@@ -96,7 +142,7 @@ The list is fixed when the task is created, so the bar can't move while the task
 | `key` | Identifier within the task, e.g. `tests-pass` or `REQ-3.1` |
 | `description` | The criterion in plain language, e.g. "Existing tests still pass" |
 | `check` | How it's verified (see below) |
-| `source` | Where it came from: template, task, or requirement ID |
+| `source` | Where it came from: template, task, deliverable, or requirement ID |
 
 ### Verification
 
@@ -314,7 +360,7 @@ This way specs go through the same review as everything else, including request 
 
 ### Task inputs
 
-Besides artifacts from earlier tasks, a task's inputs can now be:
+These are now `context` entries (Task fields, above). Besides artifacts from earlier tasks, a task's inputs can now be:
 
 - a document version from Hephaestus or Seshat (a document reference with a `version`), or "latest", pinned to a concrete version when the task is created, like agent versions;
 - a file in the repository (`path` at a branch or commit, pinned to a commit when the task is created).
