@@ -133,6 +133,8 @@ describe('Running tasks (e2e)', () => {
           repository: null,
           // Its agent version needs no sandbox.
           sandbox: null,
+          // Not tracing in tests (no OTLP endpoint).
+          traceId: null,
           startedAt: expect.any(String),
           endedAt: expect.any(String),
         },

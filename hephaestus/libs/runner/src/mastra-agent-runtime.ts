@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Agent } from '@mastra/core/agent';
+import type { Mastra } from '@mastra/core/mastra';
 import { createTool } from '@mastra/core/tools';
 import { Workspace } from '@mastra/core/workspace';
 import { z } from 'zod';
@@ -69,6 +70,12 @@ export class MastraAgentRuntime extends AgentRuntime {
     private readonly budgets: BudgetsService,
     private readonly toolServers: ToolServersService,
     private readonly skills: SkillsService,
+    /**
+     * With tracing (`agentTracing`): Mastra's observability, whose spans
+     * (the agent's run, each model call, each tool call) become
+     * OpenTelemetry spans under the execution's.
+     */
+    private readonly mastra?: Mastra,
   ) {
     super();
   }
@@ -149,6 +156,7 @@ export class MastraAgentRuntime extends AgentRuntime {
       name: `${agentVersion.agentId} v${agentVersion.version}`,
       instructions: agentVersion.instructions,
       model: resolved.model,
+      ...(this.mastra ? { mastra: this.mastra } : {}),
       // The tool servers' tools, as `<server>_<tool>`; submit_artifact last,
       // so no server's tool can take its name.
       tools: {
@@ -215,6 +223,15 @@ export class MastraAgentRuntime extends AgentRuntime {
         {
           abortSignal: signal,
           maxSteps: MAX_STEPS,
+          tracingOptions: {
+            metadata: {
+              organizationId: task.organizationId,
+              projectId: task.projectId,
+              taskId: task.id,
+              agentVersionId: agentVersion.id,
+              executionId: context.executionId,
+            },
+          },
           modelSettings: {
             temperature: agentVersion.model.temperature,
             maxOutputTokens: agentVersion.model.maxTokens,

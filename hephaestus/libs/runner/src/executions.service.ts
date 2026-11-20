@@ -436,6 +436,11 @@ export class ExecutionsService {
     await this.executions.update({ id: executionId }, { repository });
   }
 
+  /** The trace the execution runs in (once its span started). */
+  async recordTrace(executionId: string, traceId: string): Promise<void> {
+    await this.executions.update({ id: executionId }, { traceId });
+  }
+
   /** The sandbox is gone; forget its reference. */
   async sandboxDestroyed(executionId: string): Promise<void> {
     await this.executions.update(

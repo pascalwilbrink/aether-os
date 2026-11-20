@@ -1808,6 +1808,12 @@ export interface components {
             usage: components["schemas"]["ExecutionUsage"];
             repository: components["schemas"]["ExecutionRepository"] | null;
             sandbox: components["schemas"]["ExecutionSandbox"] | null;
+            /**
+             * @description The execution's trace (OpenTelemetry, 32 hex characters): its
+             *     agent run, model and tool calls, in Jaeger and Langfuse. Null
+             *     when Hephaestus wasn't tracing (no `OTEL_EXPORTER_OTLP_ENDPOINT`).
+             */
+            traceId: string | null;
             /** Format: date-time */
             startedAt: string;
             /** Format: date-time */

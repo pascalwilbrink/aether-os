@@ -719,6 +719,13 @@ export type ExecutionResponse = {
     usage: ExecutionUsage;
     repository: ExecutionRepository | null;
     sandbox: ExecutionSandbox | null;
+    /**
+     * The execution's trace (OpenTelemetry, 32 hex characters): its
+     * agent run, model and tool calls, in Jaeger and Langfuse. Null
+     * when Hephaestus wasn't tracing (no `OTEL_EXPORTER_OTLP_ENDPOINT`).
+     *
+     */
+    traceId: string | null;
     startedAt: string;
     endedAt: string | null;
 };

@@ -1,8 +1,9 @@
 # Services send OTLP here (localhost:4317 gRPC / 4318 HTTP; the services use
 # HTTP, OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318).
-# Every trace goes to Jaeger (the service view); only LLM spans (gen_ai.*)
-# also go to Langfuse. Logs go to Loki. Credentials that slipped into an
-# attribute are redacted before anything leaves the Collector.
+# Every trace goes to Jaeger (the service view); only agent runs (gen_ai.*
+# spans and Hephaestus's execution spans) also go to Langfuse. Logs go to
+# Loki. Credentials that slipped into an attribute are redacted before
+# anything leaves the Collector.
 receivers:
   otlp:
     protocols:
@@ -23,12 +24,14 @@ processors:
           - replace_all_patterns(attributes, "value", "sk-[A-Za-z0-9_-]{16,}", "[redacted key]")
           - replace_all_patterns(attributes, "value", "gh[pousr]_[A-Za-z0-9]{20,}", "[redacted token]")
           - replace_all_patterns(attributes, "value", "eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]+", "[redacted jwt]")
-  # Langfuse is for model calls: spans without gen_ai attributes stay out.
+  # Langfuse is for agent runs: Hephaestus's execution span (the trace's
+  # name, session and metadata) and the model and tool calls under it;
+  # everything else stays out.
   filter/llm-only:
     error_mode: ignore
     traces:
       span:
-        - 'attributes["gen_ai.operation.name"] == nil and attributes["gen_ai.request.model"] == nil and attributes["gen_ai.system"] == nil'
+        - 'attributes["gen_ai.operation.name"] == nil and attributes["gen_ai.request.model"] == nil and attributes["gen_ai.system"] == nil and attributes["langfuse.trace.name"] == nil'
 
 exporters:
   otlp/jaeger:

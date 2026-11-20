@@ -94,6 +94,10 @@ export class ExecutionEntity {
   @Column({ type: 'jsonb', nullable: true })
   repository: ApiTypes.ExecutionRepository | null;
 
+  /** Its trace (OpenTelemetry), when Hephaestus traces. */
+  @Column({ type: 'text', nullable: true })
+  traceId: string | null;
+
   @Column({ type: 'timestamptz' })
   startedAt: Date;
 

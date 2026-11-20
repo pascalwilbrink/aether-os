@@ -1,4 +1,11 @@
 import type { TestingModule } from '@nestjs/testing';
+import { context, trace } from '@opentelemetry/api';
+import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
+import {
+  InMemorySpanExporter,
+  SimpleSpanProcessor,
+  TracerProvider,
+} from '@opentelemetry/sdk-trace';
 import { DataSource } from 'typeorm';
 
 import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
@@ -28,6 +35,7 @@ import { FakeToolServer } from '../../../test/fake-tool-server.js';
 import { createTestingModuleWith } from '../../../test/testing-module.js';
 import { AgentRuntime } from './agent-runtime.js';
 import { ExecutionHistory } from './execution-history.js';
+import { mastraWithTracing } from './agent-tracing.js';
 import { MastraAgentRuntime } from './mastra-agent-runtime.js';
 import { RunnerModule } from './runner.module.js';
 import { RUNNER_OPTIONS } from './runner.options.js';
@@ -65,7 +73,16 @@ describe('MastraAgentRuntime (Postgres)', () => {
               budgets: BudgetsService,
               toolServers: ToolServersService,
               skills: SkillsService,
-            ) => new MastraAgentRuntime(gateway, budgets, toolServers, skills),
+            ) =>
+              // With Mastra's tracing, as when Hephaestus traces: runs must
+              // work alike, and the traces test reads its spans.
+              new MastraAgentRuntime(
+                gateway,
+                budgets,
+                toolServers,
+                skills,
+                mastraWithTracing(),
+              ),
             inject: [
               ModelGateway,
               BudgetsService,
@@ -533,6 +550,80 @@ describe('MastraAgentRuntime (Postgres)', () => {
         taskFor({ tools: [{ name: 'nowhere', enabled: true }] }),
       ).rejects.toMatchObject({ code: 'TOOL_SERVER_INVALID' });
     });
+  });
+
+  it('traces the execution: its span, the agent run and each model and tool call', async () => {
+    const exporter = new InMemorySpanExporter();
+    const manager = new AsyncLocalStorageContextManager().enable();
+    context.setGlobalContextManager(manager);
+    trace.setGlobalTracerProvider(
+      new TracerProvider({
+        spanProcessors: [new SimpleSpanProcessor({ exporter })],
+      }),
+    );
+    try {
+      secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
+        apiKey: 'sk-organization',
+      });
+      models.replies = [
+        {
+          toolCall: {
+            tool: 'submit_artifact',
+            input: {
+              kind: 'text',
+              title: 'Fix',
+              content: 'Done',
+              primary: true,
+            },
+          },
+        },
+        { text: 'All done.' },
+      ];
+      const { task: created, versionId } = await taskFor();
+
+      await runOnce();
+
+      await expect(task(created.id)).resolves.toMatchObject({
+        status: 'succeeded',
+      });
+      const spans = exporter.getFinishedSpans();
+      const root = spans.find((span) => span.name === 'task.execution');
+      expect(root).toBeDefined();
+      const [execution] = await executionsOf(created.id);
+      expect(root!.attributes).toMatchObject({
+        'aether.organization.id': organizationId,
+        'aether.project.id': projectId,
+        'aether.task.id': created.id,
+        'aether.agent.version.id': versionId,
+        'aether.execution.id': execution.id,
+        'langfuse.session.id': created.topLevelTaskId,
+      });
+      const traceId = root!.spanContext().traceId;
+      // The execution records its trace.
+      expect(execution.traceId).toBe(traceId);
+      // Mastra's spans are in it: the model calls with their gen_ai
+      // attributes, and the tool call.
+      const inTrace = spans.filter(
+        (span) => span.spanContext().traceId === traceId,
+      );
+      const modelCalls = inTrace.filter(
+        (span) => span.attributes['gen_ai.request.model'] === 'scripted-model',
+      );
+      expect(modelCalls.length).toBeGreaterThanOrEqual(2);
+      expect(
+        inTrace.some((span) =>
+          JSON.stringify(span.attributes).includes('submit_artifact'),
+        ),
+      ).toBe(true);
+      // The key never reaches a span.
+      expect(
+        JSON.stringify(inTrace.map((span) => span.attributes)),
+      ).not.toContain('sk-organization');
+    } finally {
+      trace.disable();
+      context.disable();
+      manager.disable();
+    }
   });
 
   describe('skills', () => {

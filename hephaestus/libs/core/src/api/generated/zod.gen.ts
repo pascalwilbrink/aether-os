@@ -618,6 +618,7 @@ export const zExecutionResponse = z.object({
     usage: zExecutionUsage,
     repository: zExecutionRepository.nullable(),
     sandbox: zExecutionSandbox.nullable(),
+    traceId: z.string().regex(/^[0-9a-f]{32}$/).nullable(),
     startedAt: z.iso.datetime(),
     endedAt: z.iso.datetime().nullable()
 });

@@ -39,6 +39,7 @@ export class ExecutionMapper {
       runnerId,
       sandboxReference: null,
       repository: null,
+      traceId: null,
       startedAt: now,
       heartbeatAt: now,
       deadlineAt: null,
@@ -63,6 +64,7 @@ export class ExecutionMapper {
       usage,
       repository: entity.repository,
       sandbox,
+      traceId: entity.traceId,
       startedAt: entity.startedAt.toISOString(),
       endedAt: entity.endedAt?.toISOString() ?? null,
     };
