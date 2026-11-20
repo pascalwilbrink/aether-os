@@ -4,7 +4,7 @@ How agents reach LLM providers, whose keys they use, and how usage and cost are 
 
 The gateway is moving out of Hephaestus into its own service, **Pylon** (`pylon.md`; the service is built, the callers switch next): the same catalogue, keys, metering and budgets, called over HTTP by Hephaestus, Seshat, Kriterion and Echo. What follows describes what the gateway does, wherever it runs.
 
-Status: agreed design. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/models`, used by the Mastra runtime): the gateway resolving an agent version's model with the agent's own key, else the organization's, else the platform's if allowed (`PLATFORM_MODEL_KEYS`), from OpenBao; calls through Mastra's model router with retries on 429/5xx; metering of every call (tokens, cache reads and writes, key source, attribution) in `model_calls`, totalled per execution; and the **model catalogue** (`/v1/models`: models and their versioned prices; agent versions must name an active model, and every call is priced). and **budgets** (below, Built so far), and **setting keys** through the API and Iris (Keys, below). Not yet: policy checks, fallback models, the gateway's HTTP endpoint, and LLM spans to Langfuse.
+Status: agreed design. Sections marked **Proposal** are not agreed yet. The gateway is **Pylon** now (`pylon.md`, `../pylon/`): Hephaestus calls models through it with the task token, and everything below that was built in Hephaestus's `libs/models` moved there unchanged. Built so far: the gateway resolving an agent version's model with the agent's own key, else the organization's, else the platform's if allowed (`PLATFORM_MODEL_KEYS`), from OpenBao; calls through Mastra's model router with retries on 429/5xx; metering of every call (tokens, cache reads and writes, key source, attribution) in `model_calls`, totalled per execution; and the **model catalogue** (`/v1/models`: models and their versioned prices; agent versions must name an active model, and every call is priced). and **budgets** (below, Built so far), and **setting keys** through the API and Iris (Keys, below). Not yet: policy checks, fallback models, the gateway's HTTP endpoint, and LLM spans to Langfuse.
 
 ## Decisions
 
@@ -53,7 +53,7 @@ Why a gateway instead of each component calling providers: one place for keys, b
 
 - An agent version names its model (`provider/model`, e.g. `anthropic/claude-sonnet-5-5`), optional fallbacks, and default parameters. Pinned with the version, like everything else.
 - Themis policy decides what's allowed: e.g. "only models hosted in the EU", "no model from provider X in this project". A denied model fails the call (closed), it is never silently replaced.
-- The platform's **model catalogue** (Hephaestus `libs/models` for now, with Agora later): the models agent versions can name, and their prices.
+- The platform's **model catalogue** (Pylon's): the models agent versions can name, and their prices.
   - A **model** is a provider (a fixed list in code, `ModelProvider`, since each needs gateway support and a key path), the provider's API model ID (`claude-sonnet-5-5`, what agent versions name), a display name, `contextWindow` and `maxOutputTokens`, and a status: `active` (new agent versions can choose it), `deprecated` (versions that have it keep running, new ones can't choose it), `retired` (the gateway refuses to call it).
   - A **price** is US dollars per million tokens for input, output, cache reads and cache writes (decimal strings; an empty cache price costs what other input does), plus optional long-context rates above an input size (e.g. Claude Haiku 5.5 above 100,000 tokens). Prices are rows with `effectiveFrom`, never changed: a new price starts after the latest one, so past costs never move.
   - Anyone with a token reads it (`GET /v1/models`, Iris's model picker); platform services with `platform:manage` add models, change their status and add prices. It starts with Anthropic's current models (a migration); everything after goes through the API. OpenAI's current models were added the same way (a seed migration with the newest of each tier: GPT-6.2 Astra, GPT-6.2 Sol, GPT-6.1 Terra, GPT-6 Luna, at their standard and long-context prices).
@@ -78,7 +78,7 @@ Each call records:
 
 ## Budgets
 
-**Built so far** (Hephaestus `libs/models` and the runner), with these differences from the design below:
+**Built so far** (Pylon, and Hephaestus's runner, which pauses and resumes tasks), with these differences from the design below:
 
 - **Where they're set:** an organization's, a project's and an agent's monthly budget through `PUT /v1/organizations/{id}/budget` (`org:manage`), `…/projects/{id}/budget` (`project:manage`) and `…/agents/{id}/budget` (`org:manage`; read with `agent:read`); a task tree's on its top-level task, when it's created (`budgetUsd`) or later (`PUT …/tasks/{taskId}/budget`, `task:create`, through any task of the tree). Not yet: `maxCostUsd` on templates and automations, the project maximum and the project default; a tree without a budget has no tree limit.
 - **Checked after each call, without reservations:** what a scope spent is summed from the calls the gateway recorded; the runner checks before an execution starts, and after each model call (a run whose budget ran out makes no further call). Calls already in flight can overshoot by at most one call per running execution of that scope. Reservations need each call's maximum cost up front, which the gateway can't know for input; they can replace this check later without changing anything else.
@@ -86,7 +86,7 @@ Each call records:
 - **Windows:** calendar months in UTC; a task tree's over its life. `budget.threshold-reached` at 80%, once per window (again after the limit changes). Each runner round resumes paused tasks whose budgets have room (raised, or a new month).
 - **An agent's budget** counts its calls in every project, whichever version made them (`model_calls.agent_id`). It's set by the organization's owners and admins rather than whoever edits the agent, since it caps the organization's spending, as keys do. Checked narrowest first: task tree, agent, project, organization; the one that ran out is the `pausedFor` named on the task.
 - Iris shows and sets them: the organization's budget page (with each project's and agent's spend), an agent's on its page, a project's on its page, a tree's on its tasks' pages (a paused task says which budget ran out), and a budget when creating a task.
-- Not yet: `pausedTimeoutDays`, and Kerykes notifying (the events are published).
+- Not yet: `pausedTimeoutDays`. Kerykes tells the organization's admins when a budget reaches its threshold (Pylon's `budget.threshold-reached`) and when a task pauses.
 
 | Budget | Set on | Window | Default |
 |---|---|---|---|

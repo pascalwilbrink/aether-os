@@ -46,27 +46,6 @@ export interface ArtifactStatusChanged {
 }
 
 /**
- * Payload of `budget.threshold-reached`.
- */
-export interface BudgetThresholdReached {
-  budgetId: string;
-  scope: 'organization' | 'project' | 'agent' | 'task_tree';
-  scopeId: string;
-  /**
-   * US dollars
-   */
-  limitUsd: string;
-  /**
-   * US dollars
-   */
-  spentUsd: string;
-  /**
-   * The month it's for; null for a task tree's (its lifetime).
-   */
-  windowStart: string | null;
-}
-
-/**
  * Payload of `task.awaiting-review`.
  */
 export interface TaskAwaitingReview {
@@ -272,7 +251,6 @@ export interface TaskVerified {
 export interface HephaestusEventPayloads {
   'artifact.created': ArtifactCreated;
   'artifact.status-changed': ArtifactStatusChanged;
-  'budget.threshold-reached': BudgetThresholdReached;
   'task.awaiting-review': TaskAwaitingReview;
   'task.cancelled': TaskCancelled;
   'task.create-rejected': TaskCreateRejected;
@@ -291,7 +269,6 @@ export type HephaestusEventType = keyof HephaestusEventPayloads;
 export const HEPHAESTUS_EVENT_TYPES = [
   'artifact.created',
   'artifact.status-changed',
-  'budget.threshold-reached',
   'task.awaiting-review',
   'task.cancelled',
   'task.create-rejected',

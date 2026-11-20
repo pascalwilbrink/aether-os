@@ -12,10 +12,10 @@ export interface PylonCall {
 }
 
 /**
- * Models that call Pylon instead of the provider (`USE_PYLON`,
- * ../docs/pylon.md): each provider's own AI SDK client with its `baseURL`
- * at Pylon's pass-through (`/v1/providers/<provider>/…`) and the task token
- * where the SDK puts its key. Pylon picks the provider key, checks its
+ * Models that call Pylon, never the provider (../docs/pylon.md): each
+ * provider's own AI SDK client with its `baseURL` at Pylon's pass-through
+ * (`/v1/providers/<provider>/…`) and the task token where the SDK puts its
+ * key. Pylon picks the provider key, checks its
  * budgets and meters the call; Hephaestus never sees the key. Behind a port
  * so tests can point it anywhere.
  */

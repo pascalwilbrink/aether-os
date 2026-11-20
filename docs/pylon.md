@@ -9,7 +9,7 @@ Pylon is the service every model call goes through: chat and tool-calling models
 
 Nothing else in Aether-os holds a provider key or calls a provider. A *pylōn* (πυλών) is the monumental gateway of a Greek or Egyptian temple.
 
-Status: **step 1 built** (Moving there, below): the service, `pylon/` (port 3011, `../pylon/CLAUDE.md`), with the catalogue, keys, metering, budgets, the pass-through and embeddings, and the import from Hephaestus. Hephaestus still calls providers through its own gateway (`hephaestus/libs/models`) until step 2 switches it over. `models.md` describes what the gateway does, and that design holds unchanged: keys, models, metering, budgets. This document is about it as its own service, and how the other services use it.
+Status: **steps 1 and 2 built** (Moving there, below): the service, `pylon/` (port 3011, `../pylon/CLAUDE.md`), with the catalogue, keys, metering, budgets, the pass-through and embeddings, and the import from Hephaestus; and every model call goes through it: Hephaestus's own gateway is gone (`hephaestus/libs/models` is a small client of Pylon), Agora checks models with Pylon, Iris's catalogue, key and budget pages call it, and Kerykes takes budget warnings from `pylon.events`. `models.md` describes what the gateway does, and that design holds unchanged: keys, models, metering, budgets. This document is about it as its own service, and how the other services use it.
 
 ## Why its own service
 
@@ -134,16 +134,17 @@ Pylon publishes no per-call events: a task's cost is read with the usage API whe
 
 ## Moving there
 
-1. **Pylon** (built): the service with Hephaestus's catalogue, keys, metering and budgets, the pass-through and embeddings endpoints, budget checks and events, and `pnpm import:hephaestus` copying the tables (keys stay in OpenBao, at the same paths). Pistis's new claims and `model:invoke`.
-   **Trying it:** Hephaestus's `USE_PYLON=true` (with `PYLON_URL`) sends agents' model calls through Pylon, with the task token, while Hephaestus keeps its own metering and budgets; `false` (the default) calls providers as before (`../hephaestus/CLAUDE.md`, Through Pylon). Task tokens carry the new claims either way.
-2. **Switching**:
-   - Hephaestus's `ModelGateway` becomes an HTTP client of Pylon (the AI SDK providers with Pylon's `baseURL` and the task token);
-   - the runner pauses and resumes from Pylon's answers and events;
-   - Agora checks models with Pylon;
-   - Iris's catalogue, key, budget and usage pages call Pylon;
-   - Kerykes consumes `pylon.events`.
-   
-   Then Hephaestus's model code and tables are removed (a migration, after the import).
+1. **Pylon** (built): the service with Hephaestus's catalogue, keys, metering and budgets, the pass-through and embeddings endpoints, budget checks and events, and `pnpm import:hephaestus` copying the tables (keys stay in OpenBao, at the same paths). Pistis's new claims and `model:invoke`. While step 2 was under way, Hephaestus's `USE_PYLON` flag sent agents' calls through Pylon to try it; it's gone with step 2.
+2. **Switching** (built):
+   - Hephaestus's `ModelGateway` is a client of Pylon: the providers' own AI SDK clients with Pylon's `baseURL` and the task token (`PYLON_URL` is required). Pylon retries a call before answering, so the AI SDK doesn't.
+   - The runner asks Pylon's `budget-checks` before an execution starts, and each round for its paused tasks (resuming those with room again); a call Pylon refuses with `402 BUDGET_EXHAUSTED` pauses the task. Resuming polls rather than waits for `budget.changed`: a month rolling over changes no limit.
+   - A task tree's budget is set in Pylon with the caller's token (`PUT …/tasks/{taskId}/budget` and `budgetUsd` stay Hephaestus's API). A `task.create` command can't carry `budgetUsd` (`TASK_BUDGET_INVALID`): there's no token of the sender's to set it with, and Hephaestus's own may not.
+   - Executions' usage in Hephaestus's API comes from Pylon's `usage` grouped by execution.
+   - Agora checks a version's model against Pylon's catalogue (an active chat model; an Ollama model isn't asked about) and Hephaestus only the tools and skills.
+   - Iris's catalogue, key and budget pages call Pylon (`PYLON_URL`).
+   - Kerykes consumes `budget.threshold-reached` from `pylon.events`; Hephaestus no longer publishes it.
+
+   Hephaestus's old tables (`models`, `model_prices`, `model_keys`, `budgets`, `model_calls`) are left in its database until `pnpm import:hephaestus` has run everywhere; a later migration drops them. Run the import before deploying step 2: without it, the budgets and history Hephaestus had don't apply in Pylon.
 3. **Seshat's embeddings** (`knowledge.md`, step 2) on top of it.
 
 ## Open questions
