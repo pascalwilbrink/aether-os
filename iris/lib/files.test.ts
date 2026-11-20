@@ -6,6 +6,9 @@ import {
   formatBytes,
   inputFilesProblem,
   pickedFiles,
+  PREVIEW_CSP,
+  previewDocument,
+  previewOf,
 } from "./files";
 
 describe("files", () => {
@@ -21,6 +24,30 @@ describe("files", () => {
     expect(downloadHref("o", "p", "f")).toBe(
       "/orgs/o/projects/p/files/f/download",
     );
+  });
+
+  it("previews images, HTML and text up to a size", () => {
+    expect(previewOf("image/png", 1000)).toBe("image");
+    expect(previewOf("image/svg+xml", 1000)).toBe("image");
+    expect(previewOf("text/html; charset=utf-8", 1000)).toBe("html");
+    expect(previewOf("text/markdown", 1000)).toBe("text");
+    expect(previewOf("application/json", 1000)).toBe("text");
+    expect(previewOf("application/pdf", 1000)).toBeNull();
+    expect(previewOf("application/octet-stream", 10)).toBeNull();
+    expect(previewOf("text/plain", 256 * 1024 + 1)).toBeNull();
+    expect(previewOf("text/html", 2 * 1024 * 1024)).toBeNull();
+  });
+
+  it("puts a policy in front of HTML that loads nothing from outside", () => {
+    const document = previewDocument("<h1>Hi</h1>");
+    expect(
+      document.startsWith(
+        `<meta http-equiv="Content-Security-Policy" content="${PREVIEW_CSP}">`,
+      ),
+    ).toBe(true);
+    expect(document.endsWith("<h1>Hi</h1>")).toBe(true);
+    expect(PREVIEW_CSP).toContain("default-src 'none'");
+    expect(PREVIEW_CSP).not.toMatch(/https?:/);
   });
 
   it("takes the files a task starts from, within limits", () => {

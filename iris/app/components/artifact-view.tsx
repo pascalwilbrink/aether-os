@@ -1,5 +1,9 @@
+import { Suspense } from "react";
+
 import type { Artifact } from "@/lib/api";
-import { downloadHref, formatBytes } from "@/lib/files";
+import { downloadHref, formatBytes, previewOf } from "@/lib/files";
+
+import { FilePreview } from "./file-preview";
 
 /** An artifact's content, by kind (unknown kinds show their common fields only). */
 export function ArtifactContent({ artifact }: { artifact: Artifact }) {
@@ -76,21 +80,32 @@ export function ArtifactContent({ artifact }: { artifact: Artifact }) {
       );
     case "file":
       return (
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <span className="font-mono">{artifact.fileName}</span>
-          <span className="text-zinc-600 dark:text-zinc-400">
-            {artifact.contentType} · {formatBytes(artifact.sizeBytes)}
-          </span>
-          <a
-            href={downloadHref(
-              artifact.organizationId,
-              artifact.projectId,
-              artifact.fileId,
-            )}
-            className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
-          >
-            Download
-          </a>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="font-mono">{artifact.fileName}</span>
+            <span className="text-zinc-600 dark:text-zinc-400">
+              {artifact.contentType} · {formatBytes(artifact.sizeBytes)}
+            </span>
+            <a
+              href={downloadHref(
+                artifact.organizationId,
+                artifact.projectId,
+                artifact.fileId,
+              )}
+              className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Download
+            </a>
+          </div>
+          {previewOf(artifact.contentType, artifact.sizeBytes) ? (
+            <Suspense
+              fallback={
+                <div className="h-24 animate-pulse rounded-md bg-zinc-100 dark:bg-zinc-900" />
+              }
+            >
+              <FilePreview artifact={artifact} />
+            </Suspense>
+          ) : null}
         </div>
       );
     default:
