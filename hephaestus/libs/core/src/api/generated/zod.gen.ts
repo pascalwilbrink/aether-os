@@ -869,6 +869,12 @@ export const zCreateAgentVersionRequest = z.object({
     runtime: zAgentRuntimeConfiguration
 });
 
+export const zAgentVersionCheckRequest = z.object({
+    model: zAgentModelConfiguration,
+    tools: z.array(zAgentToolConfiguration),
+    skills: z.array(zAgentSkillConfiguration)
+});
+
 export const zAgentVersionResponse = z.object({
     id: z.uuid(),
     agentId: z.uuid(),
@@ -1254,6 +1260,17 @@ export const zPublishAgentVersionPath = z.object({
  * Published
  */
 export const zPublishAgentVersionResponse = zAgentVersionResponse;
+
+export const zCheckAgentVersionBody = zAgentVersionCheckRequest;
+
+export const zCheckAgentVersionPath = z.object({
+    organizationId: z.uuid()
+});
+
+/**
+ * Choosable
+ */
+export const zCheckAgentVersionResponse = z.void();
 
 export const zListWorkspacesPath = z.object({
     organizationId: z.uuid()

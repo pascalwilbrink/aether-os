@@ -133,6 +133,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/agent-version-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Whether an agent version's model, tools and skills are choosable in
+         *     the organization, for Agora to check before it creates the version:
+         *     the model is an `active` model of the catalogue
+         *     (`MODEL_NOT_AVAILABLE` otherwise); each enabled entry of `tools`
+         *     names one of the organization's tool servers, each at most once
+         *     (`TOOL_SERVER_INVALID`); each enabled entry of `skills` a version of
+         *     one of its active skills, each skill at most once (`SKILL_INVALID`).
+         *     Changes nothing.
+         */
+        post: operations["checkAgentVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/workspaces": {
         parameters: {
             query?: never;
@@ -1284,6 +1312,11 @@ export interface components {
             tools: components["schemas"]["AgentToolConfiguration"][];
             skills: components["schemas"]["AgentSkillConfiguration"][];
             runtime: components["schemas"]["AgentRuntimeConfiguration"];
+        };
+        AgentVersionCheckRequest: {
+            model: components["schemas"]["AgentModelConfiguration"];
+            tools: components["schemas"]["AgentToolConfiguration"][];
+            skills: components["schemas"]["AgentSkillConfiguration"][];
         };
         AgentVersionResponse: {
             /** Format: uuid */
@@ -2666,6 +2699,34 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
             503: components["responses"]["Unavailable"];
+        };
+    };
+    checkAgentVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentVersionCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description Choosable */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["DomainError"];
         };
     };
     listWorkspaces: {

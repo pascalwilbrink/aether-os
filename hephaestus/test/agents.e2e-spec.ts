@@ -5,6 +5,7 @@ import type { App } from 'supertest/types.js';
 import { createApp, MISSING_ID } from './app.js';
 import { asMember, type Client } from './auth.js';
 import { organizationEvent, type FakePolis } from './fake-polis.js';
+import { tokens } from './tokens.js';
 
 const versionBody = {
   instructions: 'Be helpful.',
@@ -174,5 +175,45 @@ describe('Agents (e2e)', () => {
     )
       .get(`${base}/${id}`)
       .expect(404);
+  });
+
+  it("checks a version's choices for Agora, with its own token", async () => {
+    const checks = `/v1/organizations/${orgId}/agent-version-checks`;
+    const agora = request
+      .agent(app.getHttpServer())
+      .set(
+        'authorization',
+        `Bearer ${await tokens.service('agora', ['platform:read'])}`,
+      );
+    const choices = {
+      model: versionBody.model,
+      tools: versionBody.tools,
+      skills: versionBody.skills,
+    };
+
+    await agora.post(checks).send(choices).expect(204);
+    const model = await agora
+      .post(checks)
+      .send({ ...choices, model: { provider: 'anthropic', model: 'gone' } })
+      .expect(409);
+    expect(model.body.code).toBe('MODEL_NOT_AVAILABLE');
+    const tools = await agora
+      .post(checks)
+      .send({ ...choices, tools: [{ name: 'search', enabled: true }] })
+      .expect(409);
+    expect(tools.body.code).toBe('TOOL_SERVER_INVALID');
+    const skills = await agora
+      .post(checks)
+      .send({
+        ...choices,
+        skills: [{ name: 'summarize', version: '1', enabled: true }],
+      })
+      .expect(409);
+    expect(skills.body.code).toBe('SKILL_INVALID');
+    await agora.post(checks).send({ model: versionBody.model }).expect(400);
+
+    // Only platform services: an organization token is refused.
+    await owner.post(checks).send(choices).expect(403);
+    await request(app.getHttpServer()).post(checks).send(choices).expect(401);
   });
 });

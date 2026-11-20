@@ -111,6 +111,12 @@ export type CreateAgentVersionRequest = {
     runtime: AgentRuntimeConfiguration;
 };
 
+export type AgentVersionCheckRequest = {
+    model: AgentModelConfiguration;
+    tools: Array<AgentToolConfiguration>;
+    skills: Array<AgentSkillConfiguration>;
+};
+
 export type AgentVersionResponse = {
     id: string;
     agentId: string;
@@ -1860,6 +1866,52 @@ export type PublishAgentVersionResponses = {
 };
 
 export type PublishAgentVersionResponse = PublishAgentVersionResponses[keyof PublishAgentVersionResponses];
+
+export type CheckAgentVersionData = {
+    body: AgentVersionCheckRequest;
+    path: {
+        organizationId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/agent-version-checks';
+};
+
+export type CheckAgentVersionErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type CheckAgentVersionError = CheckAgentVersionErrors[keyof CheckAgentVersionErrors];
+
+export type CheckAgentVersionResponses = {
+    /**
+     * Choosable
+     */
+    204: void;
+};
+
+export type CheckAgentVersionResponse = CheckAgentVersionResponses[keyof CheckAgentVersionResponses];
 
 export type ListWorkspacesData = {
     body?: never;

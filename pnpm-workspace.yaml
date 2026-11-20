@@ -8,6 +8,7 @@ packages:
   - kairos
   - kerykes
   - loculus
+  - agora
   - iris
 
 # Native builds allowed during install.

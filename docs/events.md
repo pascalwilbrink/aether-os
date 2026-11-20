@@ -63,9 +63,13 @@ Rules:
 
 ### Agora (`agora.events`)
 
+Every event has the agent as its aggregate; the agent's version grows by one per event (`../contracts/agora.asyncapi.yaml`).
+
 | Event | Payload | Consumers |
 |---|---|---|
-| `agent-version.published` | `agentId`, `agentVersionId`, `policySetVersionId` | Kairos, Kriterion |
+| `agent.created` | `agentId`, `name`, `description`, `createdBy`, `createdAt` | Hephaestus (its copy of agents) |
+| `agent.archived` | `agentId` | Hephaestus (no new tasks), Kairos |
+| `agent-version.published` | `agentId`, `agentVersionId`, `policySetVersionId` (null until Themis), `previousVersionId`, `version` (the whole version) | Hephaestus (its copy: new tasks pin it), Kairos, Kriterion |
 | `agent-version.deprecated` | `agentId`, `agentVersionId` | Kairos (warn about automations still using it) |
 
 ### Themis (`themis.events`)
