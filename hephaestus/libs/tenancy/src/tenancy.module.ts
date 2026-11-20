@@ -52,6 +52,6 @@ import { ProjectsService } from './projects.service.js';
     },
     { provide: PolisClient, useClass: HttpPolisClient },
   ],
-  exports: [OrganizationsService, ProjectsService],
+  exports: [OrganizationsService, ProjectsService, ServiceTokens],
 })
 export class TenancyModule {}

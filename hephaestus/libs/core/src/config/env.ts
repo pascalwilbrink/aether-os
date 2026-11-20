@@ -28,38 +28,24 @@ export const zEnv = z
     /**
      * The runner (libs/runner): which agent runtime runs tasks. `none` (the
      * default) starts no runner, so tasks stay queued; `mastra` runs agents
-     * with Mastra through the model gateway; `echo` is a stand-in that
+     * with Mastra, their model calls through Pylon; `echo` is a stand-in that
      * finishes every task at once without a model, for local development.
      */
     AGENT_RUNTIME: z.enum(['none', 'mastra', 'echo']).default('none'),
     /**
-     * OpenBao (secrets, e.g. model provider keys at
-     * `orgs/<organizationId>/llm/<provider>`): required with `mastra`.
+     * OpenBao (secrets: tool servers' credentials at
+     * `orgs/<organizationId>/tool-servers/<id>`); without it none can be set.
      */
     OPENBAO_ADDR: z.url({ protocol: /^https?$/ }).optional(),
     OPENBAO_TOKEN: z.string().min(1).optional(),
     /** The KV version 2 engine holding them. */
     OPENBAO_KV_MOUNT: z.string().min(1).default('secret'),
     /**
-     * Whether organizations without their own key for a provider may use the
-     * platform's (`platform/llm/<provider>`): off unless plans allow it.
+     * Pylon, the model gateway (../docs/pylon.md): agents' model calls go
+     * through it with the task token, and it keeps the catalogue, keys,
+     * metering and budgets.
      */
-    PLATFORM_MODEL_KEYS: z.stringbool().default(false),
-    /**
-     * Model endpoints organizations run (Ollama's `baseUrl`): whether
-     * Hephaestus may call private, loopback and link-local addresses, and
-     * over `http://` (an Ollama next to Hephaestus, locally). Off in
-     * production.
-     */
-    MODEL_ENDPOINT_ALLOW_PRIVATE: z.stringbool().default(false),
-    /**
-     * Pylon (../docs/pylon.md), while the gateway moves there: with
-     * `USE_PYLON`, agents' model calls go through Pylon (`PYLON_URL`, with
-     * the task token) instead of to the providers with keys Hephaestus
-     * reads. Metering and budgets stay Hephaestus's either way, until step 2.
-     */
-    USE_PYLON: z.stringbool().default(false),
-    PYLON_URL: z.url({ protocol: /^https?$/ }).optional(),
+    PYLON_URL: z.url({ protocol: /^https?$/ }),
     /** How often the runner looks for queued tasks and stale executions. */
     RUNNER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
     /** Executions one Hephaestus instance runs at once. */
@@ -182,26 +168,6 @@ export const zEnv = z
       .int()
       .positive()
       .default(25 * 1024 * 1024),
-  })
-  .superRefine((env, ctx) => {
-    if (env.USE_PYLON && !env.PYLON_URL) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['PYLON_URL'],
-        message: 'PYLON_URL is required with USE_PYLON=true',
-      });
-    }
-    if (env.AGENT_RUNTIME === 'mastra') {
-      for (const key of ['OPENBAO_ADDR', 'OPENBAO_TOKEN'] as const) {
-        if (!env[key]) {
-          ctx.addIssue({
-            code: 'custom',
-            path: [key],
-            message: `${key} is required with AGENT_RUNTIME=mastra (model keys live in OpenBao)`,
-          });
-        }
-      }
-    }
   });
 
 export type Env = z.infer<typeof zEnv>;
