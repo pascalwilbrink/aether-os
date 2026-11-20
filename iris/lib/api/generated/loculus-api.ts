@@ -4,556 +4,552 @@
  */
 
 export interface paths {
-  "/v1/organizations/{organizationId}/projects/{projectId}/files": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listFiles"];
+        put?: never;
+        /**
+         * @description Declares a file and returns where to upload it. The file stays
+         *     `pending` until it's completed.
+         */
+        post: operations["createFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["listFiles"];
-    put?: never;
-    /**
-     * @description Declares a file and returns where to upload it. The file stays
-     *     `pending` until it's completed.
-     */
-    post: operations["createFile"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/files/{fileId}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        fileId: components["parameters"]["FileId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/files/{fileId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                fileId: components["parameters"]["FileId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getFile"];
+        put?: never;
+        post?: never;
+        /** @description Removes the file and its object (idempotent). */
+        delete: operations["deleteFile"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get: operations["getFile"];
-    put?: never;
-    post?: never;
-    /** @description Removes the file and its object (idempotent). */
-    delete: operations["deleteFile"];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/files/{fileId}/upload": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        fileId: components["parameters"]["FileId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/files/{fileId}/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                fileId: components["parameters"]["FileId"];
+            };
+            cookie?: never;
+        };
+        /** @description A fresh upload for a file still `pending` (`FILE_NOT_PENDING` once it's available). */
+        get: operations["getFileUpload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** @description A fresh upload for a file still `pending` (`FILE_NOT_PENDING` once it's available). */
-    get: operations["getFileUpload"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/files/{fileId}/complete": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        fileId: components["parameters"]["FileId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/files/{fileId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                fileId: components["parameters"]["FileId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Checks the uploaded object against the declaration (size and
+         *     SHA-256) and makes the file `available` (idempotent).
+         *     `FILE_UPLOAD_INCOMPLETE` when the object isn't there or differs.
+         */
+        post: operations["completeFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * @description Checks the uploaded object against the declaration (size and
-     *     SHA-256) and makes the file `available` (idempotent).
-     *     `FILE_UPLOAD_INCOMPLETE` when the object isn't there or differs.
-     */
-    post: operations["completeFile"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/organizations/{organizationId}/projects/{projectId}/files/{fileId}/download": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        fileId: components["parameters"]["FileId"];
-      };
-      cookie?: never;
+    "/v1/organizations/{organizationId}/projects/{projectId}/files/{fileId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                fileId: components["parameters"]["FileId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description A signed URL that downloads the file as an attachment, with its
+         *     name. `FILE_NOT_AVAILABLE` while it's pending.
+         */
+        get: operations["getFileDownload"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * @description A signed URL that downloads the file as an attachment, with its
-     *     name. `FILE_NOT_AVAILABLE` while it's pending.
-     */
-    get: operations["getFileDownload"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    /**
-     * @description Problem details (RFC 9457), served as `application/problem+json`.
-     *     `code`, `traceId` and `errors` are Aether-os extensions. Clients switch
-     *     on `code`; `detail` is for people.
-     */
-    Problem: {
-      /**
-       * @description `urn:aether-os:problem:<code in kebab case>`, one per `code`.
-       * @example urn:aether-os:problem:organization-suspended
-       */
-      type: string;
-      /** @description Short summary, the same for every occurrence of the type. */
-      title: string;
-      /** @description The HTTP status, repeated. */
-      status: number;
-      /** @description Explanation of this occurrence. Safe to show; not stable. */
-      detail: string;
-      /** @description The request path. */
-      instance: string;
-      /**
-       * @description Stable, machine-readable code: `VALIDATION_FAILED`,
-       *     `INVALID_CURSOR`, `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`,
-       *     `VERSION_MISMATCH`, `RATE_LIMITED`, `INTERNAL`, `UNAVAILABLE`, or
-       *     a domain error code listed by the operation.
-       */
-      code: string;
-      /** @description The request's trace ID, for finding it in Jaeger. */
-      traceId: string | null;
-      /** @description One entry per invalid input (`VALIDATION_FAILED`); otherwise empty. */
-      errors: components["schemas"]["ProblemFieldError"][];
+    schemas: {
+        /**
+         * @description Problem details (RFC 9457), served as `application/problem+json`.
+         *     `code`, `traceId` and `errors` are Aether-os extensions. Clients switch
+         *     on `code`; `detail` is for people.
+         */
+        Problem: {
+            /**
+             * @description `urn:aether-os:problem:<code in kebab case>`, one per `code`.
+             * @example urn:aether-os:problem:organization-suspended
+             */
+            type: string;
+            /** @description Short summary, the same for every occurrence of the type. */
+            title: string;
+            /** @description The HTTP status, repeated. */
+            status: number;
+            /** @description Explanation of this occurrence. Safe to show; not stable. */
+            detail: string;
+            /** @description The request path. */
+            instance: string;
+            /**
+             * @description Stable, machine-readable code: `VALIDATION_FAILED`,
+             *     `INVALID_CURSOR`, `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`,
+             *     `VERSION_MISMATCH`, `RATE_LIMITED`, `INTERNAL`, `UNAVAILABLE`, or
+             *     a domain error code listed by the operation.
+             */
+            code: string;
+            /** @description The request's trace ID, for finding it in Jaeger. */
+            traceId: string | null;
+            /** @description One entry per invalid input (`VALIDATION_FAILED`); otherwise empty. */
+            errors: components["schemas"]["ProblemFieldError"][];
+        };
+        /**
+         * @description `FILE_TOO_LARGE`: over the size Loculus accepts (`FILE_MAX_BYTES`);
+         *     `FILE_UPLOAD_INCOMPLETE`: completing a file whose object isn't
+         *     there, or isn't what was declared; `FILE_NOT_AVAILABLE`: downloading
+         *     a file still pending; `FILE_NOT_PENDING`: a new upload for a file
+         *     that's available.
+         * @enum {string}
+         */
+        DomainErrorCode: "FILE_TOO_LARGE" | "FILE_UPLOAD_INCOMPLETE" | "FILE_NOT_AVAILABLE" | "FILE_NOT_PENDING";
+        /** @description Problem details for a business-rule violation. */
+        DomainProblem: components["schemas"]["Problem"] & {
+            code: components["schemas"]["DomainErrorCode"];
+        };
+        /** @description Pass as `cursor` to get the next page; `null` on the last page. */
+        NextCursor: string | null;
+        /**
+         * @description `pending` until its upload is completed, then `available`.
+         * @enum {string}
+         */
+        FileStatus: "pending" | "available";
+        /** @description The SHA-256 of the file's bytes, in lowercase hex. */
+        Sha256: string;
+        CreateFileRequest: {
+            /** @description Its name, without a directory (`index.html`); shown and used when it's downloaded. */
+            fileName: string;
+            /** @description Its media type, e.g. `text/html` or `image/png`. */
+            contentType: string;
+            sizeBytes: number;
+            sha256: components["schemas"]["Sha256"];
+        };
+        FileResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            projectId: string;
+            fileName: string;
+            contentType: string;
+            sizeBytes: number;
+            sha256: components["schemas"]["Sha256"];
+            status: components["schemas"]["FileStatus"];
+            /** @description Who declared it (the token's `sub`). */
+            createdBy: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            completedAt: string | null;
+        };
+        FileUpload: {
+            /**
+             * Format: uri
+             * @description Where to send the bytes; signed, so keep it to yourself.
+             */
+            url: string;
+            /** @enum {string} */
+            method: "PUT";
+            /** @description Send exactly these with the upload (they're signed). */
+            headers: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        CreatedFileResponse: {
+            file: components["schemas"]["FileResponse"];
+            upload: components["schemas"]["FileUpload"];
+        };
+        FileDownload: {
+            /**
+             * Format: uri
+             * @description Downloads it as an attachment; signed, don't store it.
+             */
+            url: string;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        FilePage: {
+            items: components["schemas"]["FileResponse"][];
+            nextCursor: components["schemas"]["NextCursor"];
+        };
+        /** @description One invalid input. Exactly one of `pointer` and `parameter` is set. */
+        ProblemFieldError: {
+            /** @description JSON Pointer (RFC 6901) into the request body, e.g. `/name`. */
+            pointer: string | null;
+            /** @description Name of the invalid query or path parameter. */
+            parameter: string | null;
+            /** @enum {string} */
+            code: "REQUIRED" | "UNKNOWN_FIELD" | "INVALID";
+            detail: string;
+        };
     };
-    /**
-     * @description `FILE_TOO_LARGE`: over the size Loculus accepts (`FILE_MAX_BYTES`);
-     *     `FILE_UPLOAD_INCOMPLETE`: completing a file whose object isn't
-     *     there, or isn't what was declared; `FILE_NOT_AVAILABLE`: downloading
-     *     a file still pending; `FILE_NOT_PENDING`: a new upload for a file
-     *     that's available.
-     * @enum {string}
-     */
-    DomainErrorCode:
-      | "FILE_TOO_LARGE"
-      | "FILE_UPLOAD_INCOMPLETE"
-      | "FILE_NOT_AVAILABLE"
-      | "FILE_NOT_PENDING";
-    /** @description Problem details for a business-rule violation. */
-    DomainProblem: components["schemas"]["Problem"] & {
-      code: components["schemas"]["DomainErrorCode"];
+    responses: {
+        /**
+         * @description `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+         *     access token (signature, issuer, audience, expiry).
+         */
+        Unauthorized: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description `FORBIDDEN`: the token is valid but lacks the permission
+         *     (`x-permission` on the operation). Another organization's resources
+         *     are 404, not 403.
+         */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        ValidationError: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content?: never;
+        };
+        /** @description `NOT_FOUND`: the resource doesn't exist. */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description `UNAVAILABLE`: a service this request depends on can't be reached
+         *     right now. Safe to retry.
+         */
+        Unavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description A business rule forbids this (409, with a `DomainErrorCode`). */
+        DomainError: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["DomainProblem"];
+            };
+        };
+        /**
+         * @description The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+         *     `INVALID_CURSOR`.
+         */
+        BadRequest: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
     };
-    /** @description Pass as `cursor` to get the next page; `null` on the last page. */
-    NextCursor: string | null;
-    /**
-     * @description `pending` until its upload is completed, then `available`.
-     * @enum {string}
-     */
-    FileStatus: "pending" | "available";
-    /** @description The SHA-256 of the file's bytes, in lowercase hex. */
-    Sha256: string;
-    CreateFileRequest: {
-      /** @description Its name, without a directory (`index.html`); shown and used when it's downloaded. */
-      fileName: string;
-      /** @description Its media type, e.g. `text/html` or `image/png`. */
-      contentType: string;
-      sizeBytes: number;
-      sha256: components["schemas"]["Sha256"];
-    };
-    FileResponse: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      organizationId: string;
-      /** Format: uuid */
-      projectId: string;
-      fileName: string;
-      contentType: string;
-      sizeBytes: number;
-      sha256: components["schemas"]["Sha256"];
-      status: components["schemas"]["FileStatus"];
-      /** @description Who declared it (the token's `sub`). */
-      createdBy: string;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      completedAt: string | null;
-    };
-    FileUpload: {
-      /**
-       * Format: uri
-       * @description Where to send the bytes; signed, so keep it to yourself.
-       */
-      url: string;
-      /** @enum {string} */
-      method: "PUT";
-      /** @description Send exactly these with the upload (they're signed). */
-      headers: {
-        [key: string]: string;
-      };
-      /** Format: date-time */
-      expiresAt: string;
-    };
-    CreatedFileResponse: {
-      file: components["schemas"]["FileResponse"];
-      upload: components["schemas"]["FileUpload"];
-    };
-    FileDownload: {
-      /**
-       * Format: uri
-       * @description Downloads it as an attachment; signed, don't store it.
-       */
-      url: string;
-      /** Format: date-time */
-      expiresAt: string;
-    };
-    FilePage: {
-      items: components["schemas"]["FileResponse"][];
-      nextCursor: components["schemas"]["NextCursor"];
-    };
-    /** @description One invalid input. Exactly one of `pointer` and `parameter` is set. */
-    ProblemFieldError: {
-      /** @description JSON Pointer (RFC 6901) into the request body, e.g. `/name`. */
-      pointer: string | null;
-      /** @description Name of the invalid query or path parameter. */
-      parameter: string | null;
-      /** @enum {string} */
-      code: "REQUIRED" | "UNKNOWN_FIELD" | "INVALID";
-      detail: string;
-    };
-  };
-  responses: {
-    /**
-     * @description `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
-     *     access token (signature, issuer, audience, expiry).
-     */
-    Unauthorized: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        "application/problem+json": components["schemas"]["Problem"];
-      };
-    };
-    /**
-     * @description `FORBIDDEN`: the token is valid but lacks the permission
-     *     (`x-permission` on the operation). Another organization's resources
-     *     are 404, not 403.
-     */
-    Forbidden: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        "application/problem+json": components["schemas"]["Problem"];
-      };
-    };
-    ValidationError: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content?: never;
-    };
-    /** @description `NOT_FOUND`: the resource doesn't exist. */
-    NotFound: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        "application/problem+json": components["schemas"]["Problem"];
-      };
-    };
-    /**
-     * @description `UNAVAILABLE`: a service this request depends on can't be reached
-     *     right now. Safe to retry.
-     */
-    Unavailable: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        "application/problem+json": components["schemas"]["Problem"];
-      };
-    };
-    /** @description A business rule forbids this (409, with a `DomainErrorCode`). */
-    DomainError: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        "application/problem+json": components["schemas"]["DomainProblem"];
-      };
-    };
-    /**
-     * @description The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-     *     `INVALID_CURSOR`.
-     */
-    BadRequest: {
-      headers: {
-        [name: string]: unknown;
-      };
-      content: {
-        "application/problem+json": components["schemas"]["Problem"];
-      };
-    };
-  };
-  parameters: {
-    OrganizationId: string;
-    ProjectId: string;
-    FileId: string;
-    /** @description Page size. */
-    Limit: number;
-    /**
-     * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-     *     the first page. A cursor only works with the filters it was made with
-     *     (otherwise `400 INVALID_CURSOR`).
-     */
-    Cursor: string;
-  };
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
-}
-export type $defs = Record<string, never>;
-export interface operations {
-  listFiles: {
     parameters: {
-      query?: {
-        status?: components["schemas"]["FileStatus"];
+        OrganizationId: string;
+        ProjectId: string;
+        FileId: string;
         /** @description Page size. */
-        limit?: components["parameters"]["Limit"];
+        Limit: number;
         /**
          * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
          *     the first page. A cursor only works with the filters it was made with
          *     (otherwise `400 INVALID_CURSOR`).
          */
-        cursor?: components["parameters"]["Cursor"];
-      };
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-      };
-      cookie?: never;
+        Cursor: string;
     };
-    requestBody?: never;
-    responses: {
-      /** @description Newest first */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
+}
+export type $defs = Record<string, never>;
+export interface operations {
+    listFiles: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["FileStatus"];
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["FilePage"];
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
     };
-  };
-  createFile: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CreateFileRequest"];
-      };
-    };
-    responses: {
-      /** @description Created, with its upload */
-      201: {
-        headers: {
-          [name: string]: unknown;
+    createFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["CreatedFileResponse"];
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFileRequest"];
+            };
         };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
-    };
-  };
-  getFile: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        fileId: components["parameters"]["FileId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            /** @description Created, with its upload */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedFileResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
-        content: {
-          "application/json": components["schemas"]["FileResponse"];
+    };
+    getFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                fileId: components["parameters"]["FileId"];
+            };
+            cookie?: never;
         };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  deleteFile: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        fileId: components["parameters"]["FileId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Deleted */
-      204: {
-        headers: {
-          [name: string]: unknown;
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
-        content?: never;
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      503: components["responses"]["Unavailable"];
     };
-  };
-  getFileUpload: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        fileId: components["parameters"]["FileId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    deleteFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                fileId: components["parameters"]["FileId"];
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["FileUpload"];
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
         };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
     };
-  };
-  completeFile: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        fileId: components["parameters"]["FileId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Available */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    getFileUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                fileId: components["parameters"]["FileId"];
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["FileResponse"];
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileUpload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
         };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
-      503: components["responses"]["Unavailable"];
     };
-  };
-  getFileDownload: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        organizationId: components["parameters"]["OrganizationId"];
-        projectId: components["parameters"]["ProjectId"];
-        fileId: components["parameters"]["FileId"];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description OK */
-      200: {
-        headers: {
-          [name: string]: unknown;
+    completeFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                fileId: components["parameters"]["FileId"];
+            };
+            cookie?: never;
         };
-        content: {
-          "application/json": components["schemas"]["FileDownload"];
+        requestBody?: never;
+        responses: {
+            /** @description Available */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthorized"];
-      403: components["responses"]["Forbidden"];
-      404: components["responses"]["NotFound"];
-      409: components["responses"]["DomainError"];
     };
-  };
+    getFileDownload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                fileId: components["parameters"]["FileId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileDownload"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
 }
