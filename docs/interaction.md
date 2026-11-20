@@ -19,6 +19,8 @@ Status: proposal. Nothing here is built.
 
 ### Sessions (Hephaestus)
 
+A council session (`councils.md`) is a session whose subject is a council version (a facilitator and member agents) instead of one agent version; it adds authors to messages, deliberation rounds, plans and decisions, and builds on everything below.
+
 A **session** is a conversation between a person and an agent version in one project: `id`, `organizationId`, `projectId`, `agentVersionId` (pinned when it starts, like a task), `userId`, `status` (`active`, `ended`), its messages, and its usage. Unlike a task it has no acceptance criteria, no artifacts and no sandbox (Proposal: a sandbox later, for "try this in a shell" sessions); it ends when the person closes it or after a period of inactivity.
 
 - **API:** `POST /v1/organizations/{organizationId}/projects/{projectId}/sessions` starts one (`session:use`, below), with the agent; `POST …/sessions/{sessionId}/runs` is the **AG-UI endpoint**: it takes the AG-UI `RunAgentInput` (the new messages, the frontend's tools, the shared state) and streams AG-UI events back (`RUN_STARTED`, `TEXT_MESSAGE_*`, `TOOL_CALL_*`, `STATE_SNAPSHOT` / `STATE_DELTA`, `RUN_FINISHED`, `RUN_ERROR`) as server-sent events. Hephaestus runs the agent version with Mastra (its AG-UI adapter) and stores the messages.

@@ -118,6 +118,7 @@ Named `resource:action`. Organization-scoped permissions are checked against `or
 | `agent:read` | org | ✓ | ✓ | ✓ | ✓ |
 | `agent:write` | org | ✓ | ✓ | ✓ | |
 | `agent:publish` | org | ✓ | ✓ | | |
+| `council:read` / `council:write` / `council:publish` (councils in Agora, `councils.md`; Proposal) | org | ✓ / ✓ / ✓ | ✓ / ✓ / ✓ | ✓ / ✓ / | ✓ / / |
 | `org:task-template:manage` (organization-wide task templates) | org | ✓ | ✓ | | |
 | `org:policy:write` (organization-wide policies) | org | ✓ | ✓ | | |
 | `org:secret:write` (organization-wide secrets) | org | ✓ | ✓ | | |
@@ -148,7 +149,7 @@ The organization-wide variants carry an `org:` prefix in code, so every permissi
 | `knowledge:write` (creating and editing items, uploading documents) | project | ✓ | ✓ | ✓ | |
 | `knowledge:approve` (accepting or rejecting proposals; only people) | project | ✓ | ✓ | | |
 | `model:invoke` (model calls and embeddings through Pylon, `pylon.md`; used by task tokens; Proposal) | project | ✓ | ✓ | ✓ | |
-| `session:use` (copilot and voice sessions, `interaction.md`; Proposal) | project | ✓ | ✓ | ✓ | ✓ |
+| `session:use` (copilot, voice and council sessions, `interaction.md`, `councils.md`; Proposal) | project | ✓ | ✓ | ✓ | ✓ |
 | `meeting:read` / `meeting:manage` (the meeting agent, `interaction.md`; Proposal) | project | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / |
 
 Approval is gated only by `task:approve`: every principal holding it in the task's project can approve that task, with two rules:
