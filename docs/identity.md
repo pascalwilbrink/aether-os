@@ -53,6 +53,8 @@ Short-lived JWTs (5–15 minutes) signed by Pistis with asymmetric keys. Service
   "act": { "sub": "<actor>", "sub_type": "service" },  // present when acting on behalf of someone (RFC 8693)
   "task_id": "<task id>",                 // task tokens only
   "project_id": "<project id>",           // task tokens only: the one project the token is limited to
+  "task_tree_id": "<top-level task id>",  // task tokens only (Proposal, pylon.md): the tree's budget
+  "agent_id": "<agent id>", "agent_version_id": "<agent version id>",  // task tokens only (Proposal, pylon.md)
   "jti": "<token id>", "iat": 0, "exp": 0
 }
 ```
@@ -142,15 +144,16 @@ The organization-wide variants carry an `org:` prefix in code, so every permissi
 | `file:read` (a project's files in Loculus, and links to download them, `files.md`) | project | ✓ | ✓ | ✓ | ✓ |
 | `file:write` (uploading and deleting them) | project | ✓ | ✓ | ✓ | |
 | `repository:token` (a short-lived token for one of the project's linked repositories, from Proxenos; only with a task token, `../docs/git.md`) | project | ✓ | ✓ | ✓ | |
-| `knowledge:read` (project knowledge in Seshat, `knowledge.md`; Proposal) | project | ✓ | ✓ | ✓ | ✓ |
-| `knowledge:write` (creating and editing items, uploading documents; Proposal) | project | ✓ | ✓ | ✓ | |
-| `knowledge:approve` (accepting or rejecting proposals; only people; Proposal) | project | ✓ | ✓ | | |
+| `knowledge:read` (project knowledge in Seshat, `knowledge.md`) | project | ✓ | ✓ | ✓ | ✓ |
+| `knowledge:write` (creating and editing items, uploading documents) | project | ✓ | ✓ | ✓ | |
+| `knowledge:approve` (accepting or rejecting proposals; only people) | project | ✓ | ✓ | | |
+| `model:invoke` (model calls and embeddings through Pylon, `pylon.md`; used by task tokens; Proposal) | project | ✓ | ✓ | ✓ | |
 | `session:use` (copilot and voice sessions, `interaction.md`; Proposal) | project | ✓ | ✓ | ✓ | ✓ |
 | `meeting:read` / `meeting:manage` (the meeting agent, `interaction.md`; Proposal) | project | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / |
 
 Approval is gated only by `task:approve`: every principal holding it in the task's project can approve that task, with two rules:
 
-- **Only people approve knowledge either** (Proposal): `knowledge:approve` is dropped for tokens whose `sub_type` isn't `user`, so agents propose knowledge and never accept it.
+- **Only people approve knowledge either:** `knowledge:approve` is dropped for tokens whose `sub_type` isn't `user`, so agents propose knowledge and never accept it.
 - **Only people approve.** A service account never has `task:approve`, whatever its roles: Polis refuses to grant `approver` to a service account, and Krepis drops `task:approve` for any token whose `sub_type` isn't `user` (which also covers a service account with an organization `admin` role). An agent or automation can therefore never approve its own work.
 - **Self-approval is allowed.** A user who requested a task may approve it themselves if they hold `task:approve`. The audit log records requester and approver, so self-approvals stay visible.
 
@@ -165,6 +168,7 @@ Notes:
   |---|---|
   | `platform:read` | Reading any organization, project or membership (Pistis building token claims, Hephaestus resolving an organization it hasn't seen) |
   | `platform:manage` | Creating, suspending and activating organizations, and Pistis's user administration; for operator tooling until platform operators have their own principals |
+  | `model:invoke` | Embeddings through Pylon charged to a project named in the path (Seshat; Proposal, `pylon.md`) |
 
   An endpoint accepts them only where it says so (`@PlatformAccess`); everywhere else a platform service's own token is refused.
 - **Creating an organization:** any user may, and becomes its first `owner` in the same transaction; a platform service needs `platform:manage` and the organization then has no owner until one is granted. Service accounts can't.

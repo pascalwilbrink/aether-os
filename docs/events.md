@@ -122,7 +122,19 @@ Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created` (with
 | `artifact.deleted` | `artifactId` | Iris, Kriterion |
 | `document.version-published` | document reference (`documentId`, `version`, `objectKey`, `sha256`) | Seshat (index), Iris |
 | `document.deleted` | `documentId` | Seshat, Loculus cleanup |
-| `budget.threshold-reached` | `budgetId`, `scope` (task tree / project / organization), `scopeId`, `limitUsd`, `spentUsd`, `windowStart` | Kerykes, Iris |
+| `budget.threshold-reached` | `budgetId`, `scope` (task tree / project / organization), `scopeId`, `limitUsd`, `spentUsd`, `windowStart` | Kerykes, Iris (moves to Pylon, below) |
+
+### Pylon (`pylon.events`, Proposal)
+
+The model gateway's budgets, moving from Hephaestus (`pylon.md`). No per-call events.
+
+| Event | Payload | Consumers |
+|---|---|---|
+| `budget.threshold-reached` | `budgetId`, `scope`, `scopeId`, `limitUsd`, `spentUsd`, `windowStart` | Kerykes, Iris |
+| `budget.exhausted` | the same | Iris |
+| `budget.changed` | `budgetId`, `scope`, `scopeId`, `limitUsd` | Hephaestus (resumes paused tasks) |
+| `budget.window-started` | `windowStart` | Hephaestus (resumes paused tasks) |
+| `model.changed` | `provider`, `model`, `status` | later Agora, Iris |
 
 ### Seshat (`seshat.events`)
 
@@ -131,7 +143,7 @@ Every event has the knowledge item as its aggregate; the item's `revision` grows
 | Event | Payload | Consumers |
 |---|---|---|
 | `knowledge-item.proposed` / `.accepted` / `.rejected` / `.updated` / `.superseded` / `.retired` | `itemId`, `projectId`, `type`, `status`, `version`, `sourceKind`, `supersededBy` | later Kerykes (proposals to review), Iris |
-| `knowledge-item.indexed` | `itemId`, `projectId`, `version`, `chunkCount` | later Hephaestus (embeds the passages) |
+| `knowledge-item.indexed` | `itemId`, `projectId`, `version`, `chunkCount` | later Iris |
 
 ### Learning, sessions and meetings (Proposal)
 

@@ -5,7 +5,7 @@ What agents know about the project they work in: its documents, the decisions ta
 Status: phase 1 of `learning.md`, in three steps.
 
 1. **Built:** Seshat as a service in this repository (`../seshat/`, port 3009): knowledge items per project with their lifecycle and versions, documents indexed from Loculus, keyword search, `knowledge:*` permissions, events (`../contracts/seshat.openapi.yaml`, `../contracts/seshat.asyncapi.yaml`).
-2. **Next:** embeddings through Hephaestus's model gateway, stored in Seshat (pgvector), and hybrid search.
+2. **Next:** embeddings through the model gateway, Pylon (`pylon.md`), stored in Seshat (pgvector), and hybrid search.
 3. **Then:** the agents' knowledge tools in Hephaestus and Iris's Knowledge page.
 
 Later: organization-wide items, repository documents, pinned context on tasks, proposals from meetings, PDF and Office documents.
@@ -21,8 +21,8 @@ Later: organization-wide items, repository documents, pinned context on tasks, p
 | Who writes | **People write directly; agents and meetings propose.** A proposal becomes knowledge only when someone with `knowledge:approve` accepts it. |
 | History | **Items are superseded, not overwritten.** A changed decision is a new item that supersedes the old one; the old one stays readable with its status. |
 | Retrieval | **Two ways:** pinned into a task's `context` when the task is created (reproducible), and searched by the agent while it runs (built-in tools in Hephaestus that call Seshat with the task token). |
-| Embeddings | **Through Hephaestus's model gateway** (`models.md`): metered and priced like every model call, with the organization's provider keys, against its budgets. Seshat never holds a provider key. |
-| Calls between Seshat and Hephaestus | **Never both ways synchronously** (`engineering.md`). Seshat calls only Polis and Loculus. Hephaestus embeds what Seshat indexed by reacting to `knowledge-item.indexed` (it reads the passages and writes their vectors back), and whoever searches sends the query's embedding along: Hephaestus for agents, and for Iris through Hephaestus's embeddings endpoint. Without vectors, search is by keyword only. |
+| Embeddings | **Through the model gateway, Pylon** (`pylon.md`, `models.md`): metered and priced like every model call, with the organization's provider keys, against the project's budgets. Seshat never holds a provider key. |
+| Who embeds | **Seshat itself**, calling Pylon's embeddings endpoint with its own token (`model:invoke`) for the project: its passages after indexing them, and the query when someone searches. Seshat calls Polis, Loculus and Pylon; none of them calls Seshat. Without vectors (Pylon unavailable, no embedding model available to the organization), search is by keyword only. |
 | Access | **The caller's token decides**: Aether-os tokens (users', service accounts', task tokens), verified like every service does, with new `knowledge:*` permissions. |
 
 ## Knowledge items
@@ -112,7 +112,7 @@ A **Knowledge** page per project: search, filters by type and status, each item 
 
 ## Events
 
-Seshat publishes to `seshat.events` (`events.md`, `../contracts/seshat.asyncapi.yaml`), with the item as aggregate and its `revision` (one more per event) as `aggregateVersion`: `knowledge-item.proposed`, `.accepted`, `.rejected`, `.updated`, `.superseded`, `.retired` (`itemId`, `projectId`, `type`, `status`, `version`, `sourceKind`, `supersededBy`), and `knowledge-item.indexed` (`itemId`, `projectId`, `version`, `chunkCount`) whenever an item's passages change, which is when Hephaestus embeds them (step 2). Later it consumes Polis's `project.deleted` and `organization.deleted` (deleting their knowledge), Hephaestus's `document.version-published`, and Proxenos's repository pushes.
+Seshat publishes to `seshat.events` (`events.md`, `../contracts/seshat.asyncapi.yaml`), with the item as aggregate and its `revision` (one more per event) as `aggregateVersion`: `knowledge-item.proposed`, `.accepted`, `.rejected`, `.updated`, `.superseded`, `.retired` (`itemId`, `projectId`, `type`, `status`, `version`, `sourceKind`, `supersededBy`), and `knowledge-item.indexed` (`itemId`, `projectId`, `version`, `chunkCount`) whenever an item's passages change (Seshat embeds them right after, step 2). Later it consumes Polis's `project.deleted` and `organization.deleted` (deleting their knowledge), Hephaestus's `document.version-published`, and Proxenos's repository pushes.
 
 ## Open questions
 
