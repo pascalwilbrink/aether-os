@@ -1,7 +1,7 @@
-import type { ApiSchema } from "./api";
+import type { PylonSchema } from "./api";
 
-export type ModelKey = ApiSchema<"ModelKeyResponse">;
-export type ModelProvider = ApiSchema<"ModelProvider">;
+export type ModelKey = PylonSchema<"ModelKeyResponse">;
+export type ModelProvider = PylonSchema<"ModelProvider">;
 
 /** The providers keys can be set for (the gateway can call), with their names. */
 export const PROVIDERS: { provider: ModelProvider; name: string }[] = [

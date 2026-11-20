@@ -5,10 +5,12 @@ import { BudgetForm, BudgetMeter } from "@/app/components/budget";
 import { StatusBadge } from "@/app/components/status-badge";
 import { listAgents } from "@/lib/api/agora";
 import {
-  getProjectBudget,
   listTasks,
   listTaskTemplates,
 } from "@/lib/api/hephaestus";
+import {
+  getProjectBudget,
+} from "@/lib/api/pylon";
 import { ApiError } from "@/lib/api/http";
 import { listOrganizationUsers, listServiceAccounts } from "@/lib/api/pistis";
 import {

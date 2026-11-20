@@ -16,10 +16,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Whether an agent version's model, tools and skills are choosable in
-         *     the organization, for Agora to check before it creates the version:
-         *     the model is an `active` model of the catalogue
-         *     (`MODEL_NOT_AVAILABLE` otherwise); each enabled entry of `tools`
+         * @description Whether an agent version's tools and skills are choosable in the
+         *     organization, for Agora to check before it creates the version (its
+         *     model Agora checks with Pylon's catalogue): each enabled entry of `tools`
          *     names one of the organization's tool servers, each at most once
          *     (`TOOL_SERVER_INVALID`); each enabled entry of `skills` a version of
          *     one of its active skills, each skill at most once (`SKILL_INVALID`).
@@ -572,117 +571,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/models": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * @description The model catalogue (`../docs/models.md`, Models): the models agent
-         *     versions can name, by name, each with the price in force now.
-         */
-        get: operations["listModels"];
-        put?: never;
-        /** @description Adds a model to the catalogue, with its first price. */
-        post: operations["createModel"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/models/{modelId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                modelId: components["parameters"]["ModelId"];
-            };
-            cookie?: never;
-        };
-        get: operations["getModel"];
-        /**
-         * @description Replaces the model's editable fields. `provider` and `model` never
-         *     change (agent versions name them); prices change with
-         *     `POST …/prices`. `deprecated`: new agent versions can't choose it;
-         *     `retired`: the gateway refuses to call it.
-         */
-        put: operations["updateModel"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/models/{modelId}/prices": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                modelId: components["parameters"]["ModelId"];
-            };
-            cookie?: never;
-        };
-        get: operations["listModelPrices"];
-        put?: never;
-        /**
-         * @description A new price from `effectiveFrom` (now if absent). Prices never
-         *     change once recorded, so past calls keep the cost they had; a price
-         *     must start after the model's latest one (`MODEL_PRICE_INVALID`).
-         */
-        post: operations["addModelPrice"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/budget": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        /** @description The organization's monthly budget for model calls, and what this month's calls cost so far. */
-        get: operations["getOrganizationBudget"];
-        /**
-         * @description Sets (or, with `limitUsd: null`, removes) the organization's monthly
-         *     limit. Tasks it paused resume within a runner round once it has room.
-         */
-        put: operations["setOrganizationBudget"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/projects/{projectId}/budget": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                projectId: components["parameters"]["ProjectId"];
-            };
-            cookie?: never;
-        };
-        get: operations["getProjectBudget"];
-        /** @description Sets (or removes) the project's monthly limit. */
-        put: operations["setProjectBudget"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/budget": {
         parameters: {
             query?: never;
@@ -694,128 +582,20 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** @description The budget of the task's tree (its top-level task's), for the tree's whole life. */
+        /**
+         * @description The budget of the task's tree (its top-level task's), for the tree's
+         *     whole life. Budgets are Pylon's (`../docs/pylon.md`): Hephaestus
+         *     checks the task and reads it there with its own token.
+         */
         get: operations["getTaskTreeBudget"];
-        /** @description Sets (or removes) the limit of the task's tree; its paused tasks resume once it has room. */
+        /**
+         * @description Sets (or removes) the limit of the task's tree, in Pylon, with the
+         *     caller's own token; its paused tasks resume once it has room. `503`
+         *     when Pylon doesn't answer.
+         */
         put: operations["setTaskTreeBudget"];
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/model-keys": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        /**
-         * @description The organization's provider keys (docs/models.md, Keys): which are
-         *     set, their last characters, who set them and when; never a key.
-         *     Every agent of the organization uses its key for its model's
-         *     provider, unless the agent has its own.
-         */
-        get: operations["listOrganizationModelKeys"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/model-keys/{provider}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                provider: components["parameters"]["Provider"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * @description Stores (or replaces) the organization's key for the provider, in
-         *     OpenBao: `apiKey` for the hosted providers; for `ollama`, its server's
-         *     `baseUrl` and, when the server wants one, an `apiKey`
-         *     (`MODEL_KEY_INVALID` otherwise, or for a `baseUrl` Hephaestus won't call).
-         */
-        put: operations["setOrganizationModelKey"];
-        post?: never;
-        /** @description Removes it, with every earlier version; agents without their own key then use the platform's, if allowed, or fail. */
-        delete: operations["deleteOrganizationModelKey"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/agents/{agentId}/budget": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-            };
-            cookie?: never;
-        };
-        /** @description The agent's monthly budget for model calls (all its versions, in every project), and what this month's calls cost so far. */
-        get: operations["getAgentBudget"];
-        /**
-         * @description Sets (or, with `limitUsd: null`, removes) the agent's monthly limit.
-         *     Tasks it paused resume within a runner round once it has room.
-         */
-        put: operations["setAgentBudget"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/agents/{agentId}/model-keys": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-            };
-            cookie?: never;
-        };
-        /** @description The agent's own provider keys, used instead of the organization's (e.g. to bill another provider account). */
-        get: operations["listAgentModelKeys"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/agents/{agentId}/model-keys/{provider}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-                provider: components["parameters"]["Provider"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        /** @description Stores (or replaces) the agent's own key for the provider, in OpenBao. */
-        put: operations["setAgentModelKey"];
-        post?: never;
-        /** @description Removes the agent's own key; it uses the organization's again. */
-        delete: operations["deleteAgentModelKey"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1035,30 +815,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/organizations/{organizationId}/ollama/models": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        /**
-         * @description The models the organization's Ollama server has now (its `/api/tags`),
-         *     to choose from for an agent version: asked of the server with the
-         *     organization's settings. `409 MODEL_KEY_INVALID` when the
-         *     organization has no Ollama server set; `503` when it doesn't answer.
-         */
-        get: operations["listOllamaModels"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1095,7 +851,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "MODEL_ALREADY_EXISTS" | "MODEL_NOT_AVAILABLE" | "MODEL_PRICE_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "MODEL_KEY_INVALID" | "SKILL_ALREADY_EXISTS" | "SKILL_ARCHIVED" | "SKILL_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "SKILL_ALREADY_EXISTS" | "SKILL_ARCHIVED" | "SKILL_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -1149,7 +905,6 @@ export interface components {
         };
         HostPattern: string;
         AgentVersionCheckRequest: {
-            model: components["schemas"]["AgentModelConfiguration"];
             tools: components["schemas"]["AgentToolConfiguration"][];
             skills: components["schemas"]["AgentSkillConfiguration"][];
         };
@@ -1263,8 +1018,10 @@ export interface components {
             repository?: components["schemas"]["TaskRepository"] | null;
             /**
              * @description A limit for the whole task tree's model calls (docs/models.md,
-             *     Budgets); only on a top-level task (`TASK_BUDGET_INVALID`).
-             *     Raise it later with `PUT …/tasks/{taskId}/budget`.
+             *     Budgets), set in Pylon with the caller's token; only on a
+             *     top-level task (`TASK_BUDGET_INVALID`), and only through this
+             *     API (a `task.create` command can't carry it). Raise it later
+             *     with `PUT …/tasks/{taskId}/budget`.
              */
             budgetUsd?: components["schemas"]["Usd"] | null;
             concurrency?: components["schemas"]["TaskConcurrency"] | null;
@@ -1831,113 +1588,8 @@ export interface components {
         PageMeta: {
             nextCursor: components["schemas"]["NextCursor"];
         };
-        /**
-         * @description Providers the model gateway can call: each needs code (Mastra's
-         *     model router) and a key in OpenBao (`orgs/{organizationId}/llm/{provider}`
-         *     or `platform/llm/{provider}`), so this list only changes with a release.
-         *     `ollama` is a server the organization runs: its settings are a
-         *     `baseUrl` and an optional key, its models aren't in the catalogue
-         *     (any model the server has can be chosen) and its calls are unpriced.
-         * @enum {string}
-         */
-        ModelProvider: "anthropic" | "openai" | "google" | "mistral" | "ollama";
-        /**
-         * @description `active`: new agent versions can choose it. `deprecated`: versions
-         *     that already have it keep running, new ones can't choose it.
-         *     `retired`: the gateway refuses to call it.
-         * @enum {string}
-         */
-        ModelStatus: "active" | "deprecated" | "retired";
         /** @description US dollars as a decimal string, at most 6 decimals (`../docs/api.md`). */
         Usd: string;
-        /** @description US dollars per million tokens, a decimal string with at most 6 decimals. */
-        PricePerMTok: string;
-        /**
-         * @description Prices per million tokens. Cache reads and writes without a price
-         *     cost what other input does (e.g. OpenAI doesn't charge for writing
-         *     its cache).
-         */
-        ModelRates: {
-            inputPerMTok: components["schemas"]["PricePerMTok"];
-            outputPerMTok: components["schemas"]["PricePerMTok"];
-            cacheReadPerMTok?: components["schemas"]["PricePerMTok"] | null;
-            /** @description Writing to the provider's shortest-lived cache (Anthropic's 5 minutes). */
-            cacheWritePerMTok?: components["schemas"]["PricePerMTok"] | null;
-        };
-        /**
-         * @description Higher prices for a call whose input (cache reads and writes
-         *     included) is over `aboveInputTokens`: the whole call is priced at
-         *     these rates (e.g. Claude Haiku 5.5 above 100,000 tokens).
-         */
-        LongContextRates: components["schemas"]["ModelRates"] & {
-            aboveInputTokens: number;
-        };
-        ModelPriceInput: components["schemas"]["ModelRates"] & {
-            longContext?: components["schemas"]["LongContextRates"] | null;
-        };
-        AddModelPriceRequest: components["schemas"]["ModelPriceInput"] & {
-            /**
-             * Format: date-time
-             * @description When the price starts; now if absent. After the model's latest price.
-             */
-            effectiveFrom?: string;
-        };
-        ModelPriceResponse: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            modelId: string;
-            /** Format: date-time */
-            effectiveFrom: string;
-            inputPerMTok: components["schemas"]["PricePerMTok"];
-            outputPerMTok: components["schemas"]["PricePerMTok"];
-            cacheReadPerMTok: components["schemas"]["PricePerMTok"] | null;
-            cacheWritePerMTok: components["schemas"]["PricePerMTok"] | null;
-            longContext: components["schemas"]["LongContextRates"] | null;
-            createdBy: string;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        ModelPricePage: components["schemas"]["PageMeta"] & {
-            items: components["schemas"]["ModelPriceResponse"][];
-        };
-        CreateModelRequest: {
-            provider: components["schemas"]["ModelProvider"];
-            /** @description The provider's API model ID (`claude-sonnet-5-5`), as agent versions name it. */
-            model: string;
-            /** @description For people (`Claude Sonnet 5.5`). */
-            name: string;
-            contextWindow?: number | null;
-            maxOutputTokens?: number | null;
-            price: components["schemas"]["ModelPriceInput"];
-        };
-        UpdateModelRequest: {
-            name: string;
-            status: components["schemas"]["ModelStatus"];
-            contextWindow: number | null;
-            maxOutputTokens: number | null;
-        };
-        ModelResponse: {
-            /** Format: uuid */
-            id: string;
-            /** @description A `ModelProvider` (a string here, so a provider removed from the list still reads). */
-            provider: string;
-            model: string;
-            name: string;
-            status: components["schemas"]["ModelStatus"];
-            contextWindow: number | null;
-            maxOutputTokens: number | null;
-            /** @description The price in force now; null before its first one starts. */
-            price: components["schemas"]["ModelPriceResponse"] | null;
-            version: number;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        ModelPage: components["schemas"]["PageMeta"] & {
-            items: components["schemas"]["ModelResponse"][];
-        };
         /**
          * @description What a budget limits (docs/models.md, Budgets): an organization's,
          *     a project's or an agent's model calls per calendar month (UTC), or a
@@ -1971,42 +1623,6 @@ export interface components {
              * @description When the limit was last set; null if it never was.
              */
             updatedAt: string | null;
-        };
-        SetModelKeyRequest: {
-            /** @description The provider's API key; write-only (stored in OpenBao, never returned). Required except for `ollama`, where it's optional. */
-            apiKey?: string;
-            /**
-             * Format: uri
-             * @description For `ollama` only (and required there): where its server is, e.g.
-             *     `https://ollama.example.com` (Hephaestus calls its OpenAI-compatible
-             *     API at `<baseUrl>/v1`). `https://`; `http://` and private addresses
-             *     only where `MODEL_ENDPOINT_ALLOW_PRIVATE` allows them.
-             */
-            baseUrl?: string;
-        };
-        ModelKeyResponse: {
-            provider: components["schemas"]["ModelProvider"];
-            /** @enum {string} */
-            scope: "organization" | "agent";
-            /** Format: uuid */
-            agentId: string | null;
-            /** @description The key's last four characters (`…a1b2`), to tell keys apart; null for an `ollama` server without one. */
-            hint: string | null;
-            /** @description For `ollama`, its server; null otherwise. */
-            baseUrl: string | null;
-            updatedBy: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        OllamaModelList: {
-            items: {
-                /** @description As an agent version names it, e.g. `qwen3:8b`. */
-                name: string;
-                sizeBytes: number | null;
-            }[];
-        };
-        ModelKeyList: {
-            items: components["schemas"]["ModelKeyResponse"][];
         };
         /** @description Lowercase letters, digits and hyphens, starting with a letter; unique in the organization. */
         ToolServerName: string;
@@ -2240,8 +1856,6 @@ export interface components {
         TaskId: string;
         TemplateId: string;
         ArtifactId: string;
-        Provider: components["schemas"]["ModelProvider"];
-        ModelId: string;
         SkillId: string;
         ToolServerId: string;
         /** @description Page size. */
@@ -3159,305 +2773,6 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
-    listModels: {
-        parameters: {
-            query?: {
-                status?: components["schemas"]["ModelStatus"];
-                provider?: components["schemas"]["ModelProvider"];
-                /** @description Page size. */
-                limit?: components["parameters"]["Limit"];
-                /**
-                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-                 *     the first page. A cursor only works with the filters it was made with
-                 *     (otherwise `400 INVALID_CURSOR`).
-                 */
-                cursor?: components["parameters"]["Cursor"];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description By name */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelPage"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-        };
-    };
-    createModel: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateModelRequest"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            409: components["responses"]["DomainError"];
-        };
-    };
-    getModel: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                modelId: components["parameters"]["ModelId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    updateModel: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                modelId: components["parameters"]["ModelId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateModelRequest"];
-            };
-        };
-        responses: {
-            /** @description Updated */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    listModelPrices: {
-        parameters: {
-            query?: {
-                /** @description Page size. */
-                limit?: components["parameters"]["Limit"];
-                /**
-                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-                 *     the first page. A cursor only works with the filters it was made with
-                 *     (otherwise `400 INVALID_CURSOR`).
-                 */
-                cursor?: components["parameters"]["Cursor"];
-            };
-            header?: never;
-            path: {
-                modelId: components["parameters"]["ModelId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Newest `effectiveFrom` first, including scheduled ones */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelPricePage"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    addModelPrice: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                modelId: components["parameters"]["ModelId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AddModelPriceRequest"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelPriceResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
-        };
-    };
-    getOrganizationBudget: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BudgetResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    setOrganizationBudget: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SetBudgetRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BudgetResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
-            503: components["responses"]["Unavailable"];
-        };
-    };
-    getProjectBudget: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                projectId: components["parameters"]["ProjectId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BudgetResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    setProjectBudget: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                projectId: components["parameters"]["ProjectId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SetBudgetRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BudgetResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
-            503: components["responses"]["Unavailable"];
-        };
-    };
     getTaskTreeBudget: {
         parameters: {
             query?: never;
@@ -3511,240 +2826,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["BudgetResponse"];
                 };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
-        };
-    };
-    listOrganizationModelKeys: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description By provider */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelKeyList"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    setOrganizationModelKey: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                provider: components["parameters"]["Provider"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SetModelKeyRequest"];
-            };
-        };
-        responses: {
-            /** @description Stored in OpenBao; never returned */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelKeyResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
-            503: components["responses"]["Unavailable"];
-        };
-    };
-    deleteOrganizationModelKey: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                provider: components["parameters"]["Provider"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Removed (also when there was none) */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
-            503: components["responses"]["Unavailable"];
-        };
-    };
-    getAgentBudget: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BudgetResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    setAgentBudget: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SetBudgetRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BudgetResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
-            503: components["responses"]["Unavailable"];
-        };
-    };
-    listAgentModelKeys: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description By provider */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelKeyList"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    setAgentModelKey: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-                provider: components["parameters"]["Provider"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SetModelKeyRequest"];
-            };
-        };
-        responses: {
-            /** @description Stored in OpenBao; never returned */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelKeyResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
-            503: components["responses"]["Unavailable"];
-        };
-    };
-    deleteAgentModelKey: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-                provider: components["parameters"]["Provider"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Removed (also when there was none) */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
@@ -4217,33 +3298,6 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-        };
-    };
-    listOllamaModels: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description By name */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OllamaModelList"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
-            503: components["responses"]["Unavailable"];
         };
     };
 }

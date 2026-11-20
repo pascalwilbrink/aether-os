@@ -12,6 +12,7 @@ const SERVICES = () => [
   { name: "Kerykes", url: config.kerykesUrl },
   { name: "Loculus", url: config.loculusUrl },
   { name: "Agora", url: config.agoraUrl },
+  { name: "Pylon", url: config.pylonUrl },
 ];
 
 export interface ServiceStatus {

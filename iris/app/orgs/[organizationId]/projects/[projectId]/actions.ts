@@ -11,10 +11,12 @@ import {
   createTaskFromTemplate,
   retryTask,
   reviewArtifact,
-  setProjectBudget,
   setTaskTreeBudget,
   type ReviewDecision,
 } from "@/lib/api/hephaestus";
+import {
+  setProjectBudget,
+} from "@/lib/api/pylon";
 import { ApiError } from "@/lib/api/http";
 import { uploadFile } from "@/lib/api/loculus";
 import { messageOf as baseMessageOf } from "@/lib/api/messages";

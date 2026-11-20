@@ -13,13 +13,15 @@ import {
 } from "@/lib/agents";
 import { getAgent, listAgentVersions } from "@/lib/api/agora";
 import {
+  listSkills,
+  listToolServers,
+} from "@/lib/api/hephaestus";
+import {
   getAgentBudget,
   listActiveModels,
   listModelKeys,
   listOllamaModels,
-  listSkills,
-  listToolServers,
-} from "@/lib/api/hephaestus";
+} from "@/lib/api/pylon";
 import { getOrganization } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
 import {

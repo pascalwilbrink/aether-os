@@ -3,7 +3,10 @@
 import { refresh } from "next/cache";
 
 import type { BudgetFormState } from "@/app/components/budget";
-import { setAgentBudget, setOrganizationBudget } from "@/lib/api/hephaestus";
+import {
+  setAgentBudget,
+  setOrganizationBudget,
+} from "@/lib/api/pylon";
 import { messageOf } from "@/lib/api/messages";
 import { requireOrganization } from "@/lib/auth/current";
 import { parseLimit } from "@/lib/budgets";
