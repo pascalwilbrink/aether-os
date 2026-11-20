@@ -136,7 +136,7 @@ pnpm format:check          # prettier, as CI runs it (`pnpm format` in a package
 
 ```bash
 pnpm start:dev             # everything: infra, Krepis build, then every service and Iris (on 3010, or IRIS_PORT) in watch mode
-docker compose up -d       # Postgres, RabbitMQ, OpenBao, OPA, OTel Collector, Jaeger, Langfuse, Loki, Grafana, Mailpit
+docker compose up -d       # Postgres, RabbitMQ, OpenBao, OPA, OTel Collector, Jaeger, Langfuse, Loki, Grafana, Mailpit, RustFS
 docker compose down -v     # stop and wipe all data
 ```
 
@@ -151,7 +151,7 @@ docker compose down -v     # stop and wipe all data
 | Jaeger UI | `localhost:16686` |
 | Langfuse UI | `localhost:3100`, login `dev@aether-os.local` / `aether-dev`, API keys `pk-lf-local` / `sk-lf-local` |
 | Mailpit | SMTP `localhost:1025` (any credentials), UI `localhost:8025`: catches all local email; production uses Resend or SES |
-| RustFS (Loculus's files) | S3 API `localhost:9100`, console `localhost:9101/rustfs/console/index.html`, `loculus` / `loculus-dev-secret` |
+| RustFS (Loculus's files, Langfuse's storage) | S3 API `localhost:9100`, console `localhost:9101/rustfs/console/index.html`, `loculus` / `loculus-dev-secret` |
 | Grafana | `localhost:3300` (no login locally): logs from Loki, linked to traces in Jaeger |
 
-All credentials are fixed local-only values. MinIO in the compose file is only Langfuse's storage; Loculus keeps files in RustFS. Polis, Hephaestus, Pistis, Proxenos, Kairos, Kerykes and Loculus run on their own Postgres databases with migrations (the databases are made when the Postgres volume is first created: on an older volume, add a new service's with `docker compose exec postgres createdb -U aether loculus`; `cd polis && cp .env.example .env && pnpm start:dev`, likewise in `hephaestus`); there's no SQLite left.
+All credentials are fixed local-only values. RustFS holds Loculus's files and Langfuse's events and media (its `langfuse` bucket); there's no MinIO. Polis, Hephaestus, Pistis, Proxenos, Kairos, Kerykes and Loculus run on their own Postgres databases with migrations (the databases are made when the Postgres volume is first created: on an older volume, add a new service's with `docker compose exec postgres createdb -U aether loculus`; `cd polis && cp .env.example .env && pnpm start:dev`, likewise in `hephaestus`); there's no SQLite left.

@@ -11,9 +11,10 @@
 #   Postgres      5432                     RabbitMQ   5672 (AMQP), 15672 (UI)
 #   OpenBao       8200                     OPA        8181
 #   OTel (OTLP)   4317 (gRPC), 4318 (HTTP) Jaeger UI  16686
-#   Langfuse UI   3100                     MinIO      9090 (S3), 9091 (console)
+#   Langfuse UI   3100                     RustFS     9100 (S3), 9101 (console)
 #   Mailpit       1025 (SMTP), 8025 (UI)   Grafana    3300 (Loki logs + Jaeger traces)
-# App services run outside compose: Iris 3000, Polis 3001, Hephaestus 3002.
+# App services run outside compose: Iris 3000, Polis 3001, Hephaestus 3002,
+# Pistis 3003, Proxenos 3004, Kairos 3005, Kerykes 3006, Loculus 3007.
 
 name: aether-os
 
@@ -111,16 +112,16 @@ services:
       REDIS_AUTH: aether
       LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
       LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
-      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
-      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: miniosecret
-      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: loculus
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: loculus-dev-secret
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://rustfs:9000
       LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: 'true'
       LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
       LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
       LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
-      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: minio
-      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: miniosecret
-      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://localhost:9090
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: loculus
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: loculus-dev-secret
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://localhost:9100
       LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: 'true'
       LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
       # Headless setup: a ready-made org, project, API keys and login.
@@ -138,7 +139,7 @@ services:
       postgres: { condition: service_healthy }
       clickhouse: { condition: service_healthy }
       redis: { condition: service_healthy }
-      minio: { condition: service_healthy }
+      rustfs: { condition: service_healthy }
 
   langfuse-worker:
     image: langfuse/langfuse-worker:3
@@ -168,28 +169,14 @@ services:
       timeout: 5s
       retries: 10
 
-  # S3 storage for Langfuse only. Aether-os files belong in Loculus.
-  minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
-    entrypoint: sh
-    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
-    environment:
-      MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: miniosecret
-    ports: ['9090:9000', '9091:9001']
-    volumes:
-      - minio-data:/data
-    healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  # Loculus's files (S3-compatible; the bucket is made by Loculus with
-  # S3_CREATE_BUCKET). Console: localhost:9101/rustfs/console/index.html.
+  # S3-compatible storage: Loculus's files (its bucket made by Loculus with
+  # S3_CREATE_BUCKET) and Langfuse's events and media (`langfuse`, a
+  # directory under /data, made here). Console:
+  # localhost:9101/rustfs/console/index.html.
   rustfs:
     image: rustfs/rustfs:1.0.5
-    command: ['/data']
+    entrypoint: sh
+    command: -c 'mkdir -p /data/langfuse && exec /usr/bin/rustfs /data'
     environment:
       RUSTFS_ACCESS_KEY: loculus
       RUSTFS_SECRET_KEY: loculus-dev-secret
@@ -217,5 +204,4 @@ volumes:
   postgres-data:
   rabbitmq-data:
   clickhouse-data:
-  minio-data:
   rustfs-data:
