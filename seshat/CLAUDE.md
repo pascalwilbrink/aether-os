@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Seshat is the Aether-os service for **project knowledge** (see `../CLAUDE.md` and `../docs/knowledge.md`); Seshat was the Egyptian goddess of writing and record-keeping. It keeps each project's **knowledge items**: documents, decisions, facts, conventions, architecture and lessons learned. People write them, agents propose them, approvers accept them, and they're versioned, superseded and retired, never overwritten. Documents are files in Loculus that Seshat indexes. Everything is searchable, and every change is published as an event.
 
 Planned:
-- embeddings through Hephaestus's model gateway, and hybrid search (pgvector);
+- embeddings through Pylon, the model gateway (`../docs/pylon.md`), and hybrid search (pgvector);
 - the agents' knowledge tools in Hephaestus, and Iris's Knowledge page;
 - organization-wide items, repository documents, PDF and Office text.
 
@@ -80,7 +80,7 @@ Same layout as Agora (`../agora/CLAUDE.md`): `src/` is the app shell, and code l
     - Only `accepted` items are searched, plus `proposed` ones with `includeProposed`; it also takes `types` and `limit`.
   - **Events** (in the change's transaction; `aggregateVersion` is the item's `revision`, one more per event):
     - `knowledge-item.proposed`, `.accepted`, `.rejected`, `.updated`, `.superseded` and `.retired` carry the item's type, status, version, source kind and `supersededBy`.
-    - `knowledge-item.indexed` (version, `chunkCount`) is published whenever its passages change; Hephaestus will embed them on it.
+    - `knowledge-item.indexed` (version, `chunkCount`) is published whenever its passages change; Seshat will embed them right after, through Pylon.
 - **Errors:** `DomainError`s are 409 with their `code`.
 
 ## Tests

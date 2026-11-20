@@ -2,13 +2,15 @@
 
 How agents reach LLM providers, whose keys they use, and how usage and cost are measured and limited.
 
+The gateway is moving out of Hephaestus into its own service, **Pylon** (`pylon.md`, proposal): the same catalogue, keys, metering and budgets, called over HTTP by Hephaestus, Seshat, Kriterion and Echo. What follows describes what the gateway does, wherever it runs.
+
 Status: agreed design. Sections marked **Proposal** are not agreed yet. Built so far (Hephaestus `libs/models`, used by the Mastra runtime): the gateway resolving an agent version's model with the agent's own key, else the organization's, else the platform's if allowed (`PLATFORM_MODEL_KEYS`), from OpenBao; calls through Mastra's model router with retries on 429/5xx; metering of every call (tokens, cache reads and writes, key source, attribution) in `model_calls`, totalled per execution; and the **model catalogue** (`/v1/models`: models and their versioned prices; agent versions must name an active model, and every call is priced). and **budgets** (below, Built so far), and **setting keys** through the API and Iris (Keys, below). Not yet: policy checks, fallback models, the gateway's HTTP endpoint, and LLM spans to Langfuse.
 
 ## Decisions
 
 | Decision | Choice |
 |---|---|
-| Where calls go | **Through one model gateway**, never directly from an agent or a sandbox. It lives **inside Hephaestus** (a `ModelGateway` port over Mastra's model router), with its own HTTP endpoint for callers outside the worker (Kriterion, later agents in sandboxes), so it can become its own service later without changing callers. |
+| Where calls go | **Through one model gateway**, never directly from an agent or a sandbox. Built **inside Hephaestus** (a `ModelGateway` port over Mastra's model router); moving to its own service, **Pylon** (`pylon.md`), which every caller reaches over HTTP. |
 | Provider keys | **Both:** an organization brings its own keys (BYOK), or uses platform keys if its plan allows. Keys live in OpenBao. |
 | Model choice | **The agent version names the model**; Themis policy can restrict which models an organization or project may use. |
 | Metering | **Every call is metered**: tokens and cost recorded per call, attributed to task, execution, agent version, project and organization. |
