@@ -24,6 +24,20 @@ processors:
           - replace_all_patterns(attributes, "value", "sk-[A-Za-z0-9_-]{16,}", "[redacted key]")
           - replace_all_patterns(attributes, "value", "gh[pousr]_[A-Za-z0-9]{20,}", "[redacted token]")
           - replace_all_patterns(attributes, "value", "eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]+", "[redacted jwt]")
+  # The same for log lines (Krepis's logger already redacts them).
+  transform/redact-logs:
+    error_mode: ignore
+    log_statements:
+      - context: log
+        statements:
+          - replace_pattern(body, "(?i)bearer\\s+[A-Za-z0-9._~+/=-]+", "Bearer [redacted]")
+          - replace_pattern(body, "sk-[A-Za-z0-9_-]{16,}", "[redacted key]")
+          - replace_pattern(body, "gh[pousr]_[A-Za-z0-9]{20,}", "[redacted token]")
+          - replace_pattern(body, "eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]+", "[redacted jwt]")
+          - replace_all_patterns(attributes, "value", "(?i)bearer\\s+[A-Za-z0-9._~+/=-]+", "Bearer [redacted]")
+          - replace_all_patterns(attributes, "value", "sk-[A-Za-z0-9_-]{16,}", "[redacted key]")
+          - replace_all_patterns(attributes, "value", "gh[pousr]_[A-Za-z0-9]{20,}", "[redacted token]")
+          - replace_all_patterns(attributes, "value", "eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]+", "[redacted jwt]")
   # Langfuse is for agent runs: Hephaestus's execution span (the trace's
   # name, session and metadata) and the model and tool calls under it;
   # everything else stays out.
@@ -57,5 +71,5 @@ service:
       exporters: [otlphttp/langfuse]
     logs:
       receivers: [otlp]
-      processors: [batch]
+      processors: [transform/redact-logs, batch]
       exporters: [otlphttp/loki]

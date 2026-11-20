@@ -9,6 +9,7 @@ import {
   type OnApplicationShutdown,
 } from '@nestjs/common';
 
+import { runWithLogContext } from '@aether-os/krepis';
 import { SpanStatusCode, trace } from '@opentelemetry/api';
 
 import type { ApiTypes } from '@hephaestus/core';
@@ -185,13 +186,30 @@ export class TaskRunner
     this.running.set(executionId, { taskId: task.id, controller, done });
   }
 
+  private execute(
+    task: TaskResponse,
+    executionId: string,
+    controller: AbortController,
+  ): Promise<void> {
+    // Every line logged during the execution carries its task and tenant.
+    return runWithLogContext(
+      {
+        organizationId: task.organizationId,
+        projectId: task.projectId,
+        taskId: task.id,
+        executionId,
+      },
+      () => this.executeTraced(task, executionId, controller),
+    );
+  }
+
   /**
    * Each execution is a trace of its own (a root span, `task.execution`):
    * its preparation, the agent's runs (Mastra's spans, model and tool
    * calls), verification and delivery of commits, with the tenant, task and
    * agent version on it. The execution records its trace ID.
    */
-  private execute(
+  private executeTraced(
     task: TaskResponse,
     executionId: string,
     controller: AbortController,
