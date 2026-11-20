@@ -1,0 +1,227 @@
+asyncapi: 3.0.0
+info:
+  title: Agora events
+  version: 0.1.0
+  description: |
+    Events Agora publishes to the `agora.events` topic exchange on RabbitMQ;
+    the routing key is the event type. Every message is the Krepis
+    `DomainEvent` envelope (see `../docs/events.md`), JSON, persistent, with
+    the event ID as AMQP `messageId` and the event type as `type`.
+
+    Delivery is at least once (transactional outbox and relay): deduplicate
+    on `eventId`. Every event has the agent as its aggregate, and the
+    agent's `aggregateVersion` grows by one with each change (its creation is
+    1), so a consumer can tell an old event from a newer one.
+
+    Hephaestus keeps a copy of agents and their published versions from
+    these events, to create and run tasks with. Versions are immutable, so
+    `agent-version.published` carries the whole version.
+
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:5672
+    protocol: amqp
+    description: RabbitMQ from ../docker-compose.yml
+
+channels:
+  agoraEvents:
+    address: agora.events
+    description: Topic exchange; consumers bind their own durable queue (`<consumer>.agora-events`) to the routing keys they need.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: agora.events
+          type: topic
+          durable: true
+          autoDelete: false
+    messages:
+      agentCreated: { $ref: '#/components/messages/agentCreated' }
+      agentArchived: { $ref: '#/components/messages/agentArchived' }
+      agentVersionPublished: { $ref: '#/components/messages/agentVersionPublished' }
+      agentVersionDeprecated: { $ref: '#/components/messages/agentVersionDeprecated' }
+
+operations:
+  publishAgoraEvents:
+    action: send
+    channel: { $ref: '#/channels/agoraEvents' }
+    messages:
+      - $ref: '#/channels/agoraEvents/messages/agentCreated'
+      - $ref: '#/channels/agoraEvents/messages/agentArchived'
+      - $ref: '#/channels/agoraEvents/messages/agentVersionPublished'
+      - $ref: '#/channels/agoraEvents/messages/agentVersionDeprecated'
+
+components:
+  messages:
+    agentCreated:
+      name: agent.created
+      summary: An agent was created (Hephaestus's copy).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: agent.created }
+              payload: { $ref: '#/components/schemas/AgentCreated' }
+    agentArchived:
+      name: agent.archived
+      summary: An agent was archived; no new tasks start with it (Hephaestus, Kairos).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: agent.archived }
+              payload: { $ref: '#/components/schemas/AgentArchived' }
+    agentVersionPublished:
+      name: agent-version.published
+      summary: A version became the agent's published one; new tasks run it (Hephaestus, Kairos, Kriterion).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: agent-version.published }
+              payload: { $ref: '#/components/schemas/AgentVersionPublished' }
+    agentVersionDeprecated:
+      name: agent-version.deprecated
+      summary: A published version was replaced by a newer one (Kairos warns about automations still using it).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: agent-version.deprecated }
+              payload: { $ref: '#/components/schemas/AgentVersionDeprecated' }
+
+  schemas:
+    Uuid: { type: string, format: uuid }
+    Envelope:
+      type: object
+      description: Krepis's `DomainEvent`.
+      required: [eventId, eventType, schemaVersion, aggregateId, aggregateVersion, occurredAt, organizationId, projectId, actor, payload]
+      properties:
+        eventId: { $ref: '#/components/schemas/Uuid', description: 'UUIDv7; the deduplication key.' }
+        eventType: { type: string }
+        schemaVersion: { type: integer, const: 1 }
+        aggregateId: { $ref: '#/components/schemas/Uuid' }
+        aggregateVersion: { type: integer, minimum: 1 }
+        occurredAt: { type: string, format: date-time }
+        organizationId: { $ref: '#/components/schemas/Uuid' }
+        projectId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        actor:
+          description: Who made the change; null for system work (an import).
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [sub, sub_type]
+              properties:
+                sub: { type: string }
+                sub_type: { enum: [user, service_account, service] }
+        payload: { type: object }
+    AgentCreated:
+      type: object
+      additionalProperties: false
+      required: [agentId, name, description, createdBy, createdAt]
+      properties:
+        agentId: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string }
+        description: { type: string }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+    AgentArchived:
+      type: object
+      additionalProperties: false
+      required: [agentId]
+      properties:
+        agentId: { $ref: '#/components/schemas/Uuid' }
+    AgentVersionPublished:
+      type: object
+      additionalProperties: false
+      required: [agentId, agentVersionId, policySetVersionId, previousVersionId, version]
+      properties:
+        agentId: { $ref: '#/components/schemas/Uuid' }
+        agentVersionId: { $ref: '#/components/schemas/Uuid' }
+        policySetVersionId:
+          description: The policy set version it runs under (Themis); null until policies exist.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        previousVersionId:
+          description: The version it replaced, now deprecated (`agent-version.deprecated` follows); null for the first.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        version: { $ref: '#/components/schemas/AgentVersion' }
+    AgentVersionDeprecated:
+      type: object
+      additionalProperties: false
+      required: [agentId, agentVersionId]
+      properties:
+        agentId: { $ref: '#/components/schemas/Uuid' }
+        agentVersionId: { $ref: '#/components/schemas/Uuid' }
+    AgentVersion:
+      type: object
+      description: The whole version, as `AgentVersionResponse` in `agora.openapi.yaml` (immutable once created).
+      additionalProperties: false
+      required: [id, agentId, organizationId, version, status, instructions, model, capabilities, tools, skills, runtime, createdBy, createdAt, publishedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        agentId: { $ref: '#/components/schemas/Uuid' }
+        organizationId: { $ref: '#/components/schemas/Uuid' }
+        version: { type: integer, minimum: 1 }
+        status: { enum: [draft, published, deprecated] }
+        instructions: { type: string }
+        model:
+          type: object
+          required: [provider, model]
+          properties:
+            provider: { type: string }
+            model: { type: string }
+            temperature: { type: number }
+            maxTokens: { type: integer }
+        capabilities:
+          type: array
+          items: { type: string }
+        tools:
+          type: array
+          items:
+            type: object
+            required: [name, enabled]
+            properties:
+              name: { type: string }
+              enabled: { type: boolean }
+              tools:
+                type: array
+                items: { type: string }
+        skills:
+          type: array
+          items:
+            type: object
+            required: [name, version, enabled]
+            properties:
+              name: { type: string }
+              version: { type: string }
+              enabled: { type: boolean }
+        runtime:
+          type: object
+          required: [provider, executionMode, sandboxRequired]
+          properties:
+            provider: { type: string }
+            executionMode: { enum: [standard, coding] }
+            sandboxRequired: { type: boolean }
+            networkAccess: { enum: [none, restricted] }
+            allowedHosts:
+              type: array
+              items: { type: string }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        publishedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - type: 'null'

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.26.0
+  version: 0.27.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -225,6 +225,35 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
         '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/agent-version-checks:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [agent-versions]
+      operationId: checkAgentVersion
+      x-permission: '`platform:read` (platform services only: Agora)'
+      description: |
+        Whether an agent version's model, tools and skills are choosable in
+        the organization, for Agora to check before it creates the version:
+        the model is an `active` model of the catalogue
+        (`MODEL_NOT_AVAILABLE` otherwise); each enabled entry of `tools`
+        names one of the organization's tool servers, each at most once
+        (`TOOL_SERVER_INVALID`); each enabled entry of `skills` a version of
+        one of its active skills, each skill at most once (`SKILL_INVALID`).
+        Changes nothing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AgentVersionCheckRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '204':
+          description: Choosable
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/DomainError' }
 
   /v1/organizations/{organizationId}/workspaces:
     parameters:
@@ -1988,6 +2017,18 @@ components:
           type: array
           items: { $ref: '#/components/schemas/AgentSkillConfiguration' }
         runtime: { $ref: '#/components/schemas/AgentRuntimeConfiguration' }
+    AgentVersionCheckRequest:
+      type: object
+      additionalProperties: false
+      required: [model, tools, skills]
+      properties:
+        model: { $ref: '#/components/schemas/AgentModelConfiguration' }
+        tools:
+          type: array
+          items: { $ref: '#/components/schemas/AgentToolConfiguration' }
+        skills:
+          type: array
+          items: { $ref: '#/components/schemas/AgentSkillConfiguration' }
     AgentVersionResponse:
       type: object
       required: [id, agentId, organizationId, version, status, instructions, model, capabilities, tools, skills, runtime, createdBy, createdAt, publishedAt]

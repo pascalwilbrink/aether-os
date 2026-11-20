@@ -1,0 +1,54 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Agora
+
+Agora is the Aether-os service for **agent management** (see `../CLAUDE.md`); the agora was the gathering place of the Greek city. It owns **agents** and their immutable, numbered **versions** (instructions, model, tools, skills, capabilities, runtime): a version moves draft → published → deprecated, and only one version of an agent is published at a time. Every change is published as an event, and Hephaestus, which runs tasks with the published versions, will keep its copy of agents and versions from them. Planned: policy set versions on versions (Themis), quality per version (Kriterion).
+
+Agents used to live in Hephaestus (`hephaestus/libs/agents`), which still serves its own copy of this API until it switches to Agora's events (the next step); `pnpm import:hephaestus` brings the agents it holds over, with the same IDs.
+
+It follows `../docs/engineering.md` like Kairos: NestJS 12 (ESM, TypeScript 6), controller → service → TypeORM repository with mappers, Zod DTOs generated from the spec, `typeorm-transactional`, Postgres with migrations, tests against Postgres and RabbitMQ in containers.
+
+## Commands
+
+```bash
+pnpm install                   # from the workspace root (../)
+cp .env.example .env           # once; then `docker compose up -d` in ../ for Postgres and RabbitMQ
+pnpm start:dev                 # build, run migrations, then watch mode on $PORT (default 3008)
+pnpm build
+pnpm lint
+pnpm format
+pnpm generate:api              # libs/core/src/api/generated (Agora's spec), clients/polis and clients/hephaestus (generated clients), events/generated (Agora's AsyncAPI)
+
+pnpm migration:run             # on dist/: build first
+pnpm build && pnpm migration:generate src/database/migrations/<Name>   # then review it and add it to migrations/index.ts
+HEPHAESTUS_DATABASE_URL=postgres://aether:aether@localhost:5432/hephaestus pnpm import:hephaestus   # once, after migration:run: Hephaestus's agents and versions
+
+pnpm test                      # unit tests (libs/**/*.spec.ts): transitions, mappers, configuration, the Hephaestus client
+pnpm test:e2e                  # libs/**/*.int-spec.ts and test/*.e2e-spec.ts against Postgres and RabbitMQ; needs Docker
+```
+
+On a Postgres volume made before Agora, create its database once: `docker compose exec postgres createdb -U aether agora` (from `../`).
+
+## Configuration
+
+Validated at startup (`libs/core/src/config/env.ts`, `agoraConfigModule()`); locally from `.env`: `DATABASE_URL`, `RABBITMQ_URL`, `OUTBOX_RELAY_INTERVAL_MS` (1000), `PORT` (3008), `PISTIS_ISSUER` (and `PISTIS_JWKS` in tests), `PISTIS_CLIENT_ID` (`agora`) and `PISTIS_CLIENT_SECRET` (Agora's own client at Pistis, client credentials with `platform:read`; outside production Pistis registers `agora` / `agora-dev-secret`), for its calls to Polis (`POLIS_URL`) and Hephaestus (`HEPHAESTUS_URL`).
+
+## Architecture
+
+Same layout as Kairos (`../kairos/CLAUDE.md`): `src/` is the app shell, code lives in libraries under `libs/`, aliased `@agora/<name>`. Dependency graph: `core` ← `tenancy` ← `agents`. Every entity is listed in `src/database/entities.ts`.
+
+- **`core`:** configuration, database, Krepis re-exported, Agora's API types and Zod schemas (`../contracts/agora.openapi.yaml`), the generated Polis and Hephaestus clients, and its events (`AgoraEvents`, `../contracts/agora.asyncapi.yaml`).
+- **`tenancy`:** `TenancyService.assertOrganizationAcceptsWrites` asks Polis (with Agora's own token, `ServiceTokens`, also used for Hephaestus) before every write: 404 for an unknown organization, `ORGANIZATION_SUSPENDED`, `503` when Polis can't be reached. Reads only need the token's organization (Krepis). No copy of Polis's state.
+- **Messaging (`src/app.module.ts`):** Krepis's `EventsModule` publishes Agora's events to `agora.events` through the outbox; it consumes nothing yet.
+- **`agents`:** `AgentsService` owns agents, `AgentVersionsService` owns versions and reaches agents through `AgentsService`.
+  - **API** (`/v1/organizations/{organizationId}/agents`, `…/{agentId}/archive`, `…/{agentId}/versions`, `…/versions/{versionId}/publish`): `agent:read`, `agent:write` (create, archive, new versions) and `agent:publish`; `createdBy` is the caller's `sub`. The same shapes Hephaestus served.
+  - **Versions:** creating or publishing one calls `lockForVersionChange`, which locks the agent row (`AGENT_ARCHIVED` for an archived agent): concurrent requests for one agent take turns, so numbers are gapless and only one version is published. Publishing deprecates the previous published version in the same transaction; publishing the published version returns it unchanged; a deprecated version can't be published (`AGENT_VERSION_INVALID_TRANSITION`). Archiving is idempotent.
+  - **Choices checked by Hephaestus:** a version's model, tools and skills come from Hephaestus (its model catalogue, the organization's tool servers and skills), so before creating one `AgentVersionChecker` asks it (`HttpAgentVersionChecker`: `POST /v1/organizations/{id}/agent-version-checks` on Hephaestus with Agora's own token, 5 s timeout, a network error retried once, a refused token once with a fresh one). Its `409` comes back as the same error here (`MODEL_NOT_AVAILABLE`, `TOOL_SERVER_INVALID`, `SKILL_INVALID`, `AgentVersionChoiceError`); anything else, or no answer, is `503`, and no version is created. Hephaestus never calls Agora synchronously (`../docs/engineering.md`: no calls in both directions); it learns about agents from the events.
+  - **Events** (in the change's transaction): `agent.created` (the agent), `agent.archived`, `agent-version.published` (the whole version, which never changes, `previousVersionId`, and `policySetVersionId`, null until Themis) and `agent-version.deprecated` after it for the version it replaced. All have the agent as their aggregate; `version` on the agent grows by one per event and is its `aggregateVersion` (creation is 1), so a consumer can drop an older or repeated one.
+- **Import (`src/database/import-from-hephaestus.ts`, `pnpm import:hephaestus`):** copies `agents` and `agent_versions` from Hephaestus's database (`HEPHAESTUS_DATABASE_URL`) into Agora's, with their IDs (tasks pin version IDs), in one transaction; rows Agora has already are left alone, so it can run again. Imported agents start at `version` 1 and publish no events (Hephaestus has them).
+
+## Tests
+
+`test/app.ts` builds the whole app (`createApp`) with `test/fake-polis.ts` (organizations as Polis would return them) and `test/fake-hephaestus.ts` (the check: known models, tool servers and skills, and `down`) in place of the HTTP clients, on the run's Postgres and RabbitMQ (`test/global-setup.ts` applies the migrations and fails if the entities differ from them; every test empties the tables, `test/database.ts`). Tokens come from the run's `TestTokens` (`test/tokens.ts`, `asMember`); `test/outbox.ts` reads the events written to the outbox. `http-agent-version-checker.spec.ts` runs the Hephaestus client against a local HTTP server; Hephaestus's side of the check is tested in `../hephaestus/test/agents.e2e-spec.ts`.

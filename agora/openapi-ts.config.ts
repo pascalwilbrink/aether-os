@@ -1,0 +1,38 @@
+import { defineConfig } from '@hey-api/openapi-ts';
+
+// Generated from the specs in @aether-os/contracts (docs/engineering.md); the
+// output is committed and never edited by hand. Regenerate with
+// `pnpm generate:api`.
+export default defineConfig([
+  // Agora's own API: types and Zod schemas.
+  {
+    input: 'node_modules/@aether-os/contracts/agora.openapi.yaml',
+    output: {
+      path: 'libs/core/src/api/generated',
+      importFileExtension: '.js',
+      clean: true,
+    },
+    plugins: ['@hey-api/typescript', 'zod'],
+  },
+  // Hephaestus's API: a typed HTTP client, used behind AgentVersionChecker
+  // (whether a version's model, tools and skills can be chosen).
+  {
+    input: 'node_modules/@aether-os/contracts/hephaestus.openapi.yaml',
+    output: {
+      path: 'libs/core/src/clients/hephaestus/generated',
+      importFileExtension: '.js',
+      clean: true,
+    },
+    plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
+  },
+  // Polis's API: a typed HTTP client, used behind PolisClient.
+  {
+    input: 'node_modules/@aether-os/contracts/polis.openapi.yaml',
+    output: {
+      path: 'libs/core/src/clients/polis/generated',
+      importFileExtension: '.js',
+      clean: true,
+    },
+    plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
+  },
+]);

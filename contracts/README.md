@@ -8,8 +8,10 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 
 | Spec | Served by | Consumed by |
 |---|---|---|
-| `polis.openapi.yaml` | Polis | Hephaestus, Pistis, Kairos and Kerykes (generated HTTP clients); later Agora, Iris |
-| `hephaestus.openapi.yaml` | Hephaestus | Iris |
+| `polis.openapi.yaml` | Polis | Hephaestus, Pistis, Kairos, Kerykes and Agora (generated HTTP clients); later Iris |
+| `hephaestus.openapi.yaml` | Hephaestus | Iris; Agora (`checkAgentVersion`, generated HTTP client) |
+| `agora.openapi.yaml` | Agora (agents and their versions) | later Iris |
+| `agora.asyncapi.yaml` | Agora (agent and version events on `agora.events`) | later Hephaestus (its copy of agents and published versions), Kairos, Kriterion |
 | `pistis.openapi.yaml` | Pistis | Iris; Kerykes (users' email addresses, generated HTTP client) |
 | `proxenos.openapi.yaml` | Proxenos (the GitHub App, repository links, tokens, webhooks) | later Hephaestus (repository tokens) and Iris |
 | `proxenos.asyncapi.yaml` | Proxenos (events on `proxenos.events`) | Hephaestus (pull requests), Kairos (issues) |
