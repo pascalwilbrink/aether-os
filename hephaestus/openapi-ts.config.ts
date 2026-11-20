@@ -34,4 +34,14 @@ export default defineConfig([
     },
     plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
   },
+  // Loculus's API: files a task produces (docs/files.md).
+  {
+    input: 'node_modules/@aether-os/contracts/loculus.openapi.yaml',
+    output: {
+      path: 'libs/core/src/clients/loculus/generated',
+      importFileExtension: '.js',
+      clean: true,
+    },
+    plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
+  },
 ]);

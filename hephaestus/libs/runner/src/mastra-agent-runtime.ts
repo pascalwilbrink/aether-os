@@ -36,7 +36,9 @@ import {
   type AgentRunResult,
   type ArtifactSink,
 } from './agent-runtime.js';
+import { FileStoreError } from './file-store.js';
 import { RunnerFailure } from './runner.errors.js';
+import type { SandboxFiles } from './sandbox-files.js';
 import type { Sandbox } from './sandbox-provisioner.js';
 import {
   InMemorySkillSource,
@@ -76,6 +78,11 @@ export class MastraAgentRuntime extends AgentRuntime {
      * OpenTelemetry spans under the execution's.
      */
     private readonly mastra?: Mastra,
+    /**
+     * Where files the agent submits from its sandbox are kept (Loculus):
+     * without it, or without a sandbox, the agent has no `submit_file`.
+     */
+    private readonly files?: SandboxFiles,
   ) {
     super();
   }
@@ -112,7 +119,15 @@ export class MastraAgentRuntime extends AgentRuntime {
     );
     try {
       return await this.generate(
-        { task, agentVersion, sandbox, artifacts, revisions, failedChecks },
+        {
+          task,
+          agentVersion,
+          sandbox,
+          artifacts,
+          revisions,
+          failedChecks,
+          token,
+        },
         { repository, conflict, signal },
         context,
         resolved,
@@ -132,6 +147,7 @@ export class MastraAgentRuntime extends AgentRuntime {
       artifacts,
       revisions,
       failedChecks,
+      token,
     }: Pick<
       AgentRunInput,
       | 'task'
@@ -140,6 +156,7 @@ export class MastraAgentRuntime extends AgentRuntime {
       | 'artifacts'
       | 'revisions'
       | 'failedChecks'
+      | 'token'
     >,
     {
       repository,
@@ -151,6 +168,9 @@ export class MastraAgentRuntime extends AgentRuntime {
     connected: ConnectedTools,
     skills: SkillForRun[],
   ): Promise<AgentRunResult> {
+    // Files leave the sandbox only through Hephaestus, to Loculus.
+    const files =
+      sandbox?.exec && this.files?.available ? this.files : undefined;
     const agent = new Agent({
       id: `agent-version-${agentVersion.id}`,
       name: `${agentVersion.agentId} v${agentVersion.version}`,
@@ -162,6 +182,13 @@ export class MastraAgentRuntime extends AgentRuntime {
       tools: {
         ...connected.tools,
         submit_artifact: submitArtifactTool(artifacts),
+        ...(files && sandbox
+          ? {
+              submit_file: submitFileTool(artifacts, (submission) =>
+                files.submit(sandbox, task, token, submission),
+              ),
+            }
+          : {}),
       },
       // The execution's sandbox, with Mastra's workspace tools (running
       // commands in it); none without one.
@@ -212,13 +239,16 @@ export class MastraAgentRuntime extends AgentRuntime {
     };
     try {
       const result = await agent.generate(
-        withSkills(
-          withTools(
-            promptFor(task, revisions, failedChecks, repository, conflict),
-            Object.keys(connected.tools),
+        withKeeping(
+          withSkills(
+            withTools(
+              promptFor(task, revisions, failedChecks, repository, conflict),
+              Object.keys(connected.tools),
+            ),
+            skills,
+            Boolean(sandbox?.exec),
           ),
-          skills,
-          Boolean(sandbox?.exec),
+          { sandbox: Boolean(sandbox), files: Boolean(files), repository },
         ),
         {
           abortSignal: signal,
@@ -359,7 +389,13 @@ export function promptFor(
     const content =
       artifact.kind === 'text'
         ? artifact.content
-        : JSON.stringify((artifact as { content?: unknown }).content, null, 2);
+        : artifact.kind === 'file'
+          ? `A file: ${artifact.fileName} (${artifact.contentType}, ${artifact.sizeBytes} bytes). Submit the revised file with submit_file.`
+          : JSON.stringify(
+              (artifact as { content?: unknown }).content,
+              null,
+              2,
+            );
     const comments = (artifact.review?.comments ?? [])
       .map((comment) =>
         comment.anchor
@@ -466,6 +502,40 @@ async function copySkills(
       }
     }
   }
+}
+
+/**
+ * What outlasts the run (docs/tasks.md, Artifacts): the sandbox goes when
+ * the execution ends, so what the agent produced is kept only as artifacts
+ * (and commits, in a repository).
+ */
+function withKeeping(
+  prompt: string,
+  {
+    sandbox,
+    files,
+    repository,
+  }: {
+    sandbox: boolean;
+    files: boolean;
+    repository: AgentRunInput['repository'];
+  },
+): string {
+  if (!sandbox) {
+    return prompt;
+  }
+  const keep = files
+    ? 'submit a file you made with submit_file (its path), and text or JSON with submit_artifact'
+    : 'submit it with submit_artifact (text or JSON); files themselves are not kept';
+  return [
+    prompt,
+    '',
+    '## What is kept',
+    '',
+    repository
+      ? `Your sandbox is deleted when the task ends. Besides your commits, to keep something you produced, ${keep}.`
+      : `Your sandbox is deleted when the task ends, with everything in it. To keep what you produce, ${keep}.`,
+  ].join('\n');
 }
 
 /** Where the repository is, and that only commits are kept. */
@@ -620,6 +690,67 @@ function submitArtifactTool(artifacts: ArtifactSink) {
         };
       }
       return artifacts.submit(artifact);
+    },
+  });
+}
+
+/**
+ * The tool an agent keeps a file from its sandbox with: Hephaestus reads it
+ * out and stores it in Loculus (`SandboxFiles`), then records it as a
+ * `file` artifact. What goes wrong is a tool error the agent sees.
+ */
+function submitFileTool(
+  artifacts: ArtifactSink,
+  submit: (
+    submission: Parameters<SandboxFiles['submit']>[3],
+  ) => Promise<NewArtifact>,
+) {
+  return createTool({
+    id: 'submit_file',
+    description:
+      'Keep a file you made in your sandbox (e.g. index.html, a report.pdf, an image) as a result of this task. ' +
+      'Give its path (relative to /workspace, or absolute). ' +
+      'Mark the main outcome of the task with primary: true (the last one marked wins).',
+    inputSchema: z.object({
+      path: z.string().min(1).max(4096).describe('The file in your sandbox'),
+      title: z.string().min(1).max(200).describe('A short name for it'),
+      fileName: z
+        .string()
+        .min(1)
+        .max(255)
+        .optional()
+        .describe("Its name when downloaded; the path's last part if left out"),
+      contentType: z
+        .string()
+        .max(255)
+        .optional()
+        .describe(
+          'Its media type, e.g. text/html; from its extension if left out',
+        ),
+      primary: z.boolean().optional(),
+      revises: z
+        .string()
+        .uuid()
+        .optional()
+        .describe(
+          'When revising: the ID of the artifact a reviewer sent back that this replaces',
+        ),
+    }),
+    execute: async (input) => {
+      let artifact: NewArtifact;
+      try {
+        artifact = await submit(input);
+      } catch (error) {
+        if (error instanceof FileStoreError) {
+          throw new Error(error.message);
+        }
+        throw error;
+      }
+      const { artifactId } = await artifacts.submit(artifact);
+      return {
+        artifactId,
+        fileName: (artifact as { fileName: string }).fileName,
+      };
     },
   });
 }

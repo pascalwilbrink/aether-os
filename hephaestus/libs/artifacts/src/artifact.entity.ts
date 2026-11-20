@@ -3,7 +3,8 @@ import { Check, Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import type { ApiTypes } from '@hephaestus/core';
 
 export type ArtifactStatus = ApiTypes.ArtifactStatus;
-export type ArtifactKind = 'text' | 'json' | 'verification' | 'pull_request';
+export type ArtifactKind =
+  'text' | 'json' | 'verification' | 'pull_request' | 'file';
 
 /** A `text` artifact's content. */
 export interface TextContent {
@@ -39,6 +40,18 @@ export interface PullRequestContent {
 /** The decision on a draft (docs/tasks.md, Request changes). */
 export type ArtifactReview = ApiTypes.ArtifactReview;
 
+/**
+ * A `file` artifact's content: the file in Loculus (docs/files.md), in the
+ * artifact's project. Its ID, never a URL.
+ */
+export interface FileContent {
+  fileId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  sha256: string;
+}
+
 /** A `json` artifact's content. */
 export interface JsonContent {
   schema: string | null;
@@ -56,7 +69,7 @@ export interface JsonContent {
 )
 @Check(
   'ck_artifacts_kind',
-  `kind IN ('text', 'json', 'verification', 'pull_request')`,
+  `kind IN ('text', 'json', 'verification', 'pull_request', 'file')`,
 )
 // A task's artifacts in order (keyset pagination).
 @Index('ix_artifacts_task_id_created_at_id', ['taskId', 'createdAt', 'id'])
@@ -109,7 +122,12 @@ export class ArtifactEntity {
 
   /** The kind's own fields (`TextContent`, `JsonContent`). */
   @Column({ type: 'jsonb' })
-  body: TextContent | JsonContent | VerificationContent | PullRequestContent;
+  body:
+    | TextContent
+    | JsonContent
+    | VerificationContent
+    | PullRequestContent
+    | FileContent;
 
   /** Set when someone decided on it as a draft. */
   @Column({ type: 'jsonb', nullable: true })

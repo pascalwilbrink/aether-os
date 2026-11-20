@@ -19,6 +19,7 @@ import {
   FakeSecretStore,
   ScriptedLanguageModels,
 } from '../../../test/fake-models.js';
+import { FakeLoculus } from '../../../test/fake-loculus.js';
 import type { FakePolis } from '../../../test/fake-polis.js';
 import {
   FakeTaskTokens,
@@ -28,9 +29,11 @@ import { createTestingModuleWith } from '../../../test/testing-module.js';
 import { AgentRuntime } from './agent-runtime.js';
 import { DockerSandboxDriver } from './docker-sandbox-driver.js';
 import { ExecutionHistory } from './execution-history.js';
+import { LoculusFileStore } from './file-store.js';
 import { MastraAgentRuntime } from './mastra-agent-runtime.js';
 import { RunnerModule } from './runner.module.js';
 import { RUNNER_OPTIONS } from './runner.options.js';
+import { SandboxFiles } from './sandbox-files.js';
 import { SandboxDriver } from './sandbox-driver.js';
 import { SandboxProvisioner } from './sandbox-provisioner.js';
 import { TaskRunner } from './task-runner.js';
@@ -329,10 +332,12 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
   let organizationId: string;
   let projectId: string;
   let tasks: TasksService;
+  let loculus: FakeLoculus;
   let key = 0;
 
   beforeEach(async () => {
     const secrets = new FakeSecretStore();
+    loculus = await new FakeLoculus().start();
     models = new ScriptedLanguageModels();
     ({ moduleRef, polis } = await createTestingModuleWith(
       (builder) =>
@@ -346,7 +351,15 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
               budgets: BudgetsService,
               toolServers: ToolServersService,
               skills: SkillsService,
-            ) => new MastraAgentRuntime(gateway, budgets, toolServers, skills),
+            ) =>
+              new MastraAgentRuntime(
+                gateway,
+                budgets,
+                toolServers,
+                skills,
+                undefined,
+                new SandboxFiles(new LoculusFileStore(loculus.url), 1024),
+              ),
             inject: [
               ModelGateway,
               BudgetsService,
@@ -383,6 +396,7 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
 
   afterEach(async () => {
     await moduleRef.close();
+    await loculus.stop();
   });
 
   const caller = () =>
@@ -497,6 +511,79 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
       }),
     ]);
     expect(await sandboxContainers(executionId)).toEqual([]);
+  });
+
+  it('keeps a file the agent made in its sandbox, in Loculus, as the task', async () => {
+    models.replies = [
+      {
+        toolCall: {
+          tool: 'execute_command',
+          input: { command: "printf '<h1>Hello</h1>' > index.html" },
+        },
+      },
+      {
+        toolCall: {
+          tool: 'submit_file',
+          input: { path: 'gone.html', title: 'Nothing' },
+        },
+      },
+      {
+        toolCall: {
+          tool: 'submit_file',
+          input: { path: 'index.html', title: 'Homepage', primary: true },
+        },
+      },
+      { text: 'Made the page.' },
+    ];
+    const task = await taskFor(true);
+
+    await runner().tick();
+    await runner().drain();
+
+    await expect(
+      tasks.findById(organizationId, projectId, task.id),
+    ).resolves.toMatchObject({ status: 'succeeded' });
+    // The agent is told what's kept; a file that isn't there is its error.
+    expect(JSON.stringify(models.calls[0].prompt.at(-1))).toContain(
+      'Your sandbox is deleted when the task ends',
+    );
+    expect(JSON.stringify(models.calls[2].prompt.at(-1))).toContain(
+      '/workspace/gone.html is not a file in your sandbox.',
+    );
+
+    const [file] = [...loculus.files.values()];
+    expect(file).toMatchObject({
+      organizationId,
+      projectId,
+      fileName: 'index.html',
+      contentType: 'text/html',
+      status: 'available',
+      bytes: Buffer.from('<h1>Hello</h1>'),
+    });
+    expect(loculus.requests[0].authorization).toBe(
+      `Bearer task-token-for-${task.id}`,
+    );
+    const artifacts = (await moduleRef
+      .get(DataSource)
+      .query(
+        `SELECT kind, status, "primary", title, body FROM artifacts WHERE task_id = $1 AND kind = 'file'`,
+        [task.id],
+      )) as Record<string, unknown>[];
+    expect(artifacts).toEqual([
+      {
+        kind: 'file',
+        status: 'final',
+        primary: true,
+        title: 'Homepage',
+        body: {
+          fileId: file.id,
+          fileName: 'index.html',
+          contentType: 'text/html',
+          sizeBytes: 14,
+          sha256: file.sha256,
+        },
+      },
+    ]);
   });
 
   it("copies the version's skills into the sandbox, to run their scripts", async () => {

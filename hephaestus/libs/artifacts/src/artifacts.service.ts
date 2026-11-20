@@ -19,6 +19,7 @@ import { TasksService } from '@hephaestus/tasks';
 import {
   ArtifactEntity,
   type ArtifactStatus,
+  type FileContent,
   type PullRequestContent,
 } from './artifact.entity.js';
 import { ArtifactRejectedError } from './artifact.errors.js';
@@ -49,6 +50,8 @@ export type NewArtifact = NewArtifactBase &
   (
     | { kind: 'text'; format: 'markdown' | 'plain'; content: string }
     | { kind: 'json'; schema?: string | null; content: unknown }
+    // Uploaded to Loculus by Hephaestus from the agent's sandbox first.
+    | ({ kind: 'file' } & FileContent)
   );
 
 /** A round of checks, recorded by Hephaestus (never by the agent). */
@@ -119,12 +122,15 @@ export class ArtifactsService {
     source: ArtifactSource,
     input: NewArtifact | NewPullRequest,
   ): Promise<ArtifactResponse> {
+    // A file's bytes are in Loculus; only what's inline counts here.
     const size =
       input.kind === 'text'
         ? Buffer.byteLength(input.content)
         : input.kind === 'pull_request'
           ? Buffer.byteLength(input.description)
-          : Buffer.byteLength(JSON.stringify(input.content ?? null));
+          : input.kind === 'file'
+            ? 0
+            : Buffer.byteLength(JSON.stringify(input.content ?? null));
     if (size > MAX_CONTENT_BYTES) {
       throw new ArtifactRejectedError(
         `The content is ${size} bytes; at most ${MAX_CONTENT_BYTES} are allowed`,

@@ -629,6 +629,18 @@ export type PullRequestArtifact = ArtifactBase & {
     } | null;
 };
 
+export type FileArtifact = ArtifactBase & {
+    kind: 'file';
+    /**
+     * The file in Loculus.
+     */
+    fileId: string;
+    fileName: string;
+    contentType: string;
+    sizeBytes: number;
+    sha256: string;
+};
+
 export type CriterionResult = {
     key: string;
     outcome: 'passed' | 'failed' | 'manual';
@@ -649,7 +661,9 @@ export type ArtifactResponse = ({
     kind: 'verification';
 } & VerificationArtifact) | ({
     kind: 'pull_request';
-} & PullRequestArtifact);
+} & PullRequestArtifact) | ({
+    kind: 'file';
+} & FileArtifact);
 
 export type ArtifactReview = {
     decision: 'approved' | 'rejected' | 'changes_requested';

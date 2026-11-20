@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Loculus
 
-Loculus is the Aether-os service for **files** (see `../CLAUDE.md` and `../docs/files.md`); a *loculus* (Latin) is a small compartment or niche. It keeps each project's files in S3-compatible storage (RustFS locally, AWS S3 or another in production) and issues **signed URLs** to upload and download them: the bytes go straight between the client and the storage, never through Loculus. Planned: file artifacts in Hephaestus, uploads and previews in Iris, refusing uploads in suspended organizations and archived projects (Polis's events), sweeping uploads that were never completed, retention, events, multipart uploads.
+Loculus is the Aether-os service for **files** (see `../CLAUDE.md` and `../docs/files.md`); a *loculus* (Latin) is a small compartment or niche. It keeps each project's files in S3-compatible storage (RustFS locally, AWS S3 or another in production) and issues **signed URLs** to upload and download them: the bytes go straight between the client and the storage, never through Loculus. Hephaestus keeps agents' files here (file artifacts, with the task's token) and Iris downloads them. Planned: uploads and previews in Iris, refusing uploads in suspended organizations and archived projects (Polis's events), sweeping uploads that were never completed, retention, events, multipart uploads.
 
 It follows `../docs/engineering.md` like Kerykes: NestJS 12 (ESM, TypeScript 6), controller → service → TypeORM repository with mappers, Zod DTOs generated from the spec, Postgres with migrations, tests against Postgres and RustFS in containers. It has no RabbitMQ yet (it publishes and consumes nothing), but keeps Krepis's peer dependencies installed.
 

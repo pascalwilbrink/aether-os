@@ -66,6 +66,10 @@ export const config = {
   get kerykesUrl() {
     return value("KERYKES_URL", "http://localhost:3006");
   },
+  /** Files: downloads of file artifacts (signed URLs). */
+  get loculusUrl() {
+    return value("LOCULUS_URL", "http://localhost:3007");
+  },
   /**
    * Where people browse traces (optional; no links without them): Jaeger's
    * UI, and Langfuse's with the project the Collector sends to.

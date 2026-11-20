@@ -163,6 +163,17 @@ export const zEnv = z
      * a repository. Without it such tasks fail.
      */
     PROXENOS_URL: z.url({ protocol: /^https?$/ }).optional(),
+    /**
+     * Loculus's API (docs/files.md): where files agents submit from their
+     * sandboxes are kept. Without it agents have no `submit_file`.
+     */
+    LOCULUS_URL: z.url({ protocol: /^https?$/ }).optional(),
+    /** The largest file an agent can submit from its sandbox. */
+    FILE_ARTIFACT_MAX_BYTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(25 * 1024 * 1024),
   })
   .superRefine((env, ctx) => {
     if (env.AGENT_RUNTIME === 'mastra') {
