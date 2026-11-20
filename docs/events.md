@@ -127,6 +127,22 @@ Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created` (with
 | `document.version-published` | document reference | Hephaestus, Iris |
 | `document.deleted` | `documentId` | Hephaestus, Loculus cleanup |
 
+### Learning, sessions and meetings (Proposal)
+
+From `learning.md`, `knowledge.md`, `skills.md` and `interaction.md`; none are published yet.
+
+| Producer | Event | Payload | Consumers |
+|---|---|---|---|
+| Hephaestus | `task.feedback-recorded` | `taskId`, `artifactId`, `rating`, `givenBy` | Kriterion, Iris |
+| Hephaestus | `task.outcome-recorded` | `taskId`, `agentVersionId`, `taskTemplateVersion`, skill versions and knowledge items used, verification rounds, review and delivery outcome, `costUsd` (IDs and numbers, no content) | Kriterion, Kairos (skill extraction triggers) |
+| Hephaestus | `session.started` / `session.ended` | `sessionId`, `projectId`, `agentVersionId`, `userId`; usage when ended | Iris |
+| Seshat | `knowledge-item.proposed` / `.accepted` / `.superseded` / `.retired` | `itemId`, `projectId`, `type`, `version`, `source` | Kerykes (proposals to review), Iris |
+| Seshat | `document.indexed` | `itemId`, `projectId`, `version`, outcome | Iris |
+| Agora | `skill-version.published` | `skillId`, `skillVersionId`, `version`, provenance | Hephaestus (its copy), Kriterion |
+| Agora | `skill-candidate.created` / `.evaluated` / `.rejected` | `candidateId`, `skillId`, evaluation reference | Kriterion, Kerykes, Iris |
+| Proxenos | `meeting.scheduled` / `.started` / `.failed` | `meetingId`, `projectId` | Iris |
+| Proxenos | `meeting.transcript-ready` | `meetingId`, `projectId`, `fileId`, participants' display names | Kairos (meeting automations), Iris |
+
 ### Kriterion (`kriterion.events`)
 
 | Event | Payload | Consumers |

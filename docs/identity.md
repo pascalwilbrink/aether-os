@@ -60,6 +60,7 @@ Short-lived JWTs (5–15 minutes) signed by Pistis with asymmetric keys. Service
 - `project_roles` carries only explicit project grants, which are never `admin`. Organization `owner`s and `admin`s are project `admin` everywhere, which Krepis derives from `org_roles`, so their tokens need no project list.
 - **Delegation** uses OAuth 2.0 token exchange (RFC 8693). When Kairos fires an automation, it exchanges its own service token for one with `sub` = the automation's service account and `act` = Kairos. Audit logs record both.
 - **Task tokens:** when a task starts, Hephaestus exchanges for a token for the automation's service account, limited by `project_id` to the task's project, carrying `task_id`, and valid only for the task's lifetime. The task uses it for everything: OpenBao, Seshat, Loculus and other Aether-os APIs. Pistis's exchange rules decide which services may obtain tokens for which principals; for example, only Hephaestus may obtain task tokens.
+- **Session tokens** (Proposal, `interaction.md`): for a copilot or voice session, Hephaestus exchanges for a token with `sub` = the person, `act` = Hephaestus and `session_id`, limited to the session's project and to read permissions, valid for minutes and renewed while the session is active. The agent sees what the person can see and changes nothing itself; side effects are frontend actions the person confirms with their own token, or tasks.
 - **Chat action tokens:** when a linked user answers a review from Slack or Teams, Proxenos exchanges for a token with `sub` = that user and `act` = Proxenos, valid for about a minute and for that one action. Only Proxenos may obtain these, and only for users whose chat account is linked in Pistis (see `notifications.md`).
 
 ## Roles
@@ -118,6 +119,7 @@ Named `resource:action`. Organization-scoped permissions are checked against `or
 | `org:task-template:manage` (organization-wide task templates) | org | ✓ | ✓ | | |
 | `org:policy:write` (organization-wide policies) | org | ✓ | ✓ | | |
 | `org:secret:write` (organization-wide secrets) | org | ✓ | ✓ | | |
+| `org:knowledge:write` (organization-wide knowledge items, `knowledge.md`; Proposal) | org | ✓ | ✓ | | |
 
 The organization-wide variants carry an `org:` prefix in code, so every permission name has exactly one scope.
 
@@ -140,9 +142,15 @@ The organization-wide variants carry an `org:` prefix in code, so every permissi
 | `file:read` (a project's files in Loculus, and links to download them, `files.md`) | project | ✓ | ✓ | ✓ | ✓ |
 | `file:write` (uploading and deleting them) | project | ✓ | ✓ | ✓ | |
 | `repository:token` (a short-lived token for one of the project's linked repositories, from Proxenos; only with a task token, `../docs/git.md`) | project | ✓ | ✓ | ✓ | |
+| `knowledge:read` (project knowledge in Seshat, `knowledge.md`; Proposal) | project | ✓ | ✓ | ✓ | ✓ |
+| `knowledge:write` (creating and editing items, uploading documents; Proposal) | project | ✓ | ✓ | ✓ | |
+| `knowledge:approve` (accepting or rejecting proposals; only people; Proposal) | project | ✓ | ✓ | | |
+| `session:use` (copilot and voice sessions, `interaction.md`; Proposal) | project | ✓ | ✓ | ✓ | ✓ |
+| `meeting:read` / `meeting:manage` (the meeting agent, `interaction.md`; Proposal) | project | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / |
 
 Approval is gated only by `task:approve`: every principal holding it in the task's project can approve that task, with two rules:
 
+- **Only people approve knowledge either** (Proposal): `knowledge:approve` is dropped for tokens whose `sub_type` isn't `user`, so agents propose knowledge and never accept it.
 - **Only people approve.** A service account never has `task:approve`, whatever its roles: Polis refuses to grant `approver` to a service account, and Krepis drops `task:approve` for any token whose `sub_type` isn't `user` (which also covers a service account with an organization `admin` role). An agent or automation can therefore never approve its own work.
 - **Self-approval is allowed.** A user who requested a task may approve it themselves if they hold `task:approve`. The audit log records requester and approver, so self-approvals stay visible.
 
