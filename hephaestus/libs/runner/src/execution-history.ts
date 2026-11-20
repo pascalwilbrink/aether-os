@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
@@ -27,6 +27,24 @@ export class ExecutionHistory {
     private readonly gateway: ModelGateway,
     private readonly workspaces: WorkspacesService,
   ) {}
+
+  /** An execution's status; 404 when it isn't one of this task's. */
+  async statusOf(
+    organizationId: string,
+    projectId: string,
+    taskId: string,
+    executionId: string,
+  ): Promise<ExecutionResponse['status']> {
+    await this.tasks.findById(organizationId, projectId, taskId);
+    const execution = await this.executions.findOne({
+      where: { id: executionId, taskId },
+      select: { id: true, status: true },
+    });
+    if (!execution) {
+      throw new NotFoundException(`Execution ${executionId} not found`);
+    }
+    return execution.status;
+  }
 
   async list(
     organizationId: string,

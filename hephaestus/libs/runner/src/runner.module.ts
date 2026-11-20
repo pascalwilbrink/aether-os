@@ -15,6 +15,8 @@ import { TasksModule } from '@hephaestus/tasks';
 import { AgentRuntime } from './agent-runtime.js';
 import { EchoAgentRuntime, NoAgentRuntime } from './echo-agent-runtime.js';
 import { ExecutionEntity } from './execution.entity.js';
+import { ExecutionEventEntity } from './execution-event.entity.js';
+import { ExecutionEventsService } from './execution-events.service.js';
 import { agentTracing } from './agent-tracing.js';
 import { MastraAgentRuntime } from './mastra-agent-runtime.js';
 import { ExecutionMapper } from './execution.mapper.js';
@@ -59,7 +61,7 @@ import {
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ExecutionEntity]),
+    TypeOrmModule.forFeature([ExecutionEntity, ExecutionEventEntity]),
     TasksModule,
     AgentsModule,
     ModelsModule,
@@ -196,6 +198,7 @@ import {
     ExecutionMapper,
     ExecutionsService,
     ExecutionHistory,
+    ExecutionEventsService,
     ExecutionReaper,
     ExecutionPreparer,
     Verifier,

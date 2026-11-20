@@ -34,6 +34,7 @@ import {
 import { FakeToolServer } from '../../../test/fake-tool-server.js';
 import { createTestingModuleWith } from '../../../test/testing-module.js';
 import { AgentRuntime } from './agent-runtime.js';
+import { ExecutionEventsService } from './execution-events.service.js';
 import { ExecutionHistory } from './execution-history.js';
 import { mastraWithTracing } from './agent-tracing.js';
 import { MastraAgentRuntime } from './mastra-agent-runtime.js';
@@ -316,6 +317,92 @@ describe('MastraAgentRuntime (Postgres)', () => {
     expect(execution).toMatchObject({
       summary: 'All done.',
       usage: { modelCalls: 3 },
+    });
+  });
+
+  it("keeps the execution's activity: the runner's steps, each model call and each tool call", async () => {
+    secrets.secrets.set(`orgs/${organizationId}/llm/scripted`, {
+      apiKey: 'sk-organization',
+    });
+    models.replies = [
+      {
+        toolCall: {
+          tool: 'submit_artifact',
+          input: {
+            kind: 'text',
+            title: 'Notes',
+            content: 'Use token=abcd1234efgh to log in.',
+            primary: true,
+          },
+        },
+      },
+      {
+        toolCall: {
+          tool: 'submit_artifact',
+          input: { kind: 'json', title: 'Broken', content: 'not json' },
+        },
+      },
+      { text: 'All done.' },
+    ];
+    const { task: created } = await taskFor();
+
+    await runOnce();
+
+    const [execution] = await executionsOf(created.id);
+    const events = moduleRef.get(ExecutionEventsService);
+    const page = await events.list(
+      organizationId,
+      projectId,
+      created.id,
+      execution.id,
+      { after: 0, limit: 200 },
+    );
+    expect(page.executionStatus).toBe('completed');
+    expect(page.items.map((event) => event.sequence)).toEqual(
+      page.items.map((_, index) => index + 1),
+    );
+    const summary = page.items.map((event) => [event.type, event.message]);
+    expect(summary).toEqual([
+      ['log', 'Execution started (attempt 1)'],
+      ['log', 'No sandbox: this agent version runs without one'],
+      ['log', expect.stringMatching(/^Agent running \(version \d+\)$/)],
+      [
+        'model_call',
+        expect.stringMatching(/^Model call \(\d+ in, \d+ out\): tool-calls$/),
+      ],
+      ['tool_call', 'submit_artifact'],
+      ['model_call', expect.stringMatching(/^Model call/)],
+      ['tool_call', 'submit_artifact failed'],
+      ['model_call', expect.stringMatching(/: stop$/)],
+      ['log', 'The agent finished; checking its work'],
+      ['log', 'Verification round 1: no acceptance criteria'],
+      ['log', 'Completed'],
+    ]);
+    const [submitted, refused] = page.items.filter(
+      (event) => event.type === 'tool_call',
+    );
+    // Inputs are kept as JSON, with what looks like a secret redacted.
+    expect(submitted.input).toContain('"title":"Notes"');
+    expect(submitted.input).toContain('token=[redacted]');
+    expect(submitted.input).not.toContain('abcd1234efgh');
+    expect(refused).toMatchObject({
+      level: 'warn',
+      output: 'content is not valid JSON',
+    });
+    expect(page.items.at(-4)).toMatchObject({ text: 'All done.' });
+
+    // Following it: nothing after the last one.
+    const rest = await events.list(
+      organizationId,
+      projectId,
+      created.id,
+      execution.id,
+      { after: page.nextAfter, limit: 200 },
+    );
+    expect(rest).toEqual({
+      items: [],
+      nextAfter: page.nextAfter,
+      executionStatus: 'completed',
     });
   });
 

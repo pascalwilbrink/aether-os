@@ -28,6 +28,7 @@ import { ExecutionPreparer } from './execution-preparer.js';
 import { ExecutionReaper, seconds } from './execution-reaper.js';
 import { ExecutionsService } from './executions.service.js';
 import { executionAttributes, recordedTraceId } from './execution-tracing.js';
+import type { ExecutionActivity } from './execution-activity.js';
 import { RunnerFailure } from './runner.errors.js';
 import { BranchConflictError, type Checkout } from './repository-checkouts.js';
 import { RUNNER_OPTIONS, type RunnerOptions } from './runner.options.js';
@@ -228,6 +229,11 @@ export class TaskRunner
     ];
     let sandbox: Sandbox | null = null;
     let checkout: Checkout | null = null;
+    // What people follow in Iris (docs/tasks.md, Activity).
+    const activity = this.executions.activityFor(executionId);
+    activity.log(
+      `Execution started (attempt ${task.attempt}${task.repository ? ', in a repository' : ''})`,
+    );
 
     try {
       await this.untilStopped(this.preparer.assertBudget(task), signal);
@@ -250,11 +256,19 @@ export class TaskRunner
         this.preparer.sandbox(task, executionId, agentVersion, signal),
         signal,
       );
+      activity.log(
+        agentVersion.runtime.sandboxRequired
+          ? 'Sandbox ready'
+          : 'No sandbox: this agent version runs without one',
+      );
       checkout = await this.untilStopped(
         this.preparer.checkout(task, token, sandbox),
         signal,
       );
       if (checkout) {
+        activity.log(
+          `Checked out ${checkout.fullName} at ${checkout.path}, on ${checkout.branch}`,
+        );
         await this.executions.recordRepository(executionId, {
           linkId: checkout.linkId,
           fullName: checkout.fullName,
@@ -276,6 +290,7 @@ export class TaskRunner
         return;
       }
       timers.push(stopAfter(deadline.getTime() - Date.now(), 'timeout'));
+      activity.log(`Agent running (version ${agentVersion.version})`);
 
       const source = {
         organizationId: task.organizationId,
@@ -303,11 +318,12 @@ export class TaskRunner
             artifactId: await this.executions.recordArtifact(source, artifact),
           }),
         },
+        activity,
         signal,
       };
       await this.runAndVerify(task, source, input, sandbox, checkout, signal);
     } catch (error) {
-      await this.failed(executionId, error);
+      await this.failed(executionId, error, activity);
     } finally {
       timers.forEach(clearTimeout);
       if (checkout) {
@@ -316,6 +332,7 @@ export class TaskRunner
       // Also when provisioning was abandoned: the provisioner finds what
       // the execution left behind by its ID.
       await this.destroy(task.organizationId, executionId, sandbox);
+      await activity.flush();
     }
   }
 
@@ -334,16 +351,26 @@ export class TaskRunner
     signal: AbortSignal,
   ): Promise<void> {
     const { executionId } = input;
+    const activity = input.activity!;
     let failedChecks: FailedCheck[] = [];
     let conflict: BranchConflict | null = null;
     for (let round = 1; ; round++) {
+      if (round > 1) {
+        activity.log(
+          conflict
+            ? `Running the agent again (round ${round}): its commits conflict with ${conflict.branch}`
+            : `Running the agent again (round ${round}): ${failedChecks.map((check) => check.key).join(', ')} failed`,
+        );
+      }
       const result: AgentRunResult = await this.untilStopped(
         this.runtime.run({ ...input, failedChecks, conflict }),
         signal,
       );
       if (result.outcome === 'failed') {
+        activity.log(`The agent gave up: ${result.error}`, 'error');
         return this.executions.fail(executionId, 'agent_failed', result.error);
       }
+      activity.log('The agent finished; checking its work');
       if (!(await this.executions.startVerifying(source, result.summary))) {
         return this.executions.fail(
           executionId,
@@ -365,6 +392,12 @@ export class TaskRunner
         signal,
       );
       const failed = results.filter((r) => r.outcome === 'failed');
+      activity.log(
+        results.length === 0
+          ? `Verification round ${round}: no acceptance criteria`
+          : `Verification round ${round}: ${results.length - failed.length} of ${results.length} passed${failed.length ? ` (failed: ${failed.map((r) => r.key).join(', ')})` : ''}`,
+        failed.length ? 'warn' : 'info',
+      );
       const retry =
         failed.length > 0 && round < this.options.maxVerificationRounds;
       await this.executions.recordVerification(source, round, results, retry);
@@ -403,6 +436,7 @@ export class TaskRunner
             continue;
           }
         }
+        activity.log('Completed');
         return this.executions.complete(
           source,
           result.summary,
@@ -410,6 +444,10 @@ export class TaskRunner
         );
       }
       if (!retry) {
+        activity.log(
+          `Acceptance criteria still failing after ${round} rounds`,
+          'error',
+        );
         return this.executions.fail(
           executionId,
           'verification_failed',
@@ -457,6 +495,9 @@ export class TaskRunner
         this.preparer.push(checkout, task, input.token, collected.headSha),
         signal,
       );
+      input.activity?.log(
+        `Pushed ${collected.commits} commit${collected.commits === 1 ? '' : 's'} to ${checkout.branch}`,
+      );
       await this.executions.recordPullRequest(source, {
         kind: 'pull_request',
         title: task.title,
@@ -476,7 +517,11 @@ export class TaskRunner
   }
 
   /** Records why an execution ended early. */
-  private async failed(executionId: string, error: unknown): Promise<void> {
+  private async failed(
+    executionId: string,
+    error: unknown,
+    activity: ExecutionActivity,
+  ): Promise<void> {
     // On the execution's span: how it ended (messages are for people, never
     // secrets). A pause for a budget or a cancellation isn't an error.
     const span = trace.getActiveSpan();
@@ -489,6 +534,14 @@ export class TaskRunner
             ? error.message
             : String(error);
     span?.setAttribute('aether.execution.ended', reason.slice(0, 200));
+    activity.log(
+      reason === 'cancelled'
+        ? 'Cancelled'
+        : reason === 'paused'
+          ? `Paused: ${error instanceof Error ? error.message : 'a budget ran out'}`
+          : `Ended: ${reason}`,
+      reason === 'cancelled' ? 'info' : reason === 'paused' ? 'warn' : 'error',
+    );
     if (reason !== 'cancelled' && reason !== 'paused') {
       span?.setStatus({ code: SpanStatusCode.ERROR, message: reason });
     }

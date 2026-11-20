@@ -644,6 +644,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/executions/{executionId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                executionId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * @description What the execution did, as it happens (docs/tasks.md, Activity): the
+         *     runner's steps, each model call and each tool call, oldest first,
+         *     numbered within the execution. Follow a running one by asking again
+         *     with `after` set to the last `sequence` seen (`nextAfter`), until
+         *     `executionStatus` is no longer `provisioning` or `running`. Text is
+         *     shortened and what looks like a secret is redacted before it's kept.
+         */
+        get: operations["listExecutionEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/models": {
         parameters: {
             query?: never;
@@ -1795,6 +1824,41 @@ export interface components {
         };
         ArtifactPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["ArtifactResponse"][];
+        };
+        /**
+         * @description `log`: a step of the runner (the sandbox, the repository, input
+         *     files, verification, pushing commits, how it ended);
+         *     `model_call`: one call to the model (its tokens, what it said);
+         *     `tool_call`: one tool the agent called (its input and output).
+         * @enum {string}
+         */
+        ExecutionEventType: "log" | "model_call" | "tool_call";
+        ExecutionEvent: {
+            /** @description Its place within the execution. */
+            sequence: number;
+            type: components["schemas"]["ExecutionEventType"];
+            /** @enum {string} */
+            level: "info" | "warn" | "error";
+            /** @description One line about it. */
+            message: string;
+            /** @description For a tool call. */
+            toolName: string | null;
+            /** @description For a tool call, its input as JSON (shortened, redacted). */
+            input: string | null;
+            /** @description For a tool call, what it returned (shortened, redacted). */
+            output: string | null;
+            /** @description For a model call, the text it produced (shortened, redacted). */
+            text: string | null;
+            inputTokens: number | null;
+            outputTokens: number | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        ExecutionEventPage: {
+            items: components["schemas"]["ExecutionEvent"][];
+            /** @description Pass as `after` for what comes next (the last sequence returned, or `after` itself). */
+            nextAfter: number;
+            executionStatus: components["schemas"]["ExecutionStatus"];
         };
         /**
          * @description `paused`: a budget ran out (docs/models.md); the task resumes in a new execution.
@@ -3419,6 +3483,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExecutionPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listExecutionEvents: {
+        parameters: {
+            query?: {
+                /** @description Only events after this sequence number (0, the default, for all). */
+                after?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                taskId: components["parameters"]["TaskId"];
+                executionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Oldest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionEventPage"];
                 };
             };
             400: components["responses"]["BadRequest"];

@@ -40,6 +40,7 @@ import { FileStoreError } from './file-store.js';
 import { RunnerFailure } from './runner.errors.js';
 import type { SandboxFiles } from './sandbox-files.js';
 import type { Sandbox } from './sandbox-provisioner.js';
+import { recordStep, type ReportedStep } from './step-activity.js';
 import {
   InMemorySkillSource,
   SANDBOX_SKILLS_ROOT,
@@ -99,6 +100,7 @@ export class MastraAgentRuntime extends AgentRuntime {
     conflict,
     signal,
     token,
+    activity,
   }: AgentRunInput): Promise<AgentRunResult> {
     const context: ModelCallContext = {
       organizationId: task.organizationId,
@@ -128,7 +130,7 @@ export class MastraAgentRuntime extends AgentRuntime {
           failedChecks,
           token,
         },
-        { repository, conflict, signal },
+        { repository, conflict, signal, activity },
         context,
         resolved,
         connected,
@@ -162,7 +164,8 @@ export class MastraAgentRuntime extends AgentRuntime {
       repository,
       conflict,
       signal,
-    }: Pick<AgentRunInput, 'repository' | 'conflict' | 'signal'>,
+      activity,
+    }: Pick<AgentRunInput, 'repository' | 'conflict' | 'signal' | 'activity'>,
     context: ModelCallContext,
     resolved: ResolvedModel,
     connected: ConnectedTools,
@@ -276,6 +279,9 @@ export class MastraAgentRuntime extends AgentRuntime {
             return ranOut !== null;
           },
           onStepFinish: (step) => {
+            if (activity) {
+              recordStep(activity, step as ReportedStep);
+            }
             if (reported++ >= metered) {
               metered++;
               void meter(step as MeteredStep).catch(() => undefined);

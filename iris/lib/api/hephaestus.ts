@@ -7,6 +7,7 @@ import type {
   ApiSchema,
   Artifact,
   Execution,
+  ExecutionEventPage,
   Model,
   Task,
   TaskStatus,
@@ -162,6 +163,21 @@ export const retryTask = (
     `${tasksOf(organizationId, projectId)}/${taskId}/retry`,
     token,
     { method: "POST" },
+  );
+
+/** What an execution did after `after` (docs/tasks.md, Activity), oldest first. */
+export const listExecutionEvents = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+  taskId: string,
+  executionId: string,
+  after = 0,
+  limit = 500,
+) =>
+  hephaestus<ExecutionEventPage>(
+    `${tasksOf(organizationId, projectId)}/${taskId}/executions/${executionId}/events?after=${after}&limit=${limit}`,
+    token,
   );
 
 export const listExecutions = (
