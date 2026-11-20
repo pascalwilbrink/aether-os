@@ -185,6 +185,24 @@ services:
       timeout: 5s
       retries: 10
 
+  # Loculus's files (S3-compatible; the bucket is made by Loculus with
+  # S3_CREATE_BUCKET). Console: localhost:9101/rustfs/console/index.html.
+  rustfs:
+    image: rustfs/rustfs:1.0.5
+    command: ['/data']
+    environment:
+      RUSTFS_ACCESS_KEY: loculus
+      RUSTFS_SECRET_KEY: loculus-dev-secret
+      RUSTFS_CONSOLE_ENABLE: 'true'
+    ports: ['9100:9000', '9101:9001']
+    volumes:
+      - rustfs-data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-fs', 'http://localhost:9000/health']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   # Catches every email sent locally (Kerykes); nothing leaves the machine.
   mailpit:
     image: axllent/mailpit:v1.32.0
@@ -200,3 +218,4 @@ volumes:
   rabbitmq-data:
   clickhouse-data:
   minio-data:
+  rustfs-data:

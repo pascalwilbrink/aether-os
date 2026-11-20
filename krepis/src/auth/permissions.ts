@@ -52,6 +52,9 @@ const PROJECT_PERMISSIONS = {
   'task:approve': ['admin', 'approver'],
   'workspace:read': ['admin', 'approver', 'editor', 'viewer'],
   'workspace:manage': ['admin', 'approver', 'editor'],
+  // Files in Loculus (docs/files.md): reading them, and uploading or deleting.
+  'file:read': ['admin', 'approver', 'editor', 'viewer'],
+  'file:write': ['admin', 'approver', 'editor'],
   // A short-lived token for a linked repository (Proxenos); only task tokens.
   'repository:token': ['admin', 'approver', 'editor'],
 } as const satisfies Record<string, readonly ProjectRole[]>;
