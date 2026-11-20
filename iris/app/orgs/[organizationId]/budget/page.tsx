@@ -2,7 +2,12 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { BudgetForm, BudgetMeter } from "@/app/components/budget";
-import { getAgentBudget, getOrganizationBudget, getProjectBudget, listAgents } from "@/lib/api/hephaestus";
+import {
+  getAgentBudget,
+  getOrganizationBudget,
+  getProjectBudget,
+  listAgents,
+} from "@/lib/api/hephaestus";
 import { getOrganization, listProjects } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
 import { budgetSummary, type Budget } from "@/lib/budgets";
@@ -22,7 +27,10 @@ export default function BudgetPage(props: Props) {
 
 async function Budgets({ params }: Props) {
   const { organizationId } = await params;
-  const session = await requireOrganization(organizationId, `/orgs/${organizationId}/budget`);
+  const session = await requireOrganization(
+    organizationId,
+    `/orgs/${organizationId}/budget`,
+  );
   const token = session.accessToken;
   const [organization, budget, projects, agents] = await Promise.all([
     getOrganization(token, organizationId),
@@ -40,7 +48,10 @@ async function Budgets({ params }: Props) {
     Promise.all(
       agents.items
         .filter((agent) => agent.status === "active")
-        .map(async (agent) => ({ agent, budget: await getAgentBudget(token, organizationId, agent.id) })),
+        .map(async (agent) => ({
+          agent,
+          budget: await getAgentBudget(token, organizationId, agent.id),
+        })),
     ),
   ]);
 
@@ -54,23 +65,29 @@ async function Budgets({ params }: Props) {
         </p>
         <h1 className="text-2xl font-semibold">Budget</h1>
         <p className="mt-1 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
-          What agents&apos; model calls cost, at the prices in force when they were made. The organization, each project
-          and each agent can have a monthly limit (calendar months, UTC); a task tree can have one of its own. When a
-          limit is used up, the tasks that count against it pause, and resume when it&apos;s raised or the next month
-          starts.
+          What agents&apos; model calls cost, at the prices in force when they
+          were made. The organization, each project and each agent can have a
+          monthly limit (calendar months, UTC); a task tree can have one of its
+          own. When a limit is used up, the tasks that count against it pause,
+          and resume when it&apos;s raised or the next month starts.
         </p>
       </div>
 
       <section className="space-y-3">
         <h2 className="font-medium">The organization</h2>
         <BudgetMeter budget={budget} />
-        <BudgetForm budget={budget} action={setOrganizationBudgetAction.bind(null, organizationId)} />
+        <BudgetForm
+          budget={budget}
+          action={setOrganizationBudgetAction.bind(null, organizationId)}
+        />
       </section>
 
       <section className="space-y-3">
         <h2 className="font-medium">Projects</h2>
         {projectBudgets.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">No projects you can see yet.</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            No projects you can see yet.
+          </p>
         ) : (
           <SpendTable
             label="Project"
@@ -82,13 +99,17 @@ async function Budgets({ params }: Props) {
             }))}
           />
         )}
-        <p className="text-xs text-zinc-500">A project&apos;s limit is set on its page.</p>
+        <p className="text-xs text-zinc-500">
+          A project&apos;s limit is set on its page.
+        </p>
       </section>
 
       <section className="space-y-3">
         <h2 className="font-medium">Agents</h2>
         {agentBudgets.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">No agents yet.</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            No agents yet.
+          </p>
         ) : (
           <SpendTable
             label="Agent"
@@ -101,7 +122,8 @@ async function Budgets({ params }: Props) {
           />
         )}
         <p className="text-xs text-zinc-500">
-          An agent&apos;s calls in every project count against its limit, set on its page.
+          An agent&apos;s calls in every project count against its limit, set on
+          its page.
         </p>
       </section>
     </div>
@@ -151,7 +173,9 @@ function SpendTable({
                   </span>
                 )}
               </td>
-              <td className="py-2 text-zinc-600 dark:text-zinc-400">{summary.limit}</td>
+              <td className="py-2 text-zinc-600 dark:text-zinc-400">
+                {summary.limit}
+              </td>
             </tr>
           );
         })}

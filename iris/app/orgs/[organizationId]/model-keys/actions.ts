@@ -17,7 +17,9 @@ export interface KeyRef {
 }
 
 const pathOf = ({ organizationId, agentId }: KeyRef) =>
-  agentId ? `/orgs/${organizationId}/agents/${agentId}` : `/orgs/${organizationId}/model-keys`;
+  agentId
+    ? `/orgs/${organizationId}/agents/${agentId}`
+    : `/orgs/${organizationId}/model-keys`;
 
 function keyMessageOf(error: unknown): string {
   if (!(error instanceof ApiError)) {
@@ -25,7 +27,9 @@ function keyMessageOf(error: unknown): string {
   }
   if (error.status === 503) {
     // Hephaestus says why: OpenBao not configured, refusing its token, or not answering.
-    return error.message || "Keys can't be stored right now. Try again in a moment.";
+    return (
+      error.message || "Keys can't be stored right now. Try again in a moment."
+    );
   }
   return messageOf(error, {
     FORBIDDEN: "Only the organization's owners and admins set provider keys.",
@@ -34,7 +38,11 @@ function keyMessageOf(error: unknown): string {
 }
 
 /** Stores (or replaces) a provider key; it's never shown again. */
-export async function setModelKeyAction(ref: KeyRef, _state: KeyFormState, form: FormData): Promise<KeyFormState> {
+export async function setModelKeyAction(
+  ref: KeyRef,
+  _state: KeyFormState,
+  form: FormData,
+): Promise<KeyFormState> {
   const session = await requireOrganization(ref.organizationId, pathOf(ref));
   if (!isProvider(ref.provider)) {
     return { error: "Unknown provider." };
@@ -47,19 +55,34 @@ export async function setModelKeyAction(ref: KeyRef, _state: KeyFormState, form:
     return { error: key.error };
   }
   try {
-    await setModelKey(session.accessToken, ref.organizationId, ref.provider, key.body, ref.agentId);
+    await setModelKey(
+      session.accessToken,
+      ref.organizationId,
+      ref.provider,
+      key.body,
+      ref.agentId,
+    );
   } catch (error) {
     return { error: keyMessageOf(error) };
   }
   refresh();
-  return { notice: "Saved. The key is stored securely and won't be shown again." };
+  return {
+    notice: "Saved. The key is stored securely and won't be shown again.",
+  };
 }
 
 /** Removes a provider key. */
-export async function deleteModelKeyAction(ref: KeyRef): Promise<{ error?: string }> {
+export async function deleteModelKeyAction(
+  ref: KeyRef,
+): Promise<{ error?: string }> {
   const session = await requireOrganization(ref.organizationId, pathOf(ref));
   try {
-    await deleteModelKey(session.accessToken, ref.organizationId, ref.provider, ref.agentId);
+    await deleteModelKey(
+      session.accessToken,
+      ref.organizationId,
+      ref.provider,
+      ref.agentId,
+    );
   } catch (error) {
     return { error: keyMessageOf(error) };
   }

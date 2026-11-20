@@ -4,7 +4,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { storeValue, useStoredValue } from "@/app/components/stored-value";
-import { cardPosition, TOUR_KEY, TOUR_STEPS, tourOpen, type Rect } from "@/lib/tour";
+import {
+  cardPosition,
+  TOUR_KEY,
+  TOUR_STEPS,
+  tourOpen,
+  type Rect,
+} from "@/lib/tour";
 
 const CARD = { width: 340, height: 260 };
 
@@ -38,11 +44,20 @@ export function Tour({ base }: { base: string }) {
   useEffect(() => {
     if (!open) return;
     const measure = () => {
-      const element = step.target ? document.querySelector(`[data-tour="${step.target}"]`) : null;
+      const element = step.target
+        ? document.querySelector(`[data-tour="${step.target}"]`)
+        : null;
       const box = element?.getBoundingClientRect();
       setTarget(
         box
-          ? { top: box.top, left: box.left, right: box.right, bottom: box.bottom, width: box.width, height: box.height }
+          ? {
+              top: box.top,
+              left: box.left,
+              right: box.right,
+              bottom: box.bottom,
+              width: box.width,
+              height: box.height,
+            }
           : null,
       );
       setViewport({ width: window.innerWidth, height: window.innerHeight });
@@ -62,7 +77,8 @@ export function Tour({ base }: { base: string }) {
     card.current?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") finish();
-      if (event.key === "ArrowRight") setIndex((i) => Math.min(i + 1, TOUR_STEPS.length - 1));
+      if (event.key === "ArrowRight")
+        setIndex((i) => Math.min(i + 1, TOUR_STEPS.length - 1));
       if (event.key === "ArrowLeft") setIndex((i) => Math.max(i - 1, 0));
     };
     document.addEventListener("keydown", onKey);
@@ -96,11 +112,15 @@ export function Tour({ base }: { base: string }) {
         aria-labelledby="tour-title"
         tabIndex={-1}
         className={`absolute rounded-xl border border-zinc-200 bg-white p-5 text-zinc-900 shadow-xl outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 ${
-          position === "center" ? "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" : ""
+          position === "center"
+            ? "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+            : ""
         }`}
         style={{
           width: `min(${CARD.width}px, calc(100vw - 2rem))`,
-          ...(position === "center" ? {} : { top: position.top, left: position.left }),
+          ...(position === "center"
+            ? {}
+            : { top: position.top, left: position.left }),
         }}
       >
         <p className="text-xs font-medium tracking-wide text-indigo-600 dark:text-indigo-400">
@@ -109,12 +129,18 @@ export function Tour({ base }: { base: string }) {
         <h2 id="tour-title" className="mt-1 text-lg font-semibold">
           {step.title}
         </h2>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{step.body}</p>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          {step.body}
+        </p>
         {step.todo ? (
           <ol className="mt-3 list-inside list-decimal space-y-1 text-sm">
             {step.todo.map((item) => (
               <li key={item.path}>
-                <Link href={`${base}${item.path}`} onClick={finish} className="underline">
+                <Link
+                  href={`${base}${item.path}`}
+                  onClick={finish}
+                  className="underline"
+                >
                   {item.label}
                 </Link>
               </li>

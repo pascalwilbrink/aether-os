@@ -1,9 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import type { Repository, RepositoryLink } from "./api/proxenos";
-import { connectResult, coverageLabel, linkableRepositories, repositoryChoices } from "./github";
+import {
+  connectResult,
+  coverageLabel,
+  linkableRepositories,
+  repositoryChoices,
+} from "./github";
 
-const repository = (id: string, fullName: string, status: Repository["status"] = "available"): Repository => ({
+const repository = (
+  id: string,
+  fullName: string,
+  status: Repository["status"] = "available",
+): Repository => ({
   id,
   organizationId: "org",
   installationId: "installation",
@@ -27,13 +36,17 @@ const link = (id: string, repo: Repository): RepositoryLink => ({
 
 describe("connectResult", () => {
   it("says GitHub is connected", () => {
-    expect(connectResult("connected", undefined)).toEqual({ ok: true, message: expect.stringContaining("connected") });
+    expect(connectResult("connected", undefined)).toEqual({
+      ok: true,
+      message: expect.stringContaining("connected"),
+    });
   });
 
   it("explains each failure, and anything else generically", () => {
     expect(connectResult("failed", "installation-taken")).toEqual({
       ok: false,
-      message: "That GitHub installation is connected to another organization already.",
+      message:
+        "That GitHub installation is connected to another organization already.",
     });
     expect(connectResult("failed", "something-new")).toEqual({
       ok: false,
@@ -54,21 +67,28 @@ describe("repositories", () => {
   const gone = repository("4", "acme/old", "removed");
 
   it("offers the available repositories a project hasn't linked, by name", () => {
-    expect(linkableRepositories([web, gone, api, docs], [link("l1", api)]).map((r) => r.fullName)).toEqual([
-      "acme/docs",
-      "acme/web",
-    ]);
+    expect(
+      linkableRepositories([web, gone, api, docs], [link("l1", api)]).map(
+        (r) => r.fullName,
+      ),
+    ).toEqual(["acme/docs", "acme/web"]);
   });
 
   it("lets tasks choose among the project's links", () => {
-    expect(repositoryChoices([link("l2", web), link("l1", api), link("l3", gone)])).toEqual([
+    expect(
+      repositoryChoices([link("l2", web), link("l1", api), link("l3", gone)]),
+    ).toEqual([
       { id: "l1", name: "acme/api" },
       { id: "l2", name: "acme/web" },
     ]);
   });
 
   it("describes what an installation covers", () => {
-    expect(coverageLabel({ repositorySelection: "all" })).toBe("all repositories");
-    expect(coverageLabel({ repositorySelection: "selected" })).toBe("selected repositories");
+    expect(coverageLabel({ repositorySelection: "all" })).toBe(
+      "all repositories",
+    );
+    expect(coverageLabel({ repositorySelection: "selected" })).toBe(
+      "selected repositories",
+    );
   });
 });

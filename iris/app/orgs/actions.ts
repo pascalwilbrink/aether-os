@@ -25,7 +25,9 @@ export async function createOrganizationAction(
 
   let organizationId: string;
   try {
-    organizationId = (await createOrganization(session.accessToken, { name, slug })).id;
+    organizationId = (
+      await createOrganization(session.accessToken, { name, slug })
+    ).id;
   } catch (error) {
     if (error instanceof ApiError) {
       return {

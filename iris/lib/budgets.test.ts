@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { budgetSummary, limitField, parseLimit, pausedMessage, type Budget } from "./budgets";
+import {
+  budgetSummary,
+  limitField,
+  parseLimit,
+  pausedMessage,
+  type Budget,
+} from "./budgets";
 
 const budget = (limitUsd: string | null, spentUsd: string): Budget => ({
   scope: "project",
@@ -21,9 +27,14 @@ describe("parseLimit", () => {
     expect(parseLimit(undefined)).toEqual({ limitUsd: null });
   });
 
-  it.each(["-5", "ten", "1.1234567", "1e3", "1234567890"])("refuses %s", (text) => {
-    expect(parseLimit(text)).toEqual({ error: expect.stringContaining("US dollars") });
-  });
+  it.each(["-5", "ten", "1.1234567", "1e3", "1234567890"])(
+    "refuses %s",
+    (text) => {
+      expect(parseLimit(text)).toEqual({
+        error: expect.stringContaining("US dollars"),
+      });
+    },
+  );
 });
 
 describe("budgets as people read them", () => {
@@ -40,21 +51,32 @@ describe("budgets as people read them", () => {
       percent: null,
       tone: "none",
     });
-    expect(budgetSummary(budget("10.000000", "2.500000"))).toMatchObject({ percent: 25, tone: "ok" });
-    expect(budgetSummary(budget("10.000000", "8.000000"))).toMatchObject({ percent: 80, tone: "warning" });
+    expect(budgetSummary(budget("10.000000", "2.500000"))).toMatchObject({
+      percent: 25,
+      tone: "ok",
+    });
+    expect(budgetSummary(budget("10.000000", "8.000000"))).toMatchObject({
+      percent: 80,
+      tone: "warning",
+    });
     expect(budgetSummary(budget("10.000000", "12.000000"))).toMatchObject({
       limit: "$10.00",
       percent: 100,
       tone: "exceeded",
     });
-    expect(budgetSummary(budget("0.000000", "0.000000"))).toMatchObject({ percent: 100, tone: "exceeded" });
+    expect(budgetSummary(budget("0.000000", "0.000000"))).toMatchObject({
+      percent: 100,
+      tone: "exceeded",
+    });
   });
 
   it("says why a task is paused and what resumes it", () => {
     expect(pausedMessage("task_tree")).toBe(
       "Paused: this task tree's budget ran out. It resumes once the budget is raised.",
     );
-    expect(pausedMessage("organization")).toContain("or when the next month starts");
+    expect(pausedMessage("organization")).toContain(
+      "or when the next month starts",
+    );
     expect(pausedMessage("agent")).toBe(
       "Paused: the agent's budget ran out. It resumes once the budget is raised, or when the next month starts.",
     );

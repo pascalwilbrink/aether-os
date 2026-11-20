@@ -84,7 +84,10 @@ export const TOUR_STEPS: readonly TourStep[] = [
     todo: [
       { label: "Add a key for your model provider", path: "/model-keys" },
       { label: "Create an agent and publish a version", path: "/agents/new" },
-      { label: "Create a service account and give it a role in a project", path: "/members" },
+      {
+        label: "Create a service account and give it a role in a project",
+        path: "/members",
+      },
       { label: "Open the project and start a task", path: "/projects" },
     ],
   },
@@ -122,6 +125,9 @@ export function cardPosition(
   if (!target || target.width === 0 || target.height === 0) return "center";
   const left = target.right + GAP;
   if (left + card.width + GAP > viewport.width) return "center";
-  const top = Math.min(Math.max(target.top, GAP), Math.max(GAP, viewport.height - card.height - GAP));
+  const top = Math.min(
+    Math.max(target.top, GAP),
+    Math.max(GAP, viewport.height - card.height - GAP),
+  );
   return { top, left };
 }

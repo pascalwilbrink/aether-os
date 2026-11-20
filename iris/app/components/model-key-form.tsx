@@ -67,7 +67,10 @@ export function ModelKeyForm({
       </div>
       <FormError error={state.error} />
       {state.notice ? (
-        <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300">
+        <p
+          role="status"
+          className="text-sm text-emerald-700 dark:text-emerald-300"
+        >
           {state.notice}
         </p>
       ) : null}

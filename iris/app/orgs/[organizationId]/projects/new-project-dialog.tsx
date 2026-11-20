@@ -2,12 +2,20 @@
 
 import { useActionState, useRef, useState } from "react";
 
-import { buttonClass, FormError, inputClass, secondaryButtonClass } from "@/app/components/form";
+import {
+  buttonClass,
+  FormError,
+  inputClass,
+  secondaryButtonClass,
+} from "@/app/components/form";
 import { slugify } from "@/lib/projects";
 
 import type { NewProjectState } from "./actions";
 
-type Action = (state: NewProjectState, form: FormData) => Promise<NewProjectState>;
+type Action = (
+  state: NewProjectState,
+  form: FormData,
+) => Promise<NewProjectState>;
 
 /**
  * The "New project" button and its dialog (a native `<dialog>`: focus is
@@ -30,7 +38,11 @@ export function NewProjectDialog({ action }: { action: Action }) {
 
   return (
     <>
-      <button type="button" onClick={open} className={`${buttonClass} shrink-0`}>
+      <button
+        type="button"
+        onClick={open}
+        className={`${buttonClass} shrink-0`}
+      >
         New project
       </button>
       <dialog
@@ -53,7 +65,8 @@ export function NewProjectDialog({ action }: { action: Action }) {
               New project
             </h2>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              A project holds tasks, automations and repositories, with its own budget and access.
+              A project holds tasks, automations and repositories, with its own
+              budget and access.
             </p>
           </div>
           <FormError error={state.error} />
@@ -96,7 +109,11 @@ export function NewProjectDialog({ action }: { action: Action }) {
             />
           </label>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={close} className={secondaryButtonClass}>
+            <button
+              type="button"
+              onClick={close}
+              className={secondaryButtonClass}
+            >
               Cancel
             </button>
             <button type="submit" disabled={pending} className={buttonClass}>

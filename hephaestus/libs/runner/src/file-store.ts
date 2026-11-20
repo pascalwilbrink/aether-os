@@ -18,9 +18,22 @@ export interface FileToStore {
   bytes: Buffer;
 }
 
-/** Keeping a file failed; the message is for the agent. */
+/** A file read from Loculus: what the task starts from. */
+export interface FetchedFile {
+  fileName: string;
+  contentType: string;
+  bytes: Buffer;
+}
+
+/**
+ * Keeping or reading a file failed; the message is for the agent (or the
+ * execution's error). `retryable` when Loculus or the storage didn't answer.
+ */
 export class FileStoreError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly retryable = false,
+  ) {
     super(message);
     this.name = 'FileStoreError';
   }
@@ -37,6 +50,14 @@ export abstract class FileStore {
     taskToken: string,
     file: FileToStore,
   ): Promise<StoredFile>;
+
+  /** A file of the task's project, available and at most `maxBytes`. */
+  abstract fetch(
+    task: TaskResponse,
+    taskToken: string,
+    fileId: string,
+    maxBytes: number,
+  ): Promise<FetchedFile>;
 }
 
 export class NoFileStore extends FileStore {
@@ -45,6 +66,12 @@ export class NoFileStore extends FileStore {
   store(): Promise<StoredFile> {
     return Promise.reject(
       new FileStoreError('Files can’t be kept here (no Loculus).'),
+    );
+  }
+
+  fetch(): Promise<FetchedFile> {
+    return Promise.reject(
+      new FileStoreError('Files can’t be read here (no Loculus).'),
     );
   }
 }
@@ -127,6 +154,62 @@ export class LoculusFileStore extends FileStore {
     };
   }
 
+  async fetch(
+    task: TaskResponse,
+    taskToken: string,
+    fileId: string,
+    maxBytes: number,
+  ): Promise<FetchedFile> {
+    const client = this.client(taskToken);
+    const path = {
+      organizationId: task.organizationId,
+      projectId: task.projectId,
+      fileId,
+    };
+    const file = await this.call(() => LoculusApi.getFile({ client, path }));
+    if (file.status !== 'available') {
+      throw new FileStoreError(`File ${fileId} isn't uploaded yet.`);
+    }
+    if (file.sizeBytes > maxBytes) {
+      throw new FileStoreError(
+        `File ${file.fileName} is ${file.sizeBytes} bytes; a task's files are at most ${maxBytes}.`,
+      );
+    }
+    const { url } = await this.call(() =>
+      LoculusApi.getFileDownload({ client, path }),
+    );
+    let bytes: Buffer;
+    try {
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      bytes = Buffer.from(await response.arrayBuffer());
+    } catch (error) {
+      throw new FileStoreError(
+        `The file storage could not be reached: ${error instanceof Error ? error.message : String(error)}`,
+        true,
+      );
+    }
+    if (createHash('sha256').update(bytes).digest('hex') !== file.sha256) {
+      throw new FileStoreError(
+        `File ${file.fileName} isn't what Loculus recorded (its SHA-256 differs).`,
+      );
+    }
+    return { fileName: file.fileName, contentType: file.contentType, bytes };
+  }
+
+  private client(taskToken: string) {
+    return createLoculusHttpClient({
+      baseUrl: this.baseUrl,
+      fetch: (input, init) =>
+        fetch(input, { ...init, signal: AbortSignal.timeout(this.timeoutMs) }),
+      auth: () => taskToken,
+    });
+  }
+
   /** Loculus's answer, or what it said as a `FileStoreError`. */
   private async call<T>(
     send: () => Promise<{ data?: T; error?: unknown; response?: Response }>,
@@ -137,6 +220,7 @@ export class LoculusFileStore extends FileStore {
     } catch (error) {
       throw new FileStoreError(
         `Loculus could not be reached: ${error instanceof Error ? error.message : String(error)}`,
+        true,
       );
     }
     if (result.response?.ok && result.data) {
@@ -147,11 +231,14 @@ export class LoculusFileStore extends FileStore {
       const cause = result.error;
       throw new FileStoreError(
         `Loculus could not be reached: ${cause instanceof Error ? cause.message : String(cause)}`,
+        true,
       );
     }
     const problem = result.error as { detail?: string } | undefined;
+    const status = result.response.status;
     throw new FileStoreError(
-      `Loculus refused the file: ${problem?.detail ?? `HTTP ${result.response?.status ?? 0}`}`,
+      `Loculus refused the file: ${problem?.detail ?? `HTTP ${status}`}`,
+      status >= 500 || status === 429,
     );
   }
 }

@@ -3,7 +3,11 @@
 import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { changeAutomationStatus, createAutomation, updateAutomation } from "@/lib/api/kairos";
+import {
+  changeAutomationStatus,
+  createAutomation,
+  updateAutomation,
+} from "@/lib/api/kairos";
 import { messageOf } from "@/lib/api/messages";
 import { requireOrganization } from "@/lib/auth/current";
 import { requestOf } from "@/lib/automations";
@@ -16,16 +20,25 @@ const automationsPath = ({ organizationId, projectId }: ProjectRef) =>
 
 const kairosMessageOf = (error: unknown) =>
   messageOf(error, {
-    FORBIDDEN: "Only the project's admins (the organization's owners and admins) manage automations.",
+    FORBIDDEN:
+      "Only the project's admins (the organization's owners and admins) manage automations.",
     PROJECT_ARCHIVED: "The project is archived.",
     ORGANIZATION_SUSPENDED: "The organization is suspended.",
     AUTOMATION_ARCHIVED: "The automation is archived and can't change.",
-    VALIDATION_FAILED: "Some fields aren't valid: a task's text can only use the fields listed under it.",
+    VALIDATION_FAILED:
+      "Some fields aren't valid: a task's text can only use the fields listed under it.",
   });
 
 /** Creates an automation (`automation:manage`), then opens it. */
-export async function createAutomationAction(ref: ProjectRef, _state: FormState, form: FormData): Promise<FormState> {
-  const session = await requireOrganization(ref.organizationId, `${automationsPath(ref)}/new`);
+export async function createAutomationAction(
+  ref: ProjectRef,
+  _state: FormState,
+  form: FormData,
+): Promise<FormState> {
+  const session = await requireOrganization(
+    ref.organizationId,
+    `${automationsPath(ref)}/new`,
+  );
   const values = valuesOf(form);
   const parsed = requestOf(values);
   if ("error" in parsed) {
@@ -33,7 +46,14 @@ export async function createAutomationAction(ref: ProjectRef, _state: FormState,
   }
   let id: string;
   try {
-    id = (await createAutomation(session.accessToken, ref.organizationId, ref.projectId, parsed.request)).id;
+    id = (
+      await createAutomation(
+        session.accessToken,
+        ref.organizationId,
+        ref.projectId,
+        parsed.request,
+      )
+    ).id;
   } catch (error) {
     return { error: kairosMessageOf(error), values };
   }
@@ -46,14 +66,23 @@ export async function updateAutomationAction(
   _state: FormState,
   form: FormData,
 ): Promise<FormState> {
-  const session = await requireOrganization(ref.organizationId, `${automationsPath(ref)}/${ref.automationId}`);
+  const session = await requireOrganization(
+    ref.organizationId,
+    `${automationsPath(ref)}/${ref.automationId}`,
+  );
   const values = valuesOf(form);
   const parsed = requestOf(values);
   if ("error" in parsed) {
     return { error: parsed.error, values };
   }
   try {
-    await updateAutomation(session.accessToken, ref.organizationId, ref.projectId, ref.automationId, parsed.request);
+    await updateAutomation(
+      session.accessToken,
+      ref.organizationId,
+      ref.projectId,
+      ref.automationId,
+      parsed.request,
+    );
   } catch (error) {
     return { error: kairosMessageOf(error), values };
   }
@@ -63,11 +92,23 @@ export async function updateAutomationAction(
 
 /** Pauses, resumes or archives an automation. */
 export async function changeAutomationStatusAction(
-  ref: ProjectRef & { automationId: string; change: "pause" | "resume" | "archive" },
+  ref: ProjectRef & {
+    automationId: string;
+    change: "pause" | "resume" | "archive";
+  },
 ): Promise<{ error?: string }> {
-  const session = await requireOrganization(ref.organizationId, `${automationsPath(ref)}/${ref.automationId}`);
+  const session = await requireOrganization(
+    ref.organizationId,
+    `${automationsPath(ref)}/${ref.automationId}`,
+  );
   try {
-    await changeAutomationStatus(session.accessToken, ref.organizationId, ref.projectId, ref.automationId, ref.change);
+    await changeAutomationStatus(
+      session.accessToken,
+      ref.organizationId,
+      ref.projectId,
+      ref.automationId,
+      ref.change,
+    );
   } catch (error) {
     return { error: kairosMessageOf(error) };
   }

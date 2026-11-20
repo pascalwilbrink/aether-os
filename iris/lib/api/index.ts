@@ -1,8 +1,4 @@
-import type {
-  components,
-  operations,
-  paths,
-} from "./generated/hephaestus-api";
+import type { components, operations, paths } from "./generated/hephaestus-api";
 
 /**
  * Hephaestus API types, generated from ../contracts/hephaestus.openapi.yaml.

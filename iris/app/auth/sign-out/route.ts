@@ -14,7 +14,10 @@ export async function POST(request: NextRequest) {
     request.cookies.get(SESSION_COOKIE)?.value,
     config.sessionSecret,
   );
-  const response = NextResponse.redirect(await signOutUrl(session?.idToken ?? null), 303);
+  const response = NextResponse.redirect(
+    await signOutUrl(session?.idToken ?? null),
+    303,
+  );
   response.cookies.delete(SESSION_COOKIE);
   return response;
 }

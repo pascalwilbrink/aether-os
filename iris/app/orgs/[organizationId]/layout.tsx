@@ -3,7 +3,10 @@ import { Suspense } from "react";
 import { Sidebar } from "./sidebar/sidebar";
 
 /** Every page of an organization: the sidebar (`sidebar/`) beside the page. */
-export default function OrganizationLayout({ children, params }: LayoutProps<"/orgs/[organizationId]">) {
+export default function OrganizationLayout({
+  children,
+  params,
+}: LayoutProps<"/orgs/[organizationId]">) {
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <Suspense fallback={<SidebarPlaceholder />}>

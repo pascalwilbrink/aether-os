@@ -62,9 +62,15 @@ describe("session cookies", () => {
 
   it("refreshes a minute before the access token expires", () => {
     const now = Date.now();
-    expect(needsRefresh({ ...session, accessTokenExpiresAt: now + 120_000 }, now)).toBe(false);
-    expect(needsRefresh({ ...session, accessTokenExpiresAt: now + 30_000 }, now)).toBe(true);
-    expect(needsRefresh({ ...session, accessTokenExpiresAt: now - 1 }, now)).toBe(true);
+    expect(
+      needsRefresh({ ...session, accessTokenExpiresAt: now + 120_000 }, now),
+    ).toBe(false);
+    expect(
+      needsRefresh({ ...session, accessTokenExpiresAt: now + 30_000 }, now),
+    ).toBe(true);
+    expect(
+      needsRefresh({ ...session, accessTokenExpiresAt: now - 1 }, now),
+    ).toBe(true);
   });
 
   it("only returns to paths on Iris", () => {

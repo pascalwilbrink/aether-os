@@ -13,7 +13,9 @@ export function PublicShell({ children }: { children: ReactNode }) {
           <Link href="/" className="flex items-center gap-2">
             <LogoIcon className="text-indigo-500" width={24} height={24} />
             <span className="text-lg font-semibold tracking-tight">iris</span>
-            <span className="text-[10px] font-medium tracking-[0.2em] text-zinc-500">AETHER-OS</span>
+            <span className="text-[10px] font-medium tracking-[0.2em] text-zinc-500">
+              AETHER-OS
+            </span>
           </Link>
           <ThemeSwitch />
         </div>

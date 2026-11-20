@@ -24,14 +24,20 @@ export async function call<T>(
   base: string,
   path: string,
   token: string,
-  init: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
+  init: {
+    method?: string;
+    body?: unknown;
+    headers?: Record<string, string>;
+  } = {},
 ): Promise<T> {
   const response = await fetch(new URL(path, base), {
     method: init.method ?? "GET",
     headers: {
       authorization: `Bearer ${token}`,
       accept: "application/json",
-      ...(init.body === undefined ? {} : { "content-type": "application/json" }),
+      ...(init.body === undefined
+        ? {}
+        : { "content-type": "application/json" }),
       ...init.headers,
     },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
@@ -54,7 +60,9 @@ export async function call<T>(
       problem.detail ?? `${response.status} ${response.statusText}`,
     );
   }
-  return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
+  return response.status === 204
+    ? (undefined as T)
+    : ((await response.json()) as T);
 }
 
 /** A page of a cursor-paginated list. */
@@ -66,7 +74,9 @@ export type Page<T> = { items: T[]; nextCursor: string | null };
  * isn't configured: pages show the rest without it. A
  * caller without the permission gets an empty list.
  */
-export async function orUnavailable<T>(promise: Promise<Page<T>>): Promise<{ items: T[]; unavailable: boolean }> {
+export async function orUnavailable<T>(
+  promise: Promise<Page<T>>,
+): Promise<{ items: T[]; unavailable: boolean }> {
   try {
     return { items: (await promise).items, unavailable: false };
   } catch (error) {

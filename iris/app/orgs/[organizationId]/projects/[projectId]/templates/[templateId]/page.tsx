@@ -12,7 +12,8 @@ import { runnableServiceAccounts } from "@/lib/members";
 
 import { TemplateTaskForm } from "../../template-task-form";
 
-type Props = PageProps<"/orgs/[organizationId]/projects/[projectId]/templates/[templateId]">;
+type Props =
+  PageProps<"/orgs/[organizationId]/projects/[projectId]/templates/[templateId]">;
 
 /** A template's latest version as this project would use it, and a task from it. */
 export default function TemplatePage({ params }: Props) {
@@ -26,19 +27,30 @@ export default function TemplatePage({ params }: Props) {
 async function Template({ params }: Pick<Props, "params">) {
   const { organizationId, projectId, templateId } = await params;
   const projectPath = `/orgs/${organizationId}/projects/${projectId}`;
-  const session = await requireOrganization(organizationId, `${projectPath}/templates/${templateId}`);
+  const session = await requireOrganization(
+    organizationId,
+    `${projectPath}/templates/${templateId}`,
+  );
   const token = session.accessToken;
-  const [project, template, serviceAccounts, grants, links] = await Promise.all([
-    getProject(token, organizationId, projectId),
-    getTaskTemplate(token, organizationId, templateId),
-    listServiceAccounts(token, organizationId).catch((error: unknown) => {
-      if (error instanceof ApiError && error.status === 403) return { items: [], nextCursor: null };
-      throw error;
-    }),
-    listProjectMemberships(token, organizationId, projectId),
-    orUnavailable(listRepositoryLinks(token, organizationId, projectId)),
-  ]);
-  const version = await getTaskTemplateVersion(token, organizationId, templateId, template.latestVersion);
+  const [project, template, serviceAccounts, grants, links] = await Promise.all(
+    [
+      getProject(token, organizationId, projectId),
+      getTaskTemplate(token, organizationId, templateId),
+      listServiceAccounts(token, organizationId).catch((error: unknown) => {
+        if (error instanceof ApiError && error.status === 403)
+          return { items: [], nextCursor: null };
+        throw error;
+      }),
+      listProjectMemberships(token, organizationId, projectId),
+      orUnavailable(listRepositoryLinks(token, organizationId, projectId)),
+    ],
+  );
+  const version = await getTaskTemplateVersion(
+    token,
+    organizationId,
+    templateId,
+    template.latestVersion,
+  );
   const { effective } = version;
 
   return (
@@ -51,10 +63,17 @@ async function Template({ params }: Pick<Props, "params">) {
         </p>
         <h1 className="text-2xl font-semibold">{template.name}</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          {template.projectId ? "This project's template" : "Organization-wide template"} · version {version.version}
-          {version.content.extends ? ` · extends an organization template (v${version.content.extends.version})` : ""}
+          {template.projectId
+            ? "This project's template"
+            : "Organization-wide template"}{" "}
+          · version {version.version}
+          {version.content.extends
+            ? ` · extends an organization template (v${version.content.extends.version})`
+            : ""}
         </p>
-        {template.description ? <p className="mt-2 text-sm">{template.description}</p> : null}
+        {template.description ? (
+          <p className="mt-2 text-sm">{template.description}</p>
+        ) : null}
       </div>
 
       <section className="space-y-2">
@@ -70,8 +89,11 @@ async function Template({ params }: Pick<Props, "params">) {
           <ul className="list-inside list-disc text-sm">
             {effective.acceptanceCriteria.map((criterion) => (
               <li key={criterion.key}>
-                <span className="font-mono text-xs">{criterion.key}</span> {criterion.description}{" "}
-                <span className="text-xs text-zinc-500">({criterion.check.type})</span>
+                <span className="font-mono text-xs">{criterion.key}</span>{" "}
+                {criterion.description}{" "}
+                <span className="text-xs text-zinc-500">
+                  ({criterion.check.type})
+                </span>
               </li>
             ))}
           </ul>
@@ -79,14 +101,24 @@ async function Template({ params }: Pick<Props, "params">) {
       </section>
 
       {template.status === "archived" ? (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">Archived: no new tasks from it.</p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          Archived: no new tasks from it.
+        </p>
       ) : (
         <section className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
           <h2 className="font-medium">New task from this template</h2>
           <TemplateTaskForm
-            template={{ organizationId, projectId, templateId, version: version.version }}
+            template={{
+              organizationId,
+              projectId,
+              templateId,
+              version: version.version,
+            }}
             version={version}
-            serviceAccounts={runnableServiceAccounts(serviceAccounts.items, grants.items).map(({ id, name }) => ({
+            serviceAccounts={runnableServiceAccounts(
+              serviceAccounts.items,
+              grants.items,
+            ).map(({ id, name }) => ({
               id,
               name,
             }))}

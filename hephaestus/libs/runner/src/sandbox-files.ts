@@ -73,7 +73,7 @@ export function fileNameOf(name: string): string {
 export class SandboxFiles {
   constructor(
     private readonly store: FileStore,
-    /** The largest file kept (`FILE_ARTIFACT_MAX_BYTES`). */
+    /** The largest file kept (`TASK_FILE_MAX_BYTES`). */
     readonly maxBytes: number,
   ) {}
 

@@ -14,14 +14,21 @@ export async function setOrganizationBudgetAction(
   _state: BudgetFormState,
   form: FormData,
 ): Promise<BudgetFormState> {
-  const session = await requireOrganization(organizationId, `/orgs/${organizationId}/budget`);
+  const session = await requireOrganization(
+    organizationId,
+    `/orgs/${organizationId}/budget`,
+  );
   const limit = String(form.get("limit") ?? "");
   const parsed = parseLimit(limit);
   if ("error" in parsed) {
     return { error: parsed.error, limit };
   }
   try {
-    await setOrganizationBudget(session.accessToken, organizationId, parsed.limitUsd);
+    await setOrganizationBudget(
+      session.accessToken,
+      organizationId,
+      parsed.limitUsd,
+    );
   } catch (error) {
     return {
       error: messageOf(error, {
@@ -32,7 +39,9 @@ export async function setOrganizationBudgetAction(
     };
   }
   refresh();
-  return { notice: parsed.limitUsd === null ? "The limit is removed." : "Saved." };
+  return {
+    notice: parsed.limitUsd === null ? "The limit is removed." : "Saved.",
+  };
 }
 
 /** Sets (or removes) an agent's monthly limit, over all its projects (`org:manage`). */
@@ -42,23 +51,34 @@ export async function setAgentBudgetAction(
   form: FormData,
 ): Promise<BudgetFormState> {
   const { organizationId, agentId } = ref;
-  const session = await requireOrganization(organizationId, `/orgs/${organizationId}/agents/${agentId}`);
+  const session = await requireOrganization(
+    organizationId,
+    `/orgs/${organizationId}/agents/${agentId}`,
+  );
   const limit = String(form.get("limit") ?? "");
   const parsed = parseLimit(limit);
   if ("error" in parsed) {
     return { error: parsed.error, limit };
   }
   try {
-    await setAgentBudget(session.accessToken, organizationId, agentId, parsed.limitUsd);
+    await setAgentBudget(
+      session.accessToken,
+      organizationId,
+      agentId,
+      parsed.limitUsd,
+    );
   } catch (error) {
     return {
       error: messageOf(error, {
-        FORBIDDEN: "Only the organization's owners and admins set an agent's budget.",
+        FORBIDDEN:
+          "Only the organization's owners and admins set an agent's budget.",
         ORGANIZATION_SUSPENDED: "The organization is suspended.",
       }),
       limit,
     };
   }
   refresh();
-  return { notice: parsed.limitUsd === null ? "The limit is removed." : "Saved." };
+  return {
+    notice: parsed.limitUsd === null ? "The limit is removed." : "Saved.",
+  };
 }

@@ -29,7 +29,8 @@ export function statusClasses(status: TaskStatus): string {
   return {
     neutral: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
     active: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200",
-    waiting: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
+    waiting:
+      "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
     good: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
     bad: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200",
   }[STATUS[status].tone];
@@ -106,7 +107,11 @@ export function artifactsByExecution(
       execution,
       items: artifacts
         .filter((artifact) => artifact.executionId === execution.id)
-        .sort((a, b) => Number(a.kind === "verification") - Number(b.kind === "verification")),
+        .sort(
+          (a, b) =>
+            Number(a.kind === "verification") -
+            Number(b.kind === "verification"),
+        ),
     }))
     .filter((group) => group.items.length > 0);
 }
@@ -114,14 +119,18 @@ export function artifactsByExecution(
 /** What an execution's sandbox could reach, in a word: none without a sandbox. */
 export function networkLabel(execution: Execution): string {
   if (!execution.sandbox) return "No sandbox";
-  return execution.sandbox.networkAccess === "restricted" ? "Allowed hosts" : "No network";
+  return execution.sandbox.networkAccess === "restricted"
+    ? "Allowed hosts"
+    : "No network";
 }
 
 /**
  * The hosts the task's sandboxes tried to reach and were refused, each with
  * the executions (numbers, oldest first) it happened in; by host.
  */
-export function blockedHosts(executions: Execution[]): { host: string; executions: number[] }[] {
+export function blockedHosts(
+  executions: Execution[],
+): { host: string; executions: number[] }[] {
   const byHost = new Map<string, number[]>();
   for (const execution of executions) {
     for (const host of execution.sandbox?.blockedHosts ?? []) {
@@ -129,6 +138,9 @@ export function blockedHosts(executions: Execution[]): { host: string; execution
     }
   }
   return [...byHost]
-    .map(([host, numbers]) => ({ host, executions: numbers.sort((a, b) => a - b) }))
+    .map(([host, numbers]) => ({
+      host,
+      executions: numbers.sort((a, b) => a - b),
+    }))
     .sort((a, b) => a.host.localeCompare(b.host));
 }

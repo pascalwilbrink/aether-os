@@ -27,7 +27,10 @@ export async function createProjectAction(
   _state: NewProjectState,
   form: FormData,
 ): Promise<NewProjectState> {
-  const session = await requireOrganization(organizationId, `/orgs/${organizationId}/projects`);
+  const session = await requireOrganization(
+    organizationId,
+    `/orgs/${organizationId}/projects`,
+  );
   const values: NewProjectFields = {
     name: String(form.get("name") ?? ""),
     slug: String(form.get("slug") ?? ""),
@@ -40,14 +43,20 @@ export async function createProjectAction(
 
   let projectId: string;
   try {
-    projectId = (await createProject(session.accessToken, organizationId, checked.request)).id;
+    projectId = (
+      await createProject(session.accessToken, organizationId, checked.request)
+    ).id;
   } catch (error) {
     if (!(error instanceof ApiError)) {
-      return { error: "Polis can't be reached right now. Try again later.", values };
+      return {
+        error: "Polis can't be reached right now. Try again later.",
+        values,
+      };
     }
     return {
       error: messageOf(error, {
-        PROJECT_SLUG_TAKEN: "Another project of the organization has that slug.",
+        PROJECT_SLUG_TAKEN:
+          "Another project of the organization has that slug.",
         ORGANIZATION_SUSPENDED: "The organization is suspended.",
         FORBIDDEN: "Viewers can't create projects.",
       }),

@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState, type ComponentType, type ReactNode, type SVGProps } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactNode,
+  type SVGProps,
+} from "react";
 
 import {
   AgentIcon,
@@ -22,7 +29,13 @@ import {
 import { storeValue, useStoredValue } from "@/app/components/stored-value";
 import { ThemeSwitch } from "@/app/components/theme-switch";
 import { unreadBadge } from "@/lib/notifications";
-import { initials, projectColor, projectOf, sectionOf, type SidebarSection } from "@/lib/sidebar";
+import {
+  initials,
+  projectColor,
+  projectOf,
+  sectionOf,
+  type SidebarSection,
+} from "@/lib/sidebar";
 
 import { startTour, Tour } from "./tour";
 
@@ -106,7 +119,12 @@ export function SidebarView({ data }: { data: SidebarData }) {
               if ((event.target as Element).closest("a")) setMobileOpen(false);
             }}
           >
-            <Panel data={data} pathname={pathname} collapsed={false} onCollapse={() => setMobileOpen(false)} />
+            <Panel
+              data={data}
+              pathname={pathname}
+              collapsed={false}
+              onCollapse={() => setMobileOpen(false)}
+            />
           </div>
         </div>
       ) : null}
@@ -116,7 +134,12 @@ export function SidebarView({ data }: { data: SidebarData }) {
           collapsed ? "w-[72px]" : "w-72"
         }`}
       >
-        <Panel data={data} pathname={pathname} collapsed={collapsed} onCollapse={toggleCollapsed} />
+        <Panel
+          data={data}
+          pathname={pathname}
+          collapsed={collapsed}
+          onCollapse={toggleCollapsed}
+        />
       </div>
     </>
   );
@@ -125,11 +148,17 @@ export function SidebarView({ data }: { data: SidebarData }) {
 function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <span className="flex items-center gap-2.5">
-      <LogoIcon className="shrink-0 text-indigo-500 dark:text-indigo-400" width={28} height={28} />
+      <LogoIcon
+        className="shrink-0 text-indigo-500 dark:text-indigo-400"
+        width={28}
+        height={28}
+      />
       {compact ? null : (
         <>
           <span className="text-2xl font-bold tracking-tight">iris</span>
-          <span className="w-12 text-[9px] leading-tight font-medium tracking-[0.25em] text-zinc-500">AETHER-OS</span>
+          <span className="w-12 text-[9px] leading-tight font-medium tracking-[0.25em] text-zinc-500">
+            AETHER-OS
+          </span>
         </>
       )}
     </span>
@@ -154,15 +183,47 @@ function Panel({
   const [projectsOpen, setProjectsOpen] = useState(true);
   const badge = data.unread === null ? null : unreadBadge(data.unread);
 
-  const items: { key: SidebarSection; label: string; href: string; Icon: IconType; badge?: string | null }[] = [
+  const items: {
+    key: SidebarSection;
+    label: string;
+    href: string;
+    Icon: IconType;
+    badge?: string | null;
+  }[] = [
     { key: "home", label: "Home", href: base, Icon: HomeIcon },
-    { key: "inbox", label: "Inbox", href: `${base}/notifications`, Icon: InboxIcon, badge },
+    {
+      key: "inbox",
+      label: "Inbox",
+      href: `${base}/notifications`,
+      Icon: InboxIcon,
+      badge,
+    },
   ];
-  const rest: { key: SidebarSection; label: string; href: string; Icon: IconType }[] = [
+  const rest: {
+    key: SidebarSection;
+    label: string;
+    href: string;
+    Icon: IconType;
+  }[] = [
     { key: "agents", label: "Agents", href: `${base}/agents`, Icon: AgentIcon },
-    { key: "templates", label: "Templates", href: `${base}/templates`, Icon: LayersIcon },
-    { key: "members", label: "Members", href: `${base}/members`, Icon: UsersIcon },
-    { key: "settings", label: "Settings", href: `${base}/settings`, Icon: SettingsIcon },
+    {
+      key: "templates",
+      label: "Templates",
+      href: `${base}/templates`,
+      Icon: LayersIcon,
+    },
+    {
+      key: "members",
+      label: "Members",
+      href: `${base}/members`,
+      Icon: UsersIcon,
+    },
+    {
+      key: "settings",
+      label: "Settings",
+      href: `${base}/settings`,
+      Icon: SettingsIcon,
+    },
   ];
 
   return (
@@ -170,8 +231,14 @@ function Panel({
       aria-label="Organization"
       className="flex h-full flex-col border-r border-zinc-200 bg-zinc-100 text-zinc-600 dark:border-zinc-800/80 dark:bg-[#0f0f11] dark:text-zinc-400"
     >
-      <div className={`flex items-center px-4 pt-5 pb-4 ${collapsed ? "flex-col gap-3" : "justify-between"}`}>
-        <Link href={base} className="text-zinc-900 dark:text-zinc-100" aria-label="Home">
+      <div
+        className={`flex items-center px-4 pt-5 pb-4 ${collapsed ? "flex-col gap-3" : "justify-between"}`}
+      >
+        <Link
+          href={base}
+          className="text-zinc-900 dark:text-zinc-100"
+          aria-label="Home"
+        >
           <Logo compact={collapsed} />
         </Link>
         <button
@@ -191,12 +258,19 @@ function Panel({
 
       <div className="mt-6 min-h-0 flex-1 overflow-y-auto px-3">
         {collapsed ? null : (
-          <p className="mb-2 px-3 text-[11px] font-medium tracking-[0.2em] text-zinc-500">ORGANIZATION</p>
+          <p className="mb-2 px-3 text-[11px] font-medium tracking-[0.2em] text-zinc-500">
+            ORGANIZATION
+          </p>
         )}
         <ul className="space-y-1">
           {items.map(({ key, ...item }) => (
             <li key={key}>
-              <NavItem {...item} tour={key} active={section === key} collapsed={collapsed} />
+              <NavItem
+                {...item}
+                tour={key}
+                active={section === key}
+                collapsed={collapsed}
+              />
             </li>
           ))}
           <li data-tour="projects">
@@ -221,7 +295,9 @@ function Panel({
                 >
                   <Link
                     href={`${base}/projects`}
-                    aria-current={pathname === `${base}/projects` ? "page" : undefined}
+                    aria-current={
+                      pathname === `${base}/projects` ? "page" : undefined
+                    }
                     className="flex flex-1 items-center gap-3 rounded-lg px-3 py-2 text-[15px] font-medium hover:bg-zinc-200/70 dark:hover:bg-zinc-800/60"
                   >
                     <FolderIcon className="shrink-0" />
@@ -231,7 +307,9 @@ function Panel({
                     type="button"
                     onClick={() => setProjectsOpen((open) => !open)}
                     aria-expanded={projectsOpen}
-                    aria-label={projectsOpen ? "Hide the projects" : "Show the projects"}
+                    aria-label={
+                      projectsOpen ? "Hide the projects" : "Show the projects"
+                    }
                     className="mr-1 rounded-md p-1.5 hover:bg-zinc-200/70 dark:hover:bg-zinc-800/60"
                   >
                     <ChevronDownIcon
@@ -244,21 +322,29 @@ function Panel({
                 {projectsOpen ? (
                   <ul className="mt-1 ml-[21px] space-y-0.5 border-l border-zinc-300 pl-3 dark:border-zinc-800">
                     {data.projects.length === 0 ? (
-                      <li className="px-3 py-1.5 text-sm text-zinc-500">No projects yet</li>
+                      <li className="px-3 py-1.5 text-sm text-zinc-500">
+                        No projects yet
+                      </li>
                     ) : (
                       data.projects.map((project) => (
                         <li key={project.id}>
                           <Link
                             href={`${base}/projects/${project.id}`}
-                            aria-current={currentProject === project.id ? "page" : undefined}
+                            aria-current={
+                              currentProject === project.id ? "page" : undefined
+                            }
                             className={`flex items-center gap-3 rounded-md px-3 py-1.5 text-sm hover:bg-zinc-200/70 dark:hover:bg-zinc-800/60 ${
                               currentProject === project.id
                                 ? "bg-zinc-200/80 font-medium text-zinc-900 dark:bg-zinc-800/70 dark:text-zinc-100"
                                 : ""
                             }`}
                           >
-                            <span className={`size-1.5 shrink-0 rounded-full ${projectColor(project.id)}`} />
-                            <span className="flex-1 truncate">{project.name}</span>
+                            <span
+                              className={`size-1.5 shrink-0 rounded-full ${projectColor(project.id)}`}
+                            />
+                            <span className="flex-1 truncate">
+                              {project.name}
+                            </span>
                             {project.attention ? (
                               <span
                                 className="size-1.5 shrink-0 rounded-full bg-amber-600 dark:bg-amber-400"
@@ -276,7 +362,12 @@ function Panel({
           </li>
           {rest.map(({ key, ...item }) => (
             <li key={key}>
-              <NavItem {...item} tour={key} active={section === key} collapsed={collapsed} />
+              <NavItem
+                {...item}
+                tour={key}
+                active={section === key}
+                collapsed={collapsed}
+              />
             </li>
           ))}
         </ul>
@@ -285,14 +376,20 @@ function Panel({
       <div className="space-y-1 px-3 pb-3">
         <Link
           href={`${base}/settings#status`}
-          title={data.status.down.length > 0 ? `Unreachable: ${data.status.down.join(", ")}` : undefined}
+          title={
+            data.status.down.length > 0
+              ? `Unreachable: ${data.status.down.join(", ")}`
+              : undefined
+          }
           className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm hover:bg-zinc-200/70 dark:hover:bg-zinc-800/60 ${
             collapsed ? "justify-center" : ""
           }`}
         >
           <span
             className={`size-2 shrink-0 rounded-full ${
-              data.status.ok ? "bg-emerald-600 dark:bg-emerald-400" : "bg-amber-500 dark:bg-amber-400"
+              data.status.ok
+                ? "bg-emerald-600 dark:bg-emerald-400"
+                : "bg-amber-500 dark:bg-amber-400"
             }`}
           />
           {collapsed ? (
@@ -377,7 +474,11 @@ function NavItem({
           </span>
         ) : null}
       </span>
-      {collapsed ? <span className="sr-only">{label}</span> : <span className="flex-1">{label}</span>}
+      {collapsed ? (
+        <span className="sr-only">{label}</span>
+      ) : (
+        <span className="flex-1">{label}</span>
+      )}
       {badge && !collapsed ? (
         <span
           className="rounded-md bg-indigo-100 px-1.5 py-0.5 text-xs font-semibold text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-300"
@@ -390,7 +491,13 @@ function NavItem({
   );
 }
 
-function Popover({ children, align = "bottom" }: { children: ReactNode; align?: "bottom" | "top" }) {
+function Popover({
+  children,
+  align = "bottom",
+}: {
+  children: ReactNode;
+  align?: "bottom" | "top";
+}) {
   return (
     <div
       className={`absolute left-0 z-50 w-64 rounded-xl border border-zinc-200 bg-white p-1.5 text-sm text-zinc-700 shadow-lg dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 ${
@@ -402,10 +509,18 @@ function Popover({ children, align = "bottom" }: { children: ReactNode; align?: 
   );
 }
 
-function OrganizationSwitcher({ data, collapsed }: { data: SidebarData; collapsed: boolean }) {
+function OrganizationSwitcher({
+  data,
+  collapsed,
+}: {
+  data: SidebarData;
+  collapsed: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
-  const others = data.organizations.filter((organization) => organization.id !== data.organization.id);
+  const others = data.organizations.filter(
+    (organization) => organization.id !== data.organization.id,
+  );
 
   return (
     <div ref={ref} className="relative">
@@ -438,9 +553,13 @@ function OrganizationSwitcher({ data, collapsed }: { data: SidebarData; collapse
       </button>
       {open ? (
         <Popover>
-          <p className="px-2.5 pt-1.5 pb-1 text-xs text-zinc-500">Switch organization</p>
+          <p className="px-2.5 pt-1.5 pb-1 text-xs text-zinc-500">
+            Switch organization
+          </p>
           {others.length === 0 ? (
-            <p className="px-2.5 py-1.5 text-zinc-500">No other organizations</p>
+            <p className="px-2.5 py-1.5 text-zinc-500">
+              No other organizations
+            </p>
           ) : (
             others.map((organization) => (
               // A new sign-in for that organization (one per token).
@@ -457,7 +576,10 @@ function OrganizationSwitcher({ data, collapsed }: { data: SidebarData; collapse
             ))
           )}
           <div className="my-1 border-t border-zinc-200 dark:border-zinc-800" />
-          <Link href="/orgs" className="block rounded-lg px-2.5 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800">
+          <Link
+            href="/orgs"
+            className="block rounded-lg px-2.5 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
             All organizations…
           </Link>
         </Popover>
@@ -466,7 +588,13 @@ function OrganizationSwitcher({ data, collapsed }: { data: SidebarData; collapse
   );
 }
 
-function UserMenu({ data, collapsed }: { data: SidebarData; collapsed: boolean }) {
+function UserMenu({
+  data,
+  collapsed,
+}: {
+  data: SidebarData;
+  collapsed: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
 
@@ -488,8 +616,14 @@ function UserMenu({ data, collapsed }: { data: SidebarData; collapsed: boolean }
         {collapsed ? null : (
           <>
             <span className="min-w-0 flex-1">
-              <span className="block truncate font-medium text-zinc-900 dark:text-zinc-100">{data.user.name}</span>
-              {data.user.role ? <span className="block text-sm text-zinc-500">{data.user.role}</span> : null}
+              <span className="block truncate font-medium text-zinc-900 dark:text-zinc-100">
+                {data.user.name}
+              </span>
+              {data.user.role ? (
+                <span className="block text-sm text-zinc-500">
+                  {data.user.role}
+                </span>
+              ) : null}
             </span>
             <ChevronDownIcon width={18} height={18} className="text-zinc-500" />
           </>
@@ -512,7 +646,10 @@ function UserMenu({ data, collapsed }: { data: SidebarData; collapsed: boolean }
           >
             Take the tour
           </button>
-          <Link href="/orgs" className="block rounded-lg px-2.5 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800">
+          <Link
+            href="/orgs"
+            className="block rounded-lg px-2.5 py-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
             Switch organization
           </Link>
           <form action="/auth/sign-out" method="post">

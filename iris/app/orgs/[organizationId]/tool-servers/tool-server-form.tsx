@@ -8,10 +8,19 @@ import { AUTH_TYPES } from "@/lib/tool-servers";
 
 import type { ToolServerFormState } from "./actions";
 
-type Action = (state: ToolServerFormState, form: FormData) => Promise<ToolServerFormState>;
+type Action = (
+  state: ToolServerFormState,
+  form: FormData,
+) => Promise<ToolServerFormState>;
 
 /** A new tool server, or an existing one's settings (its name stays). */
-export function ToolServerForm({ action, server }: { action: Action; server?: ToolServer }) {
+export function ToolServerForm({
+  action,
+  server,
+}: {
+  action: Action;
+  server?: ToolServer;
+}) {
   const [state, formAction, pending] = useActionState(action, {});
   const start = state.values ?? {
     name: server?.name ?? "",
@@ -25,13 +34,19 @@ export function ToolServerForm({ action, server }: { action: Action; server?: To
     <form action={formAction} className="max-w-xl space-y-3">
       <FormError error={state.error} />
       {state.notice ? (
-        <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300">
+        <p
+          role="status"
+          className="text-sm text-emerald-700 dark:text-emerald-300"
+        >
           {state.notice}
         </p>
       ) : null}
       {server ? null : (
         <label className="block text-sm">
-          Name <span className="text-zinc-500">(agents see its tools as name_tool)</span>
+          Name{" "}
+          <span className="text-zinc-500">
+            (agents see its tools as name_tool)
+          </span>
           <input
             name="name"
             required
@@ -56,7 +71,12 @@ export function ToolServerForm({ action, server }: { action: Action; server?: To
       </label>
       <label className="block text-sm">
         Description
-        <input name="description" maxLength={500} defaultValue={start.description} className={inputClass} />
+        <input
+          name="description"
+          maxLength={500}
+          defaultValue={start.description}
+          className={inputClass}
+        />
       </label>
       <fieldset className="space-y-1 text-sm">
         <legend>How Aether-os signs in</legend>

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { fieldsOf, requestOf, triggerSummary, type Automation } from "./automations";
+import {
+  fieldsOf,
+  requestOf,
+  triggerSummary,
+  type Automation,
+} from "./automations";
 
 const fields = (overrides: Record<string, string> = {}) => ({
   ...fieldsOf(),
@@ -29,17 +34,23 @@ describe("automations", () => {
           task: {
             agentId: "agent-1",
             title: "Fix #{{issue.number}}: {{issue.title}}",
-            instructions: "Fix the issue {{issue.url}} in {{repository}}, reported by {{author}}.",
+            instructions:
+              "Fix the issue {{issue.url}} in {{repository}}, reported by {{author}}.",
           },
           serviceAccountId: "sa-1",
           workInRepository: true,
           reviewArtifactKinds: [],
           // One task per issue at a time, by default.
-          concurrency: { key: "{{repository}}#{{issue.number}}", policy: "queue" },
+          concurrency: {
+            key: "{{repository}}#{{issue.number}}",
+            policy: "queue",
+          },
         },
       },
     });
-    expect(requestOf(fields({ concurrencyKey: "" }))).toMatchObject({ request: { action: { concurrency: null } } });
+    expect(requestOf(fields({ concurrencyKey: "" }))).toMatchObject({
+      request: { action: { concurrency: null } },
+    });
     expect(requestOf(fields({ concurrencyPolicy: "later" }))).toEqual({
       error: "Choose what happens to a second task with the same key.",
     });
@@ -70,12 +81,24 @@ describe("automations", () => {
       },
     });
     expect("request" in result && result.request.action.task).toBeUndefined();
-    expect(requestOf(fields({ name: "" }))).toEqual({ error: "Give the automation a name." });
-    expect(requestOf(fields({ kind: "template" }))).toEqual({ error: "Choose a template." });
-    expect(requestOf(fields({ kind: "template", templateId: "t", inputs: "no equals" }))).toEqual({
+    expect(requestOf(fields({ name: "" }))).toEqual({
+      error: "Give the automation a name.",
+    });
+    expect(requestOf(fields({ kind: "template" }))).toEqual({
+      error: "Choose a template.",
+    });
+    expect(
+      requestOf(
+        fields({ kind: "template", templateId: "t", inputs: "no equals" }),
+      ),
+    ).toEqual({
       error: 'Write each input as name=value ("no equals").',
     });
-    expect(requestOf(fields({ kind: "template", templateId: "t", templateVersion: "x" }))).toEqual({
+    expect(
+      requestOf(
+        fields({ kind: "template", templateId: "t", templateVersion: "x" }),
+      ),
+    ).toEqual({
       error: "The template version is a whole number.",
     });
   });
@@ -86,15 +109,26 @@ describe("automations", () => {
       name: "Fix bugs",
     } as unknown as { request: Automation };
     const stored = { ...automation.request, status: "active" } as Automation;
-    expect(requestOf(fieldsOf(stored))).toEqual({ request: (automation as { request: unknown }).request });
+    expect(requestOf(fieldsOf(stored))).toEqual({
+      request: (automation as { request: unknown }).request,
+    });
   });
 
   it("says what fires it", () => {
-    const trigger = { type: "github.issue", event: "github.issue.labeled", label: "aether" } as Automation["trigger"];
+    const trigger = {
+      type: "github.issue",
+      event: "github.issue.labeled",
+      label: "aether",
+    } as Automation["trigger"];
     expect(triggerSummary(trigger, "acme/api")).toBe(
       "When an issue in acme/api is labelled “aether”, by someone with write access or more.",
     );
-    expect(triggerSummary({ ...trigger, event: "github.issue.opened", minimumPermission: "any" }, null)).toBe(
+    expect(
+      triggerSummary(
+        { ...trigger, event: "github.issue.opened", minimumPermission: "any" },
+        null,
+      ),
+    ).toBe(
       "When an issue is opened in any linked repository with the label “aether”, by anyone.",
     );
   });

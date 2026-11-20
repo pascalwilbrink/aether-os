@@ -22,7 +22,9 @@ export default function Organizations({ searchParams }: PageProps<"/orgs">) {
   );
 }
 
-async function OrganizationList({ searchParams }: Pick<PageProps<"/orgs">, "searchParams">) {
+async function OrganizationList({
+  searchParams,
+}: Pick<PageProps<"/orgs">, "searchParams">) {
   const session = await requireSession("/orgs");
   const [{ error }, memberships] = await Promise.all([
     searchParams,
@@ -37,7 +39,9 @@ async function OrganizationList({ searchParams }: Pick<PageProps<"/orgs">, "sear
         <SignOutButton />
       </div>
       {memberships.items.length === 0 ? (
-        <p className="text-zinc-600 dark:text-zinc-400">You&apos;re not in an organization yet.</p>
+        <p className="text-zinc-600 dark:text-zinc-400">
+          You&apos;re not in an organization yet.
+        </p>
       ) : (
         <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
           {memberships.items.map((membership) => (
@@ -47,10 +51,16 @@ async function OrganizationList({ searchParams }: Pick<PageProps<"/orgs">, "sear
                 className="flex items-center justify-between px-4 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-900"
               >
                 <span>
-                  <span className="font-medium">{membership.organization.name}</span>{" "}
-                  <span className="text-sm text-zinc-500">{membership.organization.slug}</span>
+                  <span className="font-medium">
+                    {membership.organization.name}
+                  </span>{" "}
+                  <span className="text-sm text-zinc-500">
+                    {membership.organization.slug}
+                  </span>
                 </span>
-                <span className="text-sm text-zinc-500">{membership.roles.join(", ")}</span>
+                <span className="text-sm text-zinc-500">
+                  {membership.roles.join(", ")}
+                </span>
               </a>
             </li>
           ))}

@@ -22,16 +22,23 @@ export interface NewProjectFields {
 }
 
 /** The fields from the form, trimmed, or what's wrong with them (before asking Polis). */
-export function newProjectRequest(fields: NewProjectFields): { request: NewProjectFields } | { error: string } {
+export function newProjectRequest(
+  fields: NewProjectFields,
+): { request: NewProjectFields } | { error: string } {
   const name = fields.name.trim();
   const slug = fields.slug.trim();
   const description = fields.description.trim();
   if (!name) return { error: "Give the project a name." };
-  if (name.length > 200) return { error: "The name is too long (200 characters at most)." };
+  if (name.length > 200)
+    return { error: "The name is too long (200 characters at most)." };
   if (slug.length < 3 || slug.length > 63 || !SLUG_PATTERN.test(slug)) {
-    return { error: "The slug needs 3 to 63 lowercase letters, digits and single dashes." };
+    return {
+      error:
+        "The slug needs 3 to 63 lowercase letters, digits and single dashes.",
+    };
   }
-  if (description.length > 2000) return { error: "The description is too long (2,000 characters at most)." };
+  if (description.length > 2000)
+    return { error: "The description is too long (2,000 characters at most)." };
   return { request: { name, slug, description } };
 }
 

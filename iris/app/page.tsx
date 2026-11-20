@@ -20,7 +20,9 @@ export default function Home({ searchParams }: PageProps<"/">) {
 async function Landing({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
   const session = await currentSession();
   if (session) {
-    redirect(session.organizationId ? `/orgs/${session.organizationId}` : "/orgs");
+    redirect(
+      session.organizationId ? `/orgs/${session.organizationId}` : "/orgs",
+    );
   }
   const { error } = await searchParams;
 
@@ -28,7 +30,9 @@ async function Landing({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
     <section className="space-y-6">
       <Notice error={typeof error === "string" ? error : undefined} />
       <h1 className="text-2xl font-semibold">Welcome to Aether-os</h1>
-      <p className="text-zinc-600 dark:text-zinc-400">Build, run and support AI agents.</p>
+      <p className="text-zinc-600 dark:text-zinc-400">
+        Build, run and support AI agents.
+      </p>
       <a
         href="/auth/sign-in"
         className="inline-block rounded-md bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-500"

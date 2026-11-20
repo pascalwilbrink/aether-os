@@ -4,403 +4,409 @@
  */
 
 export interface paths {
-    "/v1/organizations/{organizationId}/notifications": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        get: operations["listNotifications"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  "/v1/organizations/{organizationId}/notifications": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organizationId: components["parameters"]["OrganizationId"];
+      };
+      cookie?: never;
     };
-    "/v1/organizations/{organizationId}/notifications/unread-count": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        get: operations["countUnreadNotifications"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations["listNotifications"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/organizations/{organizationId}/notifications/unread-count": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organizationId: components["parameters"]["OrganizationId"];
+      };
+      cookie?: never;
     };
-    "/v1/organizations/{organizationId}/notifications/read-all": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Marks every unread notification of the caller in the organization read. */
-        post: operations["readAllNotifications"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get: operations["countUnreadNotifications"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/organizations/{organizationId}/notifications/read-all": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organizationId: components["parameters"]["OrganizationId"];
+      };
+      cookie?: never;
     };
-    "/v1/organizations/{organizationId}/notifications/{notificationId}/read": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                notificationId: components["parameters"]["NotificationId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Marks it read (idempotent); another user's is a 404. */
-        post: operations["readNotification"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** @description Marks every unread notification of the caller in the organization read. */
+    post: operations["readAllNotifications"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/organizations/{organizationId}/notifications/{notificationId}/read": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organizationId: components["parameters"]["OrganizationId"];
+        notificationId: components["parameters"]["NotificationId"];
+      };
+      cookie?: never;
     };
-    "/v1/organizations/{organizationId}/notifications/{notificationId}/unread": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                notificationId: components["parameters"]["NotificationId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Marks it unread again (idempotent). */
-        post: operations["unreadNotification"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** @description Marks it read (idempotent); another user's is a 404. */
+    post: operations["readNotification"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/organizations/{organizationId}/notifications/{notificationId}/unread": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organizationId: components["parameters"]["OrganizationId"];
+        notificationId: components["parameters"]["NotificationId"];
+      };
+      cookie?: never;
     };
+    get?: never;
+    put?: never;
+    /** @description Marks it unread again (idempotent). */
+    post: operations["unreadNotification"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        /**
-         * @description Problem details (RFC 9457), served as `application/problem+json`.
-         *     `code`, `traceId` and `errors` are Aether-os extensions. Clients switch
-         *     on `code`; `detail` is for people.
-         */
-        Problem: {
-            /**
-             * @description `urn:aether-os:problem:<code in kebab case>`, one per `code`.
-             * @example urn:aether-os:problem:organization-suspended
-             */
-            type: string;
-            /** @description Short summary, the same for every occurrence of the type. */
-            title: string;
-            /** @description The HTTP status, repeated. */
-            status: number;
-            /** @description Explanation of this occurrence. Safe to show; not stable. */
-            detail: string;
-            /** @description The request path. */
-            instance: string;
-            /**
-             * @description Stable, machine-readable code: `VALIDATION_FAILED`,
-             *     `INVALID_CURSOR`, `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`,
-             *     `VERSION_MISMATCH`, `RATE_LIMITED`, `INTERNAL`, `UNAVAILABLE`, or
-             *     a domain error code listed by the operation.
-             */
-            code: string;
-            /** @description The request's trace ID, for finding it in Jaeger. */
-            traceId: string | null;
-            /** @description One entry per invalid input (`VALIDATION_FAILED`); otherwise empty. */
-            errors: components["schemas"]["ProblemFieldError"][];
-        };
-        /** @description Pass as `cursor` to get the next page; `null` on the last page. */
-        NextCursor: string | null;
-        /**
-         * @description What happened (`../docs/notifications.md`, Notifications):
-         *     `review_requested` (`task.awaiting-review`), `task_failed`,
-         *     `task_succeeded` (tasks started by hand), `task_paused` (a budget ran
-         *     out), `budget_threshold` (80% of a budget used) and
-         *     `membership_granted` (added to the organization or a project).
-         * @enum {string}
-         */
-        NotificationType: "review_requested" | "task_failed" | "task_succeeded" | "task_paused" | "budget_threshold" | "membership_granted";
-        NotificationResponse: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            organizationId: string;
-            /**
-             * Format: uuid
-             * @description The project it's about; null for the organization.
-             */
-            projectId: string | null;
-            type: components["schemas"]["NotificationType"];
-            /** @description One line, from Aether-os's own data only (never a task title, issue or agent output). */
-            title: string;
-            body: string;
-            /** @description Where it points in Iris, as a path (`/orgs/…`). */
-            link: string;
-            /** Format: uuid */
-            taskId: string | null;
-            /** Format: date-time */
-            readAt: string | null;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        NotificationPage: {
-            items: components["schemas"]["NotificationResponse"][];
-            nextCursor: components["schemas"]["NextCursor"];
-        };
-        UnreadCount: {
-            unread: number;
-        };
-        ReadAllResponse: {
-            /** @description How many were marked read. */
-            read: number;
-        };
-        /** @description One invalid input. Exactly one of `pointer` and `parameter` is set. */
-        ProblemFieldError: {
-            /** @description JSON Pointer (RFC 6901) into the request body, e.g. `/name`. */
-            pointer: string | null;
-            /** @description Name of the invalid query or path parameter. */
-            parameter: string | null;
-            /** @enum {string} */
-            code: "REQUIRED" | "UNKNOWN_FIELD" | "INVALID";
-            detail: string;
-        };
+  schemas: {
+    /**
+     * @description Problem details (RFC 9457), served as `application/problem+json`.
+     *     `code`, `traceId` and `errors` are Aether-os extensions. Clients switch
+     *     on `code`; `detail` is for people.
+     */
+    Problem: {
+      /**
+       * @description `urn:aether-os:problem:<code in kebab case>`, one per `code`.
+       * @example urn:aether-os:problem:organization-suspended
+       */
+      type: string;
+      /** @description Short summary, the same for every occurrence of the type. */
+      title: string;
+      /** @description The HTTP status, repeated. */
+      status: number;
+      /** @description Explanation of this occurrence. Safe to show; not stable. */
+      detail: string;
+      /** @description The request path. */
+      instance: string;
+      /**
+       * @description Stable, machine-readable code: `VALIDATION_FAILED`,
+       *     `INVALID_CURSOR`, `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`,
+       *     `VERSION_MISMATCH`, `RATE_LIMITED`, `INTERNAL`, `UNAVAILABLE`, or
+       *     a domain error code listed by the operation.
+       */
+      code: string;
+      /** @description The request's trace ID, for finding it in Jaeger. */
+      traceId: string | null;
+      /** @description One entry per invalid input (`VALIDATION_FAILED`); otherwise empty. */
+      errors: components["schemas"]["ProblemFieldError"][];
     };
-    responses: {
-        /**
-         * @description `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
-         *     access token (signature, issuer, audience, expiry).
-         */
-        Unauthorized: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /**
-         * @description `FORBIDDEN`: the token is valid but lacks the permission
-         *     (`x-permission` on the operation). Another organization's resources
-         *     are 404, not 403.
-         */
-        Forbidden: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        ValidationError: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content?: never;
-        };
-        /** @description `NOT_FOUND`: the resource doesn't exist. */
-        NotFound: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
-        /**
-         * @description The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-         *     `INVALID_CURSOR`.
-         */
-        BadRequest: {
-            headers: {
-                [name: string]: unknown;
-            };
-            content: {
-                "application/problem+json": components["schemas"]["Problem"];
-            };
-        };
+    /** @description Pass as `cursor` to get the next page; `null` on the last page. */
+    NextCursor: string | null;
+    /**
+     * @description What happened (`../docs/notifications.md`, Notifications):
+     *     `review_requested` (`task.awaiting-review`), `task_failed`,
+     *     `task_succeeded` (tasks started by hand), `task_paused` (a budget ran
+     *     out), `budget_threshold` (80% of a budget used) and
+     *     `membership_granted` (added to the organization or a project).
+     * @enum {string}
+     */
+    NotificationType:
+      | "review_requested"
+      | "task_failed"
+      | "task_succeeded"
+      | "task_paused"
+      | "budget_threshold"
+      | "membership_granted";
+    NotificationResponse: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      organizationId: string;
+      /**
+       * Format: uuid
+       * @description The project it's about; null for the organization.
+       */
+      projectId: string | null;
+      type: components["schemas"]["NotificationType"];
+      /** @description One line, from Aether-os's own data only (never a task title, issue or agent output). */
+      title: string;
+      body: string;
+      /** @description Where it points in Iris, as a path (`/orgs/…`). */
+      link: string;
+      /** Format: uuid */
+      taskId: string | null;
+      /** Format: date-time */
+      readAt: string | null;
+      /** Format: date-time */
+      createdAt: string;
     };
+    NotificationPage: {
+      items: components["schemas"]["NotificationResponse"][];
+      nextCursor: components["schemas"]["NextCursor"];
+    };
+    UnreadCount: {
+      unread: number;
+    };
+    ReadAllResponse: {
+      /** @description How many were marked read. */
+      read: number;
+    };
+    /** @description One invalid input. Exactly one of `pointer` and `parameter` is set. */
+    ProblemFieldError: {
+      /** @description JSON Pointer (RFC 6901) into the request body, e.g. `/name`. */
+      pointer: string | null;
+      /** @description Name of the invalid query or path parameter. */
+      parameter: string | null;
+      /** @enum {string} */
+      code: "REQUIRED" | "UNKNOWN_FIELD" | "INVALID";
+      detail: string;
+    };
+  };
+  responses: {
+    /**
+     * @description `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     *     access token (signature, issuer, audience, expiry).
+     */
+    Unauthorized: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/problem+json": components["schemas"]["Problem"];
+      };
+    };
+    /**
+     * @description `FORBIDDEN`: the token is valid but lacks the permission
+     *     (`x-permission` on the operation). Another organization's resources
+     *     are 404, not 403.
+     */
+    Forbidden: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/problem+json": components["schemas"]["Problem"];
+      };
+    };
+    ValidationError: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content?: never;
+    };
+    /** @description `NOT_FOUND`: the resource doesn't exist. */
+    NotFound: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/problem+json": components["schemas"]["Problem"];
+      };
+    };
+    /**
+     * @description The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     *     `INVALID_CURSOR`.
+     */
+    BadRequest: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/problem+json": components["schemas"]["Problem"];
+      };
+    };
+  };
+  parameters: {
+    OrganizationId: string;
+    NotificationId: string;
+    /** @description Page size. */
+    Limit: number;
+    /**
+     * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+     *     the first page. A cursor only works with the filters it was made with
+     *     (otherwise `400 INVALID_CURSOR`).
+     */
+    Cursor: string;
+  };
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
+}
+export type $defs = Record<string, never>;
+export interface operations {
+  listNotifications: {
     parameters: {
-        OrganizationId: string;
-        NotificationId: string;
+      query?: {
+        /** @description Only unread ones (`true`), or only read ones (`false`). */
+        unread?: boolean;
         /** @description Page size. */
-        Limit: number;
+        limit?: components["parameters"]["Limit"];
         /**
          * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
          *     the first page. A cursor only works with the filters it was made with
          *     (otherwise `400 INVALID_CURSOR`).
          */
-        Cursor: string;
+        cursor?: components["parameters"]["Cursor"];
+      };
+      header?: never;
+      path: {
+        organizationId: components["parameters"]["OrganizationId"];
+      };
+      cookie?: never;
     };
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
-}
-export type $defs = Record<string, never>;
-export interface operations {
-    listNotifications: {
-        parameters: {
-            query?: {
-                /** @description Only unread ones (`true`), or only read ones (`false`). */
-                unread?: boolean;
-                /** @description Page size. */
-                limit?: components["parameters"]["Limit"];
-                /**
-                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-                 *     the first page. A cursor only works with the filters it was made with
-                 *     (otherwise `400 INVALID_CURSOR`).
-                 */
-                cursor?: components["parameters"]["Cursor"];
-            };
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Newest first */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Newest first */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NotificationPage"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
+        content: {
+          "application/json": components["schemas"]["NotificationPage"];
         };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
     };
-    countUnreadNotifications: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UnreadCount"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
+  };
+  countUnreadNotifications: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organizationId: components["parameters"]["OrganizationId"];
+      };
+      cookie?: never;
     };
-    readAllNotifications: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description How many there were, now none */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReadAllResponse"];
-                };
-            };
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
+        content: {
+          "application/json": components["schemas"]["UnreadCount"];
         };
+      };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
     };
-    readNotification: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                notificationId: components["parameters"]["NotificationId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NotificationResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
+  };
+  readAllNotifications: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organizationId: components["parameters"]["OrganizationId"];
+      };
+      cookie?: never;
     };
-    unreadNotification: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                notificationId: components["parameters"]["NotificationId"];
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description How many there were, now none */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NotificationResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
+        content: {
+          "application/json": components["schemas"]["ReadAllResponse"];
         };
+      };
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
     };
+  };
+  readNotification: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organizationId: components["parameters"]["OrganizationId"];
+        notificationId: components["parameters"]["NotificationId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotificationResponse"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  unreadNotification: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        organizationId: components["parameters"]["OrganizationId"];
+        notificationId: components["parameters"]["NotificationId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotificationResponse"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthorized"];
+      403: components["responses"]["Forbidden"];
+      404: components["responses"]["NotFound"];
+    };
+  };
 }

@@ -28,23 +28,30 @@ function settled<T>(result: PromiseSettledResult<T>, fallback: T): T {
  * Without a session for the organization it renders nothing (the page signs
  * in again).
  */
-export async function Sidebar({ params }: { params: Promise<{ organizationId: string }> }) {
+export async function Sidebar({
+  params,
+}: {
+  params: Promise<{ organizationId: string }>;
+}) {
   const { organizationId } = await params;
   const session = await currentSession();
   if (session?.organizationId !== organizationId) {
     return null;
   }
   const token = session.accessToken;
-  const [organization, memberships, projects, unread, statuses] = await Promise.allSettled([
-    getOrganization(token, organizationId),
-    myMemberships(token, session.sub),
-    listProjects(token, organizationId),
-    listNotifications(token, organizationId, { unread: true, limit: 100 }),
-    serviceStatuses(),
-  ]);
+  const [organization, memberships, projects, unread, statuses] =
+    await Promise.allSettled([
+      getOrganization(token, organizationId),
+      myMemberships(token, session.sub),
+      listProjects(token, organizationId),
+      listNotifications(token, organizationId, { unread: true, limit: 100 }),
+      serviceStatuses(),
+    ]);
 
   const unreadItems = settled(unread, null)?.items ?? null;
-  const attention = new Set((unreadItems ?? []).map((notification) => notification.projectId));
+  const attention = new Set(
+    (unreadItems ?? []).map((notification) => notification.projectId),
+  );
   const roles = organizationRoles(token);
   const down = settled(statuses, [])
     .filter((status) => !status.up)
@@ -55,13 +62,20 @@ export async function Sidebar({ params }: { params: Promise<{ organizationId: st
       id: organizationId,
       name: settled(organization, null)?.name ?? "Organization",
     },
-    organizations: settled(memberships, { items: [], nextCursor: null }).items.map((membership) => ({
+    organizations: settled(memberships, {
+      items: [],
+      nextCursor: null,
+    }).items.map((membership) => ({
       id: membership.organizationId,
       name: membership.organization.name,
     })),
     projects: settled(projects, { items: [], nextCursor: null })
       .items.filter((project) => project.status === "active")
-      .map((project) => ({ id: project.id, name: project.name, attention: attention.has(project.id) })),
+      .map((project) => ({
+        id: project.id,
+        name: project.name,
+        attention: attention.has(project.id),
+      })),
     unread: unreadItems === null ? null : unreadItems.length,
     user: { name: session.name, role: roleLabel(roles) },
     status: { ...statusLine(down), down },

@@ -26,7 +26,10 @@ export async function serviceStatuses(): Promise<ServiceStatus[]> {
   return Promise.all(
     SERVICES().map(async ({ name, url }) => {
       try {
-        await fetch(new URL("/health", url), { cache: "no-store", signal: AbortSignal.timeout(1500) });
+        await fetch(new URL("/health", url), {
+          cache: "no-store",
+          signal: AbortSignal.timeout(1500),
+        });
         return { name, up: true };
       } catch {
         return { name, up: false };

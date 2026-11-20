@@ -4,7 +4,10 @@
 export function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return "?";
-  const letters = words.length === 1 ? [words[0][0]] : [words[0][0], words[words.length - 1][0]];
+  const letters =
+    words.length === 1
+      ? [words[0][0]]
+      : [words[0][0], words[words.length - 1][0]];
   return letters.join("").toUpperCase();
 }
 
@@ -20,7 +23,9 @@ const PROJECT_COLORS = [
   "bg-fuchsia-500",
 ] as const;
 
-export function projectColor(projectId: string): (typeof PROJECT_COLORS)[number] {
+export function projectColor(
+  projectId: string,
+): (typeof PROJECT_COLORS)[number] {
   let hash = 0;
   for (const char of projectId) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
   return PROJECT_COLORS[hash % PROJECT_COLORS.length];
@@ -41,10 +46,20 @@ export function roleLabel(roles: readonly string[]): string | null {
   return null;
 }
 
-export type SidebarSection = "home" | "inbox" | "projects" | "agents" | "templates" | "members" | "settings";
+export type SidebarSection =
+  | "home"
+  | "inbox"
+  | "projects"
+  | "agents"
+  | "templates"
+  | "members"
+  | "settings";
 
 /** Which item a page belongs to, from its path. */
-export function sectionOf(pathname: string, organizationId: string): SidebarSection {
+export function sectionOf(
+  pathname: string,
+  organizationId: string,
+): SidebarSection {
   const base = `/orgs/${organizationId}`;
   const rest = pathname.startsWith(base) ? pathname.slice(base.length) : "";
   const first = rest.split("/").filter(Boolean)[0];
@@ -74,17 +89,28 @@ export function sectionOf(pathname: string, organizationId: string): SidebarSect
 }
 
 /** The project a page is in, if any. */
-export function projectOf(pathname: string, organizationId: string): string | null {
-  const match = pathname.match(new RegExp(`^/orgs/${organizationId}/projects/([0-9a-f-]{36})`));
+export function projectOf(
+  pathname: string,
+  organizationId: string,
+): string | null {
+  const match = pathname.match(
+    new RegExp(`^/orgs/${organizationId}/projects/([0-9a-f-]{36})`),
+  );
   return match ? match[1] : null;
 }
 
 /** The status line: every service answered, or how many didn't. */
-export function statusLine(down: readonly string[]): { ok: boolean; text: string } {
+export function statusLine(down: readonly string[]): {
+  ok: boolean;
+  text: string;
+} {
   if (down.length === 0) return { ok: true, text: "All systems operational" };
   return {
     ok: false,
-    text: down.length === 1 ? `${down[0]} is unreachable` : `${down.length} services unreachable`,
+    text:
+      down.length === 1
+        ? `${down[0]} is unreachable`
+        : `${down.length} services unreachable`,
   };
 }
 

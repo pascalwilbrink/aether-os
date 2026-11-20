@@ -4,11 +4,18 @@ import { Suspense } from "react";
 import { ArtifactContent } from "@/app/components/artifact-view";
 import { BudgetForm, BudgetMeter } from "@/app/components/budget";
 import { StatusBadge } from "@/app/components/status-badge";
-import { getTask, getTaskTreeBudget, listArtifacts, listExecutions } from "@/lib/api/hephaestus";
+import {
+  getTask,
+  getTaskTreeBudget,
+  listArtifacts,
+  listExecutions,
+} from "@/lib/api/hephaestus";
+import { getFile } from "@/lib/api/loculus";
 import { getProject } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
 import { pausedMessage } from "@/lib/budgets";
 import { config } from "@/lib/config";
+import { downloadHref, formatBytes } from "@/lib/files";
 import { traceLinks } from "@/lib/traces";
 import {
   artifactsByExecution,
@@ -25,7 +32,8 @@ import { setTaskBudgetAction } from "../../actions";
 import { ReviewForm } from "../../review-form";
 import { TaskActions } from "../../task-actions";
 
-type Props = PageProps<"/orgs/[organizationId]/projects/[projectId]/tasks/[taskId]">;
+type Props =
+  PageProps<"/orgs/[organizationId]/projects/[projectId]/tasks/[taskId]">;
 
 /** A task: what it was asked, how its runs went, what it produced, and its drafts to review. */
 export default function TaskPage({ params }: Props) {
@@ -39,7 +47,10 @@ export default function TaskPage({ params }: Props) {
 async function TaskView({ params }: Pick<Props, "params">) {
   const { organizationId, projectId, taskId } = await params;
   const projectPath = `/orgs/${organizationId}/projects/${projectId}`;
-  const session = await requireOrganization(organizationId, `${projectPath}/tasks/${taskId}`);
+  const session = await requireOrganization(
+    organizationId,
+    `${projectPath}/tasks/${taskId}`,
+  );
   const token = session.accessToken;
   const [project, task, executions, artifacts, budget] = await Promise.all([
     getProject(token, organizationId, projectId),
@@ -65,7 +76,10 @@ async function TaskView({ params }: Pick<Props, "params">) {
           {task.parentTaskId ? (
             <>
               {" · "}
-              <Link href={`${projectPath}/tasks/${task.parentTaskId}`} className="underline">
+              <Link
+                href={`${projectPath}/tasks/${task.parentTaskId}`}
+                className="underline"
+              >
                 Parent task
               </Link>
             </>
@@ -76,10 +90,15 @@ async function TaskView({ params }: Pick<Props, "params">) {
           <StatusBadge status={task.status} />
         </div>
         {task.failureReason ? (
-          <p className="text-sm text-red-700 dark:text-red-300">{failureLabel(task.failureReason)}</p>
+          <p className="text-sm text-red-700 dark:text-red-300">
+            {failureLabel(task.failureReason)}
+          </p>
         ) : null}
         {task.status === "paused" && task.pausedFor ? (
-          <p role="status" className="text-sm text-amber-700 dark:text-amber-300">
+          <p
+            role="status"
+            className="text-sm text-amber-700 dark:text-amber-300"
+          >
             {pausedMessage(task.pausedFor)}{" "}
             {task.pausedFor === "task_tree" ? (
               <a href="#budget" className="underline">
@@ -109,6 +128,16 @@ async function TaskView({ params }: Pick<Props, "params">) {
         <pre className="whitespace-pre-wrap rounded-md bg-zinc-100 p-3 text-sm dark:bg-zinc-900">
           {task.instructions}
         </pre>
+        {task.inputFiles.length > 0 ? (
+          <Suspense fallback={<p className="text-sm text-zinc-500">Files…</p>}>
+            <InputFiles
+              token={session.accessToken}
+              organizationId={organizationId}
+              projectId={projectId}
+              fileIds={task.inputFiles.map((file) => file.fileId)}
+            />
+          </Suspense>
+        ) : null}
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
           <Fact label="Attempt">{task.attempt}</Fact>
           <Fact label="Review round">{task.reviewRound}</Fact>
@@ -116,14 +145,19 @@ async function TaskView({ params }: Pick<Props, "params">) {
           <Fact label="Finished">{formatTime(task.finishedAt)}</Fact>
           {task.taskTemplateId ? (
             <Fact label="Template">
-              <Link href={`${projectPath}/templates/${task.taskTemplateId}`} className="underline">
+              <Link
+                href={`${projectPath}/templates/${task.taskTemplateId}`}
+                className="underline"
+              >
                 v{task.taskTemplateVersion}
               </Link>
             </Fact>
           ) : null}
           {task.review.artifactKinds.length > 0 ? (
             <Fact label="Needs approval">
-              {task.review.artifactKinds.includes("*") ? "everything" : task.review.artifactKinds.join(", ")}
+              {task.review.artifactKinds.includes("*")
+                ? "everything"
+                : task.review.artifactKinds.join(", ")}
             </Fact>
           ) : null}
         </dl>
@@ -135,10 +169,12 @@ async function TaskView({ params }: Pick<Props, "params">) {
           <ul className="list-inside list-disc text-sm">
             {task.acceptanceCriteria.map((criterion) => (
               <li key={criterion.key}>
-                <span className="font-mono text-xs">{criterion.key}</span> {criterion.description}{" "}
+                <span className="font-mono text-xs">{criterion.key}</span>{" "}
+                {criterion.description}{" "}
                 <span className="text-xs text-zinc-500">
                   ({criterion.check.type}
-                  {criterion.source === "template" ? ", from the template" : ""})
+                  {criterion.source === "template" ? ", from the template" : ""}
+                  )
                 </span>
               </li>
             ))}
@@ -149,7 +185,9 @@ async function TaskView({ params }: Pick<Props, "params">) {
       <section className="space-y-4">
         <h2 className="font-medium">Artifacts</h2>
         {groups.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Nothing yet.</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            Nothing yet.
+          </p>
         ) : (
           groups.map(({ execution, items }) => (
             <div key={execution.id} className="space-y-3">
@@ -168,11 +206,15 @@ async function TaskView({ params }: Pick<Props, "params">) {
                 >
                   <header className="flex flex-wrap items-baseline gap-2">
                     <h4 className="font-medium">
-                      {artifact.kind === "verification" ? "Acceptance criteria checked" : artifact.title}
+                      {artifact.kind === "verification"
+                        ? "Acceptance criteria checked"
+                        : artifact.title}
                     </h4>
                     <span className="text-xs text-zinc-500">
-                      {artifact.kind === "verification" ? `round ${artifact.round}` : artifact.kind} ·{" "}
-                      {artifact.status.replace("_", " ")}
+                      {artifact.kind === "verification"
+                        ? `round ${artifact.round}`
+                        : artifact.kind}{" "}
+                      · {artifact.status.replace("_", " ")}
                       {artifact.primary ? " · primary" : ""}
                       {artifact.revisionOf ? " · revision" : ""}
                     </span>
@@ -180,13 +222,18 @@ async function TaskView({ params }: Pick<Props, "params">) {
                   <ArtifactContent artifact={artifact} />
                   {artifact.review ? (
                     <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                      {artifact.review.decision.replace("_", " ")} by {who(artifact.review.decidedBy)}
+                      {artifact.review.decision.replace("_", " ")} by{" "}
+                      {who(artifact.review.decidedBy)}
                       {artifact.review.comments.length > 0
                         ? `: ${artifact.review.comments.map((comment) => comment.body).join(" · ")}`
                         : ""}
                     </p>
                   ) : null}
-                  {artifact.status === "draft" ? <ReviewForm artifact={{ ...ref, artifactId: artifact.id }} /> : null}
+                  {artifact.status === "draft" ? (
+                    <ReviewForm
+                      artifact={{ ...ref, artifactId: artifact.id }}
+                    />
+                  ) : null}
                 </article>
               ))}
             </div>
@@ -204,13 +251,18 @@ async function TaskView({ params }: Pick<Props, "params">) {
           </p>
         </div>
         <BudgetMeter budget={budget} />
-        <BudgetForm budget={budget} action={setTaskBudgetAction.bind(null, ref)} />
+        <BudgetForm
+          budget={budget}
+          action={setTaskBudgetAction.bind(null, ref)}
+        />
       </section>
 
       <section className="space-y-2">
         <h2 className="font-medium">Executions</h2>
         {executions.items.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Not started yet.</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            Not started yet.
+          </p>
         ) : (
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-zinc-500">
@@ -222,7 +274,9 @@ async function TaskView({ params }: Pick<Props, "params">) {
                 <th className="py-1 font-normal">Cost</th>
                 <th className="py-1 font-normal">Network</th>
                 <th className="py-1 font-normal">Started</th>
-                {viewers.jaegerUrl || viewers.langfuseUrl ? <th className="py-1 font-normal">Trace</th> : null}
+                {viewers.jaegerUrl || viewers.langfuseUrl ? (
+                  <th className="py-1 font-normal">Trace</th>
+                ) : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -232,28 +286,49 @@ async function TaskView({ params }: Pick<Props, "params">) {
                   <td className="py-2 pr-2">
                     {execution.status}
                     {execution.error ? (
-                      <span className="block text-xs text-red-700 dark:text-red-300">{execution.error}</span>
+                      <span className="block text-xs text-red-700 dark:text-red-300">
+                        {execution.error}
+                      </span>
                     ) : null}
                   </td>
-                  <td className="py-2 pr-2">{formatCount(execution.usage.modelCalls)}</td>
                   <td className="py-2 pr-2">
-                    {formatCount(execution.usage.inputTokens)} / {formatCount(execution.usage.outputTokens)}
+                    {formatCount(execution.usage.modelCalls)}
                   </td>
-                  <td className="py-2 pr-2">{formatCost(execution.usage.costUsd)}</td>
-                  <td className="py-2 pr-2" title={execution.sandbox?.allowedHosts.join(", ") || undefined}>
+                  <td className="py-2 pr-2">
+                    {formatCount(execution.usage.inputTokens)} /{" "}
+                    {formatCount(execution.usage.outputTokens)}
+                  </td>
+                  <td className="py-2 pr-2">
+                    {formatCost(execution.usage.costUsd)}
+                  </td>
+                  <td
+                    className="py-2 pr-2"
+                    title={
+                      execution.sandbox?.allowedHosts.join(", ") || undefined
+                    }
+                  >
                     {networkLabel(execution)}
                   </td>
-                  <td className="py-2 text-zinc-600 dark:text-zinc-400">{formatTime(execution.startedAt)}</td>
+                  <td className="py-2 text-zinc-600 dark:text-zinc-400">
+                    {formatTime(execution.startedAt)}
+                  </td>
                   {viewers.jaegerUrl || viewers.langfuseUrl ? (
                     <td className="py-2 pl-2">
-                      {traceLinks(execution.traceId, viewers).map((link, index) => (
-                        <span key={link.label}>
-                          {index > 0 ? " · " : null}
-                          <a href={link.href} target="_blank" rel="noreferrer" className="underline">
-                            {link.label}
-                          </a>
-                        </span>
-                      ))}
+                      {traceLinks(execution.traceId, viewers).map(
+                        (link, index) => (
+                          <span key={link.label}>
+                            {index > 0 ? " · " : null}
+                            <a
+                              href={link.href}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline"
+                            >
+                              {link.label}
+                            </a>
+                          </span>
+                        ),
+                      )}
                     </td>
                   ) : null}
                 </tr>
@@ -267,9 +342,13 @@ async function TaskView({ params }: Pick<Props, "params">) {
         <section className="space-y-2">
           <h2 className="font-medium">Blocked hosts</h2>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            The sandbox tried to reach these hosts and was refused: they&apos;re not among the hosts its agent version
-            may reach. If the agent needs one, add it to the allowed hosts of a new version of{" "}
-            <Link href={`/orgs/${organizationId}/agents/${task.agentId}`} className="underline">
+            The sandbox tried to reach these hosts and was refused: they&apos;re
+            not among the hosts its agent version may reach. If the agent needs
+            one, add it to the allowed hosts of a new version of{" "}
+            <Link
+              href={`/orgs/${organizationId}/agents/${task.agentId}`}
+              className="underline"
+            >
               the agent
             </Link>
             .
@@ -279,7 +358,8 @@ async function TaskView({ params }: Pick<Props, "params">) {
               <li key={host}>
                 <code className="font-mono">{host}</code>{" "}
                 <span className="text-zinc-500">
-                  (execution{numbers.length > 1 ? "s" : ""} {numbers.join(", ")})
+                  (execution{numbers.length > 1 ? "s" : ""} {numbers.join(", ")}
+                  )
                 </span>
               </li>
             ))}
@@ -290,11 +370,72 @@ async function TaskView({ params }: Pick<Props, "params">) {
   );
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+function Fact({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div>
       <dt className="text-xs text-zinc-500">{label}</dt>
       <dd>{children}</dd>
+    </div>
+  );
+}
+
+/** The files the task started from (Loculus), each with a download link. */
+async function InputFiles({
+  token,
+  organizationId,
+  projectId,
+  fileIds,
+}: {
+  token: string;
+  organizationId: string;
+  projectId: string;
+  fileIds: string[];
+}) {
+  const files = await Promise.allSettled(
+    fileIds.map((fileId) => getFile(token, organizationId, projectId, fileId)),
+  );
+  return (
+    <div className="text-sm">
+      <p className="text-zinc-600 dark:text-zinc-400">
+        Files it starts from, in /workspace/inputs:
+      </p>
+      <ul className="mt-1 space-y-1">
+        {files.map((result, index) => (
+          <li
+            key={fileIds[index]}
+            className="flex flex-wrap items-center gap-2"
+          >
+            {result.status === "fulfilled" ? (
+              <>
+                <a
+                  href={downloadHref(
+                    organizationId,
+                    projectId,
+                    result.value.id,
+                  )}
+                  className="font-mono underline"
+                >
+                  {result.value.fileName}
+                </a>
+                <span className="text-zinc-500">
+                  {result.value.contentType} ·{" "}
+                  {formatBytes(result.value.sizeBytes)}
+                </span>
+              </>
+            ) : (
+              <span className="text-zinc-500">
+                A file that can&apos;t be found ({fileIds[index]})
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

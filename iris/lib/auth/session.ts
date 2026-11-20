@@ -70,12 +70,18 @@ export function needsRefresh(session: Session, now = Date.now()): boolean {
  * API refused without carrying the token itself (`/auth/expired`).
  */
 export function tokenFingerprint(accessToken: string): string {
-  return createHash("sha256").update(accessToken).digest("base64url").slice(0, 22);
+  return createHash("sha256")
+    .update(accessToken)
+    .digest("base64url")
+    .slice(0, 22);
 }
 
 /** Only same-site paths, so `returnTo` can't send people elsewhere. */
 export function safeReturnTo(value: string | null | undefined): string {
-  return value && value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/\\")
+  return value &&
+    value.startsWith("/") &&
+    !value.startsWith("//") &&
+    !value.startsWith("/\\")
     ? value
     : "/";
 }

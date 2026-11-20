@@ -3,7 +3,12 @@
 import { useActionState } from "react";
 
 import { buttonClass, FormError, inputClass } from "@/app/components/form";
-import { budgetSummary, limitField, windowLabel, type Budget } from "@/lib/budgets";
+import {
+  budgetSummary,
+  limitField,
+  windowLabel,
+  type Budget,
+} from "@/lib/budgets";
 
 /** What a budget form's Server Function returns. */
 export interface BudgetFormState {
@@ -25,7 +30,8 @@ export function BudgetMeter({ budget }: { budget: Budget }) {
   return (
     <div className="space-y-1 text-sm">
       <p>
-        <span className="font-medium">{summary.spent}</span> spent {windowLabel(budget.scope)}
+        <span className="font-medium">{summary.spent}</span> spent{" "}
+        {windowLabel(budget.scope)}
         {summary.percent === null ? (
           <span className="text-zinc-500"> · no limit</span>
         ) : (
@@ -45,7 +51,10 @@ export function BudgetMeter({ budget }: { budget: Budget }) {
           aria-valuenow={summary.percent}
           aria-label="Budget used"
         >
-          <div className={`h-full ${BAR[summary.tone]}`} style={{ width: `${summary.percent}%` }} />
+          <div
+            className={`h-full ${BAR[summary.tone]}`}
+            style={{ width: `${summary.percent}%` }}
+          />
         </div>
       )}
       {summary.tone === "exceeded" ? (
@@ -72,7 +81,10 @@ export function BudgetForm({
     <form action={formAction} className="space-y-2">
       <FormError error={state.error} />
       {state.notice ? (
-        <p role="status" className="text-sm text-emerald-700 dark:text-emerald-300">
+        <p
+          role="status"
+          className="text-sm text-emerald-700 dark:text-emerald-300"
+        >
           {state.notice}
         </p>
       ) : null}

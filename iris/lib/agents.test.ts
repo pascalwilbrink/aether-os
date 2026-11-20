@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import type { Model } from "./api";
-import { canPublish, fieldsOf, formatPrice, modelChoices, versionFromForm, versionStatusLabel } from "./agents";
+import {
+  canPublish,
+  fieldsOf,
+  formatPrice,
+  modelChoices,
+  versionFromForm,
+  versionStatusLabel,
+} from "./agents";
 
 const base = {
   instructions: " Fix bugs. ",
@@ -75,7 +82,10 @@ describe("versionFromForm", () => {
     [{ ...base, temperature: "warm" }, "Temperature is a number from 0 to 2."],
     [{ ...base, maxTokens: "1.5" }, "Max tokens is a whole number above 0."],
     [{ ...base, maxTokens: "0" }, "Max tokens is a whole number above 0."],
-    [{ ...base, "tool:docs": "on", "toolNames:docs": "a/b" }, '"a/b" isn\'t a tool name (letters, digits, _ . and -).'],
+    [
+      { ...base, "tool:docs": "on", "toolNames:docs": "a/b" },
+      '"a/b" isn\'t a tool name (letters, digits, _ . and -).',
+    ],
     [{ ...base, "skill:a": "on" }, "Choose a version of a."],
   ])("refuses %o", (fields, error) => {
     expect(versionFromForm(fields)).toEqual({ error });
@@ -121,7 +131,10 @@ describe("fieldsOf", () => {
         maxTokens: 100,
       },
       capabilities: ["code", "chat"],
-      tools: [{ name: "docs", enabled: true, tools: ["lookup"] }, { name: "seshat", enabled: true }],
+      tools: [
+        { name: "docs", enabled: true, tools: ["lookup"] },
+        { name: "seshat", enabled: true },
+      ],
       skills: [{ name: "review", version: "3", enabled: true }],
       runtime: {
         provider: "local",
@@ -142,14 +155,27 @@ describe("fieldsOf", () => {
         allowedHosts: ["api.example.com", "*.cdn.test"],
       },
     };
-    expect(versionFromForm(fieldsOf(restricted as never))).toEqual({ body: restricted });
+    expect(versionFromForm(fieldsOf(restricted as never))).toEqual({
+      body: restricted,
+    });
     expect(
-      versionFromForm({ ...fieldsOf(restricted as never), allowedHosts: "API.example.com, ok.test\nnot a host" }),
-    ).toEqual({ error: '"not" isn\'t a host name (e.g. api.example.com, or *.example.com).' });
+      versionFromForm({
+        ...fieldsOf(restricted as never),
+        allowedHosts: "API.example.com, ok.test\nnot a host",
+      }),
+    ).toEqual({
+      error:
+        '"not" isn\'t a host name (e.g. api.example.com, or *.example.com).',
+    });
   });
 });
 
-const model = (provider: string, id: string, name: string, input: string | null): Model => ({
+const model = (
+  provider: string,
+  id: string,
+  name: string,
+  input: string | null,
+): Model => ({
   id: `${provider}-${id}`,
   provider,
   model: id,
@@ -211,7 +237,9 @@ describe("modelChoices", () => {
   });
 
   it("says when the starting model can't be chosen any more", () => {
-    expect(modelChoices(models, "anthropic/claude-opus-4-1").unavailable).toBe("anthropic/claude-opus-4-1");
+    expect(modelChoices(models, "anthropic/claude-opus-4-1").unavailable).toBe(
+      "anthropic/claude-opus-4-1",
+    );
     expect(modelChoices(models, "").unavailable).toBeNull();
     expect(modelChoices([], "").groups).toEqual([]);
   });
@@ -225,7 +253,10 @@ describe("modelChoices", () => {
         label: "Ollama (your server)",
         options: [
           { value: "ollama/qwen3:8b", label: "qwen3:8b · unpriced" },
-          { value: "ollama/llama3.2:latest", label: "llama3.2:latest · unpriced" },
+          {
+            value: "ollama/llama3.2:latest",
+            label: "llama3.2:latest · unpriced",
+          },
         ],
       },
     ]);

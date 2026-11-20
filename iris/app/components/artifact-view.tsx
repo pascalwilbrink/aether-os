@@ -18,7 +18,9 @@ export function ArtifactContent({ artifact }: { artifact: Artifact }) {
       );
     case "verification":
       return artifact.results.length === 0 ? (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">No acceptance criteria: nothing was checked.</p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          No acceptance criteria: nothing was checked.
+        </p>
       ) : (
         <ul className="space-y-2 text-sm">
           {artifact.results.map((result) => (
@@ -32,7 +34,12 @@ export function ArtifactContent({ artifact }: { artifact: Artifact }) {
                       : "text-amber-700 dark:text-amber-300"
                 }
               >
-                {result.outcome === "passed" ? "✓" : result.outcome === "failed" ? "✗" : "?"} {result.key}
+                {result.outcome === "passed"
+                  ? "✓"
+                  : result.outcome === "failed"
+                    ? "✗"
+                    : "?"}{" "}
+                {result.key}
               </span>
               {result.output ? (
                 <pre className="mt-1 max-h-40 overflow-auto rounded bg-zinc-100 p-2 font-mono text-xs dark:bg-zinc-900">
@@ -47,13 +54,16 @@ export function ArtifactContent({ artifact }: { artifact: Artifact }) {
       return (
         <div className="space-y-2 text-sm">
           <p>
-            <span className="font-mono">{artifact.branch}</span> → <span className="font-mono">{artifact.baseBranch}</span>{" "}
-            in {artifact.repository}, at <span className="font-mono">{artifact.headSha.slice(0, 12)}</span>
+            <span className="font-mono">{artifact.branch}</span> →{" "}
+            <span className="font-mono">{artifact.baseBranch}</span> in{" "}
+            {artifact.repository}, at{" "}
+            <span className="font-mono">{artifact.headSha.slice(0, 12)}</span>
           </p>
           <p className="text-zinc-600 dark:text-zinc-400">
             {artifact.pullRequest ? (
               <a href={artifact.pullRequest.url} className="underline">
-                Pull request #{artifact.pullRequest.number} ({artifact.pullRequest.state})
+                Pull request #{artifact.pullRequest.number} (
+                {artifact.pullRequest.state})
               </a>
             ) : (
               "Pushed; the pull request opens when the task delivers."
@@ -72,7 +82,11 @@ export function ArtifactContent({ artifact }: { artifact: Artifact }) {
             {artifact.contentType} · {formatBytes(artifact.sizeBytes)}
           </span>
           <a
-            href={downloadHref(artifact.organizationId, artifact.projectId, artifact.fileId)}
+            href={downloadHref(
+              artifact.organizationId,
+              artifact.projectId,
+              artifact.fileId,
+            )}
             className="rounded-md border border-zinc-300 px-2 py-1 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
           >
             Download

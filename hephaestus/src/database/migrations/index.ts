@@ -20,6 +20,7 @@ import { TaskConcurrency1795082757713 } from './1795082757713-TaskConcurrency.js
 import { OllamaModelKeys1795130000000 } from './1795130000000-OllamaModelKeys.js';
 import { OpenAiModelsSeed1795130000001 } from './1795130000001-OpenAiModelsSeed.js';
 import { FileArtifacts1795140000000 } from './1795140000000-FileArtifacts.js';
+import { TaskInputFiles1795150000000 } from './1795150000000-TaskInputFiles.js';
 import { ExecutionTraces1795120000000 } from './1795120000000-ExecutionTraces.js';
 import { Skills1795110000000 } from './1795110000000-Skills.js';
 import { ToolServers1795100000000 } from './1795100000000-ToolServers.js';
@@ -58,4 +59,5 @@ export const migrations = [
   OllamaModelKeys1795130000000,
   OpenAiModelsSeed1795130000001,
   FileArtifacts1795140000000,
+  TaskInputFiles1795150000000,
 ];

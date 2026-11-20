@@ -17,6 +17,8 @@ import {
   type Sandbox,
   type SandboxRelease,
 } from './sandbox-provisioner.js';
+import type { AgentInputFile } from './agent-runtime.js';
+import { TaskInputs } from './task-inputs.js';
 import { TaskTokens } from './task-tokens.js';
 
 /** Pistis issues task tokens for at most an hour. */
@@ -37,6 +39,7 @@ export class ExecutionPreparer {
     private readonly provisioner: SandboxProvisioner,
     private readonly repositories: RepositoryCheckouts,
     private readonly budgets: BudgetsService,
+    private readonly inputs: TaskInputs,
   ) {}
 
   /**
@@ -105,6 +108,15 @@ export class ExecutionPreparer {
     sandbox: Sandbox | null,
   ): Promise<Checkout | null> {
     return this.repositories.checkout(task, token, sandbox);
+  }
+
+  /** The task's input files in its sandbox (`/workspace/inputs`). */
+  inputFiles(
+    task: TaskResponse,
+    token: string,
+    sandbox: Sandbox | null,
+  ): Promise<AgentInputFile[]> {
+    return this.inputs.copyInto(task, token, sandbox);
   }
 
   /** What the agent committed, out of the sandbox and into Hephaestus's clone. */
