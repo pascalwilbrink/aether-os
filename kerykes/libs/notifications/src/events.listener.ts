@@ -17,9 +17,13 @@ export class EventsListener {
   @OnDomainEvent('hephaestus.task.failed')
   @OnDomainEvent('hephaestus.task.succeeded')
   @OnDomainEvent('hephaestus.task.paused')
-  @OnDomainEvent('hephaestus.budget.threshold-reached')
   async onHephaestusEvent(event: DomainEvent<unknown>): Promise<void> {
     await this.notifications.notify('hephaestus', event);
+  }
+
+  @OnDomainEvent('pylon.budget.threshold-reached')
+  async onPylonEvent(event: DomainEvent<unknown>): Promise<void> {
+    await this.notifications.notify('pylon', event);
   }
 
   @OnDomainEvent('polis.membership.granted')

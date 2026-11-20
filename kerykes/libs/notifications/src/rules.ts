@@ -1,6 +1,7 @@
 import type {
   DomainEvent,
   HephaestusEvents,
+  PylonEvents,
   OrganizationPermission,
   PolisEvents,
   ProjectPermission,
@@ -9,6 +10,7 @@ import type {
 import type { NotificationType } from './notification.entities.js';
 
 type Hephaestus = HephaestusEvents.HephaestusEventPayloads;
+type Pylon = PylonEvents.PylonEventPayloads;
 type Polis = PolisEvents.PolisEventPayloads;
 
 /** Who a notification is for, before the permission check. */
@@ -106,9 +108,9 @@ export function planFor(
       return taskSucceeded(event as DomainEvent<Hephaestus['task.succeeded']>);
     case 'hephaestus.task.paused':
       return taskPaused(event as DomainEvent<Hephaestus['task.paused']>);
-    case 'hephaestus.budget.threshold-reached':
+    case 'pylon.budget.threshold-reached':
       return budgetThreshold(
-        event as DomainEvent<Hephaestus['budget.threshold-reached']>,
+        event as DomainEvent<Pylon['budget.threshold-reached']>,
       );
     case 'polis.membership.granted':
       return membershipGranted(
@@ -242,7 +244,7 @@ function taskPaused(
 
 /** 80% of a budget used, for the organization's owners and admins; once per budget and window. */
 function budgetThreshold(
-  event: DomainEvent<Hephaestus['budget.threshold-reached']>,
+  event: DomainEvent<Pylon['budget.threshold-reached']>,
 ): NotificationPlan | null {
   const { organizationId, payload } = event;
   if (!organizationId) return null;

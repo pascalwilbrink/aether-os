@@ -137,7 +137,8 @@ describe('notification rules', () => {
           },
           { projectId },
         ),
-        'hephaestus',
+        // Pylon's (docs/pylon.md); Hephaestus doesn't publish it any more.
+        'pylon',
       )!;
 
     const organization = budget('organization', ORG, null);
