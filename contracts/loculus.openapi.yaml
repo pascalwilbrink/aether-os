@@ -1,0 +1,339 @@
+openapi: 3.1.0
+info:
+  title: Loculus API
+  version: 0.1.0
+  description: |
+    Files (`../docs/files.md`): Loculus keeps each project's files in
+    S3-compatible storage and issues signed URLs to upload and download
+    them; the bytes never pass through Loculus.
+
+    A file is declared first (name, content type, size, SHA-256), uploaded
+    with the signed `PUT` URL and the headers that come with it, then
+    completed: Loculus checks what the storage holds against the declaration
+    and makes it `available`. Only available files can be downloaded, always
+    as an attachment.
+
+    Keep the file's ID, never a signed URL: URLs expire, so ask for a fresh
+    one when the file is needed.
+
+    Follows `../docs/api.md`: paths under `/v1`, errors as problem details,
+    cursor pagination, UUIDs.
+
+security:
+  - pistis: []
+
+tags:
+  - name: files
+
+paths:
+  /v1/organizations/{organizationId}/projects/{projectId}/files:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      tags: [files]
+      operationId: createFile
+      x-permission: '`file:write` in the project'
+      description: |
+        Declares a file and returns where to upload it. The file stays
+        `pending` until it's completed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateFileRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created, with its upload
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreatedFileResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    get:
+      tags: [files]
+      operationId: listFiles
+      x-permission: '`file:read` in the project'
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/FileStatus' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FilePage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/files/{fileId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/FileId'
+    get:
+      tags: [files]
+      operationId: getFile
+      x-permission: '`file:read` in the project'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FileResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [files]
+      operationId: deleteFile
+      x-permission: '`file:write` in the project'
+      description: Removes the file and its object (idempotent).
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '204': { description: Deleted, or gone already }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/files/{fileId}/upload:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/FileId'
+    get:
+      tags: [files]
+      operationId: getFileUpload
+      x-permission: '`file:write` in the project'
+      description: A fresh upload for a file still `pending` (`FILE_NOT_PENDING` once it's available).
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FileUpload' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/files/{fileId}/complete:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/FileId'
+    post:
+      tags: [files]
+      operationId: completeFile
+      x-permission: '`file:write` in the project'
+      description: |
+        Checks the uploaded object against the declaration (size and
+        SHA-256) and makes the file `available` (idempotent).
+        `FILE_UPLOAD_INCOMPLETE` when the object isn't there or differs.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Available
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FileResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/files/{fileId}/download:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/FileId'
+    get:
+      tags: [files]
+      operationId: getFileDownload
+      x-permission: '`file:read` in the project'
+      description: |
+        A signed URL that downloads the file as an attachment, with its
+        name. `FILE_NOT_AVAILABLE` while it's pending.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FileDownload' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+components:
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    FileId:
+      name: fileId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Limit: { $ref: './common.openapi.yaml#/components/parameters/Limit' }
+    Cursor: { $ref: './common.openapi.yaml#/components/parameters/Cursor' }
+
+  securitySchemes:
+    pistis:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A Pistis access token (`../docs/identity.md`).
+  responses:
+    Unauthorized: { $ref: './common.openapi.yaml#/components/responses/Unauthorized' }
+    Forbidden: { $ref: './common.openapi.yaml#/components/responses/Forbidden' }
+    ValidationError: { $ref: './common.openapi.yaml#/components/responses/BadRequest' }
+    NotFound: { $ref: './common.openapi.yaml#/components/responses/NotFound' }
+    Unavailable: { $ref: './common.openapi.yaml#/components/responses/Unavailable' }
+    DomainError:
+      description: A business rule forbids this (409, with a `DomainErrorCode`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/DomainProblem' }
+
+  schemas:
+    # ---------- errors ----------
+    Problem: { $ref: './common.openapi.yaml#/components/schemas/Problem' }
+    DomainErrorCode:
+      type: string
+      description: |
+        `FILE_TOO_LARGE`: over the size Loculus accepts (`FILE_MAX_BYTES`);
+        `FILE_UPLOAD_INCOMPLETE`: completing a file whose object isn't
+        there, or isn't what was declared; `FILE_NOT_AVAILABLE`: downloading
+        a file still pending; `FILE_NOT_PENDING`: a new upload for a file
+        that's available.
+      enum:
+        - FILE_TOO_LARGE
+        - FILE_UPLOAD_INCOMPLETE
+        - FILE_NOT_AVAILABLE
+        - FILE_NOT_PENDING
+    DomainProblem:
+      description: Problem details for a business-rule violation.
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          required: [code]
+          properties:
+            code: { $ref: '#/components/schemas/DomainErrorCode' }
+    NextCursor: { $ref: './common.openapi.yaml#/components/schemas/NextCursor' }
+
+    # ---------- files ----------
+    FileStatus:
+      type: string
+      description: '`pending` until its upload is completed, then `available`.'
+      enum: [pending, available]
+    Sha256:
+      type: string
+      description: The SHA-256 of the file's bytes, in lowercase hex.
+      pattern: '^[0-9a-f]{64}$'
+    CreateFileRequest:
+      type: object
+      additionalProperties: false
+      required: [fileName, contentType, sizeBytes, sha256]
+      properties:
+        fileName:
+          type: string
+          description: Its name, without a directory (`index.html`); shown and used when it's downloaded.
+          minLength: 1
+          maxLength: 255
+          pattern: '^[^/\\\x00-\x1f\x7f]+$'
+        contentType:
+          type: string
+          description: Its media type, e.g. `text/html` or `image/png`.
+          minLength: 3
+          maxLength: 255
+          pattern: '^[a-zA-Z0-9][a-zA-Z0-9!#$&^_.+-]*/[a-zA-Z0-9][a-zA-Z0-9!#$&^_.+-]*(; ?[a-zA-Z0-9!#$&^_.+-]+=[a-zA-Z0-9!#$&^_.+-]+)*$'
+        sizeBytes:
+          type: integer
+          minimum: 0
+        sha256: { $ref: '#/components/schemas/Sha256' }
+    FileResponse:
+      type: object
+      additionalProperties: false
+      required: [id, organizationId, projectId, fileName, contentType, sizeBytes, sha256, status, createdBy, createdAt, completedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        fileName: { type: string }
+        contentType: { type: string }
+        sizeBytes: { type: integer, minimum: 0 }
+        sha256: { $ref: '#/components/schemas/Sha256' }
+        status: { $ref: '#/components/schemas/FileStatus' }
+        createdBy:
+          type: string
+          description: Who declared it (the token's `sub`).
+        createdAt: { type: string, format: date-time }
+        completedAt:
+          type: [string, 'null']
+          format: date-time
+    FileUpload:
+      type: object
+      additionalProperties: false
+      required: [url, method, headers, expiresAt]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Where to send the bytes; signed, so keep it to yourself.
+        method:
+          type: string
+          enum: [PUT]
+        headers:
+          type: object
+          description: Send exactly these with the upload (they're signed).
+          additionalProperties: { type: string }
+        expiresAt: { type: string, format: date-time }
+    CreatedFileResponse:
+      type: object
+      additionalProperties: false
+      required: [file, upload]
+      properties:
+        file: { $ref: '#/components/schemas/FileResponse' }
+        upload: { $ref: '#/components/schemas/FileUpload' }
+    FileDownload:
+      type: object
+      additionalProperties: false
+      required: [url, expiresAt]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: Downloads it as an attachment; signed, don't store it.
+        expiresAt: { type: string, format: date-time }
+    FilePage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/FileResponse' }
+        nextCursor: { $ref: '#/components/schemas/NextCursor' }
