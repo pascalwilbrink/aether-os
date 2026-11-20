@@ -27,6 +27,8 @@ import {
 } from './execution.entity.js';
 import { ExecutionMapper } from './execution.mapper.js';
 import type { ExecutionFailureReason } from './runner.errors.js';
+import type { ExecutionActivity } from './execution-activity.js';
+import { ExecutionEventsService } from './execution-events.service.js';
 import { RUNNER_OPTIONS, type RunnerOptions } from './runner.options.js';
 
 /** An active execution the reaper found past one of its timeouts. */
@@ -69,7 +71,13 @@ export class ExecutionsService {
     private readonly queue: TaskQueue,
     private readonly artifacts: ArtifactsService,
     @Inject(RUNNER_OPTIONS) private readonly options: RunnerOptions,
+    private readonly events: ExecutionEventsService,
   ) {}
+
+  /** The execution's activity log (docs/tasks.md, Activity). */
+  activityFor(executionId: string): ExecutionActivity {
+    return this.events.activityFor(executionId);
+  }
 
   /**
    * Claims the next task (`TaskQueue`: `provisioning`) and records its new

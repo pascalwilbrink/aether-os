@@ -167,6 +167,57 @@ describe('Running tasks (e2e)', () => {
       .expect(404);
   });
 
+  it("follows an execution's activity over HTTP, with task:read", async () => {
+    const taskId = await queuedTask();
+    const runner = app.get(TaskRunner);
+    await runner.tick();
+    await runner.drain();
+    const [execution] = (
+      await owner.get(`${base}/${taskId}/executions`).expect(200)
+    ).body.items;
+    const path = `${base}/${taskId}/executions/${execution.id}/events`;
+
+    const all = await owner.get(path).expect(200);
+    expect(all.body.executionStatus).toBe('completed');
+    expect(all.body.items[0]).toEqual({
+      sequence: 1,
+      type: 'log',
+      level: 'info',
+      message: 'Execution started (attempt 1)',
+      toolName: null,
+      input: null,
+      output: null,
+      text: null,
+      inputTokens: null,
+      outputTokens: null,
+      createdAt: expect.any(String),
+    });
+    expect(all.body.items.at(-1)).toMatchObject({ message: 'Completed' });
+    expect(all.body.nextAfter).toBe(all.body.items.length);
+
+    // From a point on, a page at a time.
+    const later = await owner.get(`${path}?after=2&limit=1`).expect(200);
+    expect(
+      later.body.items.map((e: { sequence: number }) => e.sequence),
+    ).toEqual([3]);
+    expect(later.body.nextAfter).toBe(3);
+
+    // A viewer of the project reads it; nobody else, nor another task's route.
+    await (
+      await asMember(app, orgId, ['member'], { [projectId]: 'viewer' })
+    )
+      .get(path)
+      .expect(200);
+    await (await asMember(app, orgId, ['member'])).get(path).expect(404);
+    await owner
+      .get(`${base}/${MISSING_ID}/executions/${execution.id}/events`)
+      .expect(404);
+    await owner
+      .get(`${base}/${taskId}/executions/${MISSING_ID}/events`)
+      .expect(404);
+    await owner.get(`${path}?after=-1`).expect(400);
+  });
+
   it('lists and reads the artifacts a task produced', async () => {
     const taskId = await queuedTask();
     const runner = app.get(TaskRunner);

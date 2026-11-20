@@ -1,13 +1,16 @@
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 
 import { ArtifactContent } from "@/app/components/artifact-view";
 import { BudgetForm, BudgetMeter } from "@/app/components/budget";
 import { StatusBadge } from "@/app/components/status-badge";
+import type { Execution } from "@/lib/api";
 import {
   getTask,
   getTaskTreeBudget,
   listArtifacts,
+  listExecutionEvents,
   listExecutions,
 } from "@/lib/api/hephaestus";
 import { getFile } from "@/lib/api/loculus";
@@ -31,21 +34,26 @@ import {
 import { setTaskBudgetAction } from "../../actions";
 import { ReviewForm } from "../../review-form";
 import { TaskActions } from "../../task-actions";
+import { ActivityTimeline } from "./activity-timeline";
 
 type Props =
   PageProps<"/orgs/[organizationId]/projects/[projectId]/tasks/[taskId]">;
 
 /** A task: what it was asked, how its runs went, what it produced, and its drafts to review. */
-export default function TaskPage({ params }: Props) {
+export default function TaskPage({ params, searchParams }: Props) {
   return (
     <Suspense fallback={<p>Loading…</p>}>
-      <TaskView params={params} />
+      <TaskView params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function TaskView({ params }: Pick<Props, "params">) {
+async function TaskView({
+  params,
+  searchParams,
+}: Pick<Props, "params" | "searchParams">) {
   const { organizationId, projectId, taskId } = await params;
+  const { execution: chosen } = await searchParams;
   const projectPath = `/orgs/${organizationId}/projects/${projectId}`;
   const session = await requireOrganization(
     organizationId,
@@ -282,7 +290,15 @@ async function TaskView({ params }: Pick<Props, "params">) {
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {executions.items.map((execution) => (
                 <tr key={execution.id}>
-                  <td className="py-2 pr-2">{execution.number}</td>
+                  <td className="py-2 pr-2">
+                    <Link
+                      href={`?execution=${execution.id}#activity`}
+                      className="underline"
+                      title="Its activity"
+                    >
+                      {execution.number}
+                    </Link>
+                  </td>
                   <td className="py-2 pr-2">
                     {execution.status}
                     {execution.error ? (
@@ -338,6 +354,17 @@ async function TaskView({ params }: Pick<Props, "params">) {
         )}
       </section>
 
+      {executions.items.length > 0 ? (
+        <ActivitySection
+          token={token}
+          ref_={ref}
+          execution={
+            executions.items.find((e) => e.id === chosen) ?? executions.items[0]
+          }
+          path={`${projectPath}/tasks/${taskId}`}
+        />
+      ) : null}
+
       {refused.length > 0 ? (
         <section className="space-y-2">
           <h2 className="font-medium">Blocked hosts</h2>
@@ -382,6 +409,78 @@ function Fact({
       <dt className="text-xs text-zinc-500">{label}</dt>
       <dd>{children}</dd>
     </div>
+  );
+}
+
+/**
+ * One execution's activity (docs/tasks.md, Activity): what's there now,
+ * then followed live while it runs. The latest execution's, or the one
+ * chosen in the table (`?execution=`).
+ */
+function ActivitySection({
+  token,
+  ref_,
+  execution,
+  path,
+}: {
+  token: string;
+  ref_: { organizationId: string; projectId: string; taskId: string };
+  execution: Execution;
+  path: string;
+}) {
+  return (
+    <section id="activity" className="space-y-2">
+      <h2 className="font-medium">Activity: execution {execution.number}</h2>
+      <Suspense
+        fallback={
+          <p className="text-sm text-zinc-500">Loading its activity…</p>
+        }
+      >
+        <ActivityLoader
+          token={token}
+          ref_={ref_}
+          execution={execution}
+          path={path}
+        />
+      </Suspense>
+    </section>
+  );
+}
+
+async function ActivityLoader({
+  token,
+  ref_,
+  execution,
+  path,
+}: {
+  token: string;
+  ref_: { organizationId: string; projectId: string; taskId: string };
+  execution: Execution;
+  path: string;
+}) {
+  let initial;
+  try {
+    initial = await listExecutionEvents(
+      token,
+      ref_.organizationId,
+      ref_.projectId,
+      ref_.taskId,
+      execution.id,
+    );
+  } catch (error) {
+    unstable_rethrow(error);
+    return (
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        Its activity can&apos;t be read right now.
+      </p>
+    );
+  }
+  return (
+    <ActivityTimeline
+      key={execution.id}
+      url={`${path}/executions/${execution.id}/events`}
+      initial={initial}
+    />
   );
 }
 

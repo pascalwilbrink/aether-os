@@ -715,6 +715,56 @@ export type ArtifactPage = PageMeta & {
 };
 
 /**
+ * `log`: a step of the runner (the sandbox, the repository, input
+ * files, verification, pushing commits, how it ended);
+ * `model_call`: one call to the model (its tokens, what it said);
+ * `tool_call`: one tool the agent called (its input and output).
+ *
+ */
+export type ExecutionEventType = 'log' | 'model_call' | 'tool_call';
+
+export type ExecutionEvent = {
+    /**
+     * Its place within the execution.
+     */
+    sequence: number;
+    type: ExecutionEventType;
+    level: 'info' | 'warn' | 'error';
+    /**
+     * One line about it.
+     */
+    message: string;
+    /**
+     * For a tool call.
+     */
+    toolName: string | null;
+    /**
+     * For a tool call, its input as JSON (shortened, redacted).
+     */
+    input: string | null;
+    /**
+     * For a tool call, what it returned (shortened, redacted).
+     */
+    output: string | null;
+    /**
+     * For a model call, the text it produced (shortened, redacted).
+     */
+    text: string | null;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    createdAt: string;
+};
+
+export type ExecutionEventPage = {
+    items: Array<ExecutionEvent>;
+    /**
+     * Pass as `after` for what comes next (the last sequence returned, or `after` itself).
+     */
+    nextAfter: number;
+    executionStatus: ExecutionStatus;
+};
+
+/**
  * `paused`: a budget ran out (docs/models.md); the task resumes in a new execution.
  */
 export type ExecutionStatus = 'provisioning' | 'running' | 'completed' | 'failed' | 'cancelled' | 'paused';
@@ -3306,6 +3356,61 @@ export type ListTaskExecutionsResponses = {
 };
 
 export type ListTaskExecutionsResponse = ListTaskExecutionsResponses[keyof ListTaskExecutionsResponses];
+
+export type ListExecutionEventsData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+        taskId: string;
+        executionId: string;
+    };
+    query?: {
+        /**
+         * Only events after this sequence number (0, the default, for all).
+         */
+        after?: number;
+        limit?: number;
+    };
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/executions/{executionId}/events';
+};
+
+export type ListExecutionEventsErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListExecutionEventsError = ListExecutionEventsErrors[keyof ListExecutionEventsErrors];
+
+export type ListExecutionEventsResponses = {
+    /**
+     * Oldest first
+     */
+    200: ExecutionEventPage;
+};
+
+export type ListExecutionEventsResponse = ListExecutionEventsResponses[keyof ListExecutionEventsResponses];
 
 export type ListModelsData = {
     body?: never;

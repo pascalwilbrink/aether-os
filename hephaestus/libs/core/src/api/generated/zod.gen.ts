@@ -500,6 +500,37 @@ export const zRequestChangesRequest = z.object({
 });
 
 /**
+ * `log`: a step of the runner (the sandbox, the repository, input
+ * files, verification, pushing commits, how it ended);
+ * `model_call`: one call to the model (its tokens, what it said);
+ * `tool_call`: one tool the agent called (its input and output).
+ *
+ */
+export const zExecutionEventType = z.enum([
+    'log',
+    'model_call',
+    'tool_call'
+]);
+
+export const zExecutionEvent = z.object({
+    sequence: z.int().gte(1),
+    type: zExecutionEventType,
+    level: z.enum([
+        'info',
+        'warn',
+        'error'
+    ]),
+    message: z.string(),
+    toolName: z.string().nullable(),
+    input: z.string().nullable(),
+    output: z.string().nullable(),
+    text: z.string().nullable(),
+    inputTokens: z.int().gte(0).nullable(),
+    outputTokens: z.int().gte(0).nullable(),
+    createdAt: z.iso.datetime()
+});
+
+/**
  * `paused`: a budget ran out (docs/models.md); the task resumes in a new execution.
  */
 export const zExecutionStatus = z.enum([
@@ -510,6 +541,12 @@ export const zExecutionStatus = z.enum([
     'cancelled',
     'paused'
 ]);
+
+export const zExecutionEventPage = z.object({
+    items: z.array(zExecutionEvent),
+    nextAfter: z.int().gte(0),
+    executionStatus: zExecutionStatus
+});
 
 /**
  * `infrastructure` (a crash, a missed heartbeat, a provisioning timeout,
@@ -1556,6 +1593,23 @@ export const zListTaskExecutionsQuery = z.object({
  * Newest first
  */
 export const zListTaskExecutionsResponse = zExecutionPage;
+
+export const zListExecutionEventsPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    taskId: z.uuid(),
+    executionId: z.uuid()
+});
+
+export const zListExecutionEventsQuery = z.object({
+    after: z.int().gte(0).optional().default(0),
+    limit: z.int().gte(1).lte(500).optional().default(200)
+});
+
+/**
+ * Oldest first
+ */
+export const zListExecutionEventsResponse = zExecutionEventPage;
 
 export const zListModelsQuery = z.object({
     status: zModelStatus.optional(),

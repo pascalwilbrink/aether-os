@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.25.0
+  version: 0.26.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -884,6 +884,47 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ExecutionPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/executions/{executionId}/events:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/TaskId'
+      - name: executionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [tasks]
+      operationId: listExecutionEvents
+      x-permission: '`task:read` in the project'
+      description: |
+        What the execution did, as it happens (docs/tasks.md, Activity): the
+        runner's steps, each model call and each tool call, oldest first,
+        numbered within the execution. Follow a running one by asking again
+        with `after` set to the last `sequence` seen (`nextAfter`), until
+        `executionStatus` is no longer `provisioning` or `running`. Text is
+        shortened and what looks like a secret is redacted before it's kept.
+      parameters:
+        - name: after
+          in: query
+          required: false
+          description: Only events after this sequence number (0, the default, for all).
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExecutionEventPage' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
@@ -2669,6 +2710,49 @@ components:
             items:
               type: array
               items: { $ref: '#/components/schemas/ArtifactResponse' }
+    ExecutionEventType:
+      type: string
+      description: |
+        `log`: a step of the runner (the sandbox, the repository, input
+        files, verification, pushing commits, how it ended);
+        `model_call`: one call to the model (its tokens, what it said);
+        `tool_call`: one tool the agent called (its input and output).
+      enum: [log, model_call, tool_call]
+    ExecutionEvent:
+      type: object
+      additionalProperties: false
+      required: [sequence, type, level, message, toolName, input, output, text, inputTokens, outputTokens, createdAt]
+      properties:
+        sequence: { type: integer, minimum: 1, description: Its place within the execution. }
+        type: { $ref: '#/components/schemas/ExecutionEventType' }
+        level: { type: string, enum: [info, warn, error] }
+        message: { type: string, description: One line about it. }
+        toolName: { type: [string, 'null'], description: For a tool call. }
+        input:
+          type: [string, 'null']
+          description: For a tool call, its input as JSON (shortened, redacted).
+        output:
+          type: [string, 'null']
+          description: For a tool call, what it returned (shortened, redacted).
+        text:
+          type: [string, 'null']
+          description: For a model call, the text it produced (shortened, redacted).
+        inputTokens: { type: [integer, 'null'], minimum: 0 }
+        outputTokens: { type: [integer, 'null'], minimum: 0 }
+        createdAt: { type: string, format: date-time }
+    ExecutionEventPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextAfter, executionStatus]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ExecutionEvent' }
+        nextAfter:
+          type: integer
+          minimum: 0
+          description: Pass as `after` for what comes next (the last sequence returned, or `after` itself).
+        executionStatus: { $ref: '#/components/schemas/ExecutionStatus' }
     ExecutionStatus:
       type: string
       description: '`paused`: a budget ran out (docs/models.md); the task resumes in a new execution.'

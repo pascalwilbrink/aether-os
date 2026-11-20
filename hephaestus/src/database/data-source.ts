@@ -24,6 +24,7 @@ import { SkillEntity } from '../../libs/skills/src/skill.entity.js';
 import { ToolServerEntity } from '../../libs/tools/src/tool-server.entity.js';
 import { ModelKeyEntity } from '../../libs/models/src/model-key.entity.js';
 import { ExecutionEntity } from '../../libs/runner/src/execution.entity.js';
+import { ExecutionEventEntity } from '../../libs/runner/src/execution-event.entity.js';
 import { TaskEntity } from '../../libs/tasks/src/task.entity.js';
 import { WorkspaceEntity } from '../../libs/workspaces/src/workspace.entity.js';
 import { migrations } from './migrations/index.js';
@@ -58,6 +59,7 @@ export default new DataSource(
       WorkspaceEntity,
       TaskEntity,
       ExecutionEntity,
+      ExecutionEventEntity,
       ModelCallEntity,
       ModelEntity,
       ModelPriceEntity,

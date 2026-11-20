@@ -384,6 +384,15 @@ blocked ──(deps done)──▶ queued ──▶ provisioning ──▶ runni
 
 A task runs as one or more **executions** (the `ExecutionId` already in Hephaestus): one attempt in one sandbox. A retry is a new execution of the **same task**, so dependents, plans and artifacts keep pointing at the same task ID. Each execution records its sandbox, its start and end, its usage and cost, and why it ended.
 
+### Activity
+
+Built (Hephaestus `libs/runner`, Iris's task page). Every execution keeps an **activity log** people can follow while it runs, without Langfuse or Jaeger:
+
+- **What's in it:** the runner's steps (started, sandbox ready, repository checked out, the agent running, each verification round and what failed, commits pushed, how it ended: completed, failed and why, paused, cancelled), each **model call** (tokens in and out, why it stopped, the text it produced) and each **tool call** (the tool, its input, what came back or the error), in order (`sequence`).
+- **Kept safely:** every text field is shortened (4,000 characters) and what looks like a credential (bearer tokens, JWTs, `sk-…` keys, GitHub tokens, AWS keys, private keys, `password=` / `token=`) is redacted before it's stored; at most 2,000 events per execution. Recording never fails or slows a run: a write that fails is logged and dropped.
+- **Reading it:** `GET …/tasks/{taskId}/executions/{executionId}/events?after=` (`task:read`): what came after a sequence number, with `nextAfter` and the execution's status, so a reader follows it until the execution ends. Iris polls this every two seconds while an execution is provisioning or running.
+- **Not yet:** a tool call's start (it's recorded when its step ends), streaming instead of polling, retention.
+
 ### Sandboxes across long waits
 
 Review can take days, so a task gives up its sandbox whenever it waits (`awaiting_review`, `waiting`, `blocked`, `queued`, `paused`):

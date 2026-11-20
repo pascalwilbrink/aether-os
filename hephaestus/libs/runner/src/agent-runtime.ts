@@ -1,4 +1,6 @@
 import type { NewArtifact } from '@hephaestus/artifacts';
+
+import type { ExecutionActivity } from './execution-activity.js';
 import type { ApiTypes } from '@hephaestus/core';
 import type { TaskResponse } from '@hephaestus/tasks';
 
@@ -17,6 +19,11 @@ export interface AgentRunInput {
    * stored.
    */
   token: string;
+  /**
+   * The execution's activity log (docs/tasks.md, Activity): the runtime
+   * records each model call and tool call into it. Absent: nothing kept.
+   */
+  activity?: ExecutionActivity;
   /** Where the agent records what it produces (docs/tasks.md, Artifacts). */
   artifacts: ArtifactSink;
   /**
