@@ -26,6 +26,7 @@ export const zDomainErrorCode = z.enum([
     'TASK_TEMPLATE_INVALID',
     'TOOL_SERVER_ALREADY_EXISTS',
     'TOOL_SERVER_INVALID',
+    'MODEL_KEY_INVALID',
     'SKILL_ALREADY_EXISTS',
     'SKILL_ARCHIVED',
     'SKILL_INVALID',
@@ -546,13 +547,17 @@ export const zExecutionRepository = z.object({
  * Providers the model gateway can call: each needs code (Mastra's
  * model router) and a key in OpenBao (`orgs/{organizationId}/llm/{provider}`
  * or `platform/llm/{provider}`), so this list only changes with a release.
+ * `ollama` is a server the organization runs: its settings are a
+ * `baseUrl` and an optional key, its models aren't in the catalogue
+ * (any model the server has can be chosen) and its calls are unpriced.
  *
  */
 export const zModelProvider = z.enum([
     'anthropic',
     'openai',
     'google',
-    'mistral'
+    'mistral',
+    'ollama'
 ]);
 
 /**
@@ -755,16 +760,25 @@ export const zBudgetResponse = z.object({
 });
 
 export const zSetModelKeyRequest = z.object({
-    apiKey: z.string().min(8).max(1000)
+    apiKey: z.string().min(8).max(1000).optional(),
+    baseUrl: z.url().max(2000).regex(/^https?:\/\//).optional()
 });
 
 export const zModelKeyResponse = z.object({
     provider: zModelProvider,
     scope: z.enum(['organization', 'agent']),
     agentId: z.uuid().nullable(),
-    hint: z.string(),
+    hint: z.string().nullable(),
+    baseUrl: z.string().nullable(),
     updatedBy: z.string(),
     updatedAt: z.iso.datetime()
+});
+
+export const zOllamaModelList = z.object({
+    items: z.array(z.object({
+        name: z.string(),
+        sizeBytes: z.int().gte(0).nullable()
+    }))
 });
 
 export const zModelKeyList = z.object({
@@ -1908,3 +1922,12 @@ export const zGetSkillVersionPath = z.object({
  * OK
  */
 export const zGetSkillVersionResponse = zSkillVersionResponse;
+
+export const zListOllamaModelsPath = z.object({
+    organizationId: z.uuid()
+});
+
+/**
+ * By name
+ */
+export const zListOllamaModelsResponse = zOllamaModelList;

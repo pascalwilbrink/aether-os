@@ -9,6 +9,7 @@ import {
   BudgetExceededError,
   BudgetsService,
   ModelGateway,
+  ModelEndpointUnavailableError,
   ModelKeyMissingError,
   type BudgetScope,
   ModelRetiredError,
@@ -301,7 +302,8 @@ export class MastraAgentRuntime extends AgentRuntime {
     } catch (error) {
       if (
         error instanceof ModelKeyMissingError ||
-        error instanceof ModelRetiredError
+        error instanceof ModelRetiredError ||
+        error instanceof ModelEndpointUnavailableError
       ) {
         // Configuration problems: retrying won't add a key or revive a model.
         throw new RunnerFailure(error.message, 'infrastructure', false);

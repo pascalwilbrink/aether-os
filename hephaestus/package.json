@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "@aether-os/krepis": "workspace:*",
+    "@ai-sdk/openai-compatible": "3.0.92",
     "@golevelup/nestjs-rabbitmq": "^9.1.2",
     "@mastra/core": "1.84.0",
     "@mastra/docker": "0.14.0",

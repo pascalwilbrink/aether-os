@@ -812,7 +812,12 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** @description Stores (or replaces) the organization's key for the provider, in OpenBao. */
+        /**
+         * @description Stores (or replaces) the organization's key for the provider, in
+         *     OpenBao: `apiKey` for the hosted providers; for `ollama`, its server's
+         *     `baseUrl` and, when the server wants one, an `apiKey`
+         *     (`MODEL_KEY_INVALID` otherwise, or for a `baseUrl` Hephaestus won't call).
+         */
         put: operations["setOrganizationModelKey"];
         post?: never;
         /** @description Removes it, with every earlier version; agents without their own key then use the platform's, if allowed, or fail. */
@@ -1102,6 +1107,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/ollama/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description The models the organization's Ollama server has now (its `/api/tags`),
+         *     to choose from for an agent version: asked of the server with the
+         *     organization's settings. `409 MODEL_KEY_INVALID` when the
+         *     organization has no Ollama server set; `503` when it doesn't answer.
+         */
+        get: operations["listOllamaModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1138,7 +1167,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "MODEL_ALREADY_EXISTS" | "MODEL_NOT_AVAILABLE" | "MODEL_PRICE_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "SKILL_ALREADY_EXISTS" | "SKILL_ARCHIVED" | "SKILL_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "MODEL_ALREADY_EXISTS" | "MODEL_NOT_AVAILABLE" | "MODEL_PRICE_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "MODEL_KEY_INVALID" | "SKILL_ALREADY_EXISTS" | "SKILL_ARCHIVED" | "SKILL_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -1856,9 +1885,12 @@ export interface components {
          * @description Providers the model gateway can call: each needs code (Mastra's
          *     model router) and a key in OpenBao (`orgs/{organizationId}/llm/{provider}`
          *     or `platform/llm/{provider}`), so this list only changes with a release.
+         *     `ollama` is a server the organization runs: its settings are a
+         *     `baseUrl` and an optional key, its models aren't in the catalogue
+         *     (any model the server has can be chosen) and its calls are unpriced.
          * @enum {string}
          */
-        ModelProvider: "anthropic" | "openai" | "google" | "mistral";
+        ModelProvider: "anthropic" | "openai" | "google" | "mistral" | "ollama";
         /**
          * @description `active`: new agent versions can choose it. `deprecated`: versions
          *     that already have it keep running, new ones can't choose it.
@@ -1991,8 +2023,16 @@ export interface components {
             updatedAt: string | null;
         };
         SetModelKeyRequest: {
-            /** @description The provider's API key; write-only (stored in OpenBao, never returned). */
-            apiKey: string;
+            /** @description The provider's API key; write-only (stored in OpenBao, never returned). Required except for `ollama`, where it's optional. */
+            apiKey?: string;
+            /**
+             * Format: uri
+             * @description For `ollama` only (and required there): where its server is, e.g.
+             *     `https://ollama.example.com` (Hephaestus calls its OpenAI-compatible
+             *     API at `<baseUrl>/v1`). `https://`; `http://` and private addresses
+             *     only where `MODEL_ENDPOINT_ALLOW_PRIVATE` allows them.
+             */
+            baseUrl?: string;
         };
         ModelKeyResponse: {
             provider: components["schemas"]["ModelProvider"];
@@ -2000,11 +2040,20 @@ export interface components {
             scope: "organization" | "agent";
             /** Format: uuid */
             agentId: string | null;
-            /** @description The key's last four characters (`…a1b2`), to tell keys apart. */
-            hint: string;
+            /** @description The key's last four characters (`…a1b2`), to tell keys apart; null for an `ollama` server without one. */
+            hint: string | null;
+            /** @description For `ollama`, its server; null otherwise. */
+            baseUrl: string | null;
             updatedBy: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        OllamaModelList: {
+            items: {
+                /** @description As an agent version names it, e.g. `qwen3:8b`. */
+                name: string;
+                sizeBytes: number | null;
+            }[];
         };
         ModelKeyList: {
             items: components["schemas"]["ModelKeyResponse"][];
@@ -4411,6 +4460,33 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listOllamaModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description By name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OllamaModelList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
     };
 }

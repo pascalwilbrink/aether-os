@@ -17,6 +17,8 @@ import { Budgets1795041939868 } from './1795041939868-Budgets.js';
 import { ModelKeys1795045800295 } from './1795045800295-ModelKeys.js';
 import { AgentBudgets1795070345258 } from './1795070345258-AgentBudgets.js';
 import { TaskConcurrency1795082757713 } from './1795082757713-TaskConcurrency.js';
+import { OllamaModelKeys1795130000000 } from './1795130000000-OllamaModelKeys.js';
+import { OpenAiModelsSeed1795130000001 } from './1795130000001-OpenAiModelsSeed.js';
 import { Skills1795110000000 } from './1795110000000-Skills.js';
 import { ToolServers1795100000000 } from './1795100000000-ToolServers.js';
 import { WorkspaceBlockedHosts1795085475839 } from './1795085475839-WorkspaceBlockedHosts.js';
@@ -50,4 +52,6 @@ export const migrations = [
   WorkspaceBlockedHosts1795085475839,
   ToolServers1795100000000,
   Skills1795110000000,
+  OllamaModelKeys1795130000000,
+  OpenAiModelsSeed1795130000001,
 ];

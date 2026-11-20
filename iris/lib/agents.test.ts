@@ -216,6 +216,21 @@ describe("modelChoices", () => {
     expect(modelChoices([], "").groups).toEqual([]);
   });
 
+  it("offers the Ollama server's models, and keeps a version's that it no longer lists", () => {
+    const choices = modelChoices([], "ollama/llama3.2:latest", ["qwen3:8b"]);
+    expect(choices.unavailable).toBeNull();
+    expect(choices.groups).toEqual([
+      {
+        provider: "ollama",
+        label: "Ollama (your server)",
+        options: [
+          { value: "ollama/qwen3:8b", label: "qwen3:8b · unpriced" },
+          { value: "ollama/llama3.2:latest", label: "llama3.2:latest · unpriced" },
+        ],
+      },
+    ]);
+  });
+
   it("writes prices as people read them", () => {
     expect(formatPrice("2.000000")).toBe("2");
     expect(formatPrice("0.125000")).toBe("0.125");

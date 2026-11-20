@@ -95,6 +95,36 @@ describe('Model catalogue (e2e)', () => {
     );
   });
 
+  it("has OpenAI's current models, with their long-context rates", async () => {
+    const { body } = await member
+      .get('/v1/models?provider=openai&status=active&limit=100')
+      .expect(200);
+    expect(
+      body.items.map((item: { model: string }) => item.model).sort(),
+    ).toEqual(['gpt-6-luna', 'gpt-6.1-terra', 'gpt-6.2-astra', 'gpt-6.2-sol']);
+    const sol = body.items.find(
+      (item: { model: string }) => item.model === 'gpt-6.2-sol',
+    );
+    expect(sol).toMatchObject({
+      name: 'GPT-6.2 Sol',
+      contextWindow: 922_000,
+      maxOutputTokens: 128_000,
+      price: {
+        inputPerMTok: '2.000000',
+        outputPerMTok: '10.000000',
+        cacheReadPerMTok: '0.100000',
+        cacheWritePerMTok: '2.500000',
+        longContext: {
+          aboveInputTokens: 272_000,
+          inputPerMTok: '4.000000',
+          outputPerMTok: '15.000000',
+          cacheReadPerMTok: '0.200000',
+          cacheWritePerMTok: '5.000000',
+        },
+      },
+    });
+  });
+
   it('lets only platform services with platform:manage change it', async () => {
     await member
       .post('/v1/models')

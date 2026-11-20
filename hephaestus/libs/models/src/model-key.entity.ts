@@ -7,7 +7,8 @@ export type ModelKeyScope = ApiTypes.ModelKeyResponse['scope'];
 /**
  * That a provider key is set (docs/models.md, Keys), for the organization or
  * one of its agents: the key itself is in OpenBao (`modelKeyPath`), never
- * here. Only what tells keys apart: the last characters, who set it, when.
+ * here. Only what tells keys apart: the last characters, who set it, when
+ * (and an Ollama server's URL).
  */
 @Entity({ name: 'model_keys' })
 @Check('ck_model_keys_scope', `scope IN ('organization', 'agent')`)
@@ -35,9 +36,13 @@ export class ModelKeyEntity {
   @Column({ type: 'text' })
   provider: string;
 
-  /** The key's last four characters. */
-  @Column({ type: 'text' })
-  hint: string;
+  /** The key's last four characters; null for an Ollama server without one. */
+  @Column({ type: 'text', nullable: true })
+  hint: string | null;
+
+  /** For Ollama: its server (not a secret, so it's here too). */
+  @Column({ type: 'text', nullable: true })
+  baseUrl: string | null;
 
   @Column({ type: 'text' })
   updatedBy: string;

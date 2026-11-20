@@ -51,3 +51,18 @@ export class ModelRetiredError extends Error {
     this.name = 'ModelRetiredError';
   }
 }
+
+/** Settings that can't be stored for a provider (`checkModelKeySettings`). */
+export class ModelKeyInvalidError extends DomainError {
+  constructor(reason: string) {
+    super(reason, 'MODEL_KEY_INVALID');
+  }
+}
+
+/** An Ollama server that didn't answer, or that Hephaestus won't call. */
+export class ModelEndpointUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ModelEndpointUnavailableError';
+  }
+}

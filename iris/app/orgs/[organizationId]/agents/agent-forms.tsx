@@ -57,6 +57,7 @@ export function VersionForm({
   models,
   toolServers,
   skills,
+  ollamaModels = [],
 }: {
   agent: AgentRef;
   from: AgentVersion | undefined;
@@ -66,11 +67,13 @@ export function VersionForm({
   toolServers: ToolServer[];
   /** The organization's skills (archived ones too: a version may pin one). */
   skills: Skill[];
+  /** What the organization's Ollama server has (not in the catalogue). */
+  ollamaModels?: string[];
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(createVersionAction.bind(null, agent), {});
   // A refused submit starts from what was sent; otherwise from `from`.
   const start = state.values ?? fieldsOf(from);
-  const choices = modelChoices(models, start.model ?? "");
+  const choices = modelChoices(models, start.model ?? "", ollamaModels);
   return (
     <form action={action} className="space-y-3">
       <FormError error={state.error} />

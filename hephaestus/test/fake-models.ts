@@ -1,7 +1,7 @@
 import type { MastraModelConfig } from '@mastra/core/llm';
 
 import { SecretStore } from '@hephaestus/core';
-import { LanguageModels } from '@hephaestus/models';
+import { LanguageModels, type ModelKeySettings } from '@hephaestus/models';
 
 /** Secrets in memory, by path. */
 export class FakeSecretStore extends SecretStore {
@@ -51,12 +51,15 @@ interface CallOptions {
  * key the gateway asked for, and what each call was given.
  */
 export class ScriptedLanguageModels extends LanguageModels {
-  readonly created: { id: string; apiKey: string }[] = [];
+  readonly created: { id: string; apiKey?: string; baseUrl?: string }[] = [];
   readonly calls: CallOptions[] = [];
   replies: ScriptedReply[] = [];
 
-  create(id: `${string}/${string}`, apiKey: string): MastraModelConfig {
-    this.created.push({ id, apiKey });
+  create(
+    id: `${string}/${string}`,
+    settings: ModelKeySettings,
+  ): MastraModelConfig {
+    this.created.push({ id, ...settings });
     const [provider, modelId] = id.split('/');
     const model = {
       specificationVersion: 'v2',

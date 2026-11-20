@@ -6,7 +6,7 @@ import { ModelKeyForm } from "@/app/components/model-key-form";
 import { listModelKeys } from "@/lib/api/hephaestus";
 import { getOrganization } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
-import { PROVIDERS } from "@/lib/model-keys";
+import { isSelfHosted, PROVIDERS } from "@/lib/model-keys";
 import { formatTime } from "@/lib/tasks";
 
 import { deleteModelKeyAction, setModelKeyAction } from "./actions";
@@ -59,9 +59,26 @@ async function ModelKeys({ params }: Props) {
                   <p className="text-sm text-zinc-600 dark:text-zinc-400">
                     {key ? (
                       <>
-                        Set: <span className="font-mono">{key.hint}</span> · by {key.updatedBy} on{" "}
-                        {formatTime(key.updatedAt)}
+                        {key.baseUrl ? (
+                          <>
+                            Server: <span className="font-mono">{key.baseUrl}</span> ·{" "}
+                            {key.hint ? (
+                              <>
+                                key <span className="font-mono">{key.hint}</span>
+                              </>
+                            ) : (
+                              "no key"
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            Set: <span className="font-mono">{key.hint}</span>
+                          </>
+                        )}{" "}
+                        · by {key.updatedBy} on {formatTime(key.updatedAt)}
                       </>
+                    ) : isSelfHosted(provider) ? (
+                      "Not set: your own Ollama server, its URL and (if it wants one) a key. Its models aren't priced."
                     ) : (
                       "Not set: agents with a model from here need a key of their own."
                     )}
@@ -78,8 +95,9 @@ async function ModelKeys({ params }: Props) {
               </div>
               <ModelKeyForm
                 action={setModelKeyAction.bind(null, ref)}
-                label={`${name} API key`}
+                label={isSelfHosted(provider) ? `${name} API key (optional)` : `${name} API key`}
                 replacing={Boolean(key)}
+                baseUrl={isSelfHosted(provider) ? (key?.baseUrl ?? "") : undefined}
               />
             </li>
           );

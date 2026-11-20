@@ -2,7 +2,7 @@ import { MCPClient } from '@mastra/mcp';
 import type { ToolAction } from '@mastra/core/tools';
 import { v7 as uuidv7 } from 'uuid';
 
-import { guardedFetch } from './guarded-fetch.js';
+import { guardedFetch } from '@hephaestus/core';
 import {
   ToolConnector,
   type ConnectedTools,

@@ -21,7 +21,8 @@ export class ModelKeyMapper {
       scope,
       scopeId,
       provider,
-      hint: '',
+      hint: null,
+      baseUrl: null,
       updatedBy: '',
       createdAt: now,
       updatedAt: now,
@@ -34,6 +35,7 @@ export class ModelKeyMapper {
       scope: entity.scope,
       agentId: entity.scope === 'agent' ? entity.scopeId : null,
       hint: entity.hint,
+      baseUrl: entity.baseUrl,
       updatedBy: entity.updatedBy,
       updatedAt: entity.updatedAt.toISOString(),
     };

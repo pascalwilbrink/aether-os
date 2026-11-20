@@ -48,10 +48,10 @@ export class AgentModelKeysController {
   @ZodSerializerDto(ModelKeyResponse)
   async set(
     @Param() { organizationId, agentId, provider }: AgentModelKeyParams,
-    @Body() { apiKey }: SetModelKeyRequest,
+    @Body() body: SetModelKeyRequest,
   ) {
     await this.agents.assertExists(organizationId, agentId);
-    return this.keys.set(organizationId, 'agent', agentId, provider, apiKey);
+    return this.keys.set(organizationId, 'agent', agentId, provider, body);
   }
 
   @Delete(':provider')

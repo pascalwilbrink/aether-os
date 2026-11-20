@@ -1,4 +1,6 @@
-import { isPrivateAddress, toolServerProblem } from './tool-server-policy.js';
+import { isPrivateAddress } from '@hephaestus/core';
+
+import { toolServerProblem } from './tool-server-policy.js';
 
 const strict = {
   allowPrivate: false,

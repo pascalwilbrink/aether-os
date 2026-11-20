@@ -10,6 +10,7 @@ const PROVIDER_NAMES: Record<string, string> = {
   openai: "OpenAI",
   google: "Google",
   mistral: "Mistral",
+  ollama: "Ollama (your server)",
 };
 
 /** A model as the version form's `model` field holds it: `provider/model`. */
@@ -37,7 +38,18 @@ export interface ModelGroup {
  * tokens (input / output). `unavailable` is the starting model when it isn't
  * one of them (deprecated or retired since): the form can't offer it.
  */
-export function modelChoices(models: Model[], current: string): { groups: ModelGroup[]; unavailable: string | null } {
+/**
+ * The model select's options: the catalogue's active models by provider,
+ * and the models of the organization's Ollama server (`ollamaModels`; not
+ * in the catalogue, unpriced). A version's model that's neither is
+ * `unavailable`, except an Ollama one the server no longer lists, which
+ * stays a choice.
+ */
+export function modelChoices(
+  models: Model[],
+  current: string,
+  ollamaModels: string[] = [],
+): { groups: ModelGroup[]; unavailable: string | null } {
   const groups = new Map<string, ModelChoice[]>();
   for (const model of models) {
     const price = model.price
@@ -46,6 +58,13 @@ export function modelChoices(models: Model[], current: string): { groups: ModelG
     const options = groups.get(model.provider) ?? [];
     options.push({ value: modelValue(model), label: `${model.name}${price}` });
     groups.set(model.provider, options);
+  }
+  const ollama = [...new Set([...ollamaModels, ...(current.startsWith("ollama/") ? [current.slice(7)] : [])])];
+  if (ollama.length > 0) {
+    groups.set(
+      "ollama",
+      ollama.map((name) => ({ value: `ollama/${name}`, label: `${name} · unpriced` })),
+    );
   }
   const label = (provider: string) => PROVIDER_NAMES[provider] ?? provider;
   return {
@@ -56,7 +75,10 @@ export function modelChoices(models: Model[], current: string): { groups: ModelG
         options,
       }))
       .sort((a, b) => a.label.localeCompare(b.label)),
-    unavailable: current && !models.some((model) => modelValue(model) === current) ? current : null,
+    unavailable:
+      current && !current.startsWith("ollama/") && !models.some((model) => modelValue(model) === current)
+        ? current
+        : null,
   };
 }
 

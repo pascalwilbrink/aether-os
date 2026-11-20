@@ -3,11 +3,12 @@ import { isIP } from 'node:net';
 
 import { Agent, fetch as undiciFetch } from 'undici';
 
-import { isPrivateAddress } from './tool-server-policy.js';
+import { isPrivateAddress } from './endpoints.js';
 
 /**
- * `fetch` for tool servers. Unless private addresses are allowed, every
- * address a name resolves to is checked when connecting (so a name can't
+ * `fetch` for URLs organizations give Hephaestus (tool servers, model
+ * endpoints). Unless private addresses are allowed, every address a name
+ * resolves to is checked when connecting (so a name can't
  * point at the metadata service or Hephaestus's own network, even after it
  * was checked once), and addresses written into the URL before. Redirects
  * are refused: a server answers where it was registered.
