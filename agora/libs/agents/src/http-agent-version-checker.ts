@@ -7,6 +7,7 @@ import {
 
 import {
   createHephaestusHttpClient,
+  fetchFailure,
   HephaestusApi,
   ServiceTokens,
 } from '@agora/core';
@@ -80,9 +81,7 @@ export class HttpAgentVersionChecker extends AgentVersionChecker {
         if (attempt < 2) {
           continue;
         }
-        throw this.unavailable(
-          cause instanceof Error ? cause.message : String(cause),
-        );
+        throw this.unavailable(fetchFailure(cause));
       }
       if (response?.ok) {
         return;
@@ -110,7 +109,9 @@ export class HttpAgentVersionChecker extends AgentVersionChecker {
       if (!response && attempt < 2) {
         continue;
       }
-      throw this.unavailable(`HTTP ${response?.status ?? '?'}`);
+      throw this.unavailable(
+        response ? `HTTP ${response.status}` : fetchFailure(error),
+      );
     }
   }
 

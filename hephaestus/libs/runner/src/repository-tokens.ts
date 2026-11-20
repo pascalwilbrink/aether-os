@@ -1,4 +1,8 @@
-import { createProxenosHttpClient, ProxenosApi } from '@hephaestus/core';
+import {
+  createProxenosHttpClient,
+  fetchFailure,
+  ProxenosApi,
+} from '@hephaestus/core';
 import type { TaskResponse } from '@hephaestus/tasks';
 
 import { RunnerFailure } from './runner.errors.js';
@@ -80,7 +84,7 @@ export class HttpRepositoryTokens extends RepositoryTokens {
       });
     } catch (error) {
       throw new RunnerFailure(
-        `Proxenos could not be reached: ${error instanceof Error ? error.message : String(error)}`,
+        `Proxenos could not be reached: ${fetchFailure(error)}`,
         'infrastructure',
       );
     }
@@ -95,6 +99,13 @@ export class HttpRepositoryTokens extends RepositoryTokens {
         apiUrl: data.repository.apiUrl,
         committer: data.committer,
       };
+    }
+    if (!response) {
+      // The generated client returns a failed fetch as `error`, without a response.
+      throw new RunnerFailure(
+        `Proxenos could not be reached: ${fetchFailure(result.error)}`,
+        'infrastructure',
+      );
     }
     const problem = result.error as
       { detail?: string; code?: string } | undefined;

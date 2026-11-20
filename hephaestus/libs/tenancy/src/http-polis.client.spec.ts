@@ -96,4 +96,21 @@ describe('HttpPolisClient', () => {
     expect(tokens.invalidated).toBe(1);
     expect(seen?.authorization).toBe('Bearer fresh-token');
   });
+
+  it("says why when Polis doesn't answer at all, after one retry", async () => {
+    // A port nothing listens on: the generated client returns the failed
+    // fetch as an error, without a response.
+    const closed = createServer();
+    await new Promise<void>((resolve) => closed.listen(0, resolve));
+    const { port } = closed.address() as AddressInfo;
+    await new Promise((resolve) => closed.close(resolve));
+    const client = new HttpPolisClient(
+      { baseUrl: `http://127.0.0.1:${port}` },
+      new FixedTokens('service-token'),
+    );
+
+    const error = await client.getOrganization(ORG).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(PolisUnavailableError);
+    expect((error as Error).message).toMatch(/ECONNREFUSED/);
+  });
 });

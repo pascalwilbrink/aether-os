@@ -3,9 +3,15 @@ import {
   Inject,
   Injectable,
   ServiceUnavailableException,
+  Logger,
 } from '@nestjs/common';
 
-import { createPolisHttpClient, PolisApi, ServiceTokens } from '@pistis/core';
+import {
+  createPolisHttpClient,
+  fetchFailure,
+  PolisApi,
+  ServiceTokens,
+} from '@pistis/core';
 
 import {
   PolisDirectory,
@@ -24,6 +30,7 @@ export interface PolisDirectoryOptions {
 /** `PolisDirectory` over Polis's API (the client generated from its spec). */
 @Injectable()
 export class HttpPolisDirectory extends PolisDirectory {
+  private readonly logger = new Logger(HttpPolisDirectory.name);
   private readonly client: ReturnType<typeof createPolisHttpClient>;
 
   constructor(
@@ -48,14 +55,16 @@ export class HttpPolisDirectory extends PolisDirectory {
   ): Promise<OrganizationRole[] | null> {
     let cursor: string | undefined;
     do {
-      const { data, response } = await this.call(() =>
+      const { data, error, response } = await this.call(() =>
         PolisApi.listMembershipsOfSubject({
           client: this.client,
           query: { subjectType, subject: userId, limit: 100, cursor },
         }),
       );
       if (!response?.ok || !data) {
-        throw this.unavailable(response?.status);
+        throw this.unavailable(
+          response ? `HTTP ${response.status}` : fetchFailure(error),
+        );
       }
       const membership = data.items.find(
         (item) => item.organizationId === organizationId,
@@ -77,7 +86,7 @@ export class HttpPolisDirectory extends PolisDirectory {
     const roles: Record<string, ProjectRole> = {};
     let cursor: string | undefined;
     do {
-      const { data, response } = await this.call(() =>
+      const { data, error, response } = await this.call(() =>
         PolisApi.listProjectMembershipsOfSubject({
           client: this.client,
           query: {
@@ -90,7 +99,9 @@ export class HttpPolisDirectory extends PolisDirectory {
         }),
       );
       if (!response?.ok || !data) {
-        throw this.unavailable(response?.status);
+        throw this.unavailable(
+          response ? `HTTP ${response.status}` : fetchFailure(error),
+        );
       }
       for (const item of data.items) {
         roles[item.projectId] = item.role;
@@ -105,7 +116,7 @@ export class HttpPolisDirectory extends PolisDirectory {
     organizationId: string,
     page: { limit: number; cursor?: string },
   ): Promise<{ subjects: string[]; nextCursor: string | null }> {
-    const { data, response } = await this.call(() =>
+    const { data, error, response } = await this.call(() =>
       PolisApi.listMemberships({
         client: this.client,
         path: { organizationId },
@@ -117,7 +128,9 @@ export class HttpPolisDirectory extends PolisDirectory {
       throw new BadRequestException('The cursor is invalid.');
     }
     if (!response?.ok || !data) {
-      throw this.unavailable(response?.status);
+      throw this.unavailable(
+        response ? `HTTP ${response.status}` : fetchFailure(error),
+      );
     }
 
     return {
@@ -129,7 +142,7 @@ export class HttpPolisDirectory extends PolisDirectory {
   async organizationStatus(
     organizationId: string,
   ): Promise<'active' | 'suspended' | null> {
-    const { data, response } = await this.call(() =>
+    const { data, error, response } = await this.call(() =>
       PolisApi.getOrganization({
         client: this.client,
         path: { organizationId },
@@ -139,7 +152,9 @@ export class HttpPolisDirectory extends PolisDirectory {
       return null;
     }
     if (!response?.ok || !data) {
-      throw this.unavailable(response?.status);
+      throw this.unavailable(
+        response ? `HTTP ${response.status}` : fetchFailure(error),
+      );
     }
 
     return data.status;
@@ -149,13 +164,12 @@ export class HttpPolisDirectory extends PolisDirectory {
     try {
       return await request();
     } catch (error) {
-      throw this.unavailable(
-        error instanceof Error ? error.message : String(error),
-      );
+      throw this.unavailable(fetchFailure(error));
     }
   }
 
   private unavailable(reason: unknown): ServiceUnavailableException {
+    this.logger.warn(`Polis can't be reached: ${String(reason)}`);
     return new ServiceUnavailableException(
       `Polis can't be reached right now (${String(reason)}).`,
     );
