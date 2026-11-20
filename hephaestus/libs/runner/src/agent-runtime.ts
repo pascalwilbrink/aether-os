@@ -1,7 +1,7 @@
 import type { NewArtifact } from '@hephaestus/artifacts';
 
 import type { ExecutionActivity } from './execution-activity.js';
-import type { ApiTypes } from '@hephaestus/core';
+import type { AgentVersion, ApiTypes } from '@hephaestus/core';
 import type { TaskResponse } from '@hephaestus/tasks';
 
 import type { Sandbox } from './sandbox-provisioner.js';
@@ -10,7 +10,7 @@ export interface AgentRunInput {
   task: TaskResponse;
   executionId: string;
   /** The task's pinned agent version. */
-  agentVersion: ApiTypes.AgentVersionResponse;
+  agentVersion: AgentVersion;
   /** Null when the agent version needs none (`runtime.sandboxRequired`). */
   sandbox: Sandbox | null;
   /**

@@ -19,6 +19,7 @@ import {
   FakeTaskTokens,
   testRunnerOptions,
 } from './fake-runner.js';
+import { publishedAgent } from './agora.js';
 
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000aa';
 const versionBody = {
@@ -29,7 +30,7 @@ const versionBody = {
   skills: [],
   runtime: {
     provider: 'local',
-    executionMode: 'standard',
+    executionMode: 'standard' as const,
     sandboxRequired: false,
   },
 };
@@ -67,22 +68,8 @@ describe('Running tasks (e2e)', () => {
   });
 
   async function queuedTask(): Promise<string> {
-    const agents = `/v1/organizations/${orgId}/agents`;
-    const agentId = (
-      await owner
-        .post(agents)
-        .send({ name: 'Helper', description: '' })
-        .expect(201)
-    ).body.id;
-    const versionId = (
-      await owner
-        .post(`${agents}/${agentId}/versions`)
-        .send(versionBody)
-        .expect(201)
-    ).body.id;
-    await owner
-      .post(`${agents}/${agentId}/versions/${versionId}/publish`)
-      .expect(200);
+    const published = await publishedAgent(app, orgId, versionBody);
+    const agentId = published.agentId;
     return (
       await owner
         .post(base)
@@ -290,22 +277,8 @@ describe('Running tasks (e2e)', () => {
 
   it('reviews drafts over HTTP, with task:approve in the project', async () => {
     // As queuedTask, but every artifact needs approval.
-    const agents = `/v1/organizations/${orgId}/agents`;
-    const agentId = (
-      await owner
-        .post(agents)
-        .send({ name: 'Writer', description: '' })
-        .expect(201)
-    ).body.id;
-    const versionId = (
-      await owner
-        .post(`${agents}/${agentId}/versions`)
-        .send(versionBody)
-        .expect(201)
-    ).body.id;
-    await owner
-      .post(`${agents}/${agentId}/versions/${versionId}/publish`)
-      .expect(200);
+    const published = await publishedAgent(app, orgId, versionBody);
+    const agentId = published.agentId;
     const taskId = (
       await owner
         .post(base)

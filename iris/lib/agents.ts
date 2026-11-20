@@ -1,9 +1,9 @@
-import type { AgentVersion, ApiSchema, Model } from "./api";
+import type { AgentVersion, AgoraSchema, Model } from "./api";
 import { skillFieldsOf, skillsFromForm } from "./skills";
 import { toolFieldsOf, toolsFromForm } from "./tool-servers";
 
-export type AgentVersionStatus = ApiSchema<"AgentVersionStatus">;
-export type NewAgentVersion = ApiSchema<"CreateAgentVersionRequest">;
+export type AgentVersionStatus = AgoraSchema<"AgentVersionStatus">;
+export type NewAgentVersion = AgoraSchema<"CreateAgentVersionRequest">;
 
 const PROVIDER_NAMES: Record<string, string> = {
   anthropic: "Anthropic",

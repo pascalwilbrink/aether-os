@@ -4,135 +4,6 @@
  */
 
 export interface paths {
-    "/v1/organizations/{organizationId}/agents": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        get: operations["listAgents"];
-        put?: never;
-        post: operations["createAgent"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/agents/{agentId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-            };
-            cookie?: never;
-        };
-        get: operations["getAgent"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/agents/{agentId}/archive": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: operations["archiveAgent"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/agents/{agentId}/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-            };
-            cookie?: never;
-        };
-        get: operations["listAgentVersions"];
-        put?: never;
-        /**
-         * @description Creates a draft version; the version number is assigned by the
-         *     server. Its model must be an `active` model of the catalogue
-         *     (`MODEL_NOT_AVAILABLE` otherwise), and each enabled entry of `tools`
-         *     must name one of the organization's tool servers, each at most once
-         *     (`TOOL_SERVER_INVALID` otherwise); each enabled entry of `skills` a
-         *     version of one of its active skills, each skill at most once
-         *     (`SKILL_INVALID`).
-         */
-        post: operations["createAgentVersion"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/agents/{agentId}/versions/{versionId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-                versionId: components["parameters"]["VersionId"];
-            };
-            cookie?: never;
-        };
-        get: operations["getAgentVersion"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organizationId}/agents/{agentId}/versions/{versionId}/publish": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-                versionId: components["parameters"]["VersionId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * @description Publishes a draft and deprecates the previously published version.
-         *     Publishing the version that's already published returns it unchanged;
-         *     a deprecated version can't be published again (409).
-         */
-        post: operations["publishAgentVersion"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/organizations/{organizationId}/agent-version-checks": {
         parameters: {
             query?: never;
@@ -1224,41 +1095,13 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "MODEL_ALREADY_EXISTS" | "MODEL_NOT_AVAILABLE" | "MODEL_PRICE_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "MODEL_KEY_INVALID" | "SKILL_ALREADY_EXISTS" | "SKILL_ARCHIVED" | "SKILL_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "MODEL_ALREADY_EXISTS" | "MODEL_NOT_AVAILABLE" | "MODEL_PRICE_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "MODEL_KEY_INVALID" | "SKILL_ALREADY_EXISTS" | "SKILL_ARCHIVED" | "SKILL_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
         };
         /** Format: date-time */
         Timestamp: string;
-        /** @enum {string} */
-        AgentStatus: "active" | "archived";
-        CreateAgentRequest: {
-            name: string;
-            description: string;
-        };
-        AgentResponse: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            organizationId: string;
-            name: string;
-            description: string;
-            status: components["schemas"]["AgentStatus"];
-            /**
-             * Format: uuid
-             * @description The currently published version, if any.
-             */
-            latestVersionId: string | null;
-            createdBy: string;
-            createdAt: components["schemas"]["Timestamp"];
-            updatedAt: components["schemas"]["Timestamp"];
-        };
-        AgentPage: components["schemas"]["PageMeta"] & {
-            items: components["schemas"]["AgentResponse"][];
-        };
-        /** @enum {string} */
-        AgentVersionStatus: "draft" | "published" | "deprecated";
         AgentModelConfiguration: {
             provider: string;
             model: string;
@@ -1305,41 +1148,10 @@ export interface components {
             allowedHosts?: components["schemas"]["HostPattern"][];
         };
         HostPattern: string;
-        CreateAgentVersionRequest: {
-            instructions: string;
-            model: components["schemas"]["AgentModelConfiguration"];
-            capabilities: string[];
-            tools: components["schemas"]["AgentToolConfiguration"][];
-            skills: components["schemas"]["AgentSkillConfiguration"][];
-            runtime: components["schemas"]["AgentRuntimeConfiguration"];
-        };
         AgentVersionCheckRequest: {
             model: components["schemas"]["AgentModelConfiguration"];
             tools: components["schemas"]["AgentToolConfiguration"][];
             skills: components["schemas"]["AgentSkillConfiguration"][];
-        };
-        AgentVersionResponse: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            agentId: string;
-            /** Format: uuid */
-            organizationId: string;
-            version: number;
-            status: components["schemas"]["AgentVersionStatus"];
-            instructions: string;
-            model: components["schemas"]["AgentModelConfiguration"];
-            capabilities: string[];
-            tools: components["schemas"]["AgentToolConfiguration"][];
-            skills: components["schemas"]["AgentSkillConfiguration"][];
-            runtime: components["schemas"]["AgentRuntimeConfiguration"];
-            createdBy: string;
-            createdAt: components["schemas"]["Timestamp"];
-            /** Format: date-time */
-            publishedAt: string | null;
-        };
-        AgentVersionPage: components["schemas"]["PageMeta"] & {
-            items: components["schemas"]["AgentVersionResponse"][];
         };
         /** @enum {string} */
         WorkspaceStatus: "requested" | "provisioning" | "ready" | "in_use" | "suspended" | "stopping" | "destroyed" | "failed" | "expired";
@@ -2322,8 +2134,6 @@ export interface components {
         SkillVersionPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["SkillVersionResponse"][];
         };
-        /** @description Pass as `cursor` to get the next page; `null` on the last page. */
-        NextCursor: string | null;
         /** @description One invalid input. Exactly one of `pointer` and `parameter` is set. */
         ProblemFieldError: {
             /** @description JSON Pointer (RFC 6901) into the request body, e.g. `/name`. */
@@ -2334,6 +2144,8 @@ export interface components {
             code: "REQUIRED" | "UNKNOWN_FIELD" | "INVALID";
             detail: string;
         };
+        /** @description Pass as `cursor` to get the next page; `null` on the last page. */
+        NextCursor: string | null;
     };
     responses: {
         /**
@@ -2447,260 +2259,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    listAgents: {
-        parameters: {
-            query?: {
-                /** @description Page size. */
-                limit?: components["parameters"]["Limit"];
-                /**
-                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-                 *     the first page. A cursor only works with the filters it was made with
-                 *     (otherwise `400 INVALID_CURSOR`).
-                 */
-                cursor?: components["parameters"]["Cursor"];
-            };
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Newest first */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AgentPage"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            503: components["responses"]["Unavailable"];
-        };
-    };
-    createAgent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateAgentRequest"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AgentResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
-            503: components["responses"]["Unavailable"];
-        };
-    };
-    getAgent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AgentResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            503: components["responses"]["Unavailable"];
-        };
-    };
-    archiveAgent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Archived (or already archived) */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AgentResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
-            503: components["responses"]["Unavailable"];
-        };
-    };
-    listAgentVersions: {
-        parameters: {
-            query?: {
-                /** @description Page size. */
-                limit?: components["parameters"]["Limit"];
-                /**
-                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
-                 *     the first page. A cursor only works with the filters it was made with
-                 *     (otherwise `400 INVALID_CURSOR`).
-                 */
-                cursor?: components["parameters"]["Cursor"];
-            };
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Highest version first */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AgentVersionPage"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            503: components["responses"]["Unavailable"];
-        };
-    };
-    createAgentVersion: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateAgentVersionRequest"];
-            };
-        };
-        responses: {
-            /** @description Created */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AgentVersionResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
-            503: components["responses"]["Unavailable"];
-        };
-    };
-    getAgentVersion: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-                versionId: components["parameters"]["VersionId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AgentVersionResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            503: components["responses"]["Unavailable"];
-        };
-    };
-    publishAgentVersion: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organizationId: components["parameters"]["OrganizationId"];
-                agentId: components["parameters"]["AgentId"];
-                versionId: components["parameters"]["VersionId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Published */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AgentVersionResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["DomainError"];
-            503: components["responses"]["Unavailable"];
-        };
-    };
     checkAgentVersion: {
         parameters: {
             query?: never;

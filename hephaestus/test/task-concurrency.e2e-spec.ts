@@ -18,6 +18,7 @@ import {
   FakeTaskTokens,
   testRunnerOptions,
 } from './fake-runner.js';
+import { publishedAgent } from './agora.js';
 
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000aa';
 const versionBody = {
@@ -28,7 +29,7 @@ const versionBody = {
   skills: [],
   runtime: {
     provider: 'local',
-    executionMode: 'standard',
+    executionMode: 'standard' as const,
     sandboxRequired: false,
   },
 };
@@ -61,22 +62,8 @@ describe('Concurrency keys (e2e)', () => {
     projectId = polis.project(orgId);
     owner = await asMember(app, orgId, ['owner']);
     tasks = `/v1/organizations/${orgId}/projects/${projectId}/tasks`;
-    const agents = `/v1/organizations/${orgId}/agents`;
-    agentId = (
-      await owner
-        .post(agents)
-        .send({ name: 'Fixer', description: '' })
-        .expect(201)
-    ).body.id;
-    const versionId = (
-      await owner
-        .post(`${agents}/${agentId}/versions`)
-        .send(versionBody)
-        .expect(201)
-    ).body.id;
-    await owner
-      .post(`${agents}/${agentId}/versions/${versionId}/publish`)
-      .expect(200);
+    const published = await publishedAgent(app, orgId, versionBody);
+    agentId = published.agentId;
   });
 
   afterEach(async () => {

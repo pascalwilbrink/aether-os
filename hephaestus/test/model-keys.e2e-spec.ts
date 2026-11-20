@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
+import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
 import { SecretStore, SecretStoreUnavailableError } from '@hephaestus/core';
@@ -8,6 +9,8 @@ import { asMember, type Client } from './auth.js';
 import { FakeSecretStore } from './fake-models.js';
 import { FakeOllama } from './fake-ollama.js';
 import type { FakePolis } from './fake-polis.js';
+import { createAgent } from './agora.js';
+import { tokens } from './tokens.js';
 
 const KEY = 'sk-ant-api03-secret-value-a1b2';
 
@@ -26,12 +29,7 @@ describe('Model keys (e2e)', () => {
     ));
     orgId = polis.organization();
     owner = await asMember(app, orgId, ['owner']);
-    agentId = (
-      await owner
-        .post(`/v1/organizations/${orgId}/agents`)
-        .send({ name: 'Fixer', description: '' })
-        .expect(201)
-    ).body.id;
+    agentId = await createAgent(app, orgId, { name: 'Fixer' });
   });
 
   afterEach(async () => {
@@ -204,31 +202,19 @@ describe('Model keys (e2e)', () => {
     });
 
     it('lets agent versions choose any of its models, outside the catalogue', async () => {
-      const agentId2 = (
-        await owner
-          .post(`/v1/organizations/${orgId}/agents`)
-          .send({ name: 'Local', description: '' })
-          .expect(201)
-      ).body.id;
-      const version = await owner
-        .post(`/v1/organizations/${orgId}/agents/${agentId2}/versions`)
+      // Agora asks before it creates a version (agent-version-checks).
+      await request(app.getHttpServer())
+        .post(`/v1/organizations/${orgId}/agent-version-checks`)
+        .set(
+          'authorization',
+          `Bearer ${await tokens.service('agora', ['platform:read'])}`,
+        )
         .send({
-          instructions: 'Be helpful.',
           model: { provider: 'ollama', model: 'qwen3:8b' },
-          capabilities: [],
           tools: [],
           skills: [],
-          runtime: {
-            provider: 'mastra',
-            executionMode: 'standard',
-            sandboxRequired: false,
-          },
         })
-        .expect(201);
-      expect(version.body.model).toEqual({
-        provider: 'ollama',
-        model: 'qwen3:8b',
-      });
+        .expect(204);
     });
   });
 

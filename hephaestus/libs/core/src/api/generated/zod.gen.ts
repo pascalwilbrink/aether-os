@@ -5,8 +5,6 @@ import * as z from 'zod';
 export const zDomainErrorCode = z.enum([
     'AGENT_ARCHIVED',
     'AGENT_NOT_PUBLISHED',
-    'AGENT_VERSION_CONFLICT',
-    'AGENT_VERSION_INVALID_TRANSITION',
     'ARTIFACT_NOT_DRAFT',
     'TASK_BUDGET_INVALID',
     'TASK_CONCURRENCY_INVALID',
@@ -35,31 +33,6 @@ export const zDomainErrorCode = z.enum([
 ]);
 
 export const zTimestamp = z.iso.datetime();
-
-export const zAgentStatus = z.enum(['active', 'archived']);
-
-export const zCreateAgentRequest = z.object({
-    name: z.string().min(1).max(200),
-    description: z.string().max(2000)
-});
-
-export const zAgentResponse = z.object({
-    id: z.uuid(),
-    organizationId: z.uuid(),
-    name: z.string(),
-    description: z.string(),
-    status: zAgentStatus,
-    latestVersionId: z.uuid().nullable(),
-    createdBy: z.string(),
-    createdAt: zTimestamp,
-    updatedAt: zTimestamp
-});
-
-export const zAgentVersionStatus = z.enum([
-    'draft',
-    'published',
-    'deprecated'
-]);
 
 export const zAgentModelConfiguration = z.object({
     provider: z.string().min(1),
@@ -860,36 +833,10 @@ export const zAgentToolConfiguration = z.object({
     tools: z.array(zToolName).max(100).optional()
 });
 
-export const zCreateAgentVersionRequest = z.object({
-    instructions: z.string().min(1),
-    model: zAgentModelConfiguration,
-    capabilities: z.array(z.string()),
-    tools: z.array(zAgentToolConfiguration),
-    skills: z.array(zAgentSkillConfiguration),
-    runtime: zAgentRuntimeConfiguration
-});
-
 export const zAgentVersionCheckRequest = z.object({
     model: zAgentModelConfiguration,
     tools: z.array(zAgentToolConfiguration),
     skills: z.array(zAgentSkillConfiguration)
-});
-
-export const zAgentVersionResponse = z.object({
-    id: z.uuid(),
-    agentId: z.uuid(),
-    organizationId: z.uuid(),
-    version: z.int().gte(1),
-    status: zAgentVersionStatus,
-    instructions: z.string(),
-    model: zAgentModelConfiguration,
-    capabilities: z.array(z.string()),
-    tools: z.array(zAgentToolConfiguration),
-    skills: z.array(zAgentSkillConfiguration),
-    runtime: zAgentRuntimeConfiguration,
-    createdBy: z.string(),
-    createdAt: zTimestamp,
-    publishedAt: z.iso.datetime().nullable()
 });
 
 /**
@@ -1029,14 +976,6 @@ export const zPageMeta = z.object({
     nextCursor: zNextCursor
 });
 
-export const zAgentPage = zPageMeta.and(z.object({
-    items: z.array(zAgentResponse)
-}));
-
-export const zAgentVersionPage = zPageMeta.and(z.object({
-    items: z.array(zAgentVersionResponse)
-}));
-
 export const zWorkspacePage = zPageMeta.and(z.object({
     items: z.array(zWorkspaceResponse)
 }));
@@ -1166,100 +1105,6 @@ export const zCommonOpenapiCursor = z.string().min(1).max(1024);
  * Page size.
  */
 export const zCommonOpenapiLimit = z.int().gte(1).lte(100).default(50);
-
-export const zListAgentsPath = z.object({
-    organizationId: z.uuid()
-});
-
-export const zListAgentsQuery = z.object({
-    limit: z.int().gte(1).lte(100).optional().default(50),
-    cursor: z.string().min(1).max(1024).optional()
-});
-
-/**
- * Newest first
- */
-export const zListAgentsResponse = zAgentPage;
-
-export const zCreateAgentBody = zCreateAgentRequest;
-
-export const zCreateAgentPath = z.object({
-    organizationId: z.uuid()
-});
-
-/**
- * Created
- */
-export const zCreateAgentResponse = zAgentResponse;
-
-export const zGetAgentPath = z.object({
-    organizationId: z.uuid(),
-    agentId: z.uuid()
-});
-
-/**
- * OK
- */
-export const zGetAgentResponse = zAgentResponse;
-
-export const zArchiveAgentPath = z.object({
-    organizationId: z.uuid(),
-    agentId: z.uuid()
-});
-
-/**
- * Archived (or already archived)
- */
-export const zArchiveAgentResponse = zAgentResponse;
-
-export const zListAgentVersionsPath = z.object({
-    organizationId: z.uuid(),
-    agentId: z.uuid()
-});
-
-export const zListAgentVersionsQuery = z.object({
-    limit: z.int().gte(1).lte(100).optional().default(50),
-    cursor: z.string().min(1).max(1024).optional()
-});
-
-/**
- * Highest version first
- */
-export const zListAgentVersionsResponse = zAgentVersionPage;
-
-export const zCreateAgentVersionBody = zCreateAgentVersionRequest;
-
-export const zCreateAgentVersionPath = z.object({
-    organizationId: z.uuid(),
-    agentId: z.uuid()
-});
-
-/**
- * Created
- */
-export const zCreateAgentVersionResponse = zAgentVersionResponse;
-
-export const zGetAgentVersionPath = z.object({
-    organizationId: z.uuid(),
-    agentId: z.uuid(),
-    versionId: z.uuid()
-});
-
-/**
- * OK
- */
-export const zGetAgentVersionResponse = zAgentVersionResponse;
-
-export const zPublishAgentVersionPath = z.object({
-    organizationId: z.uuid(),
-    agentId: z.uuid(),
-    versionId: z.uuid()
-});
-
-/**
- * Published
- */
-export const zPublishAgentVersionResponse = zAgentVersionResponse;
 
 export const zCheckAgentVersionBody = zAgentVersionCheckRequest;
 

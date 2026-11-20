@@ -9,7 +9,7 @@ import {
 import { DataSource } from 'typeorm';
 
 import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
-import { AgentsService, AgentVersionsService } from '@hephaestus/agents';
+import { AgentVersionChecks } from '@hephaestus/agents';
 import { ArtifactsService } from '@hephaestus/artifacts';
 import { SecretStore } from '@hephaestus/core';
 import {
@@ -43,6 +43,7 @@ import { RUNNER_OPTIONS } from './runner.options.js';
 import { SandboxProvisioner } from './sandbox-provisioner.js';
 import { TaskRunner } from './task-runner.js';
 import { TaskTokens } from './task-tokens.js';
+import { publishedAgent } from '../../../test/agora.js';
 
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000aa';
 
@@ -127,6 +128,17 @@ describe('MastraAgentRuntime (Postgres)', () => {
   });
 
   /** A task for an agent whose published version has these settings. */
+  /** Agora's check of a new version's tools and skills (agent-version-checks). */
+  const choosable = (choices: {
+    tools?: { name: string; enabled: boolean; tools?: string[] }[];
+    skills?: { name: string; version: string; enabled: boolean }[];
+  }) =>
+    moduleRef.get(AgentVersionChecks).assertChoosable(organizationId, {
+      model: { provider: 'scripted', model: 'scripted-model' },
+      tools: choices.tools ?? [],
+      skills: choices.skills ?? [],
+    });
+
   async function taskFor(
     version: {
       tools?: { name: string; enabled: boolean; tools?: string[] }[];
@@ -134,19 +146,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
       skills?: { name: string; version: string; enabled: boolean }[];
     } = {},
   ) {
-    const caller = testPrincipal({
-      sub: 'user-1',
-      subType: 'user',
-      organizationId,
-      organizationRoles: ['owner'],
-      scopes: [],
-    });
-    const agents = actingAs(moduleRef.get(AgentsService), caller);
-    const versions = actingAs(moduleRef.get(AgentVersionsService), caller);
-    const agentId = (
-      await agents.create(organizationId, { name: 'Fixer', description: '' })
-    ).id;
-    const created = await versions.create(organizationId, agentId, {
+    const published = await publishedAgent(moduleRef, organizationId, {
       instructions: 'You fix bugs. Answer with what you changed.',
       model: version.model ?? {
         // Not in Mastra's model registry: for providers it knows, it drops
@@ -165,7 +165,8 @@ describe('MastraAgentRuntime (Postgres)', () => {
         sandboxRequired: false,
       },
     });
-    await versions.publish(organizationId, agentId, created.id);
+    const agentId = published.agentId;
+    const created = { id: published.versionId };
     const { task } = await tasks.create(
       organizationId,
       projectId,
@@ -633,8 +634,9 @@ describe('MastraAgentRuntime (Postgres)', () => {
     });
 
     it("refuses a version naming a tool server the organization doesn't have", async () => {
+      // Refused by the check Agora asks for before it creates the version.
       await expect(
-        taskFor({ tools: [{ name: 'nowhere', enabled: true }] }),
+        choosable({ tools: [{ name: 'nowhere', enabled: true }] }),
       ).rejects.toMatchObject({ code: 'TOOL_SERVER_INVALID' });
     });
   });
@@ -774,19 +776,21 @@ describe('MastraAgentRuntime (Postgres)', () => {
 
     it('refuses versions naming a skill, or a version of one, that the organization lacks', async () => {
       await expect(
-        taskFor({ skills: [{ name: 'nowhere', version: '1', enabled: true }] }),
+        choosable({
+          skills: [{ name: 'nowhere', version: '1', enabled: true }],
+        }),
       ).rejects.toMatchObject({ code: 'SKILL_INVALID' });
       await skills().create(organizationId, {
         name: 'login-fixes',
         files: [{ path: 'SKILL.md', content: skillMd('x') }],
       });
       await expect(
-        taskFor({
+        choosable({
           skills: [{ name: 'login-fixes', version: '2', enabled: true }],
         }),
       ).rejects.toMatchObject({ code: 'SKILL_INVALID' });
       await expect(
-        taskFor({
+        choosable({
           skills: [{ name: 'login-fixes', version: 'latest', enabled: true }],
         }),
       ).rejects.toMatchObject({ code: 'SKILL_INVALID' });
@@ -814,9 +818,9 @@ describe('MastraAgentRuntime (Postgres)', () => {
       expect(JSON.stringify(models.calls[1].prompt)).toContain(
         'Archived but pinned.',
       );
-      // But new versions can't choose it.
+      // But new versions can't choose it (Agora's check).
       await expect(
-        taskFor({
+        choosable({
           skills: [{ name: 'login-fixes', version: '1', enabled: true }],
         }),
       ).rejects.toMatchObject({ code: 'SKILL_INVALID' });

@@ -10,6 +10,7 @@ import { EventInbox, type DomainEvent } from '@hephaestus/core';
 import { createApp } from './app.js';
 import { asMember, type Client } from './auth.js';
 import type { FakePolis } from './fake-polis.js';
+import { createAgent, publishedAgent } from './agora.js';
 
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000aa';
 const AUTOMATION = '0193a1b2-c3d4-7e5f-8a9b-0000000000bb';
@@ -21,7 +22,7 @@ const versionBody = {
   skills: [],
   runtime: {
     provider: 'local',
-    executionMode: 'standard',
+    executionMode: 'standard' as const,
     sandboxRequired: false,
   },
 };
@@ -39,22 +40,8 @@ describe('task.create commands (e2e)', () => {
     orgId = polis.organization();
     projectId = polis.project(orgId);
     owner = await asMember(app, orgId, ['owner']);
-    const agents = `/v1/organizations/${orgId}/agents`;
-    agentId = (
-      await owner
-        .post(agents)
-        .send({ name: 'Fixer', description: '' })
-        .expect(201)
-    ).body.id;
-    const versionId = (
-      await owner
-        .post(`${agents}/${agentId}/versions`)
-        .send(versionBody)
-        .expect(201)
-    ).body.id;
-    await owner
-      .post(`${agents}/${agentId}/versions/${versionId}/publish`)
-      .expect(200);
+    const published = await publishedAgent(app, orgId, versionBody);
+    agentId = published.agentId;
   });
 
   afterEach(async () => {
@@ -183,12 +170,7 @@ describe('task.create commands (e2e)', () => {
   });
 
   it('answers commands that can never succeed with task.create-rejected', async () => {
-    const unpublished = (
-      await owner
-        .post(`/v1/organizations/${orgId}/agents`)
-        .send({ name: 'Draft', description: '' })
-        .expect(201)
-    ).body.id;
+    const unpublished = await createAgent(app, orgId, { name: 'Draft' });
     const sent = [
       command(task({ agentId: unpublished })),
       command(task({ title: '' })),

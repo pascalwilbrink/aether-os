@@ -2,12 +2,12 @@ import type { TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 
 import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
-import { AgentsService, AgentVersionsService } from '@hephaestus/agents';
 
 import type { FakePolis } from '../../../test/fake-polis.js';
 import { createTestingModule } from '../../../test/testing-module.js';
 import { TasksModule } from './tasks.module.js';
 import { TasksService } from './tasks.service.js';
+import { publishedAgent } from '../../../test/agora.js';
 
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000aa';
 const ARTIFACT = '0193a1b2-c3d4-7e5f-8a9b-0000000000ff';
@@ -47,12 +47,8 @@ describe('TasksService (Postgres)', () => {
     tasks = actingAs(moduleRef.get(TasksService), caller);
     orgId = polis.organization();
     projectId = polis.project(orgId);
-    const agents = actingAs(moduleRef.get(AgentsService), caller);
-    const versions = actingAs(moduleRef.get(AgentVersionsService), caller);
-    agentId = (await agents.create(orgId, { name: 'Helper', description: '' }))
-      .id;
-    const version = await versions.create(orgId, agentId, versionBody);
-    await versions.publish(orgId, agentId, version.id);
+    const published = await publishedAgent(moduleRef, orgId, versionBody);
+    agentId = published.agentId;
   });
 
   afterEach(async () => {

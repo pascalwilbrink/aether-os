@@ -16,6 +16,7 @@ import {
 import { PolisClient } from '@hephaestus/tenancy';
 
 import {
+  AGORA_SUBSCRIPTIONS,
   POLIS_SUBSCRIPTIONS,
   PROXENOS_SUBSCRIPTIONS,
 } from '../src/app.module.js';
@@ -25,7 +26,7 @@ import { FakePolis } from './fake-polis.js';
 
 /**
  * A Nest context with Hephaestus's configuration and database (emptied), the
- * event inbox (no RabbitMQ: deliver events with `deliverPolisEvent`), and a
+ * event inbox (no RabbitMQ: deliver events with `deliverPolisEvent`, or Agora's with `test/agora.ts`), and a
  * fake Polis.
  */
 export function createTestingModule(
@@ -50,6 +51,7 @@ export async function createTestingModuleWith(
         subscribe: {
           polis: POLIS_SUBSCRIPTIONS,
           proxenos: PROXENOS_SUBSCRIPTIONS,
+          agora: AGORA_SUBSCRIPTIONS,
         },
       }),
       // AccessControl; tests act as a principal with actingAs().

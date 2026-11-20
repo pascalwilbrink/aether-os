@@ -1,9 +1,14 @@
 import { Check, Column, Entity, Index, PrimaryColumn, Unique } from 'typeorm';
 
-import type { ApiTypes } from '@hephaestus/core';
+import type { AgentVersion } from '@hephaestus/core';
 
-import type { AgentVersionStatus } from './agent-transitions.js';
+export type AgentVersionStatus = 'draft' | 'published' | 'deprecated';
 
+/**
+ * Hephaestus's copy of an Agora agent version: every version Agora
+ * published (`agent-version.published` carries the whole version, which
+ * never changes), so tasks can pin it and the runner can run it.
+ */
 @Entity({ name: 'agent_versions' })
 @Unique('uq_agent_versions_agent_id_version', ['agentId', 'version'])
 @Check(
@@ -33,19 +38,19 @@ export class AgentVersionEntity {
   instructions: string;
 
   @Column({ type: 'jsonb' })
-  model: ApiTypes.AgentModelConfiguration;
+  model: AgentVersion['model'];
 
   @Column({ type: 'jsonb' })
   capabilities: string[];
 
   @Column({ type: 'jsonb' })
-  tools: ApiTypes.AgentToolConfiguration[];
+  tools: AgentVersion['tools'];
 
   @Column({ type: 'jsonb' })
-  skills: ApiTypes.AgentSkillConfiguration[];
+  skills: AgentVersion['skills'];
 
   @Column({ type: 'jsonb' })
-  runtime: ApiTypes.AgentRuntimeConfiguration;
+  runtime: AgentVersion['runtime'];
 
   @Column({ type: 'text' })
   createdBy: string;

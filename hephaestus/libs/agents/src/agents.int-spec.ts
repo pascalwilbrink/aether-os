@@ -1,36 +1,20 @@
 import { NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
+import { v7 as uuidv7 } from 'uuid';
 
-import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
-import { organizationEvent, type FakePolis } from '../../../test/fake-polis.js';
+import {
+  archiveAgent,
+  createAgent,
+  deliverAgoraEvent,
+  publishVersion,
+} from '../../../test/agora.js';
+import type { FakePolis } from '../../../test/fake-polis.js';
 import { createTestingModule } from '../../../test/testing-module.js';
 import { AgentVersionsService } from './agent-versions.service.js';
 import { AgentsModule } from './agents.module.js';
 import { AgentsService } from './agents.service.js';
 
-const missing = '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
-const versionBody = {
-  instructions: 'Be helpful.',
-  model: { provider: 'anthropic', model: 'claude', temperature: 0.2 },
-  capabilities: ['chat'],
-  tools: [{ name: 'search', enabled: false, tools: ['query'] }],
-  skills: [{ name: 'summarize', version: '1', enabled: false }],
-  runtime: {
-    provider: 'local',
-    executionMode: 'standard' as const,
-    sandboxRequired: false,
-  },
-};
-
-const caller = testPrincipal({
-  sub: 'user-1',
-  subType: 'user',
-  organizationId: '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b',
-  organizationRoles: ['owner'],
-  scopes: [],
-});
-
-describe('AgentsService and AgentVersionsService (Postgres)', () => {
+describe("Hephaestus's copy of Agora's agents (Postgres)", () => {
   let moduleRef: TestingModule;
   let agents: AgentsService;
   let versions: AgentVersionsService;
@@ -39,8 +23,8 @@ describe('AgentsService and AgentVersionsService (Postgres)', () => {
 
   beforeEach(async () => {
     ({ moduleRef, polis } = await createTestingModule(AgentsModule));
-    agents = actingAs(moduleRef.get(AgentsService), caller);
-    versions = actingAs(moduleRef.get(AgentVersionsService), caller);
+    agents = moduleRef.get(AgentsService);
+    versions = moduleRef.get(AgentVersionsService);
     orgId = polis.organization();
   });
 
@@ -48,140 +32,108 @@ describe('AgentsService and AgentVersionsService (Postgres)', () => {
     await moduleRef.close();
   });
 
-  const createAgent = (organizationId = orgId) =>
-    agents.create(organizationId, {
-      name: 'Helper',
-      description: 'Helps',
-    });
-
-  it('creates agents, scoped to their organization', async () => {
-    const agent = await createAgent();
-    const other = { id: polis.organization() };
-
-    await expect(agents.findById(orgId, agent.id)).resolves.toEqual(agent);
-    await expect(agents.findById(other.id, agent.id)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
-    await expect(createAgent(missing)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
-  });
-
-  it('archives idempotently and then refuses new versions', async () => {
-    const agent = await createAgent();
-
-    const archived = await agents.archive(orgId, agent.id);
-    expect(archived.status).toBe('archived');
-    await expect(agents.archive(orgId, agent.id)).resolves.toEqual(archived);
-
-    await expect(
-      versions.create(orgId, agent.id, versionBody),
-    ).rejects.toMatchObject({
-      code: 'AGENT_ARCHIVED',
-    });
-  });
-
-  it('numbers versions without gaps, even when created concurrently', async () => {
-    const agent = await createAgent();
-
-    const created = await Promise.all(
-      Array.from({ length: 5 }, () =>
-        versions.create(orgId, agent.id, versionBody),
-      ),
+  it('keeps agents and the version they publish, scoped to their organization', async () => {
+    const agentId = await createAgent(moduleRef, orgId);
+    await agents.assertExists(orgId, agentId);
+    await expect(agents.publishedVersion(orgId, agentId)).rejects.toMatchObject(
+      { code: 'AGENT_NOT_PUBLISHED' },
     );
 
-    expect(created.map((v) => v.version).sort((a, b) => a - b)).toEqual([
-      1, 2, 3, 4, 5,
-    ]);
-    expect(created.every((v) => v.status === 'draft')).toBe(true);
-    expect(created[0].tools).toEqual(versionBody.tools);
-  });
-
-  it('lists versions highest first, page by page', async () => {
-    const agent = await createAgent();
-    for (let i = 0; i < 3; i++) {
-      await versions.create(orgId, agent.id, versionBody);
-    }
-
-    const first = await versions.list(orgId, agent.id, { limit: 2 });
-    const rest = await versions.list(orgId, agent.id, {
-      limit: 2,
-      cursor: first.nextCursor,
+    const v1 = await publishVersion(moduleRef, orgId, agentId, {
+      aggregateVersion: 2,
+      instructions: 'Fix bugs.',
+      model: { provider: 'anthropic', model: 'claude', temperature: 0.2 },
     });
 
-    expect([...first.items, ...rest.items].map((v) => v.version)).toEqual([
-      3, 2, 1,
-    ]);
-    expect(rest.nextCursor).toBeNull();
-    await expect(
-      versions.list(orgId, missing, { limit: 2 }),
-    ).rejects.toBeInstanceOf(NotFoundException);
-  });
-
-  it('publishes one version at a time', async () => {
-    const agent = await createAgent();
-    const v1 = await versions.create(orgId, agent.id, versionBody);
-    const v2 = await versions.create(orgId, agent.id, versionBody);
-
-    const published = await versions.publish(orgId, agent.id, v1.id);
-    expect(published).toMatchObject({
+    await expect(agents.publishedVersion(orgId, agentId)).resolves.toBe(v1);
+    await expect(versions.findById(orgId, agentId, v1)).resolves.toMatchObject({
+      id: v1,
+      agentId,
+      organizationId: orgId,
       status: 'published',
-      publishedAt: expect.any(String),
-    });
-    await expect(versions.publish(orgId, agent.id, v1.id)).resolves.toEqual(
-      published,
-    );
-    await expect(agents.findById(orgId, agent.id)).resolves.toMatchObject({
-      latestVersionId: v1.id,
+      instructions: 'Fix bugs.',
+      model: { provider: 'anthropic', model: 'claude', temperature: 0.2 },
     });
 
-    await versions.publish(orgId, agent.id, v2.id);
-    await expect(
-      versions.findById(orgId, agent.id, v1.id),
-    ).resolves.toMatchObject({
+    const other = polis.organization();
+    await expect(agents.assertExists(other, agentId)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    await expect(versions.findById(other, agentId, v1)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('moves to each newly published version and keeps the replaced one runnable', async () => {
+    const agentId = await createAgent(moduleRef, orgId);
+    const v1 = await publishVersion(moduleRef, orgId, agentId, {
+      aggregateVersion: 2,
+    });
+    const v2 = await publishVersion(moduleRef, orgId, agentId, {
+      aggregateVersion: 3,
+      version: 2,
+      previousVersionId: v1,
+    });
+
+    await expect(agents.publishedVersion(orgId, agentId)).resolves.toBe(v2);
+    await expect(versions.findById(orgId, agentId, v1)).resolves.toMatchObject({
       status: 'deprecated',
     });
-    await expect(agents.findById(orgId, agent.id)).resolves.toMatchObject({
-      latestVersionId: v2.id,
-    });
-
-    await expect(
-      versions.publish(orgId, agent.id, v1.id),
-    ).rejects.toMatchObject({
-      code: 'AGENT_VERSION_INVALID_TRANSITION',
-    });
   });
 
-  it('finds a version only under its own agent', async () => {
-    const agent = await createAgent();
-    const other = await createAgent();
-    const version = await versions.create(orgId, agent.id, versionBody);
+  it('never moves backwards on late or repeated events', async () => {
+    const agentId = await createAgent(moduleRef, orgId);
+    // Version 2 was published after version 1, but its event comes first.
+    const v2 = await publishVersion(moduleRef, orgId, agentId, {
+      aggregateVersion: 3,
+      version: 2,
+    });
+    const v1 = await publishVersion(moduleRef, orgId, agentId, {
+      aggregateVersion: 2,
+    });
 
-    await expect(
-      versions.findById(orgId, other.id, version.id),
-    ).rejects.toBeInstanceOf(NotFoundException);
-    await expect(
-      versions.publish(orgId, other.id, version.id),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(agents.publishedVersion(orgId, agentId)).resolves.toBe(v2);
+    // The late version is still kept, for a task that may have pinned it.
+    await expect(versions.findById(orgId, agentId, v1)).resolves.toMatchObject({
+      status: 'deprecated',
+    });
+
+    // agent.created again changes nothing.
+    await createAgent(moduleRef, orgId, { agentId, name: 'Renamed' });
+    await expect(agents.publishedVersion(orgId, agentId)).resolves.toBe(v2);
+
+    await archiveAgent(moduleRef, orgId, agentId, 4);
+    await expect(agents.publishedVersion(orgId, agentId)).rejects.toMatchObject(
+      { code: 'AGENT_ARCHIVED' },
+    );
+    // An older version event doesn't bring it back.
+    await publishVersion(moduleRef, orgId, agentId, { aggregateVersion: 3 });
+    await expect(agents.publishedVersion(orgId, agentId)).rejects.toMatchObject(
+      { code: 'AGENT_ARCHIVED' },
+    );
   });
 
-  it('blocks writes, but not reads, while the organization is suspended', async () => {
-    const agent = await createAgent();
-    const version = await versions.create(orgId, agent.id, versionBody);
-    await organizationEvent(moduleRef, orgId, 'organization.suspended', 2);
+  it('retries events about an agent it has not heard of yet', async () => {
+    const agentId = uuidv7();
 
-    for (const write of [
-      () => createAgent(),
-      () => agents.archive(orgId, agent.id),
-      () => versions.create(orgId, agent.id, versionBody),
-      () => versions.publish(orgId, agent.id, version.id),
-    ]) {
-      await expect(write()).rejects.toMatchObject({
-        code: 'ORGANIZATION_SUSPENDED',
-      });
-    }
     await expect(
-      versions.findById(orgId, agent.id, version.id),
-    ).resolves.toEqual(version);
+      publishVersion(moduleRef, orgId, agentId, { aggregateVersion: 2 }),
+    ).rejects.toThrow(/isn't in Hephaestus's copy yet/);
+    await expect(
+      deliverAgoraEvent(moduleRef, {
+        eventType: 'agent.archived',
+        aggregateId: agentId,
+        aggregateVersion: 3,
+        organizationId: orgId,
+        payload: { agentId },
+      }),
+    ).rejects.toThrow(/isn't in Hephaestus's copy yet/);
+
+    // Once agent.created is in, the version applies (the consumer's retry).
+    await createAgent(moduleRef, orgId, { agentId });
+    const v1 = await publishVersion(moduleRef, orgId, agentId, {
+      aggregateVersion: 2,
+    });
+    await expect(agents.publishedVersion(orgId, agentId)).resolves.toBe(v1);
   });
 });

@@ -1,3 +1,4 @@
+import type { components as AgoraComponents } from "./generated/agora-api";
 import type { components, operations, paths } from "./generated/hephaestus-api";
 
 /**
@@ -9,8 +10,11 @@ export type ApiSchema<K extends keyof ApiSchemas> = ApiSchemas[K];
 export type ApiPaths = paths;
 export type ApiOperations = operations;
 
-export type Agent = ApiSchema<"AgentResponse">;
-export type AgentVersion = ApiSchema<"AgentVersionResponse">;
+/** Agora's types (agents and their versions), from ../contracts/agora.openapi.yaml. */
+export type AgoraSchemas = AgoraComponents["schemas"];
+export type AgoraSchema<K extends keyof AgoraSchemas> = AgoraSchemas[K];
+export type Agent = AgoraSchema<"AgentResponse">;
+export type AgentVersion = AgoraSchema<"AgentVersionResponse">;
 export type Workspace = ApiSchema<"WorkspaceResponse">;
 export type Task = ApiSchema<"TaskResponse">;
 export type TaskStatus = ApiSchema<"TaskStatus">;

@@ -5,6 +5,7 @@ import type { App } from 'supertest/types.js';
 import { createApp, MISSING_ID } from './app.js';
 import { asMember, type Client } from './auth.js';
 import { projectArchived, type FakePolis } from './fake-polis.js';
+import { archiveAgent, createAgent, publishedAgent } from './agora.js';
 
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000aa';
 const versionBody = {
@@ -15,7 +16,7 @@ const versionBody = {
   skills: [],
   runtime: {
     provider: 'local',
-    executionMode: 'standard',
+    executionMode: 'standard' as const,
     sandboxRequired: false,
   },
 };
@@ -38,22 +39,9 @@ describe('Tasks (e2e)', () => {
     owner = await asMember(app, orgId, ['owner']);
     base = `/v1/organizations/${orgId}/projects/${projectId}/tasks`;
 
-    const agents = `/v1/organizations/${orgId}/agents`;
-    agentId = (
-      await owner
-        .post(agents)
-        .send({ name: 'Helper', description: '' })
-        .expect(201)
-    ).body.id;
-    versionId = (
-      await owner
-        .post(`${agents}/${agentId}/versions`)
-        .send(versionBody)
-        .expect(201)
-    ).body.id;
-    await owner
-      .post(`${agents}/${agentId}/versions/${versionId}/publish`)
-      .expect(200);
+    const published = await publishedAgent(app, orgId, versionBody);
+    agentId = published.agentId;
+    versionId = published.versionId;
   });
 
   afterEach(async () => {
@@ -151,15 +139,15 @@ describe('Tasks (e2e)', () => {
       }),
     ]);
 
-    const agents = `/v1/organizations/${orgId}/agents`;
-    const draftOnly = (
-      await owner
-        .post(agents)
-        .send({ name: 'Draft', description: '' })
-        .expect(201)
-    ).body.id;
+    const draftOnly = await createAgent(app, orgId, { name: 'Draft' });
     const unpublished = await create(owner, { agentId: draftOnly }).expect(409);
     expect(unpublished.body.code).toBe('AGENT_NOT_PUBLISHED');
+    const retired = await publishedAgent(app, orgId);
+    await archiveAgent(app, orgId, retired.agentId, 3);
+    const archivedAgent = await create(owner, {
+      agentId: retired.agentId,
+    }).expect(409);
+    expect(archivedAgent.body.code).toBe('AGENT_ARCHIVED');
     await create(owner, { agentId: MISSING_ID }).expect(404);
 
     await projectArchived(app, orgId, projectId, 2);

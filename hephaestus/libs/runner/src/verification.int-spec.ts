@@ -2,7 +2,6 @@ import type { TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 
 import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
-import { AgentsService, AgentVersionsService } from '@hephaestus/agents';
 import { ArtifactsService } from '@hephaestus/artifacts';
 import type { ApiTypes } from '@hephaestus/core';
 import { InvalidTaskCriteriaError, TasksService } from '@hephaestus/tasks';
@@ -22,6 +21,7 @@ import { RUNNER_OPTIONS } from './runner.options.js';
 import { SandboxProvisioner } from './sandbox-provisioner.js';
 import { TaskRunner } from './task-runner.js';
 import { TaskTokens } from './task-tokens.js';
+import { publishedAgent } from '../../../test/agora.js';
 
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000aa';
 
@@ -99,19 +99,7 @@ describe('Verification (Postgres)', () => {
     acceptanceCriteria: ApiTypes.AcceptanceCriterionRequest[],
     options: { sandboxRequired?: boolean; artifactKinds?: string[] } = {},
   ) {
-    const owner = testPrincipal({
-      sub: 'user-1',
-      subType: 'user',
-      organizationId,
-      organizationRoles: ['owner'],
-      scopes: [],
-    });
-    const agents = actingAs(moduleRef.get(AgentsService), owner);
-    const versions = actingAs(moduleRef.get(AgentVersionsService), owner);
-    const agentId = (
-      await agents.create(organizationId, { name: 'Checker', description: '' })
-    ).id;
-    const version = await versions.create(organizationId, agentId, {
+    const published = await publishedAgent(moduleRef, organizationId, {
       instructions: 'Do the work.',
       model: { provider: 'scripted', model: 'scripted-model' },
       capabilities: ['code'],
@@ -123,7 +111,7 @@ describe('Verification (Postgres)', () => {
         sandboxRequired: options.sandboxRequired ?? true,
       },
     });
-    await versions.publish(organizationId, agentId, version.id);
+    const agentId = published.agentId;
     return (
       await tasks.create(
         organizationId,
