@@ -6,10 +6,7 @@ import { SkillsService } from '@hephaestus/skills';
 import { ToolServerInvalidError, ToolServersService } from '@hephaestus/tools';
 
 /** What an agent version chooses from Hephaestus: its model, tools and skills. */
-export type AgentVersionChoices = Pick<
-  ApiTypes.CreateAgentVersionRequest,
-  'model' | 'tools' | 'skills'
->;
+export type AgentVersionChoices = ApiTypes.AgentVersionCheckRequest;
 
 /**
  * Whether an agent version's model, tools and skills can be chosen in an

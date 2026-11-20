@@ -73,24 +73,30 @@ describe("Polis's events over RabbitMQ (e2e)", () => {
 
   it('suspends an organization when Polis says so, and reactivates it', async () => {
     const orgId = polis.organization();
-    const agents = `/v1/organizations/${orgId}/agents`;
+    // Any write in the organization; creating a skill is one.
+    const skills = `/v1/organizations/${orgId}/skills`;
+    const skill = (name: string) => ({
+      name,
+      files: [
+        {
+          path: 'SKILL.md',
+          content: `---\nname: ${name}\ndescription: A skill\n---\n`,
+        },
+      ],
+    });
     const owner = await asMember(app, orgId, ['owner']);
     const http = () => owner;
-    await http().post(agents).send({ name: 'A', description: '' }).expect(201);
+    await http().post(skills).send(skill('a')).expect(201);
 
     publishPolisEvent('organization.suspended', orgId, 2);
     await waitFor(async () => {
-      const res = await http()
-        .post(agents)
-        .send({ name: 'B', description: '' });
+      const res = await http().post(skills).send(skill('b'));
       return res.status === 409 && res.body.code === 'ORGANIZATION_SUSPENDED';
     });
 
     publishPolisEvent('organization.reactivated', orgId, 3);
     await waitFor(async () => {
-      const res = await http()
-        .post(agents)
-        .send({ name: 'C', description: '' });
+      const res = await http().post(skills).send(skill('c'));
       return res.status === 201;
     });
   });

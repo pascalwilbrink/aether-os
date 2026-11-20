@@ -5,6 +5,7 @@ import type { App } from 'supertest/types.js';
 import { createApp, MISSING_ID } from './app.js';
 import { asMember, type Client } from './auth.js';
 import type { FakePolis } from './fake-polis.js';
+import { publishedAgent } from './agora.js';
 
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000aa';
 const versionBody = {
@@ -15,7 +16,7 @@ const versionBody = {
   skills: [],
   runtime: {
     provider: 'local',
-    executionMode: 'standard',
+    executionMode: 'standard' as const,
     sandboxRequired: true,
   },
 };
@@ -48,22 +49,8 @@ describe('Task templates (e2e)', () => {
     owner = await asMember(app, orgId, ['owner']);
     templates = `/v1/organizations/${orgId}/task-templates`;
 
-    const agents = `/v1/organizations/${orgId}/agents`;
-    agentId = (
-      await owner
-        .post(agents)
-        .send({ name: 'Fixer', description: '' })
-        .expect(201)
-    ).body.id;
-    const versionId = (
-      await owner
-        .post(`${agents}/${agentId}/versions`)
-        .send(versionBody)
-        .expect(201)
-    ).body.id;
-    await owner
-      .post(`${agents}/${agentId}/versions/${versionId}/publish`)
-      .expect(200);
+    const published = await publishedAgent(app, orgId, versionBody);
+    agentId = published.agentId;
   });
 
   afterEach(async () => {

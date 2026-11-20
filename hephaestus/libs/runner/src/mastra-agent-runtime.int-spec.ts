@@ -9,7 +9,6 @@ import {
 import { DataSource } from 'typeorm';
 
 import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
-import { AgentsService, AgentVersionsService } from '@hephaestus/agents';
 import { ArtifactsService } from '@hephaestus/artifacts';
 import { SecretStore } from '@hephaestus/core';
 import {
@@ -43,6 +42,7 @@ import { RUNNER_OPTIONS } from './runner.options.js';
 import { SandboxProvisioner } from './sandbox-provisioner.js';
 import { TaskRunner } from './task-runner.js';
 import { TaskTokens } from './task-tokens.js';
+import { publishedAgent } from '../../../test/agora.js';
 
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000aa';
 
@@ -134,19 +134,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
       skills?: { name: string; version: string; enabled: boolean }[];
     } = {},
   ) {
-    const caller = testPrincipal({
-      sub: 'user-1',
-      subType: 'user',
-      organizationId,
-      organizationRoles: ['owner'],
-      scopes: [],
-    });
-    const agents = actingAs(moduleRef.get(AgentsService), caller);
-    const versions = actingAs(moduleRef.get(AgentVersionsService), caller);
-    const agentId = (
-      await agents.create(organizationId, { name: 'Fixer', description: '' })
-    ).id;
-    const created = await versions.create(organizationId, agentId, {
+    const published = await publishedAgent(moduleRef, organizationId, {
       instructions: 'You fix bugs. Answer with what you changed.',
       model: version.model ?? {
         // Not in Mastra's model registry: for providers it knows, it drops
@@ -165,7 +153,8 @@ describe('MastraAgentRuntime (Postgres)', () => {
         sandboxRequired: false,
       },
     });
-    await versions.publish(organizationId, agentId, created.id);
+    const agentId = published.agentId;
+    const created = { id: published.versionId };
     const { task } = await tasks.create(
       organizationId,
       projectId,

@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
+import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
 import { SecretStore } from '@hephaestus/core';
@@ -8,6 +9,7 @@ import { asMember, type Client } from './auth.js';
 import { FakeSecretStore } from './fake-models.js';
 import type { FakePolis } from './fake-polis.js';
 import { FakeToolServer } from './fake-tool-server.js';
+import { tokens } from './tokens.js';
 
 describe('Tool servers (e2e)', () => {
   let app: INestApplication<App>;
@@ -182,34 +184,24 @@ describe('Tool servers (e2e)', () => {
       .post(servers())
       .send({ name: 'docs', url: toolServer.url, auth: { type: 'none' } })
       .expect(201);
-    const agentId = (
-      await owner
-        .post(`/v1/organizations/${orgId}/agents`)
-        .send({ name: 'Writer', description: '' })
-        .expect(201)
-    ).body.id;
+    // Agora asks before it creates a version (agent-version-checks).
+    const agora = request
+      .agent(app.getHttpServer())
+      .set(
+        'authorization',
+        `Bearer ${await tokens.service('agora', ['platform:read'])}`,
+      );
     const version = (tools: unknown) =>
-      owner.post(`/v1/organizations/${orgId}/agents/${agentId}/versions`).send({
-        instructions: 'Write.',
+      agora.post(`/v1/organizations/${orgId}/agent-version-checks`).send({
         model: { provider: 'anthropic', model: 'claude' },
-        capabilities: [],
         tools,
         skills: [],
-        runtime: {
-          provider: 'mastra',
-          executionMode: 'standard',
-          sandboxRequired: false,
-        },
       });
 
-    const created = await version([
+    await version([
       { name: 'docs', enabled: true, tools: ['lookup'] },
       { name: 'later', enabled: false },
-    ]).expect(201);
-    expect(created.body.tools).toEqual([
-      { name: 'docs', enabled: true, tools: ['lookup'] },
-      { name: 'later', enabled: false },
-    ]);
+    ]).expect(204);
     const unknown = await version([{ name: 'later', enabled: true }]).expect(
       409,
     );

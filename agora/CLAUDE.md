@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Agora
 
-Agora is the Aether-os service for **agent management** (see `../CLAUDE.md`); the agora was the gathering place of the Greek city. It owns **agents** and their immutable, numbered **versions** (instructions, model, tools, skills, capabilities, runtime): a version moves draft → published → deprecated, and only one version of an agent is published at a time. Every change is published as an event, and Hephaestus, which runs tasks with the published versions, will keep its copy of agents and versions from them. Planned: policy set versions on versions (Themis), quality per version (Kriterion).
+Agora is the Aether-os service for **agent management** (see `../CLAUDE.md`); the agora was the gathering place of the Greek city. It owns **agents** and their immutable, numbered **versions** (instructions, model, tools, skills, capabilities, runtime): a version moves draft → published → deprecated, and only one version of an agent is published at a time. Every change is published as an event, and Hephaestus, which runs tasks with the published versions, keeps its copy of agents and versions from them. Iris manages agents here. Planned: policy set versions on versions (Themis), quality per version (Kriterion).
 
-Agents used to live in Hephaestus (`hephaestus/libs/agents`), which still serves its own copy of this API until it switches to Agora's events (the next step); `pnpm import:hephaestus` brings the agents it holds over, with the same IDs.
+Agents used to live in Hephaestus, whose tables became its copy; `pnpm import:hephaestus` brings the agents made before Agora over once, with the same IDs (run it after Agora's migrations when moving an existing installation: until then, Iris shows no agents, while Hephaestus still runs them).
 
 It follows `../docs/engineering.md` like Kairos: NestJS 12 (ESM, TypeScript 6), controller → service → TypeORM repository with mappers, Zod DTOs generated from the spec, `typeorm-transactional`, Postgres with migrations, tests against Postgres and RabbitMQ in containers.
 

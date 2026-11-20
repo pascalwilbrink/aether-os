@@ -171,27 +171,14 @@ describe('Model catalogue (e2e)', () => {
 
   it('only lets new agent versions choose active models', async () => {
     const { body: model } = await create().expect(201);
-    const { body: agent } = await member
-      .post(`/v1/organizations/${orgId}/agents`)
-      .send({ name: 'Helper', description: '' })
-      .expect(201);
+    // Agora asks before it creates a version (agent-version-checks).
+    const agora = await asPlatform(app, ['platform:read']);
     const version = (provider: string, name: string) =>
-      member
-        .post(`/v1/organizations/${orgId}/agents/${agent.id}/versions`)
-        .send({
-          instructions: 'Be helpful.',
-          model: { provider, model: name },
-          capabilities: [],
-          tools: [],
-          skills: [],
-          runtime: {
-            provider: 'mastra',
-            executionMode: 'standard',
-            sandboxRequired: false,
-          },
-        });
+      agora
+        .post(`/v1/organizations/${orgId}/agent-version-checks`)
+        .send({ model: { provider, model: name }, tools: [], skills: [] });
 
-    await version('openai', modelId).expect(201);
+    await version('openai', modelId).expect(204);
     expect(
       (await version('openai', 'no-such-model').expect(409)).body.code,
     ).toBe('MODEL_NOT_AVAILABLE');

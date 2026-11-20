@@ -3,25 +3,27 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
 import {
-  AccessControl,
-  findPage,
-  mapPage,
-  type Page,
-  type PageRequest,
+  type AgoraEvents,
+  type DomainEvent,
+  OnDomainEvent,
   Transactional,
 } from '@hephaestus/core';
-import { OrganizationsService } from '@hephaestus/tenancy';
 
-import { nextAgentStatus } from './agent-transitions.js';
+import { AgentVersionsService } from './agent-versions.service.js';
 import { AgentEntity } from './agent.entity.js';
-import { AgentArchivedError, AgentNotPublishedError } from './agent.errors.js';
+import {
+  AgentArchivedError,
+  AgentNotCopiedYetError,
+  AgentNotPublishedError,
+} from './agent.errors.js';
 import { AgentMapper } from './agent.mapper.js';
-import type { AgentResponse } from './dto/agent.response.js';
-import type { CreateAgentRequest } from './dto/create-agent.request.js';
 
 /**
- * Agents. Reads require the organization to exist (404); writes also
- * require it to be active (`ORGANIZATION_SUSPENDED`).
+ * Agents belong to Agora: Hephaestus keeps a copy of them and their
+ * published versions from Agora's events (`agora.events`), to pin a
+ * version on new tasks and to scope per-agent keys and budgets. Every
+ * change is guarded by the agent's `version` (the events'
+ * `aggregateVersion`), so a late or repeated event never moves it back.
  */
 @Injectable()
 export class AgentsService {
@@ -29,97 +31,14 @@ export class AgentsService {
     @InjectRepository(AgentEntity)
     private readonly agents: Repository<AgentEntity>,
     private readonly mapper: AgentMapper,
-    private readonly organizations: OrganizationsService,
-    private readonly access: AccessControl,
+    private readonly versions: AgentVersionsService,
   ) {}
 
-  @Transactional()
-  async create(
-    organizationId: string,
-    dto: CreateAgentRequest,
-  ): Promise<AgentResponse> {
-    await this.organizations.assertAcceptsWrites(organizationId);
-
-    const entity = this.mapper.toEntity(
-      dto,
-      organizationId,
-      this.access.principal().sub,
-      new Date(),
-    );
-    await this.agents.insert(entity);
-
-    return this.mapper.toResponse(entity);
-  }
-
-  async list(
-    organizationId: string,
-    page: PageRequest,
-  ): Promise<Page<AgentResponse>> {
-    await this.organizations.assertExists(organizationId);
-
-    const entities = await findPage(
-      this.agents,
-      { where: { organizationId }, sortBy: 'createdAt', direction: 'DESC' },
-      page,
-    );
-
-    return mapPage(entities, (entity) => this.mapper.toResponse(entity));
-  }
-
-  async findById(
-    organizationId: string,
-    agentId: string,
-  ): Promise<AgentResponse> {
-    await this.organizations.assertExists(organizationId);
-
-    return this.mapper.toResponse(await this.load(organizationId, agentId));
-  }
-
-  @Transactional()
-  async archive(
-    organizationId: string,
-    agentId: string,
-  ): Promise<AgentResponse> {
-    await this.organizations.assertAcceptsWrites(organizationId);
-
-    const entity = await this.load(organizationId, agentId, true);
-    const next = nextAgentStatus(entity.status, 'archive');
-    if (next !== entity.status) {
-      entity.status = next;
-      entity.updatedAt = new Date();
-      await this.agents.save(entity);
-    }
-
-    return this.mapper.toResponse(entity);
-  }
-
-  /** For reads of an agent's versions: 404 unless the agent exists. */
+  /** 404 unless the organization has this agent (in the copy). */
   async assertExists(organizationId: string, agentId: string): Promise<void> {
-    await this.organizations.assertExists(organizationId);
     if (!(await this.agents.existsBy({ id: agentId, organizationId }))) {
       throw this.notFound(agentId);
     }
-  }
-
-  /**
-   * For changes to an agent's versions: the organization must accept writes
-   * and the agent must be active (`AGENT_ARCHIVED`). Locks the agent row
-   * until the caller's transaction ends, which serializes version numbering
-   * and publishing per agent. Returns the currently published version.
-   */
-  @Transactional()
-  async lockForVersionChange(
-    organizationId: string,
-    agentId: string,
-  ): Promise<{ latestVersionId: string | null }> {
-    await this.organizations.assertAcceptsWrites(organizationId);
-
-    const entity = await this.load(organizationId, agentId, true);
-    if (entity.status !== 'active') {
-      throw new AgentArchivedError(agentId);
-    }
-
-    return { latestVersionId: entity.latestVersionId };
   }
 
   /**
@@ -130,47 +49,126 @@ export class AgentsService {
     organizationId: string,
     agentId: string,
   ): Promise<string> {
-    const entity = await this.load(organizationId, agentId);
+    const entity = await this.agents.findOneBy({ id: agentId, organizationId });
+    if (!entity) {
+      throw this.notFound(agentId);
+    }
     if (entity.status !== 'active') {
       throw new AgentArchivedError(agentId);
     }
     if (!entity.latestVersionId) {
       throw new AgentNotPublishedError(agentId);
     }
+
     return entity.latestVersionId;
   }
 
-  /** Records the published version; call after `lockForVersionChange`. */
+  @OnDomainEvent('agora.agent.created')
   @Transactional()
-  async setLatestVersion(
-    organizationId: string,
-    agentId: string,
-    versionId: string,
-  ): Promise<void> {
-    await this.agents.update(
-      { id: agentId, organizationId },
-      { latestVersionId: versionId, updatedAt: new Date() },
-    );
+  async onCreated(event: DomainEvent<AgoraEvents.AgentCreated>): Promise<void> {
+    await this.agents
+      .createQueryBuilder()
+      .insert()
+      .values(
+        this.mapper.fromCreated(
+          event.payload,
+          organizationOf(event),
+          event.aggregateVersion,
+        ),
+      )
+      .orIgnore()
+      .execute();
   }
 
-  /** Scoped to the organization: another organization's agent is a 404. */
-  private async load(
-    organizationId: string,
-    agentId: string,
-    forUpdate = false,
-  ): Promise<AgentEntity> {
-    const entity = await this.agents.findOne({
-      where: { id: agentId, organizationId },
-      ...(forUpdate ? { lock: { mode: 'pessimistic_write' as const } } : {}),
+  @OnDomainEvent('agora.agent.archived')
+  @Transactional()
+  async onArchived(
+    event: DomainEvent<AgoraEvents.AgentArchived>,
+  ): Promise<void> {
+    const agent = await this.lockForEvent(event);
+    if (agent) {
+      agent.status = 'archived';
+      await this.save(agent, event);
+    }
+  }
+
+  /**
+   * Stores the version (whole, from the event) and makes it the agent's
+   * published one, unless a newer event got there first: then it's kept as
+   * deprecated, for any task that pinned it.
+   */
+  @OnDomainEvent('agora.agent-version.published')
+  @Transactional()
+  async onVersionPublished(
+    event: DomainEvent<AgoraEvents.AgentVersionPublished>,
+  ): Promise<void> {
+    const agent = await this.lockForEvent(event);
+    await this.versions.store(
+      event.payload.version,
+      agent ? 'published' : 'deprecated',
+    );
+    if (agent) {
+      agent.latestVersionId = event.payload.agentVersionId;
+      await this.save(agent, event);
+    }
+  }
+
+  @OnDomainEvent('agora.agent-version.deprecated')
+  @Transactional()
+  async onVersionDeprecated(
+    event: DomainEvent<AgoraEvents.AgentVersionDeprecated>,
+  ): Promise<void> {
+    // Deprecated is final, so this applies even when it arrives late.
+    await this.versions.deprecate(event.payload.agentVersionId);
+    const agent = await this.lockForEvent(event);
+    if (agent) {
+      await this.save(agent, event);
+    }
+  }
+
+  /**
+   * The agent, locked, if the event is newer than the copy; null when it
+   * isn't (applied already, or older). An agent the copy doesn't have yet
+   * throws, so the consumer retries once `agent.created` is in.
+   */
+  private async lockForEvent(
+    event: DomainEvent<{ agentId: string }>,
+  ): Promise<AgentEntity | null> {
+    const agent = await this.agents.findOne({
+      where: {
+        id: event.payload.agentId,
+        organizationId: organizationOf(event),
+      },
+      lock: { mode: 'pessimistic_write' },
     });
-    if (!entity) {
-      throw this.notFound(agentId);
+    if (!agent) {
+      throw new AgentNotCopiedYetError(event.payload.agentId);
+    }
+    if (event.aggregateVersion <= agent.version) {
+      return null;
     }
 
-    return entity;
+    return agent;
+  }
+
+  private async save(
+    agent: AgentEntity,
+    event: DomainEvent<unknown>,
+  ): Promise<void> {
+    agent.version = event.aggregateVersion;
+    agent.updatedAt = event.occurredAt;
+    await this.agents.save(agent);
   }
 
   private notFound(agentId: string): NotFoundException {
     return new NotFoundException(`Agent ${agentId} not found`);
   }
+}
+
+/** Agora's events always belong to an organization. */
+function organizationOf(event: DomainEvent<unknown>): string {
+  if (!event.organizationId) {
+    throw new Error(`Agora event ${event.eventId} has no organization`);
+  }
+  return event.organizationId;
 }

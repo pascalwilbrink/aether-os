@@ -18,9 +18,6 @@ import type {
   ApproveArtifactData,
   ApproveArtifactErrors,
   ApproveArtifactResponses,
-  ArchiveAgentData,
-  ArchiveAgentErrors,
-  ArchiveAgentResponses,
   ArchiveSkillData,
   ArchiveSkillErrors,
   ArchiveSkillResponses,
@@ -33,12 +30,6 @@ import type {
   CheckAgentVersionData,
   CheckAgentVersionErrors,
   CheckAgentVersionResponses,
-  CreateAgentData,
-  CreateAgentErrors,
-  CreateAgentResponses,
-  CreateAgentVersionData,
-  CreateAgentVersionErrors,
-  CreateAgentVersionResponses,
   CreateModelData,
   CreateModelErrors,
   CreateModelResponses,
@@ -84,12 +75,6 @@ import type {
   GetAgentBudgetData,
   GetAgentBudgetErrors,
   GetAgentBudgetResponses,
-  GetAgentData,
-  GetAgentErrors,
-  GetAgentResponses,
-  GetAgentVersionData,
-  GetAgentVersionErrors,
-  GetAgentVersionResponses,
   GetModelData,
   GetModelErrors,
   GetModelResponses,
@@ -129,12 +114,6 @@ import type {
   ListAgentModelKeysData,
   ListAgentModelKeysErrors,
   ListAgentModelKeysResponses,
-  ListAgentsData,
-  ListAgentsErrors,
-  ListAgentsResponses,
-  ListAgentVersionsData,
-  ListAgentVersionsErrors,
-  ListAgentVersionsResponses,
   ListExecutionEventsData,
   ListExecutionEventsErrors,
   ListExecutionEventsResponses,
@@ -180,9 +159,6 @@ import type {
   ListWorkspacesData,
   ListWorkspacesErrors,
   ListWorkspacesResponses,
-  PublishAgentVersionData,
-  PublishAgentVersionErrors,
-  PublishAgentVersionResponses,
   RejectArtifactData,
   RejectArtifactErrors,
   RejectArtifactResponses,
@@ -247,150 +223,6 @@ export type Options<
    */
   meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
-
-export const listAgents = <ThrowOnError extends boolean = false>(
-  options: Options<ListAgentsData, ThrowOnError>,
-): RequestResult<ListAgentsResponses, ListAgentsErrors, ThrowOnError> =>
-  (options.client ?? client).get<
-    ListAgentsResponses,
-    ListAgentsErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/agents',
-    ...options,
-  });
-
-export const createAgent = <ThrowOnError extends boolean = false>(
-  options: Options<CreateAgentData, ThrowOnError>,
-): RequestResult<CreateAgentResponses, CreateAgentErrors, ThrowOnError> =>
-  (options.client ?? client).post<
-    CreateAgentResponses,
-    CreateAgentErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/agents',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-export const getAgent = <ThrowOnError extends boolean = false>(
-  options: Options<GetAgentData, ThrowOnError>,
-): RequestResult<GetAgentResponses, GetAgentErrors, ThrowOnError> =>
-  (options.client ?? client).get<
-    GetAgentResponses,
-    GetAgentErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/agents/{agentId}',
-    ...options,
-  });
-
-export const archiveAgent = <ThrowOnError extends boolean = false>(
-  options: Options<ArchiveAgentData, ThrowOnError>,
-): RequestResult<ArchiveAgentResponses, ArchiveAgentErrors, ThrowOnError> =>
-  (options.client ?? client).post<
-    ArchiveAgentResponses,
-    ArchiveAgentErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/agents/{agentId}/archive',
-    ...options,
-  });
-
-export const listAgentVersions = <ThrowOnError extends boolean = false>(
-  options: Options<ListAgentVersionsData, ThrowOnError>,
-): RequestResult<
-  ListAgentVersionsResponses,
-  ListAgentVersionsErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    ListAgentVersionsResponses,
-    ListAgentVersionsErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/agents/{agentId}/versions',
-    ...options,
-  });
-
-/**
- * Creates a draft version; the version number is assigned by the
- * server. Its model must be an `active` model of the catalogue
- * (`MODEL_NOT_AVAILABLE` otherwise), and each enabled entry of `tools`
- * must name one of the organization's tool servers, each at most once
- * (`TOOL_SERVER_INVALID` otherwise); each enabled entry of `skills` a
- * version of one of its active skills, each skill at most once
- * (`SKILL_INVALID`).
- *
- */
-export const createAgentVersion = <ThrowOnError extends boolean = false>(
-  options: Options<CreateAgentVersionData, ThrowOnError>,
-): RequestResult<
-  CreateAgentVersionResponses,
-  CreateAgentVersionErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).post<
-    CreateAgentVersionResponses,
-    CreateAgentVersionErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/agents/{agentId}/versions',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-export const getAgentVersion = <ThrowOnError extends boolean = false>(
-  options: Options<GetAgentVersionData, ThrowOnError>,
-): RequestResult<
-  GetAgentVersionResponses,
-  GetAgentVersionErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    GetAgentVersionResponses,
-    GetAgentVersionErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/agents/{agentId}/versions/{versionId}',
-    ...options,
-  });
-
-/**
- * Publishes a draft and deprecates the previously published version.
- * Publishing the version that's already published returns it unchanged;
- * a deprecated version can't be published again (409).
- *
- */
-export const publishAgentVersion = <ThrowOnError extends boolean = false>(
-  options: Options<PublishAgentVersionData, ThrowOnError>,
-): RequestResult<
-  PublishAgentVersionResponses,
-  PublishAgentVersionErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).post<
-    PublishAgentVersionResponses,
-    PublishAgentVersionErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/agents/{agentId}/versions/{versionId}/publish',
-    ...options,
-  });
 
 /**
  * Whether an agent version's model, tools and skills are choosable in

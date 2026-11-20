@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { listAgents } from "@/lib/api/hephaestus";
+import { listAgents } from "@/lib/api/agora";
 import { getOrganization, listProjects } from "@/lib/api/polis";
 import { requireSession } from "@/lib/auth/current";
 

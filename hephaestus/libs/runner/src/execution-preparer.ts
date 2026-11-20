@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 
 import { AgentVersionsService } from '@hephaestus/agents';
-import type { ApiTypes } from '@hephaestus/core';
+import type { AgentVersion } from '@hephaestus/core';
 import { BudgetExceededError, BudgetsService } from '@hephaestus/models';
 import type { TaskResponse } from '@hephaestus/tasks';
 
@@ -58,7 +58,7 @@ export class ExecutionPreparer {
     }
   }
 
-  agentVersion(task: TaskResponse): Promise<ApiTypes.AgentVersionResponse> {
+  agentVersion(task: TaskResponse): Promise<AgentVersion> {
     return this.agentVersions.findById(
       task.organizationId,
       task.agentId,
@@ -86,7 +86,7 @@ export class ExecutionPreparer {
   sandbox(
     task: TaskResponse,
     executionId: string,
-    agentVersion: ApiTypes.AgentVersionResponse,
+    agentVersion: AgentVersion,
     signal: AbortSignal,
   ): Promise<Sandbox | null> {
     return this.provisioner.provision({

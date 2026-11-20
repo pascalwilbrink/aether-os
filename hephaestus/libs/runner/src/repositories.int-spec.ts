@@ -7,7 +7,6 @@ import type { TestingModule } from '@nestjs/testing';
 import Docker from 'dockerode';
 
 import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
-import { AgentsService, AgentVersionsService } from '@hephaestus/agents';
 import { ArtifactsService } from '@hephaestus/artifacts';
 import { TasksService, type TaskResponse } from '@hephaestus/tasks';
 import { EventInbox } from '@hephaestus/core';
@@ -45,6 +44,7 @@ import {
   WorkspaceSandboxProvisioner,
   type SandboxOptions,
 } from './workspace-sandbox-provisioner.js';
+import { publishedAgent } from '../../../test/agora.js';
 
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000aa';
 const LINK = '0193a1b2-c3d4-7e5f-8a9b-0000000011aa';
@@ -220,12 +220,7 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
       review?: string[];
     } = {},
   ) {
-    const agents = actingAs(moduleRef.get(AgentsService), owner());
-    const versions = actingAs(moduleRef.get(AgentVersionsService), owner());
-    const agentId = (
-      await agents.create(organizationId, { name: 'Coder', description: '' })
-    ).id;
-    const version = await versions.create(organizationId, agentId, {
+    const published = await publishedAgent(moduleRef, organizationId, {
       instructions: 'Change the code.',
       model: { provider: 'scripted', model: 'scripted-model' },
       capabilities: ['code'],
@@ -237,7 +232,7 @@ describe('Repositories in sandboxes (Docker, Postgres)', () => {
         sandboxRequired: options.sandboxRequired ?? true,
       },
     });
-    await versions.publish(organizationId, agentId, version.id);
+    const agentId = published.agentId;
     return (
       await tasks.create(
         organizationId,

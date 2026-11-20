@@ -3,9 +3,9 @@ import { Suspense } from "react";
 
 import { BudgetForm, BudgetMeter } from "@/app/components/budget";
 import { StatusBadge } from "@/app/components/status-badge";
+import { listAgents } from "@/lib/api/agora";
 import {
   getProjectBudget,
-  listAgents,
   listTasks,
   listTaskTemplates,
 } from "@/lib/api/hephaestus";

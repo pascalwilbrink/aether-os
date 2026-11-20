@@ -1,6 +1,6 @@
 import type { WorkspaceSandbox } from '@mastra/core/workspace';
 
-import type { ApiTypes } from '@hephaestus/core';
+import type { AgentVersion } from '@hephaestus/core';
 import type { TaskResponse } from '@hephaestus/tasks';
 
 import type {
@@ -24,7 +24,7 @@ export interface Sandbox {
 export interface SandboxRequest {
   task: TaskResponse;
   executionId: string;
-  agentVersion: ApiTypes.AgentVersionResponse;
+  agentVersion: AgentVersion;
   /** Aborted when the execution stops: give up, and leave nothing behind. */
   signal: AbortSignal;
 }

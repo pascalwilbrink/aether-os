@@ -11,11 +11,10 @@ import {
   versionStatusClasses,
   versionStatusLabel,
 } from "@/lib/agents";
+import { getAgent, listAgentVersions } from "@/lib/api/agora";
 import {
-  getAgent,
   getAgentBudget,
   listActiveModels,
-  listAgentVersions,
   listModelKeys,
   listOllamaModels,
   listSkills,

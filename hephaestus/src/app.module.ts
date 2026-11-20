@@ -30,6 +30,17 @@ export const POLIS_SUBSCRIPTIONS = [
   'project.archived',
 ] as const;
 
+/**
+ * Agora's events: Hephaestus's copy of agents and their published versions
+ * (libs/agents), which tasks pin and the runner runs.
+ */
+export const AGORA_SUBSCRIPTIONS = [
+  'agent.created',
+  'agent.archived',
+  'agent-version.published',
+  'agent-version.deprecated',
+] as const;
+
 /** Proxenos's events Hephaestus handles (docs/git.md). */
 export const PROXENOS_SUBSCRIPTIONS = ['git.pull-request.updated'] as const;
 
@@ -38,8 +49,8 @@ export const PROXENOS_SUBSCRIPTIONS = ['git.pull-request.updated'] as const;
   imports: [
     hephaestusConfigModule(),
     DatabaseModule,
-    // Consumes Polis's events from hephaestus.polis-events (inbox, retries,
-    // dead-lettering), and publishes Hephaestus's own (task events) to
+    // Consumes Polis's, Proxenos's and Agora's events from
+    // hephaestus.<producer>-events (inbox, retries, dead-lettering), and publishes Hephaestus's own (task events) to
     // hephaestus.events through the outbox.
     EventsModule.forRoot({
       service: 'hephaestus',
@@ -47,6 +58,7 @@ export const PROXENOS_SUBSCRIPTIONS = ['git.pull-request.updated'] as const;
       subscribe: {
         polis: POLIS_SUBSCRIPTIONS,
         proxenos: PROXENOS_SUBSCRIPTIONS,
+        agora: AGORA_SUBSCRIPTIONS,
       },
       // task.create from Kairos (docs/events.md, Commands).
       commands: HEPHAESTUS_COMMAND_TYPES,

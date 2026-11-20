@@ -1,7 +1,12 @@
 import { Check, Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
-import type { AgentStatus } from './agent-transitions.js';
+export type AgentStatus = 'active' | 'archived';
 
+/**
+ * Hephaestus's copy of an Agora agent (from `agora.events`): enough to pin
+ * its published version on new tasks and to scope per-agent keys and
+ * budgets.
+ */
 @Entity({ name: 'agents' })
 @Check('ck_agents_status', `status IN ('active', 'archived')`)
 // Keyset pagination within an organization: newest first, tie-broken by ID.
@@ -29,6 +34,10 @@ export class AgentEntity {
   /** The published version, if any. */
   @Column({ type: 'uuid', nullable: true })
   latestVersionId: string | null;
+
+  /** The last Agora event applied (`aggregateVersion`): older ones are ignored. */
+  @Column({ type: 'integer' })
+  version: number;
 
   @Column({ type: 'text' })
   createdBy: string;

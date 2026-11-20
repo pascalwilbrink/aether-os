@@ -9,7 +9,7 @@ import {
   createAgent,
   createAgentVersion,
   publishAgentVersion,
-} from "@/lib/api/hephaestus";
+} from "@/lib/api/agora";
 import { messageOf as baseMessageOf } from "@/lib/api/messages";
 import { requireOrganization } from "@/lib/auth/current";
 import { valuesOf } from "@/lib/forms";

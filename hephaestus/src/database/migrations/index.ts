@@ -22,6 +22,7 @@ import { OpenAiModelsSeed1795130000001 } from './1795130000001-OpenAiModelsSeed.
 import { FileArtifacts1795140000000 } from './1795140000000-FileArtifacts.js';
 import { TaskInputFiles1795150000000 } from './1795150000000-TaskInputFiles.js';
 import { ExecutionEvents1795165184112 } from './1795165184112-ExecutionEvents.js';
+import { AgentsFromAgora1795190000000 } from './1795190000000-AgentsFromAgora.js';
 import { ExecutionTraces1795120000000 } from './1795120000000-ExecutionTraces.js';
 import { Skills1795110000000 } from './1795110000000-Skills.js';
 import { ToolServers1795100000000 } from './1795100000000-ToolServers.js';
@@ -62,4 +63,5 @@ export const migrations = [
   FileArtifacts1795140000000,
   TaskInputFiles1795150000000,
   ExecutionEvents1795165184112,
+  AgentsFromAgora1795190000000,
 ];

@@ -1,6 +1,7 @@
 import "server-only";
 
-import { listAgents, listTaskTemplates } from "@/lib/api/hephaestus";
+import { listAgents } from "@/lib/api/agora";
+import { listTaskTemplates } from "@/lib/api/hephaestus";
 import { ApiError } from "@/lib/api/http";
 import { listServiceAccounts } from "@/lib/api/pistis";
 import { listProjectMemberships } from "@/lib/api/polis";

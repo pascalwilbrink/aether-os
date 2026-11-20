@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { listAgents } from "@/lib/api/hephaestus";
+import { listAgents } from "@/lib/api/agora";
 import { requireOrganization } from "@/lib/auth/current";
 
 type Props = PageProps<"/orgs/[organizationId]/agents">;

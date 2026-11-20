@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.27.0
+  version: 0.28.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -16,9 +16,13 @@ info:
     (`Problem`, `application/problem+json`; business-rule violations are 409
     with a `DomainErrorCode`), and lists paginated with `limit` / `cursor` →
     `items` / `nextCursor`. IDs are UUIDs; a path parameter that isn't one is
-    `400`. Actions are idempotent where that's natural (archiving an archived
-    agent, publishing the published version); workspace transitions stay
-    strict (`409`).
+    `400`. Actions are idempotent where that's natural; workspace
+    transitions stay strict (`409`).
+
+    Agents and their versions belong to Agora (`agora.openapi.yaml`):
+    Hephaestus keeps a copy of them from Agora's events, to create and run
+    tasks with. Here it answers Agora's check of a new version's model,
+    tools and skills, and keeps per-agent model keys and budgets.
 
     Every operation needs a Pistis access token for the organization
     (`Authorization: Bearer`); `x-permission` names what it requires
@@ -31,7 +35,6 @@ security:
   - pistis: []
 
 tags:
-  - name: agents
   - name: agent-versions
   - name: workspaces
   - name: tasks
@@ -43,189 +46,6 @@ tags:
   - name: skills
 
 paths:
-  /v1/organizations/{organizationId}/agents:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-    post:
-      tags: [agents]
-      operationId: createAgent
-      x-permission: '`agent:write`'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/CreateAgentRequest' }
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AgentResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-        '503': { $ref: '#/components/responses/Unavailable' }
-    get:
-      tags: [agents]
-      operationId: listAgents
-      x-permission: '`agent:read`'
-      parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Cursor'
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: Newest first
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AgentPage' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '503': { $ref: '#/components/responses/Unavailable' }
-
-  /v1/organizations/{organizationId}/agents/{agentId}:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-      - $ref: '#/components/parameters/AgentId'
-    get:
-      tags: [agents]
-      operationId: getAgent
-      x-permission: '`agent:read`'
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AgentResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '503': { $ref: '#/components/responses/Unavailable' }
-
-  /v1/organizations/{organizationId}/agents/{agentId}/archive:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-      - $ref: '#/components/parameters/AgentId'
-    post:
-      tags: [agents]
-      operationId: archiveAgent
-      x-permission: '`agent:write`'
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: Archived (or already archived)
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AgentResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-        '503': { $ref: '#/components/responses/Unavailable' }
-
-  /v1/organizations/{organizationId}/agents/{agentId}/versions:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-      - $ref: '#/components/parameters/AgentId'
-    post:
-      tags: [agent-versions]
-      operationId: createAgentVersion
-      x-permission: '`agent:write`'
-      description: |
-        Creates a draft version; the version number is assigned by the
-        server. Its model must be an `active` model of the catalogue
-        (`MODEL_NOT_AVAILABLE` otherwise), and each enabled entry of `tools`
-        must name one of the organization's tool servers, each at most once
-        (`TOOL_SERVER_INVALID` otherwise); each enabled entry of `skills` a
-        version of one of its active skills, each skill at most once
-        (`SKILL_INVALID`).
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/CreateAgentVersionRequest' }
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AgentVersionResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-        '503': { $ref: '#/components/responses/Unavailable' }
-    get:
-      tags: [agent-versions]
-      operationId: listAgentVersions
-      x-permission: '`agent:read`'
-      parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Cursor'
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: Highest version first
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AgentVersionPage' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '503': { $ref: '#/components/responses/Unavailable' }
-
-  /v1/organizations/{organizationId}/agents/{agentId}/versions/{versionId}:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-      - $ref: '#/components/parameters/AgentId'
-      - $ref: '#/components/parameters/VersionId'
-    get:
-      tags: [agent-versions]
-      operationId: getAgentVersion
-      x-permission: '`agent:read`'
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AgentVersionResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '503': { $ref: '#/components/responses/Unavailable' }
-
-  /v1/organizations/{organizationId}/agents/{agentId}/versions/{versionId}/publish:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-      - $ref: '#/components/parameters/AgentId'
-      - $ref: '#/components/parameters/VersionId'
-    post:
-      tags: [agent-versions]
-      operationId: publishAgentVersion
-      x-permission: '`agent:publish`'
-      description: |
-        Publishes a draft and deprecates the previously published version.
-        Publishing the version that's already published returns it unchanged;
-        a deprecated version can't be published again (409).
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: Published
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/AgentVersionResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-        '503': { $ref: '#/components/responses/Unavailable' }
-
   /v1/organizations/{organizationId}/agent-version-checks:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
@@ -1850,8 +1670,6 @@ components:
       enum:
         - AGENT_ARCHIVED
         - AGENT_NOT_PUBLISHED
-        - AGENT_VERSION_CONFLICT
-        - AGENT_VERSION_INVALID_TRANSITION
         - ARTIFACT_NOT_DRAFT
         - TASK_BUDGET_INVALID
         - TASK_CONCURRENCY_INVALID
@@ -1891,47 +1709,7 @@ components:
       type: string
       format: date-time
 
-    # ---------- agents ----------
-    AgentStatus:
-      type: string
-      enum: [active, archived]
-    CreateAgentRequest:
-      type: object
-      additionalProperties: false
-      required: [name, description]
-      properties:
-        name: { type: string, minLength: 1, maxLength: 200 }
-        description: { type: string, maxLength: 2000 }
-    AgentResponse:
-      type: object
-      required: [id, organizationId, name, description, status, latestVersionId, createdBy, createdAt, updatedAt]
-      properties:
-        id: { type: string, format: uuid }
-        organizationId: { type: string, format: uuid }
-        name: { type: string }
-        description: { type: string }
-        status: { $ref: '#/components/schemas/AgentStatus' }
-        latestVersionId:
-          type: [string, 'null']
-          format: uuid
-          description: The currently published version, if any.
-        createdBy: { type: string }
-        createdAt: { $ref: '#/components/schemas/Timestamp' }
-        updatedAt: { $ref: '#/components/schemas/Timestamp' }
-    AgentPage:
-      allOf:
-        - $ref: '#/components/schemas/PageMeta'
-        - type: object
-          required: [items]
-          properties:
-            items:
-              type: array
-              items: { $ref: '#/components/schemas/AgentResponse' }
-
-    # ---------- agent versions ----------
-    AgentVersionStatus:
-      type: string
-      enum: [draft, published, deprecated]
+    # ---------- agent versions (Agora's; checked here) ----------
     AgentModelConfiguration:
       type: object
       additionalProperties: false
@@ -2000,23 +1778,6 @@ components:
       type: string
       maxLength: 253
       pattern: '^(\*\.)?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$'
-    CreateAgentVersionRequest:
-      type: object
-      additionalProperties: false
-      required: [instructions, model, capabilities, tools, skills, runtime]
-      properties:
-        instructions: { type: string, minLength: 1 }
-        model: { $ref: '#/components/schemas/AgentModelConfiguration' }
-        capabilities:
-          type: array
-          items: { type: string }
-        tools:
-          type: array
-          items: { $ref: '#/components/schemas/AgentToolConfiguration' }
-        skills:
-          type: array
-          items: { $ref: '#/components/schemas/AgentSkillConfiguration' }
-        runtime: { $ref: '#/components/schemas/AgentRuntimeConfiguration' }
     AgentVersionCheckRequest:
       type: object
       additionalProperties: false
@@ -2029,41 +1790,6 @@ components:
         skills:
           type: array
           items: { $ref: '#/components/schemas/AgentSkillConfiguration' }
-    AgentVersionResponse:
-      type: object
-      required: [id, agentId, organizationId, version, status, instructions, model, capabilities, tools, skills, runtime, createdBy, createdAt, publishedAt]
-      properties:
-        id: { type: string, format: uuid }
-        agentId: { type: string, format: uuid }
-        organizationId: { type: string, format: uuid }
-        version: { type: integer, minimum: 1 }
-        status: { $ref: '#/components/schemas/AgentVersionStatus' }
-        instructions: { type: string }
-        model: { $ref: '#/components/schemas/AgentModelConfiguration' }
-        capabilities:
-          type: array
-          items: { type: string }
-        tools:
-          type: array
-          items: { $ref: '#/components/schemas/AgentToolConfiguration' }
-        skills:
-          type: array
-          items: { $ref: '#/components/schemas/AgentSkillConfiguration' }
-        runtime: { $ref: '#/components/schemas/AgentRuntimeConfiguration' }
-        createdBy: { type: string }
-        createdAt: { $ref: '#/components/schemas/Timestamp' }
-        publishedAt:
-          type: [string, 'null']
-          format: date-time
-    AgentVersionPage:
-      allOf:
-        - $ref: '#/components/schemas/PageMeta'
-        - type: object
-          required: [items]
-          properties:
-            items:
-              type: array
-              items: { $ref: '#/components/schemas/AgentVersionResponse' }
 
     # ---------- workspaces ----------
     WorkspaceStatus:

@@ -2,11 +2,11 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { BudgetForm, BudgetMeter } from "@/app/components/budget";
+import { listAgents } from "@/lib/api/agora";
 import {
   getAgentBudget,
   getOrganizationBudget,
   getProjectBudget,
-  listAgents,
 } from "@/lib/api/hephaestus";
 import { getOrganization, listProjects } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";

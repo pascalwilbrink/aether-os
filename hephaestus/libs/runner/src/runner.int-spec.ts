@@ -2,7 +2,6 @@ import type { TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 
 import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
-import { AgentsService, AgentVersionsService } from '@hephaestus/agents';
 import { TasksService } from '@hephaestus/tasks';
 
 import { organizationEvent, type FakePolis } from '../../../test/fake-polis.js';
@@ -24,6 +23,7 @@ import { RUNNER_OPTIONS, type RunnerOptions } from './runner.options.js';
 import { SandboxProvisioner } from './sandbox-provisioner.js';
 import { TaskRunner } from './task-runner.js';
 import { TaskTokens } from './task-tokens.js';
+import { publishedAgent } from '../../../test/agora.js';
 
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000aa';
 
@@ -88,13 +88,13 @@ describe('TaskRunner (Postgres)', () => {
       organizationRoles: ['owner'],
       scopes: [],
     });
-    const agents = actingAs(moduleRef.get(AgentsService), caller);
-    const versions = actingAs(moduleRef.get(AgentVersionsService), caller);
-    const agentId = (
-      await agents.create(organizationId, { name: 'Helper', description: '' })
-    ).id;
-    const version = await versions.create(organizationId, agentId, versionBody);
-    await versions.publish(organizationId, agentId, version.id);
+    const published = await publishedAgent(
+      moduleRef,
+      organizationId,
+      versionBody,
+    );
+    const agentId = published.agentId;
+    const version = { id: published.versionId };
     const tasks = actingAs(moduleRef.get(TasksService), caller);
 
     const create = async (

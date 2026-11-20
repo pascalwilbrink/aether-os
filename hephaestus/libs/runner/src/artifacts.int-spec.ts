@@ -2,7 +2,6 @@ import type { TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 
 import { actingAs, testPrincipal } from '@aether-os/krepis/testing';
-import { AgentsService, AgentVersionsService } from '@hephaestus/agents';
 import {
   ArtifactRejectedError,
   ArtifactsService,
@@ -25,6 +24,7 @@ import { RUNNER_OPTIONS } from './runner.options.js';
 import { SandboxProvisioner } from './sandbox-provisioner.js';
 import { TaskRunner } from './task-runner.js';
 import { TaskTokens } from './task-tokens.js';
+import { publishedAgent } from '../../../test/agora.js';
 
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000aa';
 
@@ -66,12 +66,7 @@ describe('Artifacts from executions (Postgres)', () => {
     tasks = actingAs(moduleRef.get(TasksService), caller);
     artifacts = moduleRef.get(ArtifactsService);
 
-    const agents = actingAs(moduleRef.get(AgentsService), caller);
-    const versions = actingAs(moduleRef.get(AgentVersionsService), caller);
-    agentId = (
-      await agents.create(organizationId, { name: 'Writer', description: '' })
-    ).id;
-    const version = await versions.create(organizationId, agentId, {
+    const published = await publishedAgent(moduleRef, organizationId, {
       instructions: 'Write.',
       model: { provider: 'scripted', model: 'scripted-model' },
       capabilities: ['chat'],
@@ -83,7 +78,7 @@ describe('Artifacts from executions (Postgres)', () => {
         sandboxRequired: false,
       },
     });
-    await versions.publish(organizationId, agentId, version.id);
+    agentId = published.agentId;
   });
 
   afterEach(async () => {
