@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
-
-export const dynamic = "force-dynamic";
+import { connection, NextResponse } from "next/server";
 
 /** Answers while Iris runs (`docs/engineering.md`, Health checks). */
-export function GET() {
+export async function GET() {
+  // Answered at request time, never prerendered.
+  await connection();
   return NextResponse.json({ status: "ok", service: "iris" });
 }

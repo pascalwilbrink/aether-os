@@ -1,10 +1,8 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 
 import { summarize, type DependencyCheck } from "@/lib/health";
 
 import { SERVICES } from "../orgs/[organizationId]/sidebar/services";
-
-export const dynamic = "force-dynamic";
 
 const TIMEOUT_MS = 3000;
 
@@ -13,6 +11,8 @@ const TIMEOUT_MS = 3000;
  * it calls runs (its `/health/live`). `503` without Pistis.
  */
 export async function GET() {
+  // Answered at request time, never prerendered.
+  await connection();
   const results = await Promise.all(
     SERVICES().map(
       async ({ name, url }) =>
