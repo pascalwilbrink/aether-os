@@ -1096,7 +1096,7 @@ export interface components {
             expectedOutcome?: string;
             constraints?: components["schemas"]["TaskItem"][];
             deliverables?: components["schemas"]["TaskDeliverable"][];
-            /** @description Knowledge pinned on every task from it (e.g. the project's conventions); a project template adds to what it extends. */
+            /** @description Knowledge pinned on every task from it (e.g. the project's conventions); a project template adds to what it extends. Only a project's template pins knowledge, which belongs to one project (`TASK_TEMPLATE_INVALID` on an organization-wide one). */
             context?: components["schemas"]["TaskContextReference"][];
             /** Format: uuid */
             agentId?: string;

@@ -500,7 +500,7 @@ export type TaskTemplateContent = {
   constraints?: Array<TaskItem>;
   deliverables?: Array<TaskDeliverable>;
   /**
-   * Knowledge pinned on every task from it (e.g. the project's conventions); a project template adds to what it extends.
+   * Knowledge pinned on every task from it (e.g. the project's conventions); a project template adds to what it extends. Only a project's template pins knowledge, which belongs to one project (`TASK_TEMPLATE_INVALID` on an organization-wide one).
    */
   context?: Array<TaskContextReference>;
   agentId?: string;

@@ -312,6 +312,8 @@ describe('Task templates (e2e)', () => {
         .post(templates)
         .send({
           name: 'Fix a bug',
+          // Knowledge belongs to a project: a project's template pins it.
+          projectId,
           title: 'Fix {{issue}}',
           instructions: 'Fix the bug: {{issue}}.',
           agentId,
@@ -346,6 +348,22 @@ describe('Task templates (e2e)', () => {
         { itemId: extra, title: 'Billing' },
       ],
     });
+  });
+
+  it('refuses knowledge on an organization-wide template (it belongs to a project)', async () => {
+    const res = await owner
+      .post(templates)
+      .send({
+        name: 'Org-wide',
+        title: 't',
+        instructions: 'i',
+        agentId,
+        context: [
+          { kind: 'knowledge', itemId: '0195f2a0-0000-7000-8000-0000000000e1' },
+        ],
+      })
+      .expect(409);
+    expect(res.body.code).toBe('TASK_TEMPLATE_INVALID');
   });
 
   it('needs the template permissions at the template scope', async () => {

@@ -79,7 +79,7 @@ A task's `context` (`tasks.md`, Task fields) lists knowledge items and documents
 
 **Built** (`context: [{ kind: 'knowledge', itemId }]` on a new task, at most 50): Hephaestus reads each item from Seshat with its own token (`platform:read` on `GET …/items/{id}`), so tasks from `task.create` commands pin too; only accepted items of the task's project (`TASK_CONTEXT_INVALID`, Seshat not answering is `503`). The task records each item's ID, version, type and title (`context` in its API) and keeps a written item's body as it was (up to 32 KiB; longer is cut and the agent reads the rest), so a later version in Seshat changes nothing for its runs and retries. The prompt puts written items in `<knowledge>` blocks marked as reference material and lists documents to read with `read_knowledge`. Iris offers the project's accepted items on the new-task form and lists what a task pinned on its page.
 
-Templates and automations add context too (e.g. "always pin the project's conventions"; built: a template's `context`, a project template adding to the organization's, more on a task from a template, and an automation's `action.context`), and a project setting can name items pinned into every task (Proposal).
+Templates and automations add context too (e.g. "always pin the project's conventions"; built: a project template's `context` (knowledge belongs to one project, so organization-wide templates pin none), more on a task from a template, and an automation's `action.context`), and a project setting can name items pinned into every task (Proposal).
 
 ### Search (while the task runs)
 
