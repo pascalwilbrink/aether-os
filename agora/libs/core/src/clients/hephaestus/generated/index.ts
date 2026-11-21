@@ -332,6 +332,7 @@ export type {
   ToolServerName,
   ToolServerResponse,
   ToolServerUrl,
+  UntrustedInput,
   UpdateToolServerData,
   UpdateToolServerError,
   UpdateToolServerErrors,

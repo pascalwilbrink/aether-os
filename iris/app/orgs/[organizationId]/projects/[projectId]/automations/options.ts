@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api/http";
 import { listServiceAccounts } from "@/lib/api/pistis";
 import { listProjectMemberships } from "@/lib/api/polis";
 import { listRepositoryLinks, orUnavailable } from "@/lib/api/proxenos";
+import { listKnowledgeItems } from "@/lib/api/seshat";
 import { repositoryChoices } from "@/lib/github";
 import { runnableServiceAccounts } from "@/lib/members";
 
@@ -21,8 +22,8 @@ export async function automationOptions(
   organizationId: string,
   projectId: string,
 ): Promise<AutomationOptions & { repositoriesUnavailable: boolean }> {
-  const [agents, templates, serviceAccounts, grants, links] = await Promise.all(
-    [
+  const [agents, templates, serviceAccounts, grants, links, knowledge] =
+    await Promise.all([
       listAgents(token, organizationId),
       listTaskTemplates(token, organizationId, projectId),
       listServiceAccounts(token, organizationId).catch((error: unknown) => {
@@ -32,8 +33,12 @@ export async function automationOptions(
       }),
       listProjectMemberships(token, organizationId, projectId),
       orUnavailable(listRepositoryLinks(token, organizationId, projectId)),
-    ],
-  );
+      orUnavailable(
+        listKnowledgeItems(token, organizationId, projectId, {
+          status: "accepted",
+        }),
+      ),
+    ]);
   return {
     agents: agents.items
       .filter((agent) => agent.status === "active" && agent.latestVersionId)
@@ -47,5 +52,10 @@ export async function automationOptions(
       .map(({ id, name }) => ({ id, name })),
     repositories: repositoryChoices(links.items),
     repositoriesUnavailable: links.unavailable,
+    knowledge: knowledge.items.map(({ id, title, type }) => ({
+      id,
+      title,
+      type,
+    })),
   };
 }

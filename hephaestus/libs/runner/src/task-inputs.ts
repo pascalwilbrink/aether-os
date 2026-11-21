@@ -57,10 +57,12 @@ export class TaskInputs {
    */
   async forPrompt(task: TaskResponse): Promise<TaskResponse> {
     if (task.untrustedInputs.length === 0) return task;
-    return {
-      ...task,
-      ...(await this.tasks.briefForPrompt(task.organizationId, task.id)),
-    };
+    // Tasks here are plain objects (the mapper's), whatever the DTO class says.
+    return Object.assign(
+      {},
+      task,
+      await this.tasks.briefForPrompt(task.organizationId, task.id),
+    );
   }
 
   /** The knowledge pinned on the task, at the versions it got (docs/tasks.md, `context`). */

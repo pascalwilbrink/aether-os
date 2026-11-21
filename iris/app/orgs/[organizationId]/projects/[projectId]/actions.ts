@@ -160,11 +160,18 @@ export async function createTaskFromTemplateAction(
       inputs[name.slice("input:".length)] = String(value).trim();
     }
   }
+  const values = { ...valuesOf(form), context: contextIdsOf(form).join(",") };
+  const context = taskContextOf(contextIdsOf(form));
+  if ("error" in context) {
+    return { error: context.error, values };
+  }
   const body: ApiSchema<"CreateTaskFromTemplateRequest"> = {
     version: ref.version,
     inputs,
     serviceAccountId: text(form, "serviceAccountId"),
     ...repositoryOf(form),
+    // Added to the template's own knowledge.
+    ...(context.context.length > 0 ? { context: context.context } : {}),
   };
   let taskId: string;
   try {
@@ -179,7 +186,7 @@ export async function createTaskFromTemplateAction(
       )
     ).id;
   } catch (error) {
-    return { error: messageOf(error), values: valuesOf(form) };
+    return { error: messageOf(error), values };
   }
   redirect(`${projectPath(ref)}/tasks/${taskId}`);
 }

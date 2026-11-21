@@ -3,6 +3,10 @@
 import { useActionState } from "react";
 
 import { buttonClass, FormError, inputClass } from "@/app/components/form";
+import {
+  KnowledgePicker,
+  type KnowledgeOption,
+} from "@/app/components/knowledge-picker";
 import type { TaskTemplateVersion } from "@/lib/api";
 
 import {
@@ -18,6 +22,7 @@ export function TemplateTaskForm({
   version,
   serviceAccounts,
   repositories,
+  knowledge,
   idempotencyKey,
 }: {
   template: ProjectRef & { templateId: string; version: number };
@@ -25,6 +30,8 @@ export function TemplateTaskForm({
   serviceAccounts: { id: string; name: string }[];
   /** The project's repository links. */
   repositories: { id: string; name: string }[];
+  /** The project's accepted knowledge, to pin on top of the template's. */
+  knowledge: KnowledgeOption[];
   idempotencyKey: string;
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(
@@ -73,6 +80,11 @@ export function TemplateTaskForm({
       <RepositorySelect
         repositories={repositories}
         value={state.values?.repositoryLinkId}
+      />
+      <KnowledgePicker
+        knowledge={knowledge}
+        checked={state.values?.context?.split(",") ?? []}
+        hint="Pinned on top of the template's own, at today's version."
       />
       <button
         type="submit"

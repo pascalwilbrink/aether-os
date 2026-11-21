@@ -22,7 +22,7 @@ Status: built in its first form (Kairos, `../kairos`); sections marked **Proposa
 
 **Concurrency keys** (`tasks.md`, Concurrency): an action can set a key using the event's fields, e.g. `{{repository}}#{{issue.number}}` (Iris starts new automations with that one, policy `queue`), and a policy for a task while an earlier one of the same automation with the same key hasn't finished: `queue` (it waits), `cancel-previous` (the earlier one is cancelled) or `skip` (no task; the run is `skipped`). Kairos prefixes the automation's ID, so two automations never block each other; a key longer than 160 characters once filled in is hashed.
 
-The issue's title (and later its body) is written by whoever opened it: it reaches the agent as untrusted input (`git.md`, Untrusted input), which is why automations fire only for collaborators with write access by default.
+The issue's title (and later its body) is written by whoever opened it: it reaches the agent as untrusted input (`git.md`, Untrusted input), which is why automations fire only for collaborators with write access by default. Kairos never pastes it into the task's text: it leaves `{{issue.title}}` there and sends the title as an `untrustedInputs` entry (with where it came from), which Hephaestus marks as data in the agent's prompt. An automation can also pin knowledge on every task it starts (`action.context`).
 
 ## Not yet
 

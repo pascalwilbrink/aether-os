@@ -947,6 +947,21 @@ export interface components {
              *     is `503`.
              */
             context?: components["schemas"]["TaskContextReference"][];
+            /**
+             * @description Text from outside the organization (an issue's title through an
+             *     automation, docs/git.md Untrusted input): the task's text fields
+             *     name each as `{{name}}`. Where people read the task, the value is
+             *     filled in; in the agent's prompt it is filled in marked as data,
+             *     never as instructions. Names are unique (`TASK_FIELDS_INVALID`).
+             */
+            untrustedInputs?: components["schemas"]["UntrustedInput"][];
+        };
+        UntrustedInput: {
+            /** @description Named as `{{name}}` in the text fields, e.g. `issue.title`. */
+            name: string;
+            /** @description Where it came from, e.g. "GitHub issue #12 in acme/api, opened by @octocat". */
+            source: string;
+            value: string;
         };
         TaskContextReference: {
             /**
@@ -1081,6 +1096,8 @@ export interface components {
             expectedOutcome?: string;
             constraints?: components["schemas"]["TaskItem"][];
             deliverables?: components["schemas"]["TaskDeliverable"][];
+            /** @description Knowledge pinned on every task from it (e.g. the project's conventions); a project template adds to what it extends. */
+            context?: components["schemas"]["TaskContextReference"][];
             /** Format: uuid */
             agentId?: string;
             inputs?: components["schemas"]["TemplateInput"][];
@@ -1131,6 +1148,7 @@ export interface components {
             expectedOutcome: string | null;
             constraints: components["schemas"]["TaskItem"][];
             deliverables: components["schemas"]["TaskDeliverable"][];
+            context: components["schemas"]["TaskContextReference"][];
             /** Format: uuid */
             agentId: string;
             inputs: components["schemas"]["TemplateInput"][];
@@ -1169,6 +1187,16 @@ export interface components {
             /** @description The repository the task works in, as for a task written by hand. */
             repository?: components["schemas"]["TaskRepository"];
             concurrency?: components["schemas"]["TaskConcurrency"] | null;
+            /** @description Added to the template's. */
+            requirements?: components["schemas"]["TaskItem"][];
+            /** @description Added to the template's. */
+            constraints?: components["schemas"]["TaskItem"][];
+            /** @description Added to the template's. */
+            deliverables?: components["schemas"]["TaskDeliverable"][];
+            /** @description Knowledge pinned on the task, added to the template's (as on a task written by hand). */
+            context?: components["schemas"]["TaskContextReference"][];
+            /** @description As on a task written by hand; `inputs` values can name them as `{{name}}`. */
+            untrustedInputs?: components["schemas"]["UntrustedInput"][];
         };
         /**
          * @description A concurrency key (docs/tasks.md, Concurrency): what to do with a new
@@ -1252,6 +1280,8 @@ export interface components {
             inputFiles: components["schemas"]["TaskInputFile"][];
             /** @description The project knowledge pinned on it, at the versions it got. */
             context: components["schemas"]["PinnedTaskContext"][];
+            /** @description The text from outside it carries; its text fields here have the values filled in. */
+            untrustedInputs: components["schemas"]["UntrustedInput"][];
             /**
              * Format: uuid
              * @description The template it was created from, if any.

@@ -39,7 +39,11 @@ export async function createAutomationAction(
     ref.organizationId,
     `${automationsPath(ref)}/new`,
   );
-  const values = valuesOf(form);
+  const values = {
+    ...valuesOf(form),
+    // Checkboxes: every checked one, not just the last.
+    context: form.getAll("context").join(","),
+  };
   const parsed = requestOf(values);
   if ("error" in parsed) {
     return { error: parsed.error, values };
@@ -70,7 +74,11 @@ export async function updateAutomationAction(
     ref.organizationId,
     `${automationsPath(ref)}/${ref.automationId}`,
   );
-  const values = valuesOf(form);
+  const values = {
+    ...valuesOf(form),
+    // Checkboxes: every checked one, not just the last.
+    context: form.getAll("context").join(","),
+  };
   const parsed = requestOf(values);
   if ("error" in parsed) {
     return { error: parsed.error, values };

@@ -3,8 +3,11 @@
 import { useActionState } from "react";
 
 import { buttonClass, FormError, inputClass } from "@/app/components/form";
+import {
+  KnowledgePicker,
+  type KnowledgeOption,
+} from "@/app/components/knowledge-picker";
 import { formatBytes, INPUT_FILE_LIMITS } from "@/lib/files";
-import { MAX_TASK_CONTEXT } from "@/lib/tasks";
 
 import { DeliverablesEditor } from "./deliverables-editor";
 
@@ -13,12 +16,6 @@ import { createTaskAction, type FormState, type ProjectRef } from "./actions";
 interface Option {
   id: string;
   name: string;
-}
-
-interface KnowledgeOption {
-  id: string;
-  title: string;
-  type: string;
 }
 
 /** A task written by hand: what to do, which agent, as which service account. */
@@ -240,48 +237,5 @@ export function RepositorySelect({
         (the agent version needs a sandbox).
       </span>
     </label>
-  );
-}
-
-/**
- * The project's accepted knowledge to pin on the task (`context`): its text
- * at today's version goes into the agent's prompt, for every run.
- */
-function KnowledgePicker({
-  knowledge,
-  checked,
-}: {
-  knowledge: KnowledgeOption[];
-  checked: string[];
-}) {
-  if (knowledge.length === 0) {
-    return null;
-  }
-  return (
-    <fieldset className="text-sm">
-      <legend>
-        Knowledge <span className="text-zinc-500">(optional)</span>
-      </legend>
-      <div className="mt-1 max-h-48 space-y-1 overflow-y-auto rounded-md border border-zinc-200 p-2 dark:border-zinc-800">
-        {knowledge.map((item) => (
-          <label key={item.id} className="flex items-baseline gap-2">
-            <input
-              type="checkbox"
-              name="context"
-              value={item.id}
-              defaultChecked={checked.includes(item.id)}
-            />
-            <span>
-              {item.title}{" "}
-              <span className="text-xs text-zinc-500">{item.type}</span>
-            </span>
-          </label>
-        ))}
-      </div>
-      <span className="mt-1 block text-xs text-zinc-500">
-        Pinned at today&apos;s version: written items go into the agent&apos;s
-        prompt, documents are listed for it to read. At most {MAX_TASK_CONTEXT}.
-      </span>
-    </fieldset>
   );
 }
