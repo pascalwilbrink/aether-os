@@ -147,7 +147,7 @@ pnpm format:check          # prettier, as CI runs it (`pnpm format` in a package
 
 ```bash
 pnpm start:dev             # everything: infra, Krepis build, then every service and Iris (on 3010, or IRIS_PORT) in watch mode
-docker compose up -d       # Postgres, RabbitMQ, OpenBao, OPA, OTel Collector, Jaeger, Langfuse, Loki, Grafana, Mailpit, RustFS, Uptime Kuma
+docker compose up -d       # Postgres, RabbitMQ, OpenBao, OPA, OTel Collector, Jaeger, Langfuse, Loki, Grafana, Mailpit, RustFS, Uptime Kuma, Dashy
 docker compose down -v     # stop and wipe all data
 ```
 
@@ -164,6 +164,7 @@ docker compose down -v     # stop and wipe all data
 | Mailpit | SMTP `localhost:1025` (any credentials), UI `localhost:8025`: catches all local email; production uses Resend or SES |
 | RustFS (Loculus's files, Langfuse's storage) | S3 API `localhost:9100`, console `localhost:9101/rustfs/console/index.html`, `loculus` / `loculus-dev-secret` |
 | Grafana | `localhost:3300` (no login locally): logs from Loki, linked to traces in Jaeger |
+| Dashy | `localhost:3500`: the start page, linking Iris, Uptime Kuma, Grafana and the other tools with their status (`infra/dashy/conf.yml`, read-only: edit the file and reload) |
 | Uptime Kuma | `localhost:3400`, `admin` / `aether-dev-kuma-1`: every service's `/health` (on the host, through `host.docker.internal`) and the infrastructure, set up by `uptime-kuma-setup` (`infra/uptime-kuma/provision.cjs`; again with `docker compose run --rm uptime-kuma-setup`) |
 
 All credentials are fixed local-only values. RustFS holds Loculus's files and Langfuse's events and media (its `langfuse` bucket); there's no MinIO. Polis, Hephaestus, Pistis, Proxenos, Kairos, Kerykes, Loculus, Agora, Seshat and Pylon run on their own Postgres databases with migrations (the databases are made when the Postgres volume is first created: on an older volume, add a new service's with `docker compose exec postgres createdb -U aether loculus`; `cd polis && cp .env.example .env && pnpm start:dev`, likewise in `hephaestus`); there's no SQLite left.
