@@ -43,6 +43,27 @@ export const zEnv = z.object({
    * (vectors always have a nearest neighbour, related or not).
    */
   SEARCH_MIN_SIMILARITY: z.coerce.number().min(-1).max(1).default(0.3),
+  /**
+   * Proxenos's API: the files of repositories linked to projects (with
+   * Seshat's own token), indexed as repository documents. Without it,
+   * repositories are recorded but not read.
+   */
+  PROXENOS_URL: z.url({ protocol: /^https?$/ }).optional(),
+  /** How often repositories waiting to be read are looked for (ms); 0 turns it off. */
+  REPOSITORY_SYNC_INTERVAL_MS: z.coerce.number().int().min(0).default(5000),
+  /** What a newly linked repository indexes: folders (ending in `/`) and files, comma-separated. */
+  REPOSITORY_DEFAULT_PATHS: z
+    .string()
+    .default('docs/,specs/,adr/,README.md')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((path) => path.trim())
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.string()).min(1).max(20)),
+  /** The most documents indexed from one repository; files past it are skipped. */
+  REPOSITORY_MAX_DOCUMENTS: z.coerce.number().int().positive().default(500),
   /** The largest document Seshat reads to index (bytes); larger ones fail. */
   DOCUMENT_MAX_BYTES: z.coerce
     .number()

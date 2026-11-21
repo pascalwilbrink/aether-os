@@ -30,6 +30,7 @@ Status: agreed design, being built. Proxenos (`../proxenos`) connects the GitHub
 
 - The GitHub App's private key is a **platform secret** in OpenBao. Only Proxenos can read it: it is the one component that mints installation tokens.
 - For each task execution, Hephaestus asks Proxenos (with the task token) for an **installation token restricted to the task's repository** and to the permissions that task needs (GitHub supports narrowing both per token). Tokens live one hour at most and are never stored.
+- **Seshat never gets a token** (built): it reads a linked repository's documents through Proxenos, which lists the files under the paths it asks for at the default branch's head (`GET …/repositories/{linkId}/files`) and returns a file's bytes by blob SHA (`GET …/blobs/{sha}`, at most 10 MiB), with a read-only token narrowed to the repository that Proxenos keeps until shortly before it expires (`../docs/knowledge.md`, Repository documents).
 - The app requests few permissions: contents (read/write), pull requests (read/write), issues (read/write), metadata (read), checks (read). **Not `workflows`**, so nothing Aether-os pushes can change `.github/workflows` (GitHub refuses such pushes), which closes the path of an agent giving itself CI secrets.
 
 ## Inside the sandbox
@@ -64,6 +65,7 @@ Recommended for users, shown in Iris when connecting a repository: branch protec
 - **Deduplicated** on `X-GitHub-Delivery`, because GitHub redelivers.
 - Proxenos maps the installation to the organization and the repository to its projects, stores the payload briefly (for debugging and for automations that need the full payload; Proposal: 7 days), and publishes a normalized event (e.g. `github.issue.opened`) with the organization, projects, the author and the author's repository permission.
 - **Kairos** consumes those events and matches them against automations. It never talks to GitHub's webhooks directly.
+- **Pushes** to a connected repository's default branch become `git.pushed` (built; other branches, Aether-os's `aether/*` ones among them, and deleting the branch aren't published), which Seshat follows to index the repository's documents again.
 - Acknowledge fast (GitHub expects a response within 10 seconds): verify, store, return 202, and process asynchronously.
 - **No loops:** events caused by the Aether-os app itself (its bot is the sender) are marked as such (`fromAetherOs: true`) and never trigger automations unless an automation explicitly opts in. Otherwise an agent's own comment could trigger the agent again.
 

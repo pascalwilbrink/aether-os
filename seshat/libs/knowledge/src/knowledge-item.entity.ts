@@ -22,7 +22,20 @@ export type IndexingStatus = ApiTypes.DocumentIndexing['status'];
   'ck_knowledge_items_status',
   `status IN ('proposed', 'accepted', 'rejected', 'superseded', 'retired')`,
 )
-@Check('ck_knowledge_items_source_kind', `source_kind IN ('person', 'task')`)
+@Check(
+  'ck_knowledge_items_source_kind',
+  `source_kind IN ('person', 'task', 'repository')`,
+)
+// One current document per file of an indexed repository (a retired one
+// stays, and a file added back is a new item).
+@Index(
+  'uq_knowledge_items_repository_path',
+  ['repositoryLinkId', 'repositoryPath'],
+  {
+    unique: true,
+    where: `repository_link_id IS NOT NULL AND status <> 'retired'`,
+  },
+)
 @Check(
   'ck_knowledge_items_indexing_status',
   `indexing_status IS NULL OR indexing_status IN ('pending', 'indexed', 'failed', 'unsupported')`,
@@ -82,7 +95,7 @@ export class KnowledgeItemEntity {
   references: ApiTypes.KnowledgeReference[];
 
   @Column({ type: 'text' })
-  sourceKind: 'person' | 'task';
+  sourceKind: 'person' | 'task' | 'repository';
 
   @Column({ type: 'uuid', nullable: true })
   sourceTaskId: string | null;
@@ -118,6 +131,29 @@ export class KnowledgeItemEntity {
 
   @Column({ type: 'text', nullable: true })
   sha256: string | null;
+
+  // ---- repository documents only (source `repository`) ----
+
+  /** The repository link in Proxenos (`knowledge_repositories`). */
+  @Column({ type: 'uuid', nullable: true })
+  repositoryLinkId: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  repositoryFullName: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  repositoryPath: string | null;
+
+  /** The default branch's commit this version was read at. */
+  @Column({ type: 'text', nullable: true })
+  repositoryCommit: string | null;
+
+  /** Git's blob SHA of this version's content: unchanged files keep it. */
+  @Column({ type: 'text', nullable: true })
+  repositoryBlobSha: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  repositoryUrl: string | null;
 
   @Column({ type: 'text', nullable: true })
   indexingStatus: IndexingStatus | null;

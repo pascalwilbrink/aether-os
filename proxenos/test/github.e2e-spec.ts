@@ -12,6 +12,7 @@ import {
   WEBHOOK_SECRET,
 } from './app.js';
 import type { FakePolis } from './fake-polis.js';
+import { blobSha } from './fake-github.js';
 import { github } from './github.js';
 import { outboxEvents } from './outbox.js';
 
@@ -550,6 +551,177 @@ describe('GitHub: connecting, links, tokens, webhooks (e2e)', () => {
     ]);
     expect(events[0].aggregateId).toBe(events[1].aggregateId);
     expect(events[0].organizationId).toBe(orgId);
+  });
+
+  it("lists a linked repository's files and reads them by blob (Seshat)", async () => {
+    const { api } = await connected();
+    const linked = await link(api.id);
+    const base = `/v1/organizations/${orgId}/projects/${projectId}/repositories/${linked.id}`;
+    const commit = github.setFiles('acme/api', {
+      'README.md': '# API',
+      'docs/a.md': 'A',
+      'docs/deep/b.md': 'B',
+      'docsy/c.md': 'not docs',
+      'src/index.ts': 'code',
+      'image.png': Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0xff]),
+    });
+
+    const seshat = await asPlatform(app, ['platform:read']);
+    const { body } = await seshat
+      .get(`${base}/files`)
+      .query('path=docs/&path=README.md&path=image.png')
+      .expect(200);
+    expect(body).toEqual({
+      fullName: 'acme/api',
+      defaultBranch: 'main',
+      commit,
+      truncated: false,
+      files: [
+        {
+          path: 'README.md',
+          sha: blobSha(Buffer.from('# API')),
+          sizeBytes: 5,
+          url: `${github.url}/acme/api/blob/${commit}/README.md`,
+        },
+        expect.objectContaining({ path: 'docs/a.md' }),
+        expect.objectContaining({ path: 'docs/deep/b.md' }),
+        expect.objectContaining({ path: 'image.png', sizeBytes: 6 }),
+      ],
+    });
+    // One path is enough; members of the project may list too.
+    const viewer = await asMember(app, orgId, ['member'], {
+      projectRoles: { [projectId]: 'viewer' },
+    });
+    const one = await viewer
+      .get(`${base}/files`)
+      .query({ path: 'docs/' })
+      .expect(200);
+    expect(one.body.files.map((f: { path: string }) => f.path)).toEqual([
+      'docs/a.md',
+      'docs/deep/b.md',
+    ]);
+    // No path, `..`, an absolute path: refused.
+    await seshat.get(`${base}/files`).expect(400);
+    await seshat.get(`${base}/files`).query({ path: '../x' }).expect(400);
+    await seshat.get(`${base}/files`).query({ path: '/etc' }).expect(400);
+    await (
+      await asPlatform(app, [])
+    )
+      .get(`${base}/files`)
+      .query({ path: 'docs/' })
+      .expect(403);
+
+    // Bytes by blob SHA, exactly as stored (binary too).
+    const png = body.files[3].sha as string;
+    const blob = await seshat
+      .get(`${base}/blobs/${png}`)
+      .buffer(true)
+      .parse((res, done) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => done(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    expect(blob.headers['content-type']).toBe('application/octet-stream');
+    expect([...(blob.body as Buffer)]).toEqual([
+      0x89, 0x50, 0x4e, 0x47, 0x00, 0xff,
+    ]);
+    await seshat.get(`${base}/blobs/${'0'.repeat(40)}`).expect(404);
+    await seshat.get(`${base}/blobs/nope`).expect(400);
+    // Read with a read-only token narrowed to the repository, reused.
+    expect(github.tokenRequests.filter((r) => r.body.repository_ids)).toEqual([
+      {
+        installationId: '77',
+        body: {
+          repository_ids: [1001],
+          permissions: { contents: 'read', metadata: 'read' },
+        },
+      },
+    ]);
+
+    // An empty repository has no files; another project's link is a 404.
+    github.contents.clear();
+    const empty = await seshat
+      .get(`${base}/files`)
+      .query({ path: 'docs/' })
+      .expect(200);
+    expect(empty.body).toMatchObject({ commit: '', files: [] });
+    const other = polis.project(orgId);
+    await seshat
+      .get(
+        `/v1/organizations/${orgId}/projects/${other}/repositories/${linked.id}/files`,
+      )
+      .query({ path: 'docs/' })
+      .expect(404);
+  });
+
+  it('publishes pushes to default branches (Seshat indexes again)', async () => {
+    const { api, web } = await connected();
+    const linked = await link(api.id);
+    const push = (overrides: object = {}) => ({
+      ref: 'refs/heads/main',
+      before: 'a'.repeat(40),
+      after: 'b'.repeat(40),
+      deleted: false,
+      installation: { id: 77 },
+      repository: { id: 1001, full_name: 'acme/api', default_branch: 'main' },
+      sender: { login: 'ada', type: 'User' },
+      ...overrides,
+    });
+
+    await deliver('push', push()).expect(202);
+    // Not published: other branches, a deleted branch, unconnected repositories.
+    await deliver('push', push({ ref: 'refs/heads/aether/0193' })).expect(202);
+    await deliver('push', push({ deleted: true })).expect(202);
+    await deliver('push', push({ ref: 'refs/tags/v1' })).expect(202);
+    await deliver(
+      'push',
+      push({ repository: { id: 9999, default_branch: 'main' } }),
+    ).expect(202);
+    // web isn't linked: published, with no projects.
+    await deliver(
+      'push',
+      push({
+        ref: 'refs/heads/trunk',
+        repository: {
+          id: 1002,
+          full_name: 'acme/web',
+          default_branch: 'trunk',
+        },
+        sender: { login: 'aether-os-test[bot]', type: 'Bot' },
+      }),
+    ).expect(202);
+
+    const pushes = (await outboxEvents(app)).filter(
+      (e) => e.eventType === 'git.pushed',
+    );
+    expect(pushes).toEqual([
+      expect.objectContaining({
+        organizationId: orgId,
+        aggregateVersion: 1,
+        payload: {
+          webhookDeliveryId: pushes[0].aggregateId,
+          deliveryId: expect.stringMatching(/^delivery-/),
+          repositoryId: api.id,
+          repository: 'acme/api',
+          projectIds: [projectId],
+          links: [{ projectId, linkId: linked.id }],
+          branch: 'main',
+          before: 'a'.repeat(40),
+          after: 'b'.repeat(40),
+          fromAetherOs: false,
+        },
+      }),
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          repositoryId: web.id,
+          branch: 'trunk',
+          projectIds: [],
+          links: [],
+          fromAetherOs: true,
+        }),
+      }),
+    ]);
   });
 
   describe('issues (Kairos triggers)', () => {

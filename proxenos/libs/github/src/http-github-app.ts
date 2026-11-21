@@ -8,8 +8,11 @@ import {
   GitHubApp,
   GitHubNotConfiguredError,
   GitHubUnavailableError,
+  RepositoryBlobTooLargeError,
+  type GitHubFileTree,
   type GitHubInstallation,
   type GitHubPermissions,
+  type GitHubRepositoryRef,
   type GitHubRepository,
   type RepositoryPermission,
 } from './github-app.js';
@@ -48,6 +51,11 @@ const SECRETS_TTL_MS = 5 * 60_000;
 export class HttpGitHubApp extends GitHubApp {
   private secrets: { value: AppSecrets; readAt: number } | null = null;
   private bot: { name: string; email: string } | null = null;
+  /** Read tokens per installation and repository, reused until near expiry. */
+  private readonly readTokens = new Map<
+    string,
+    { token: string; expiresAt: Date }
+  >();
 
   constructor(
     private readonly options: GitHubAppOptions,
@@ -233,9 +241,122 @@ export class HttpGitHubApp extends GitHubApp {
     return 'none';
   }
 
+  async files(
+    installationId: string,
+    repository: GitHubRepositoryRef,
+    branch: string,
+  ): Promise<GitHubFileTree | null> {
+    const token = await this.readToken(installationId, repository.id);
+    const base = repoPath(repository.fullName);
+    const head = await this.api(
+      `${base}/commits/${encodeURIComponent(branch)}`,
+      `Bearer ${token}`,
+      { allow404: true, allow409: true },
+    );
+    if (head.status === 404 || head.status === 409) {
+      // No such branch, or an empty repository (409).
+      return null;
+    }
+    const commit = (await this.json(head)) as {
+      sha: string;
+      commit: { tree: { sha: string } };
+    };
+    const response = await this.api(
+      `${base}/git/trees/${encodeURIComponent(commit.commit.tree.sha)}?recursive=1`,
+      `Bearer ${token}`,
+    );
+    const tree = (await this.json(response)) as {
+      tree: { path: string; type: string; sha: string; size?: number }[];
+      truncated: boolean;
+    };
+    return {
+      commit: commit.sha,
+      files: tree.tree
+        .filter((entry) => entry.type === 'blob')
+        .map((entry) => ({
+          path: entry.path,
+          sha: entry.sha,
+          size: entry.size ?? 0,
+        })),
+      truncated: tree.truncated,
+    };
+  }
+
+  async blob(
+    installationId: string,
+    repository: GitHubRepositoryRef,
+    sha: string,
+    maxBytes: number,
+  ): Promise<Uint8Array | null> {
+    const token = await this.readToken(installationId, repository.id);
+    const response = await this.request(
+      new URL(
+        `${repoPath(repository.fullName)}/git/blobs/${encodeURIComponent(sha)}`.replace(
+          /^\//,
+          '',
+        ),
+        withSlash(this.options.apiUrl),
+      ),
+      {
+        method: 'GET',
+        headers: {
+          authorization: `Bearer ${token}`,
+          accept: 'application/vnd.github.raw+json',
+          'x-github-api-version': '2022-11-28',
+        },
+        allow404: true,
+        allow422: true,
+      },
+    );
+    if (response.status === 404 || response.status === 422) {
+      // 422: not a SHA GitHub can look up.
+      return null;
+    }
+    const length = Number(response.headers.get('content-length') ?? NaN);
+    if (length > maxBytes) {
+      await response.body?.cancel();
+      throw new RepositoryBlobTooLargeError(sha, maxBytes);
+    }
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    try {
+      for await (const chunk of response.body ?? []) {
+        size += chunk.byteLength;
+        if (size > maxBytes) {
+          throw new RepositoryBlobTooLargeError(sha, maxBytes);
+        }
+        chunks.push(chunk);
+      }
+    } catch (error) {
+      if (error instanceof RepositoryBlobTooLargeError) throw error;
+      throw new GitHubUnavailableError(
+        `GitHub stopped sending blob ${sha}: ${String(error)}`,
+      );
+    }
+    return Buffer.concat(chunks);
+  }
+
   async verifyWebhook(body: Buffer, signature: string): Promise<boolean> {
     const secrets = await this.appSecrets();
     return isValidWebhookSignature(secrets.webhookSecret, body, signature);
+  }
+
+  /** A read-only token for one repository, cached until five minutes before it expires. */
+  private async readToken(
+    installationId: string,
+    repositoryId: string,
+  ): Promise<string> {
+    const key = `${installationId}:${repositoryId}`;
+    const cached = this.readTokens.get(key);
+    if (cached && cached.expiresAt.getTime() - Date.now() > 5 * 60_000) {
+      return cached.token;
+    }
+    const fresh = await this.createToken(installationId, repositoryId, {
+      contents: 'read',
+      metadata: 'read',
+    });
+    this.readTokens.set(key, fresh);
+    return fresh.token;
   }
 
   private async installationToken(
@@ -303,7 +424,12 @@ export class HttpGitHubApp extends GitHubApp {
   private api(
     path: string,
     authorization: string,
-    init: { method?: string; body?: unknown; allow404?: boolean } = {},
+    init: {
+      method?: string;
+      body?: unknown;
+      allow404?: boolean;
+      allow409?: boolean;
+    } = {},
   ): Promise<Response> {
     return this.request(
       new URL(path.replace(/^\//, ''), withSlash(this.options.apiUrl)),
@@ -318,6 +444,7 @@ export class HttpGitHubApp extends GitHubApp {
         },
         body: init.body === undefined ? undefined : JSON.stringify(init.body),
         allow404: init.allow404,
+        allow409: init.allow409,
       },
     );
   }
@@ -329,6 +456,8 @@ export class HttpGitHubApp extends GitHubApp {
       headers: Record<string, string>;
       body?: string;
       allow404?: boolean;
+      allow409?: boolean;
+      allow422?: boolean;
     },
   ): Promise<Response> {
     let response: Response;
@@ -348,7 +477,11 @@ export class HttpGitHubApp extends GitHubApp {
         `GitHub could not be reached: ${String(error)}`,
       );
     }
-    if (!response.ok && !(init.allow404 && response.status === 404)) {
+    const allowed =
+      (init.allow404 && response.status === 404) ||
+      (init.allow409 && response.status === 409) ||
+      (init.allow422 && response.status === 422);
+    if (!response.ok && !allowed) {
       throw new GitHubUnavailableError(
         `GitHub answered ${response.status} to ${init.method} ${url.pathname}`,
       );
@@ -372,6 +505,12 @@ export class HttpGitHubApp extends GitHubApp {
     }
     return value;
   }
+}
+
+/** `/repos/<owner>/<name>`, each part encoded. */
+function repoPath(fullName: string): string {
+  const [owner, name] = fullName.split('/');
+  return `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`;
 }
 
 const PERMISSIONS: RepositoryPermission[] = [

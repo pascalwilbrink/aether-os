@@ -227,6 +227,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/projects/{projectId}/repositories/{linkId}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                linkId: components["parameters"]["LinkId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description The files of the linked repository at the head of its default
+         *     branch, under the given paths: a path ending in `/` is a folder
+         *     (everything below it), any other one file. Each file has its blob
+         *     SHA (Git's, so an unchanged file keeps it) and size, read with
+         *     `GET …/blobs/{sha}`. GitHub lists at most about 100,000 entries:
+         *     a larger repository is listed in part (`truncated`).
+         */
+        get: operations["listRepositoryFiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/repositories/{linkId}/blobs/{sha}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                linkId: components["parameters"]["LinkId"];
+                /** @description A blob's SHA, from `GET …/files`. */
+                sha: string;
+            };
+            cookie?: never;
+        };
+        /** @description A file's bytes in the linked repository, by its blob SHA (at most 10 MiB). */
+        get: operations["getRepositoryBlob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/webhook-deliveries/{deliveryId}": {
         parameters: {
             query?: never;
@@ -289,7 +340,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "INSTALLATION_NOT_ACTIVE" | "REPOSITORY_UNAVAILABLE" | "REPOSITORY_ALREADY_LINKED";
+        DomainErrorCode: "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "INSTALLATION_NOT_ACTIVE" | "REPOSITORY_UNAVAILABLE" | "REPOSITORY_ALREADY_LINKED" | "REPOSITORY_BLOB_TOO_LARGE";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -413,6 +464,29 @@ export interface components {
                 name: string;
                 email: string;
             };
+        };
+        /** @description Relative to the repository's root, without `..`; a folder ends in `/`. */
+        RepositoryPath: string;
+        RepositoryFilesResponse: {
+            fullName: string;
+            defaultBranch: string;
+            /** @description The default branch's head commit */
+            commit: string;
+            /** @description By path. */
+            files: components["schemas"]["RepositoryFile"][];
+            /** @description GitHub listed the repository in part (too many entries), so files may be missing. */
+            truncated: boolean;
+        };
+        RepositoryFile: {
+            path: string;
+            /** @description The blob's SHA. */
+            sha: string;
+            sizeBytes: number;
+            /**
+             * Format: uri
+             * @description The file at that commit on GitHub.
+             */
+            url: string;
         };
         WebhookDeliveryResponse: {
             /** Format: uuid */
@@ -897,6 +971,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RepositoryTokenResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listRepositoryFiles: {
+        parameters: {
+            query: {
+                /** @description A folder (`docs/`) or a file (`README.md`), relative to the repository's root; at most 20. */
+                path: components["schemas"]["RepositoryPath"][];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                linkId: components["parameters"]["LinkId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepositoryFilesResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getRepositoryBlob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                linkId: components["parameters"]["LinkId"];
+                /** @description A blob's SHA, from `GET …/files`. */
+                sha: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The blob's bytes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
                 };
             };
             400: components["responses"]["BadRequest"];

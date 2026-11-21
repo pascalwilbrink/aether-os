@@ -14,6 +14,7 @@ export type KnowledgePassage = SeshatSchemas["KnowledgePassage"];
 export type KnowledgeSearchResponse = SeshatSchemas["KnowledgeSearchResponse"];
 export type NewKnowledgeItem = SeshatSchemas["CreateKnowledgeItemRequest"];
 export type KnowledgeItemChange = SeshatSchemas["UpdateKnowledgeItemRequest"];
+export type KnowledgeRepository = SeshatSchemas["KnowledgeRepositoryResponse"];
 
 const seshat = <T>(
   path: string,
@@ -136,4 +137,56 @@ export const searchKnowledge = (
     `${knowledgeOf(organizationId, projectId)}/search`,
     token,
     { method: "POST", body },
+  );
+
+// --- Repositories whose documents are indexed (`knowledge:read`, `knowledge:approve`) ---
+
+export const listKnowledgeRepositories = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+) =>
+  seshat<Page<KnowledgeRepository>>(
+    `${knowledgeOf(organizationId, projectId)}/repositories?limit=100`,
+    token,
+  );
+
+/** Which paths of a linked repository are indexed (starts indexing it). */
+export const putKnowledgeRepository = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+  linkId: string,
+  paths: string[],
+) =>
+  seshat<KnowledgeRepository>(
+    `${knowledgeOf(organizationId, projectId)}/repositories/${linkId}`,
+    token,
+    { method: "PUT", body: { paths } },
+  );
+
+/** Reads the repository again soon. */
+export const syncKnowledgeRepository = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+  linkId: string,
+) =>
+  seshat<KnowledgeRepository>(
+    `${knowledgeOf(organizationId, projectId)}/repositories/${linkId}/sync`,
+    token,
+    { method: "POST" },
+  );
+
+/** Stops indexing it: its documents are retired. */
+export const deleteKnowledgeRepository = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+  linkId: string,
+) =>
+  seshat<void>(
+    `${knowledgeOf(organizationId, projectId)}/repositories/${linkId}`,
+    token,
+    { method: "DELETE" },
   );

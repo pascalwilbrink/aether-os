@@ -6,3 +6,6 @@ export * from './document-files.js';
 export * from './knowledge.errors.js';
 export * from './knowledge-embedder.js';
 export * from './embeddings.js';
+export * from './knowledge-repositories.service.js';
+export * from './repository-syncer.js';
+export * from './repository-files.js';

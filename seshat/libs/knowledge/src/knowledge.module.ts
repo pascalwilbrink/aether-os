@@ -26,13 +26,21 @@ import { KnowledgeController } from './knowledge.controller.js';
 import { KnowledgeItemsService } from './knowledge-items.service.js';
 import { KnowledgeSearchService } from './knowledge-search.service.js';
 import { KnowledgeVersionsService } from './knowledge-versions.service.js';
+import { KnowledgeRepositoriesController } from './knowledge-repositories.controller.js';
+import { KnowledgeRepositoriesService } from './knowledge-repositories.service.js';
+import { KnowledgeRepositoryEntity } from './knowledge-repository.entity.js';
+import { KnowledgeRepositoryMapper } from './knowledge-repository.mapper.js';
+import { HttpRepositoryFiles } from './http-repository-files.js';
+import { NoRepositoryFiles, RepositoryFiles } from './repository-files.js';
+import { RepositorySyncer } from './repository-syncer.js';
 import {
   KNOWLEDGE_OPTIONS,
   type KnowledgeOptions,
 } from './knowledge.options.js';
 
 /**
- * Project knowledge: items, documents (indexed from Loculus), their
+ * Project knowledge: items, documents (indexed from Loculus, or from
+ * repositories linked to the project through Proxenos), their
  * passages' embeddings (through Pylon) and hybrid search.
  */
 @Module({
@@ -42,10 +50,11 @@ import {
       KnowledgeItemVersionEntity,
       KnowledgeChunkEntity,
       KnowledgeEmbeddingEntity,
+      KnowledgeRepositoryEntity,
     ]),
     TenancyModule,
   ],
-  controllers: [KnowledgeController],
+  controllers: [KnowledgeController, KnowledgeRepositoriesController],
   providers: [
     KnowledgeItemsService,
     KnowledgeItemMapper,
@@ -55,6 +64,9 @@ import {
     DocumentsService,
     DocumentIndexer,
     KnowledgeEmbedder,
+    KnowledgeRepositoriesService,
+    KnowledgeRepositoryMapper,
+    RepositorySyncer,
     {
       provide: KNOWLEDGE_OPTIONS,
       inject: [ConfigService],
@@ -63,6 +75,15 @@ import {
         documentMaxBytes: config.get('DOCUMENT_MAX_BYTES', { infer: true }),
         embedderIntervalMs: config.get('EMBEDDER_INTERVAL_MS', { infer: true }),
         searchMinSimilarity: config.get('SEARCH_MIN_SIMILARITY', {
+          infer: true,
+        }),
+        repositorySyncIntervalMs: config.get('REPOSITORY_SYNC_INTERVAL_MS', {
+          infer: true,
+        }),
+        repositoryDefaultPaths: config.get('REPOSITORY_DEFAULT_PATHS', {
+          infer: true,
+        }),
+        repositoryMaxDocuments: config.get('REPOSITORY_MAX_DOCUMENTS', {
           infer: true,
         }),
       }),
@@ -75,6 +96,17 @@ import {
       }),
     },
     { provide: DocumentFiles, useClass: HttpDocumentFiles },
+    {
+      // Through Proxenos with PROXENOS_URL; else repositories aren't read.
+      provide: RepositoryFiles,
+      inject: [ConfigService, ServiceTokens],
+      useFactory: (config: ConfigService<Env, true>, tokens: ServiceTokens) => {
+        const baseUrl = config.get('PROXENOS_URL', { infer: true });
+        return baseUrl
+          ? new HttpRepositoryFiles({ baseUrl }, tokens)
+          : new NoRepositoryFiles();
+      },
+    },
     {
       // Through Pylon with PYLON_URL; else nothing is embedded.
       provide: Embeddings,
@@ -98,6 +130,8 @@ import {
     KnowledgeSearchService,
     DocumentIndexer,
     KnowledgeEmbedder,
+    KnowledgeRepositoriesService,
+    RepositorySyncer,
   ],
 })
 export class KnowledgeModule {}

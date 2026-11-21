@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Proxenos events
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Events Proxenos publishes to the `proxenos.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -14,9 +14,11 @@ info:
 
     For now: the GitHub App's installations, the repository links of
     projects, pull requests, and issues and their comments on connected
-    repositories (`../docs/git.md`), which Kairos's automations trigger on.
-    Issue events have the webhook delivery as their aggregate: each is
-    published once, and none replaces another.
+    repositories (`../docs/git.md`), which Kairos's automations trigger on,
+    and pushes to connected repositories' default branches, which Seshat
+    indexes repository documents on (`../docs/knowledge.md`). Issue and push
+    events have the webhook delivery as their aggregate: each is published
+    once, and none replaces another.
 
 defaultContentType: application/json
 
@@ -43,6 +45,7 @@ channels:
       repositoryLinked: { $ref: '#/components/messages/repositoryLinked' }
       repositoryUnlinked: { $ref: '#/components/messages/repositoryUnlinked' }
       pullRequestUpdated: { $ref: '#/components/messages/pullRequestUpdated' }
+      pushed: { $ref: '#/components/messages/pushed' }
       githubIssueOpened: { $ref: '#/components/messages/githubIssueOpened' }
       githubIssueLabeled: { $ref: '#/components/messages/githubIssueLabeled' }
       githubIssueCommentCreated: { $ref: '#/components/messages/githubIssueCommentCreated' }
@@ -56,6 +59,7 @@ operations:
       - $ref: '#/channels/proxenosEvents/messages/repositoryLinked'
       - $ref: '#/channels/proxenosEvents/messages/repositoryUnlinked'
       - $ref: '#/channels/proxenosEvents/messages/pullRequestUpdated'
+      - $ref: '#/channels/proxenosEvents/messages/pushed'
       - $ref: '#/channels/proxenosEvents/messages/githubIssueOpened'
       - $ref: '#/channels/proxenosEvents/messages/githubIssueLabeled'
       - $ref: '#/channels/proxenosEvents/messages/githubIssueCommentCreated'
@@ -140,6 +144,21 @@ components:
             properties:
               eventType: { const: git.pull-request.updated }
               payload: { $ref: '#/components/schemas/GitPullRequestUpdated' }
+
+    pushed:
+      name: git.pushed
+      summary: |
+        Commits were pushed to the default branch of a connected repository
+        (GitHub's `push` webhook; pushes to other branches, and deleting the
+        branch, aren't published). The delivery is the aggregate. Seshat
+        indexes the repository's documents again.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: git.pushed }
+              payload: { $ref: '#/components/schemas/GitPushed' }
 
   schemas:
     Uuid:
@@ -279,6 +298,33 @@ components:
         projectId: { $ref: '#/components/schemas/Uuid' }
         repositoryId: { $ref: '#/components/schemas/Uuid' }
         fullName: { type: string }
+    GitPushed:
+      type: object
+      additionalProperties: false
+      required: [webhookDeliveryId, deliveryId, repositoryId, repository, projectIds, links, branch, before, after, fromAetherOs]
+      properties:
+        webhookDeliveryId: { $ref: '#/components/schemas/Uuid', description: 'Proxenos''s stored delivery.' }
+        deliveryId: { type: string, description: 'GitHub''s `X-GitHub-Delivery`.' }
+        repositoryId: { $ref: '#/components/schemas/Uuid' }
+        repository: { type: string, description: '`owner/name`.' }
+        projectIds:
+          type: array
+          items: { $ref: '#/components/schemas/Uuid' }
+          description: The projects the repository is linked to (none when it isn't linked).
+        links:
+          type: array
+          description: The same projects with their repository link.
+          items:
+            type: object
+            additionalProperties: false
+            required: [projectId, linkId]
+            properties:
+              projectId: { $ref: '#/components/schemas/Uuid' }
+              linkId: { $ref: '#/components/schemas/Uuid' }
+        branch: { type: string, description: 'The default branch, without `refs/heads/`.' }
+        before: { type: string, description: 'The commit the branch was at (all zeros for a new branch).' }
+        after: { type: string, description: 'The commit it is at now.' }
+        fromAetherOs: { type: boolean, description: 'The app''s own bot pushed.' }
     GitRepositoryUnlinked:
       type: object
       additionalProperties: false

@@ -13,6 +13,7 @@ import { downloadHref, formatBytes } from "@/lib/files";
 import {
   decisionsFor,
   knowledgeStatus,
+  shortCommit,
   sourceLabel,
   typeLabel,
 } from "@/lib/knowledge";
@@ -60,6 +61,7 @@ async function KnowledgeItemDetails({ params }: Props) {
   const ref = { organizationId, projectId, itemId };
   const editable =
     item.type !== "document" && ["accepted", "proposed"].includes(item.status);
+  const fromRepository = item.source.repository;
 
   return (
     <div className="space-y-10">
@@ -126,7 +128,7 @@ async function KnowledgeItemDetails({ params }: Props) {
           ) : null}
         </div>
         <div className="flex gap-2">
-          {decisionsFor(item.status).map((decision) => (
+          {decisionsFor(item.status, item.source.kind).map((decision) => (
             <ActionButton
               key={decision}
               action={decideKnowledgeItemAction.bind(null, {
@@ -149,10 +151,28 @@ async function KnowledgeItemDetails({ params }: Props) {
       {item.document ? (
         <section className="space-y-2 text-sm">
           <h2 className="font-medium">Document</h2>
+          {fromRepository ? (
+            <p className="text-zinc-600 dark:text-zinc-400">
+              {fromRepository.path} in {fromRepository.fullName}, at{" "}
+              {shortCommit(fromRepository.commit)}. Read-only here: change it
+              with a commit, and it&apos;s read again after the push.
+            </p>
+          ) : null}
           <p>
             <a
-              href={downloadHref(organizationId, projectId, item.document.fileId)}
+              href={
+                fromRepository
+                  ? fromRepository.url
+                  : downloadHref(
+                      organizationId,
+                      projectId,
+                      item.document.fileId ?? "",
+                    )
+              }
               className="underline"
+              {...(fromRepository
+                ? { target: "_blank", rel: "noreferrer" }
+                : {})}
             >
               {item.document.fileName}
             </a>{" "}
@@ -177,8 +197,8 @@ async function KnowledgeItemDetails({ params }: Props) {
               ))}
               {passages.nextCursor ? (
                 <p className="text-xs text-zinc-500">
-                  The first {passages.items.length} parts; download it for the
-                  rest.
+                  The first {passages.items.length} parts;{" "}
+                  {fromRepository ? "open it" : "download it"} for the rest.
                 </p>
               ) : null}
             </div>
@@ -211,7 +231,9 @@ async function KnowledgeItemDetails({ params }: Props) {
                   </p>
                 ) : version.document ? (
                   <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-                    {version.document.fileName}
+                    {version.document.repository
+                      ? `${version.document.repository.path} at ${shortCommit(version.document.repository.commit)}`
+                      : version.document.fileName}
                   </p>
                 ) : null}
               </details>

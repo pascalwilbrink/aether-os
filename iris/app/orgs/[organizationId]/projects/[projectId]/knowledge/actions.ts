@@ -9,12 +9,15 @@ import {
   createKnowledgeDocument,
   createKnowledgeItem,
   decideKnowledgeItem,
+  deleteKnowledgeRepository,
+  putKnowledgeRepository,
+  syncKnowledgeRepository,
   updateKnowledgeItem,
 } from "@/lib/api/seshat";
 import { requireOrganization } from "@/lib/auth/current";
 import { contentTypeFor } from "@/lib/files";
 import { valuesOf } from "@/lib/forms";
-import { newItemOf, tagsOf } from "@/lib/knowledge";
+import { newItemOf, pathsFromText, tagsOf } from "@/lib/knowledge";
 
 import type { FormState, ProjectRef } from "../actions";
 
@@ -34,7 +37,11 @@ const seshatMessageOf = (error: unknown) =>
     KNOWLEDGE_ITEM_INVALID_TRANSITION: "The item has moved on; reload to see it.",
     KNOWLEDGE_DOCUMENT_INVALID:
       "Seshat can't use that file (too large, or not available yet).",
+    KNOWLEDGE_ITEM_READ_ONLY:
+      "This document comes from a repository: change it with a commit there.",
   });
+
+type RepositoryRef = ProjectRef & { linkId: string };
 
 /** Writes an item (a person's is accepted at once), then opens it. */
 export async function createKnowledgeItemAction(
@@ -169,6 +176,83 @@ export async function decideKnowledgeItemAction(
       ref.projectId,
       ref.itemId,
       ref.decision,
+    );
+  } catch (error) {
+    return { error: seshatMessageOf(error) };
+  }
+  refresh();
+  return {};
+}
+
+/**
+ * Which paths of a linked repository are indexed; starts indexing one
+ * that isn't yet (with the paths given).
+ */
+export async function putKnowledgeRepositoryAction(
+  ref: RepositoryRef,
+  _state: FormState,
+  form: FormData,
+): Promise<FormState> {
+  const session = await requireOrganization(
+    ref.organizationId,
+    knowledgePath(ref),
+  );
+  const values = valuesOf(form);
+  const parsed = pathsFromText(values.paths);
+  if ("error" in parsed) {
+    return { error: parsed.error, values };
+  }
+  try {
+    await putKnowledgeRepository(
+      session.accessToken,
+      ref.organizationId,
+      ref.projectId,
+      ref.linkId,
+      parsed.paths,
+    );
+  } catch (error) {
+    return { error: seshatMessageOf(error), values };
+  }
+  refresh();
+  return {};
+}
+
+/** Reads a repository again soon. */
+export async function syncKnowledgeRepositoryAction(
+  ref: RepositoryRef,
+): Promise<{ error?: string }> {
+  const session = await requireOrganization(
+    ref.organizationId,
+    knowledgePath(ref),
+  );
+  try {
+    await syncKnowledgeRepository(
+      session.accessToken,
+      ref.organizationId,
+      ref.projectId,
+      ref.linkId,
+    );
+  } catch (error) {
+    return { error: seshatMessageOf(error) };
+  }
+  refresh();
+  return {};
+}
+
+/** Stops indexing a repository: its documents are retired. */
+export async function deleteKnowledgeRepositoryAction(
+  ref: RepositoryRef,
+): Promise<{ error?: string }> {
+  const session = await requireOrganization(
+    ref.organizationId,
+    knowledgePath(ref),
+  );
+  try {
+    await deleteKnowledgeRepository(
+      session.accessToken,
+      ref.organizationId,
+      ref.projectId,
+      ref.linkId,
     );
   } catch (error) {
     return { error: seshatMessageOf(error) };

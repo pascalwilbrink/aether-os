@@ -15,6 +15,13 @@ import {
 } from '@seshat/core';
 import { KnowledgeModule } from '@seshat/knowledge';
 
+/** Proxenos's events repository documents follow (docs/knowledge.md). */
+export const PROXENOS_SUBSCRIPTIONS = [
+  'git.repository-linked',
+  'git.repository-unlinked',
+  'git.pushed',
+] as const;
+
 // Validation, the /v1 prefix and problem details: configureHttpApp (server.ts).
 @Module({
   imports: [
@@ -31,13 +38,18 @@ import { KnowledgeModule } from '@seshat/knowledge';
         ...checkIf(config.get('PYLON_URL', { infer: true }), (url) =>
           serviceCheck('pylon', url),
         ),
+        ...checkIf(config.get('PROXENOS_URL', { infer: true }), (url) =>
+          serviceCheck('proxenos', url),
+        ),
       ],
     }),
-    // Publishes Seshat's events to seshat.events through the outbox; consumes
-    // nothing yet.
+    // Publishes Seshat's events to seshat.events through the outbox, and
+    // consumes Proxenos's repository links and pushes (seshat.proxenos-events:
+    // inbox, retries, dead-lettering).
     EventsModule.forRoot({
       service: 'seshat',
       publish: SESHAT_PUBLISHED_EVENTS,
+      subscribe: { proxenos: PROXENOS_SUBSCRIPTIONS },
       rabbitmq: {
         inject: [ConfigService],
         useFactory: (config: ConfigService<Env, true>) => ({

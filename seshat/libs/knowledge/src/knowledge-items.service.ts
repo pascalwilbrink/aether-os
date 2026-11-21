@@ -32,10 +32,29 @@ import {
 import {
   KnowledgeItemInvalidError,
   KnowledgeItemInvalidTransitionError,
+  KnowledgeItemReadOnlyError,
 } from './knowledge.errors.js';
 import { KnowledgeVersionsService } from './knowledge-versions.service.js';
 
 type ItemResponse = ApiTypes.KnowledgeItemResponse;
+
+/** A file of an indexed repository, as its document records it. */
+export interface RepositoryDocumentFile {
+  path: string;
+  blobSha: string;
+  sizeBytes: number;
+  url: string;
+  contentType: string;
+}
+
+/** A repository whose documents are synced (`RepositorySyncer`). */
+export interface RepositoryDocumentsSource {
+  organizationId: string;
+  projectId: string;
+  linkId: string;
+  fullName: string;
+  commit: string;
+}
 
 /** How a document's indexing ended (`DocumentIndexer`). */
 export type IndexingResult =
@@ -197,6 +216,7 @@ export class KnowledgeItemsService {
   ): Promise<ItemResponse> {
     await this.tenancy.assertProjectAcceptsWrites(organizationId, projectId);
     const item = await this.load(organizationId, projectId, itemId, true);
+    assertNotFromRepository(item);
     if (item.type === 'document') {
       throw new KnowledgeItemInvalidError(
         `Knowledge item ${itemId} is a document: change it with PUT …/documents/${itemId}.`,
@@ -223,6 +243,7 @@ export class KnowledgeItemsService {
   ): Promise<ItemResponse> {
     await this.tenancy.assertProjectAcceptsWrites(organizationId, projectId);
     const item = await this.load(organizationId, projectId, itemId, true);
+    assertNotFromRepository(item);
     if (item.status === 'accepted') {
       return this.mapper.toResponse(item);
     }
@@ -299,6 +320,7 @@ export class KnowledgeItemsService {
   ): Promise<ItemResponse> {
     await this.tenancy.assertProjectAcceptsWrites(organizationId, projectId);
     const item = await this.load(organizationId, projectId, itemId, true);
+    assertNotFromRepository(item);
     if (item.type !== 'document') {
       throw new KnowledgeItemInvalidError(
         `Knowledge item ${itemId} isn't a document: change it with PUT …/items/${itemId}.`,
@@ -485,6 +507,125 @@ export class KnowledgeItemsService {
     await this.save(item, 'knowledge-item.indexed');
   }
 
+  // ---- repository documents (RepositorySyncer) ----
+
+  /**
+   * Makes the repository's documents match its files at `source.commit`:
+   * a new file is a new accepted document, a changed one (another blob) a
+   * new version, a file no longer there retires its document; each waits
+   * to be indexed. Unchanged files keep their version. How many current
+   * documents it has.
+   */
+  @Transactional()
+  async syncRepositoryDocuments(
+    source: RepositoryDocumentsSource,
+    files: readonly RepositoryDocumentFile[],
+  ): Promise<number> {
+    const current = await this.items
+      .createQueryBuilder('item')
+      .setLock('pessimistic_write')
+      .where('item.repositoryLinkId = :linkId', { linkId: source.linkId })
+      .andWhere(`item.status <> 'retired'`)
+      .getMany();
+    const byPath = new Map(current.map((item) => [item.repositoryPath, item]));
+    const by = repositoryActor(source.fullName);
+    for (const file of files) {
+      const item = byPath.get(file.path);
+      byPath.delete(file.path);
+      if (!item) {
+        const created = this.repositoryDocument(source, file, by);
+        await this.items.insert(created);
+        await this.versions.record(created);
+        await this.emit(created, 'knowledge-item.accepted');
+      } else if (item.repositoryBlobSha !== file.blobSha) {
+        setRepositoryFile(item, source, file);
+        await this.newVersion(item, by);
+      }
+    }
+    // Files no longer under its paths: their documents are retired.
+    for (const item of byPath.values()) {
+      this.move(item, 'retire');
+      item.updatedBy = by;
+      await this.save(item, 'knowledge-item.retired');
+    }
+    return files.length;
+  }
+
+  /** Retires every document of the repository (it's no longer indexed). */
+  @Transactional()
+  async retireRepositoryDocuments(linkId: string): Promise<number> {
+    const items = await this.items
+      .createQueryBuilder('item')
+      .setLock('pessimistic_write')
+      .where('item.repositoryLinkId = :linkId', { linkId })
+      .andWhere(`item.status <> 'retired'`)
+      .getMany();
+    for (const item of items) {
+      this.move(item, 'retire');
+      item.updatedBy = repositoryActor(item.repositoryFullName ?? '');
+      await this.save(item, 'knowledge-item.retired');
+    }
+    return items.length;
+  }
+
+  private repositoryDocument(
+    source: RepositoryDocumentsSource,
+    file: RepositoryDocumentFile,
+    by: string,
+  ): KnowledgeItemEntity {
+    const now = new Date();
+    const item = Object.assign(new KnowledgeItemEntity(), {
+      id: uuidv7(),
+      organizationId: source.organizationId,
+      projectId: source.projectId,
+      type: 'document',
+      title: file.path,
+      body: '',
+      status: 'accepted',
+      version: 1,
+      revision: 0,
+      tags: [],
+      references: [],
+      sourceKind: 'repository',
+      sourceTaskId: null,
+      supersedes: null,
+      supersededBy: null,
+      reviewBy: null,
+      fileId: null,
+      fileName: null,
+      contentType: null,
+      sizeBytes: null,
+      sha256: null,
+      repositoryLinkId: null,
+      repositoryFullName: null,
+      repositoryPath: null,
+      repositoryCommit: null,
+      repositoryBlobSha: null,
+      repositoryUrl: null,
+      indexingStatus: null,
+      indexingError: null,
+      chunkCount: 0,
+      indexingAttempts: 0,
+      nextIndexAt: null,
+      indexedAt: null,
+      embeddingStatus: null,
+      embeddingModel: null,
+      embeddingAttempts: 0,
+      nextEmbedAt: null,
+      embeddingError: null,
+      embeddedAt: null,
+      createdBy: by,
+      updatedBy: by,
+      // The repository is its source of truth: accepted as committed.
+      acceptedBy: by,
+      acceptedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    } satisfies KnowledgeItemEntity);
+    setRepositoryFile(item, source, file);
+    return item;
+  }
+
   // ---- helpers ----
 
   private newItem(
@@ -517,6 +658,12 @@ export class KnowledgeItemsService {
       contentType: null,
       sizeBytes: null,
       sha256: null,
+      repositoryLinkId: null,
+      repositoryFullName: null,
+      repositoryPath: null,
+      repositoryCommit: null,
+      repositoryBlobSha: null,
+      repositoryUrl: null,
       indexingStatus: null,
       indexingError: null,
       chunkCount: 0,
@@ -572,9 +719,12 @@ export class KnowledgeItemsService {
     }
   }
 
-  private async newVersion(item: KnowledgeItemEntity): Promise<void> {
+  private async newVersion(
+    item: KnowledgeItemEntity,
+    by = this.access.principal().sub,
+  ): Promise<void> {
     item.version += 1;
-    item.updatedBy = this.access.principal().sub;
+    item.updatedBy = by;
     item.updatedAt = new Date();
     await this.versions.record(item);
     await this.save(item, 'knowledge-item.updated');
@@ -596,6 +746,7 @@ export class KnowledgeItemsService {
   ): Promise<ItemResponse> {
     await this.tenancy.assertProjectAcceptsWrites(organizationId, projectId);
     const item = await this.load(organizationId, projectId, itemId, true);
+    assertNotFromRepository(item);
     if (item.status !== done) {
       this.move(item, action);
       await this.save(
@@ -641,6 +792,7 @@ export class KnowledgeItemsService {
         `supersedes must name an accepted item of the project (${itemId} isn't one).`,
       );
     }
+    assertNotFromRepository(item);
     return item;
   }
 
@@ -718,6 +870,42 @@ export class KnowledgeItemsService {
       throw new NotFoundException(`Knowledge item ${itemId} not found`);
     }
     return item;
+  }
+}
+
+/** Who changed a repository document: the repository, not a person. */
+function repositoryActor(fullName: string): string {
+  return `repository:${fullName}`;
+}
+
+/** A repository document's file (this version), waiting to be indexed. */
+function setRepositoryFile(
+  item: KnowledgeItemEntity,
+  source: RepositoryDocumentsSource,
+  file: RepositoryDocumentFile,
+): void {
+  Object.assign(item, {
+    fileName: file.path.split('/').pop() ?? file.path,
+    contentType: file.contentType,
+    sizeBytes: file.sizeBytes,
+    repositoryLinkId: source.linkId,
+    repositoryFullName: source.fullName,
+    repositoryPath: file.path,
+    repositoryCommit: source.commit,
+    repositoryBlobSha: file.blobSha,
+    repositoryUrl: file.url,
+    indexingStatus: 'pending',
+    indexingError: null,
+    indexingAttempts: 0,
+    nextIndexAt: null,
+    indexedAt: null,
+  } satisfies Partial<KnowledgeItemEntity>);
+}
+
+/** Repository documents change with commits, never through the API. */
+function assertNotFromRepository(item: KnowledgeItemEntity): void {
+  if (item.sourceKind === 'repository') {
+    throw new KnowledgeItemReadOnlyError(item.id, item.repositoryFullName);
   }
 }
 
