@@ -67,6 +67,9 @@ export const PROXENOS_SUBSCRIPTIONS = ['git.pull-request.updated'] as const;
         ...checkIf(config.get('LOCULUS_URL', { infer: true }), (url) =>
           serviceCheck('loculus', url),
         ),
+        ...checkIf(config.get('SESHAT_URL', { infer: true }), (url) =>
+          serviceCheck('seshat', url),
+        ),
         ...checkIf(config.get('OPENBAO_ADDR', { infer: true }), (url) =>
           openBaoCheck(url),
         ),

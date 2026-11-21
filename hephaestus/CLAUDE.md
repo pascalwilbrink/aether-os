@@ -103,7 +103,7 @@ Each feature library has the layout described in `../polis/CLAUDE.md`: `*.module
   - **Usage** (`usageOf`): the executions list's `usage` is Pylon's `GET …/usage?groupBy=execution&executionId=…` (100 at a time).
   - Hephaestus's old tables (`models`, `model_prices`, `model_keys`, `budgets`, `model_calls`) stay in its database, unused, until Pylon's `pnpm import:hephaestus` has copied them; a later migration drops them.
   - Tests replace `Pylon` and `PylonModels` with `test/fake-models.ts` (`FakePylon`: `exhaustedScope`, tree budgets, usage from the calls; `ScriptedPylonModels`: a scripted AI SDK v2 model recording the token and execution of each; `budgetExhausted` for Pylon's 402), in every test app (`test/app.ts`, `test/testing-module.ts`).
-- **Health** (`../docs/engineering.md`, Health checks): `/health` checks the database, RabbitMQ, Pistis, Polis, Pylon, Proxenos and Loculus (when set), OpenBao (when set), and with `SANDBOX_DRIVER=docker` the Docker engine (`docker`, `DockerSandboxDriver.ping`, registered by `RunnerModule`); only the database is required.
+- **Health** (`../docs/engineering.md`, Health checks): `/health` checks the database, RabbitMQ, Pistis, Polis, Pylon, Proxenos, Loculus and Seshat (when set), OpenBao (when set), and with `SANDBOX_DRIVER=docker` the Docker engine (`docker`, `DockerSandboxDriver.ping`, registered by `RunnerModule`); only the database is required.
 - **Errors:** `DomainError` subclasses become `409` problem details with their `code`; add new codes to the spec's `DomainErrorCode` enum too.
 
 ### API contract
