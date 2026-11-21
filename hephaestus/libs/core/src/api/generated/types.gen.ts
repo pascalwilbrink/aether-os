@@ -255,6 +255,27 @@ export type CreateTaskRequest = {
      *
      */
     context?: Array<TaskContextReference>;
+    /**
+     * Text from outside the organization (an issue's title through an
+     * automation, docs/git.md Untrusted input): the task's text fields
+     * name each as `{{name}}`. Where people read the task, the value is
+     * filled in; in the agent's prompt it is filled in marked as data,
+     * never as instructions. Names are unique (`TASK_FIELDS_INVALID`).
+     *
+     */
+    untrustedInputs?: Array<UntrustedInput>;
+};
+
+export type UntrustedInput = {
+    /**
+     * Named as `{{name}}` in the text fields, e.g. `issue.title`.
+     */
+    name: string;
+    /**
+     * Where it came from, e.g. "GitHub issue #12 in acme/api, opened by @octocat".
+     */
+    source: string;
+    value: string;
 };
 
 export type TaskContextReference = {
@@ -424,6 +445,10 @@ export type TaskTemplateContent = {
     expectedOutcome?: string;
     constraints?: Array<TaskItem>;
     deliverables?: Array<TaskDeliverable>;
+    /**
+     * Knowledge pinned on every task from it (e.g. the project's conventions); a project template adds to what it extends. Only a project's template pins knowledge, which belongs to one project (`TASK_TEMPLATE_INVALID` on an organization-wide one).
+     */
+    context?: Array<TaskContextReference>;
     agentId?: string;
     inputs?: Array<TemplateInput>;
     acceptanceCriteria?: Array<AcceptanceCriterionRequest>;
@@ -473,6 +498,7 @@ export type EffectiveTaskTemplate = {
     expectedOutcome: string | null;
     constraints: Array<TaskItem>;
     deliverables: Array<TaskDeliverable>;
+    context: Array<TaskContextReference>;
     agentId: string;
     inputs: Array<TemplateInput>;
     acceptanceCriteria: Array<AcceptanceCriterionRequest>;
@@ -519,6 +545,26 @@ export type CreateTaskFromTemplateRequest = {
      */
     repository?: TaskRepository;
     concurrency?: TaskConcurrency | null;
+    /**
+     * Added to the template's.
+     */
+    requirements?: Array<TaskItem>;
+    /**
+     * Added to the template's.
+     */
+    constraints?: Array<TaskItem>;
+    /**
+     * Added to the template's.
+     */
+    deliverables?: Array<TaskDeliverable>;
+    /**
+     * Knowledge pinned on the task, added to the template's (as on a task written by hand).
+     */
+    context?: Array<TaskContextReference>;
+    /**
+     * As on a task written by hand; `inputs` values can name them as `{{name}}`.
+     */
+    untrustedInputs?: Array<UntrustedInput>;
 };
 
 /**
@@ -616,6 +662,10 @@ export type TaskResponse = {
      * The project knowledge pinned on it, at the versions it got.
      */
     context: Array<PinnedTaskContext>;
+    /**
+     * The text from outside it carries; its text fields here have the values filled in.
+     */
+    untrustedInputs: Array<UntrustedInput>;
     /**
      * The template it was created from, if any.
      */

@@ -122,6 +122,11 @@ export class ExecutionPreparer {
     return this.inputs.copyInto(task, token, sandbox);
   }
 
+  /** The task with its brief as given, for the agent's prompt (`TaskInputs.forPrompt`). */
+  forPrompt(task: TaskResponse): Promise<TaskResponse> {
+    return this.inputs.forPrompt(task);
+  }
+
   /** The knowledge pinned on the task, for the agent's prompt. */
   context(task: TaskResponse): Promise<PinnedKnowledge[]> {
     return this.inputs.context(task);

@@ -17,6 +17,8 @@ export interface TaskBrief {
   deliverables: TaskDeliverable[];
   /** The criteria its deliverables imply (`source: deliverable`). */
   deliverableCriteria: ApiTypes.AcceptanceCriterion[];
+  /** Text from outside, named `{{name}}` in the text fields. */
+  untrustedInputs: ApiTypes.UntrustedInput[];
 }
 
 /** The key of the criterion a deliverable implies. */
@@ -39,6 +41,7 @@ export function taskBriefOf(
     | 'expectedOutcome'
     | 'constraints'
     | 'deliverables'
+    | 'untrustedInputs'
   >,
   criteria: readonly ApiTypes.AcceptanceCriterionRequest[],
   hasRepository: boolean,
@@ -84,6 +87,14 @@ export function taskBriefOf(
     }
   }
 
+  const untrustedInputs = dto.untrustedInputs ?? [];
+  const duplicateInput = firstDuplicate(untrustedInputs.map((i) => i.name));
+  if (duplicateInput) {
+    throw new TaskFieldsInvalidError(
+      `The untrusted input ${duplicateInput} is given twice.`,
+    );
+  }
+
   const known = new Set(itemKeys);
   for (const criterion of criteria) {
     if (criterion.requirementKey && !known.has(criterion.requirementKey)) {
@@ -99,6 +110,7 @@ export function taskBriefOf(
     expectedOutcome: dto.expectedOutcome?.trim() ? dto.expectedOutcome : null,
     constraints,
     deliverables,
+    untrustedInputs,
     deliverableCriteria: deliverables.map((deliverable) => ({
       key: deliverableCriterionKey(deliverable.key),
       description: `Deliverable ${deliverable.key}: ${deliverable.description}`,

@@ -51,7 +51,9 @@ export const zAutomationTrigger = z.object({
  * A task written here. `title` and `instructions` can use the event's
  * fields: `{{issue.number}}`, `{{issue.title}}`, `{{issue.url}}`,
  * `{{repository}}`, `{{author}}` and `{{label}}`. The issue's title is
- * written by whoever opened it: untrusted input for the agent.
+ * written by whoever opened it: Kairos sends it to Hephaestus as an
+ * untrusted input (`untrustedInputs`), which the agent sees marked as
+ * data, never as instructions.
  *
  */
 export const zAutomationTaskAction = z.object({
@@ -84,6 +86,15 @@ export const zAutomationAction = z.object({
     })
     .nullish(),
   reviewArtifactKinds: z.array(z.string().min(1).max(50)).max(20).optional(),
+  context: z
+    .array(
+      z.object({
+        kind: z.enum(['knowledge']),
+        itemId: z.uuid(),
+      }),
+    )
+    .max(50)
+    .optional(),
 });
 
 export const zAutomationRequest = z.object({

@@ -4,6 +4,10 @@ import { useActionState, useState } from "react";
 
 import { buttonClass, FormError, inputClass } from "@/app/components/form";
 import {
+  KnowledgePicker,
+  type KnowledgeOption,
+} from "@/app/components/knowledge-picker";
+import {
   CONCURRENCY_POLICIES,
   EVENTS,
   FIELDS,
@@ -24,6 +28,8 @@ export interface AutomationOptions {
   templates: Option[];
   /** The project's repository links. */
   repositories: Option[];
+  /** The project's accepted knowledge (Seshat), to pin on its tasks. */
+  knowledge: KnowledgeOption[];
 }
 
 /**
@@ -261,6 +267,11 @@ export function AutomationForm({
           "Works in the issue's repository (its commits come back as a pull request)",
         )}
         {checkbox("review", "Everything it produces needs approval", "all")}
+        <KnowledgePicker
+          knowledge={options.knowledge}
+          checked={(values.context ?? "").split(",")}
+          hint="Pinned on every task it starts, at that day's version (e.g. the project's conventions)."
+        />
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block text-sm">
             Concurrency key <span className="text-zinc-500">(optional)</span>

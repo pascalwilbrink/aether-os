@@ -141,6 +141,28 @@ async function TaskView({
           constraints={task.constraints}
           deliverables={task.deliverables}
         />
+        {task.untrustedInputs.length > 0 ? (
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950/40">
+            <p className="font-medium text-amber-900 dark:text-amber-200">
+              Text from outside
+            </p>
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              Filled into the brief above; the agent sees it marked as data,
+              never as instructions.
+            </p>
+            <ul className="mt-2 space-y-1">
+              {task.untrustedInputs.map((input) => (
+                <li key={input.name}>
+                  <span className="font-mono text-xs">{input.name}</span>{" "}
+                  <span className="text-zinc-600 dark:text-zinc-400">
+                    from {input.source}
+                  </span>
+                  : {input.value}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {task.inputFiles.length > 0 ? (
           <Suspense fallback={<p className="text-sm text-zinc-500">Files…</p>}>
             <InputFiles

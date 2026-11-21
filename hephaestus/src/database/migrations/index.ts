@@ -31,6 +31,7 @@ import { PylonKeySource1795210000000 } from './1795210000000-PylonKeySource.js';
 import { SkillsFromAgora1795410000000 } from './1795410000000-SkillsFromAgora.js';
 import { TaskContext1795420000000 } from './1795420000000-TaskContext.js';
 import { TaskFields1795430000000 } from './1795430000000-TaskFields.js';
+import { UntrustedInputs1795440000000 } from './1795440000000-UntrustedInputs.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -72,4 +73,5 @@ export const migrations = [
   SkillsFromAgora1795410000000,
   TaskContext1795420000000,
   TaskFields1795430000000,
+  UntrustedInputs1795440000000,
 ];

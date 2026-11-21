@@ -326,7 +326,8 @@ export class TaskRunner
         agentVersionId: task.agentVersionId,
       };
       const input: AgentRunInput = {
-        task,
+        // Its brief as given: outside text is marked as data in the prompt.
+        task: await this.untilStopped(this.preparer.forPrompt(task), signal),
         executionId,
         agentVersion,
         sandbox,

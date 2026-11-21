@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
+import type { FakeTaskContextSource } from './fake-knowledge.js';
 import { createApp, MISSING_ID } from './app.js';
 import { asMember, type Client } from './auth.js';
 import type { FakePolis } from './fake-polis.js';
@@ -35,6 +36,7 @@ const CHANGELOG = {
 describe('Task templates (e2e)', () => {
   let app: INestApplication<App>;
   let polis: FakePolis;
+  let knowledge: FakeTaskContextSource;
   let orgId: string;
   let projectId: string;
   let owner: Client;
@@ -43,7 +45,7 @@ describe('Task templates (e2e)', () => {
   let key = 0;
 
   beforeEach(async () => {
-    ({ app, polis } = await createApp());
+    ({ app, polis, knowledge } = await createApp());
     orgId = polis.organization();
     projectId = polis.project(orgId);
     owner = await asMember(app, orgId, ['owner']);
@@ -130,6 +132,7 @@ describe('Task templates (e2e)', () => {
       expectedOutcome: null,
       constraints: [],
       deliverables: [],
+      context: [],
       agentId,
       inputs: [{ name: 'issue', description: 'The issue', required: true }],
       acceptanceCriteria: [TESTS_PASS],
@@ -292,6 +295,75 @@ describe('Task templates (e2e)', () => {
       inputs: { issue: '#8' },
     }).expect(409);
     expect(archived.body.code).toBe('TASK_TEMPLATE_ARCHIVED');
+  });
+
+  it("pins a template's knowledge and adds the request's brief and outside text", async () => {
+    const conventions = knowledge.add({
+      id: '0195f2a0-0000-7000-8000-0000000000e1',
+      title: 'Conventions',
+      type: 'convention',
+    });
+    const extra = knowledge.add({
+      id: '0195f2a0-0000-7000-8000-0000000000e2',
+      title: 'Billing',
+    });
+    const template = (
+      await owner
+        .post(templates)
+        .send({
+          name: 'Fix a bug',
+          // Knowledge belongs to a project: a project's template pins it.
+          projectId,
+          title: 'Fix {{issue}}',
+          instructions: 'Fix the bug: {{issue}}.',
+          agentId,
+          inputs: [{ name: 'issue' }],
+          requirements: [{ key: 'REQ-1', description: 'Fix {{issue}}' }],
+          context: [{ kind: 'knowledge', itemId: conventions }],
+        })
+        .expect(201)
+    ).body;
+    const input = {
+      name: 'issue.title',
+      source: 'GitHub issue #7',
+      value: 'Login fails',
+    };
+    const task = await fromTemplate(owner, template.id, {
+      // An automation passes the issue's title as outside text.
+      inputs: { issue: '{{issue.title}}' },
+      untrustedInputs: [input],
+      constraints: [{ key: 'CON-1', description: 'No new dependencies' }],
+      deliverables: [{ key: 'notes', kind: 'text', description: 'Notes' }],
+      context: [{ kind: 'knowledge', itemId: extra }],
+    }).expect(201);
+    expect(task.body).toMatchObject({
+      title: 'Fix Login fails',
+      description: 'Fix the bug: Login fails.',
+      requirements: [{ key: 'REQ-1', description: 'Fix Login fails' }],
+      constraints: [{ key: 'CON-1' }],
+      deliverables: [{ key: 'notes' }],
+      untrustedInputs: [input],
+      context: [
+        { itemId: conventions, title: 'Conventions' },
+        { itemId: extra, title: 'Billing' },
+      ],
+    });
+  });
+
+  it('refuses knowledge on an organization-wide template (it belongs to a project)', async () => {
+    const res = await owner
+      .post(templates)
+      .send({
+        name: 'Org-wide',
+        title: 't',
+        instructions: 'i',
+        agentId,
+        context: [
+          { kind: 'knowledge', itemId: '0195f2a0-0000-7000-8000-0000000000e1' },
+        ],
+      })
+      .expect(409);
+    expect(res.body.code).toBe('TASK_TEMPLATE_INVALID');
   });
 
   it('needs the template permissions at the template scope', async () => {

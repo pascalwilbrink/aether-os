@@ -16,6 +16,7 @@ import { asMember, createApp, type Client } from './app.js';
 import type { FakePolis } from './fake-polis.js';
 
 const AGENT = '0193a1b2-c3d4-7e5f-8a9b-0000000000a1';
+const CONVENTIONS = '0195f2a0-0000-7000-8000-0000000000c1';
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000a2';
 const TEMPLATE = '0193a1b2-c3d4-7e5f-8a9b-0000000000a3';
 const LINK = '0193a1b2-c3d4-7e5f-8a9b-0000000000a4';
@@ -237,11 +238,19 @@ describe('Automations (e2e)', () => {
         task: {
           agentId: AGENT,
           serviceAccountId: SERVICE_ACCOUNT,
-          title: 'Fix #12: Login fails for uppercase emails',
-          instructions:
+          // The issue's title is the opener's: sent apart, as outside text.
+          title: 'Fix #12: {{issue.title}}',
+          description:
             'Fix https://github.com/acme/api/issues/12, reported by ada.',
           repository: { linkId: LINK },
           review: { artifactKinds: ['pull_request'] },
+          untrustedInputs: [
+            {
+              name: 'issue.title',
+              source: 'GitHub issue #12 in acme/api, opened by @ada',
+              value: 'Login fails for uppercase emails',
+            },
+          ],
         },
       },
     });
@@ -354,6 +363,7 @@ describe('Automations (e2e)', () => {
           inputs: { issue: '{{repository}}#{{issue.number}}' },
         },
         workInRepository: false,
+        context: [{ kind: 'knowledge', itemId: CONVENTIONS }],
       },
     });
     await deliver('proxenos', issueEvent('github.issue.opened'));
@@ -365,6 +375,14 @@ describe('Automations (e2e)', () => {
         version: 2,
         inputs: { issue: 'acme/api#12' },
         serviceAccountId: SERVICE_ACCOUNT,
+        untrustedInputs: [
+          {
+            name: 'issue.title',
+            source: 'GitHub issue #12 in acme/api, opened by @ada',
+            value: 'Login fails for uppercase emails',
+          },
+        ],
+        context: [{ kind: 'knowledge', itemId: CONVENTIONS }],
       },
     });
 

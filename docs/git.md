@@ -72,7 +72,7 @@ Recommended for users, shown in Iris when connecting a repository: branch protec
 Issue titles and bodies, comments, PR descriptions and repository files are written by people who may not be the organization's members. They are **data, not instructions**:
 
 - Automations fire only for events whose author is a collaborator with at least write access to the repository, by default. An automation can widen that (e.g. "anyone, if the issue has the label `aether`", where only maintainers can add labels).
-- Untrusted content reaches the agent marked as such, and APS policies apply to everything the agent does with it (tool calls, network, outputs).
+- Untrusted content reaches the agent marked as such, and APS policies apply to everything the agent does with it (tool calls, network, outputs). Built for what automations pass on: Kairos sends the issue's title as an untrusted input (`untrustedInputs` on the task, named `{{issue.title}}` in its text), which Hephaestus fills in for people and puts in an `<untrusted-input>` block in the agent's prompt. APS policies are still to come.
 - Public repositories need the strictest defaults: anyone can open an issue.
 
 ## Open questions

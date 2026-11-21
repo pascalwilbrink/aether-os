@@ -44,6 +44,6 @@ import { TasksService } from './tasks.service.js';
       },
     },
   ],
-  exports: [TaskBudgetsService, TasksService, TaskQueue],
+  exports: [TaskBudgetsService, TasksService, TaskQueue, TaskContextSource],
 })
 export class TasksModule {}

@@ -1,4 +1,5 @@
 import type { components } from "./api/generated/kairos-api";
+import { taskContextOf } from "./tasks";
 
 type Schemas = components["schemas"];
 export type AutomationRequest = Schemas["AutomationRequest"];
@@ -90,6 +91,7 @@ export function fieldsOf(automation?: Automation): AutomationFields {
     review: (action.reviewArtifactKinds ?? []).length > 0 ? "all" : "",
     concurrencyKey: action.concurrency?.key ?? "",
     concurrencyPolicy: action.concurrency?.policy ?? "queue",
+    context: (action.context ?? []).map((entry) => entry.itemId).join(","),
   };
 }
 
@@ -146,6 +148,8 @@ export function requestOf(
   ) {
     return { error: "Choose what happens to a second task with the same key." };
   }
+  const context = taskContextOf(value("context").split(","));
+  if ("error" in context) return context;
   return {
     request: {
       name: value("name"),
@@ -167,6 +171,7 @@ export function requestOf(
         concurrency: value("concurrencyKey")
           ? { key: value("concurrencyKey"), policy: concurrencyPolicy }
           : null,
+        context: context.context,
       },
     },
   };

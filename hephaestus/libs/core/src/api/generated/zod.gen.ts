@@ -156,6 +156,12 @@ export const zTaskFailureReason = z.enum([
     'access_denied'
 ]);
 
+export const zUntrustedInput = z.object({
+    name: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/),
+    source: z.string().min(1).max(300),
+    value: z.string().max(65536)
+});
+
 export const zTaskContextReference = z.object({
     kind: z.enum(['knowledge']),
     itemId: z.uuid()
@@ -317,6 +323,7 @@ export const zTaskTemplateContent = z.object({
     expectedOutcome: z.string().max(65536).optional(),
     constraints: z.array(zTaskItem).max(50).optional(),
     deliverables: z.array(zTaskDeliverable).max(20).optional(),
+    context: z.array(zTaskContextReference).max(50).optional(),
     agentId: z.uuid().optional(),
     inputs: z.array(zTemplateInput).max(20).optional(),
     acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional(),
@@ -341,6 +348,7 @@ export const zEffectiveTaskTemplate = z.object({
     expectedOutcome: z.string().nullable(),
     constraints: z.array(zTaskItem),
     deliverables: z.array(zTaskDeliverable),
+    context: z.array(zTaskContextReference),
     agentId: z.uuid(),
     inputs: z.array(zTemplateInput),
     acceptanceCriteria: z.array(zAcceptanceCriterionRequest),
@@ -365,7 +373,12 @@ export const zCreateTaskFromTemplateRequest = z.object({
     acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional(),
     review: zTaskReviewSettings.optional(),
     repository: zTaskRepository.optional(),
-    concurrency: zTaskConcurrency.nullish()
+    concurrency: zTaskConcurrency.nullish(),
+    requirements: z.array(zTaskItem).max(50).optional(),
+    constraints: z.array(zTaskItem).max(50).optional(),
+    deliverables: z.array(zTaskDeliverable).max(20).optional(),
+    context: z.array(zTaskContextReference).max(50).optional(),
+    untrustedInputs: z.array(zUntrustedInput).max(20).optional()
 });
 
 /**
@@ -634,7 +647,8 @@ export const zCreateTaskRequest = z.object({
     budgetUsd: zUsd.nullish(),
     concurrency: zTaskConcurrency.nullish(),
     inputFiles: z.array(zTaskInputFile).max(20).optional(),
-    context: z.array(zTaskContextReference).max(50).optional()
+    context: z.array(zTaskContextReference).max(50).optional(),
+    untrustedInputs: z.array(zUntrustedInput).max(20).optional()
 });
 
 /**
@@ -712,6 +726,7 @@ export const zTaskResponse = z.object({
     concurrency: zTaskConcurrency.nullable(),
     inputFiles: z.array(zTaskInputFile),
     context: z.array(zPinnedTaskContext),
+    untrustedInputs: z.array(zUntrustedInput),
     taskTemplateId: z.uuid().nullable(),
     taskTemplateVersion: z.int().gte(1).nullable(),
     createdAt: z.iso.datetime(),

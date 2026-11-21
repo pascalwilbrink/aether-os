@@ -7,6 +7,7 @@ import type { CreateTaskRequest } from './dto/create-task.request.js';
 import type { TaskResponse } from './dto/task.response.js';
 import type { PinnedKnowledge } from './task-context.js';
 import type { TaskBrief } from './task-fields.js';
+import { fillUntrusted } from './untrusted-inputs.js';
 import { TaskEntity } from './task.entity.js';
 import type { TaskStatus } from './task-transitions.js';
 
@@ -54,6 +55,7 @@ export class TaskMapper {
       expectedOutcome: task.brief.expectedOutcome,
       constraints: task.brief.constraints,
       deliverables: task.brief.deliverables,
+      untrustedInputs: task.brief.untrustedInputs,
       agentId: task.dto.agentId,
       agentVersionId: task.agentVersionId,
       serviceAccountId: task.dto.serviceAccountId,
@@ -99,19 +101,28 @@ export class TaskMapper {
   }
 
   toResponse(entity: TaskEntity): TaskResponse {
+    // People read the text with the outside text filled in.
+    const fill = (text: string) => fillUntrusted(text, entity.untrustedInputs);
+    const items = (list: ApiTypes.TaskItem[]) =>
+      list.map((item) => ({ ...item, description: fill(item.description) }));
     return {
       id: entity.id,
       organizationId: entity.organizationId,
       projectId: entity.projectId,
       parentTaskId: entity.parentTaskId,
       topLevelTaskId: entity.topLevelTaskId,
-      title: entity.title,
-      description: entity.instructions,
-      instructions: entity.instructions,
-      requirements: entity.requirements,
-      expectedOutcome: entity.expectedOutcome,
-      constraints: entity.constraints,
-      deliverables: entity.deliverables,
+      title: fill(entity.title),
+      description: fill(entity.instructions),
+      instructions: fill(entity.instructions),
+      requirements: items(entity.requirements),
+      expectedOutcome:
+        entity.expectedOutcome === null ? null : fill(entity.expectedOutcome),
+      constraints: items(entity.constraints),
+      deliverables: entity.deliverables.map((deliverable) => ({
+        ...deliverable,
+        description: fill(deliverable.description),
+      })),
+      untrustedInputs: entity.untrustedInputs,
       agentId: entity.agentId,
       agentVersionId: entity.agentVersionId,
       serviceAccountId: entity.serviceAccountId,

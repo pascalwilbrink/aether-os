@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api/http";
 import { listServiceAccounts } from "@/lib/api/pistis";
 import { getProject, listProjectMemberships } from "@/lib/api/polis";
 import { listRepositoryLinks, orUnavailable } from "@/lib/api/proxenos";
+import { listKnowledgeItems } from "@/lib/api/seshat";
 import { requireOrganization } from "@/lib/auth/current";
 import { repositoryChoices } from "@/lib/github";
 import { runnableServiceAccounts } from "@/lib/members";
@@ -33,8 +34,8 @@ async function Template({ params }: Pick<Props, "params">) {
     `${projectPath}/templates/${templateId}`,
   );
   const token = session.accessToken;
-  const [project, template, serviceAccounts, grants, links] = await Promise.all(
-    [
+  const [project, template, serviceAccounts, grants, links, knowledge] =
+    await Promise.all([
       getProject(token, organizationId, projectId),
       getTaskTemplate(token, organizationId, templateId),
       listServiceAccounts(token, organizationId).catch((error: unknown) => {
@@ -44,8 +45,12 @@ async function Template({ params }: Pick<Props, "params">) {
       }),
       listProjectMemberships(token, organizationId, projectId),
       orUnavailable(listRepositoryLinks(token, organizationId, projectId)),
-    ],
-  );
+      orUnavailable(
+        listKnowledgeItems(token, organizationId, projectId, {
+          status: "accepted",
+        }),
+      ),
+    ]);
   const version = await getTaskTemplateVersion(
     token,
     organizationId,
@@ -90,6 +95,33 @@ async function Template({ params }: Pick<Props, "params">) {
           constraints={effective.constraints}
           deliverables={effective.deliverables}
         />
+        {effective.context.length > 0 ? (
+          <div className="text-sm">
+            <h3 className="font-medium">Knowledge it pins</h3>
+            <ul className="mt-1 list-inside list-disc">
+              {effective.context.map((entry) => {
+                const item = knowledge.items.find((i) => i.id === entry.itemId);
+                return (
+                  <li key={entry.itemId}>
+                    <Link
+                      href={`${projectPath}/knowledge/${entry.itemId}`}
+                      className="underline"
+                    >
+                      {item?.title ?? entry.itemId}
+                    </Link>
+                    {item || knowledge.unavailable ? null : (
+                      <span className="text-xs text-zinc-500">
+                        {" "}
+                        (not an accepted item of this project: tasks from it
+                        will be refused)
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
         {effective.acceptanceCriteria.length > 0 ? (
           <ul className="list-inside list-disc text-sm">
             {effective.acceptanceCriteria.map((criterion) => (
@@ -128,6 +160,11 @@ async function Template({ params }: Pick<Props, "params">) {
               name,
             }))}
             repositories={repositoryChoices(links.items)}
+            knowledge={knowledge.items.map(({ id, title, type }) => ({
+              id,
+              title,
+              type,
+            }))}
             idempotencyKey={crypto.randomUUID()}
           />
         </section>

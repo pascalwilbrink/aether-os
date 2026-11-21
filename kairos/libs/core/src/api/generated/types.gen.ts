@@ -72,7 +72,9 @@ export type AutomationTrigger = {
  * A task written here. `title` and `instructions` can use the event's
  * fields: `{{issue.number}}`, `{{issue.title}}`, `{{issue.url}}`,
  * `{{repository}}`, `{{author}}` and `{{label}}`. The issue's title is
- * written by whoever opened it: untrusted input for the agent.
+ * written by whoever opened it: Kairos sends it to Hephaestus as an
+ * untrusted input (`untrustedInputs`), which the agent sees marked as
+ * data, never as instructions.
  *
  */
 export type AutomationTaskAction = {
@@ -125,6 +127,17 @@ export type AutomationAction = {
    * Artifact kinds that need approval before delivery (`*` for all), as a task's `review.artifactKinds`.
    */
   reviewArtifactKinds?: Array<string>;
+  /**
+   * Knowledge pinned on every task it starts (Hephaestus's `context`):
+   * accepted items of the project in Seshat, e.g. its conventions.
+   * Hephaestus checks them when the task is created (a refusal is the
+   * run's `TASK_CONTEXT_INVALID`).
+   *
+   */
+  context?: Array<{
+    kind: 'knowledge';
+    itemId: string;
+  }>;
 };
 
 export type AutomationRequest = {

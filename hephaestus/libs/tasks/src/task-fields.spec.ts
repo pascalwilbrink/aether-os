@@ -38,6 +38,7 @@ describe('taskBriefOf', () => {
       deliverables: [
         { key: 'report', kind: 'file', description: 'A report', path: '*.md' },
       ],
+      untrustedInputs: [],
       deliverableCriteria: [
         {
           key: 'deliverable.report',
@@ -99,6 +100,17 @@ describe('taskBriefOf', () => {
     ],
   ])('refuses %o', (dto, message) => {
     expect(() => taskBriefOf(dto, [], false)).toThrow(message);
+  });
+
+  it('refuses an untrusted input named twice', () => {
+    const input = { name: 'issue.title', source: 'GitHub', value: 'x' };
+    expect(() =>
+      taskBriefOf(
+        { description: 'x', untrustedInputs: [input, input] },
+        [],
+        false,
+      ),
+    ).toThrow('The untrusted input issue.title is given twice');
   });
 
   it("refuses a criterion checking a requirement the task doesn't have", () => {

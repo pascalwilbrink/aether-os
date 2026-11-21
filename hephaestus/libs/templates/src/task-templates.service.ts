@@ -254,6 +254,12 @@ export class TaskTemplatesService {
     template: TaskTemplateEntity,
     content: TemplateContent,
   ): Promise<EffectiveTemplate> {
+    if (!template.projectId && (content.context?.length ?? 0) > 0) {
+      // Knowledge belongs to one project: pinned elsewhere, it'd be refused.
+      throw new TaskTemplateInvalidError(
+        "Knowledge belongs to a project: only a project's template pins it (an organization-wide template can't)",
+      );
+    }
     let base: EffectiveTemplate | undefined;
     if (content.extends) {
       if (!template.projectId) {

@@ -136,6 +136,7 @@ describe('Tasks (e2e)', () => {
       concurrency: null,
       inputFiles: [],
       context: [],
+      untrustedInputs: [],
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
       finishedAt: null,
@@ -223,6 +224,37 @@ describe('Tasks (e2e)', () => {
         },
       ],
     });
+  });
+
+  it('fills text from outside in where people read the task', async () => {
+    const input = {
+      name: 'issue.title',
+      source: 'GitHub issue #12 in acme/api, opened by @octocat',
+      value: 'Login fails',
+    };
+    const created = await create(
+      owner,
+      {
+        title: 'Fix {{issue.title}}',
+        instructions: undefined,
+        description: 'The issue: {{issue.title}}. Keep {{other}} as it is.',
+        requirements: [
+          { key: 'REQ-1', description: 'No more {{issue.title}}' },
+        ],
+        untrustedInputs: [input],
+      },
+      'with-untrusted',
+    ).expect(201);
+    expect(created.body).toMatchObject({
+      title: 'Fix Login fails',
+      description: 'The issue: Login fails. Keep {{other}} as it is.',
+      requirements: [{ key: 'REQ-1', description: 'No more Login fails' }],
+      untrustedInputs: [input],
+    });
+    const twice = await create(owner, {
+      untrustedInputs: [input, input],
+    }).expect(409);
+    expect(twice.body.code).toBe('TASK_FIELDS_INVALID');
   });
 
   it("refuses a brief that doesn't hold together", async () => {

@@ -45,6 +45,18 @@ describe("automations", () => {
             key: "{{repository}}#{{issue.number}}",
             policy: "queue",
           },
+          context: [],
+        },
+      },
+    });
+    // Knowledge to pin: the checked items, each once.
+    expect(requestOf(fields({ context: "a,b,a" }))).toMatchObject({
+      request: {
+        action: {
+          context: [
+            { kind: "knowledge", itemId: "a" },
+            { kind: "knowledge", itemId: "b" },
+          ],
         },
       },
     });
