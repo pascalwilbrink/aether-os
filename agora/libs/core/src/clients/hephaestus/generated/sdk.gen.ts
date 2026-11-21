@@ -451,7 +451,7 @@ export const getTaskTemplateVersion = <ThrowOnError extends boolean = false>(
 
 /**
  * A task from a template version (its latest unless given), pinned
- * on the task: its title and instructions with the inputs filled in,
+ * on the task: its title, description and the other text fields with the inputs filled in,
  * its agent, and its acceptance criteria, plus any added here. Like
  * creating a task: `Idempotency-Key` required, 201 or 200.
  *

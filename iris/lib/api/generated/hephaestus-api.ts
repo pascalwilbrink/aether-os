@@ -279,7 +279,7 @@ export interface paths {
         put?: never;
         /**
          * @description A task from a template version (its latest unless given), pinned
-         *     on the task: its title and instructions with the inputs filled in,
+         *     on the task: its title, description and the other text fields with the inputs filled in,
          *     its agent, and its acceptance criteria, plus any added here. Like
          *     creating a task: `Idempotency-Key` required, 201 or 200.
          */
@@ -736,7 +736,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "TASK_CONTEXT_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "TASK_CONTEXT_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_FIELDS_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -863,9 +863,40 @@ export interface components {
          * @enum {string}
          */
         TaskFailureReason: "agent_failed" | "verification_failed" | "rejected" | "timeout" | "budget_exceeded" | "infrastructure" | "subtask_failed" | "access_denied";
+        /**
+         * @description A task's brief (docs/tasks.md, Task fields): what and why
+         *     (`description`), what must be implemented (`requirements`), the end
+         *     state (`expectedOutcome`), limits on how (`constraints`), what it
+         *     hands over (`deliverables`) and how it's checked
+         *     (`acceptanceCriteria`). `description` or, until the next contract
+         *     version, its old name `instructions` is required
+         *     (`TASK_FIELDS_INVALID`).
+         */
         CreateTaskRequest: {
             title: string;
-            instructions: string;
+            /** @description What needs to be done and why (Markdown). */
+            description?: string;
+            /**
+             * @deprecated
+             * @description The old name of `description`; ignored when `description` is given.
+             */
+            instructions?: string;
+            /** @description What must be implemented, e.g. `REQ-1`, "Expose GET /v1/invoices". Keys are unique among requirements and constraints. */
+            requirements?: components["schemas"]["TaskItem"][];
+            /** @description The end state the completed task should leave, in words (Markdown). */
+            expectedOutcome?: string;
+            /** @description Limits on how it's done, e.g. "No new dependencies". */
+            constraints?: components["schemas"]["TaskItem"][];
+            /**
+             * @description What the task hands over. Each is checked: it implies an
+             *     `artifact` criterion (`source: deliverable`, key
+             *     `deliverable.<key>`) that the run submitted an artifact for it
+             *     (the agent names the deliverable's key), or for a
+             *     `pull_request` deliverable that it committed in the task's
+             *     repository (which the task then needs). Keys are unique; at
+             *     most one is `primary`.
+             */
+            deliverables?: components["schemas"]["TaskDeliverable"][];
             /**
              * Format: uuid
              * @description Its published version is pinned when the task is created.
@@ -940,6 +971,23 @@ export interface components {
             type: string;
             title: string;
         };
+        TaskItem: {
+            key: string;
+            description: string;
+        };
+        TaskDeliverable: {
+            key: string;
+            /**
+             * @description The artifact kind it is (task plans and documents later).
+             * @enum {string}
+             */
+            kind: "text" | "json" | "file" | "pull_request";
+            description: string;
+            /** @description The task's main outcome; the artifact submitted for it becomes the primary one. */
+            primary?: boolean;
+            /** @description For a `file` deliverable, its file name, or a pattern with `*` (e.g. `report-*.md`). */
+            path?: string;
+        };
         TaskInputFile: {
             /**
              * Format: uuid
@@ -957,14 +1005,16 @@ export interface components {
         AcceptanceCriterionRequest: {
             key: string;
             description: string;
+            /** @description The requirement or constraint it checks (one of the task's keys, else `TASK_CRITERIA_INVALID`). */
+            requirementKey?: string;
             check: components["schemas"]["CriterionCheck"];
         };
         AcceptanceCriterion: components["schemas"]["AcceptanceCriterionRequest"] & {
             /**
-             * @description Where it came from (spec requirements later).
+             * @description Where it came from; `deliverable` for those a deliverable implies (spec requirements later).
              * @enum {string}
              */
-            source: "template" | "task";
+            source: "template" | "task" | "deliverable";
         };
         /** @description How a criterion is checked; by Hephaestus, never by the agent's word. */
         CriterionCheck: components["schemas"]["CommandCheck"] | components["schemas"]["ArtifactCheck"] | components["schemas"]["ManualCheck"];
@@ -990,6 +1040,8 @@ export interface components {
             primaryKind?: string;
             /** @description Artifacts with these titles exist. */
             titles?: string[];
+            /** @description An artifact was submitted for this deliverable of the task (for a `pull_request` one, the run committed in the repository). */
+            deliverable?: string;
         };
         /** @description Left to the reviewer; approving the draft confirms it. */
         ManualCheck: {
@@ -1000,7 +1052,7 @@ export interface components {
             type: "manual";
         };
         TemplateInput: {
-            /** @description Referred to as `{{name}}` in the title and instructions. */
+            /** @description Referred to as `{{name}}` in the title and the text fields (description, expected outcome, and the descriptions of requirements, constraints and deliverables). */
             name: string;
             description?: string;
             /** @description true if left out. */
@@ -1013,14 +1065,22 @@ export interface components {
             version: number;
         };
         /**
-         * @description One version of a template. A project template that `extends` an
-         *     organization template inherits its agent, title, inputs, criteria
-         *     and review settings, appends its own instructions to the
-         *     organization's, and can only add inputs and criteria.
+         * @description One version of a template, with a task's fields (`{{input}}`
+         *     placeholders in the text ones); `instructions` becomes the task's
+         *     `description`. A project template that `extends`
+         *     an organization template inherits its agent, title, inputs,
+         *     criteria and review settings, appends its own description and
+         *     expected outcome to the organization's, and can only add inputs,
+         *     requirements, constraints, deliverables and criteria.
          */
         TaskTemplateContent: {
             title?: string;
+            /** @description The task's description (what and why); `description` is the template's own. */
             instructions?: string;
+            requirements?: components["schemas"]["TaskItem"][];
+            expectedOutcome?: string;
+            constraints?: components["schemas"]["TaskItem"][];
+            deliverables?: components["schemas"]["TaskDeliverable"][];
             /** Format: uuid */
             agentId?: string;
             inputs?: components["schemas"]["TemplateInput"][];
@@ -1061,7 +1121,16 @@ export interface components {
         /** @description What a task from this version gets, with what it extends merged in. */
         EffectiveTaskTemplate: {
             title: string;
+            description: string;
+            /**
+             * @deprecated
+             * @description The same as `description`
+             */
             instructions: string;
+            requirements: components["schemas"]["TaskItem"][];
+            expectedOutcome: string | null;
+            constraints: components["schemas"]["TaskItem"][];
+            deliverables: components["schemas"]["TaskDeliverable"][];
             /** Format: uuid */
             agentId: string;
             inputs: components["schemas"]["TemplateInput"][];
@@ -1138,7 +1207,17 @@ export interface components {
              */
             topLevelTaskId: string;
             title: string;
+            /** @description What needs to be done and why. */
+            description: string;
+            /**
+             * @deprecated
+             * @description The same as `description`
+             */
             instructions: string;
+            requirements: components["schemas"]["TaskItem"][];
+            expectedOutcome: string | null;
+            constraints: components["schemas"]["TaskItem"][];
+            deliverables: components["schemas"]["TaskDeliverable"][];
             /** Format: uuid */
             agentId: string;
             /**
@@ -1217,6 +1296,8 @@ export interface components {
             primary: boolean;
             /** Format: uuid */
             revisionOf: string | null;
+            /** @description The task's deliverable it was submitted for, if any. */
+            deliverableKey: string | null;
             title: string;
             metadata: {
                 [key: string]: string;
