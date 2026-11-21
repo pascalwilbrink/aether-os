@@ -83,15 +83,16 @@ Agents' events have the agent as their aggregate, skills' the skill; its version
 
 ### Proxenos (`proxenos.events`)
 
-Proxenos, the integrations service (see `git.md`), turns verified provider webhooks into normalized events. Built so far (`../contracts/proxenos.asyncapi.yaml`): `git.installation-changed`, `git.repository-linked`, `git.repository-unlinked`, `git.pull-request.updated`, and `github.issue.opened`, `github.issue.labeled` and `github.issue-comment.created`.
+Proxenos, the integrations service (see `git.md`), turns verified provider webhooks into normalized events. Built so far (`../contracts/proxenos.asyncapi.yaml`): `git.installation-changed`, `git.repository-linked`, `git.repository-unlinked`, `git.pull-request.updated`, `git.pushed`, and `github.issue.opened`, `github.issue.labeled` and `github.issue-comment.created`.
 
 | Event | Payload | Consumers |
 |---|---|---|
 | `github.issue.opened`, `github.issue.labeled`, `github.issue-comment.created` | `webhookDeliveryId` and `deliveryId`, `repositoryId`, `repository`, `projectIds` and `links` (project and link ID: a task's `repository.linkId`), the issue's `number`, `title`, `url`, `labels`, `isPullRequest`, the `label` added or `commentId`, `author` (who did it), `authorPermission` (their role on the repository, or null when GitHub couldn't say: untrusted), `fromAetherOs`. The full payload (body, comment) is fetched from Proxenos when needed (`GET …/webhook-deliveries/{webhookDeliveryId}`) | Kairos (triggers) |
 | `git.installation-changed` | `installationId`, `provider`, `externalId`, `account`, `status`, `repositoriesAdded` / `repositoriesRemoved` (`repositoryId`, `fullName`) | Hephaestus, Kairos |
-| `git.repository-linked` | `linkId`, `projectId`, `repositoryId`, `fullName` | Hephaestus, Iris |
-| `git.repository-unlinked` | the same, and `reason` (`unlinked`, or `repository-removed` when the installation lost it) | Hephaestus, Iris |
+| `git.repository-linked` | `linkId`, `projectId`, `repositoryId`, `fullName` | Hephaestus, Iris, Seshat (indexes its documents) |
+| `git.repository-unlinked` | the same, and `reason` (`unlinked`, or `repository-removed` when the installation lost it) | Hephaestus, Iris, Seshat (retires its documents) |
 | `git.pull-request.updated` | `repositoryId`, `repository`, `number`, `url`, `state` (`open`, `closed`, `merged`), `branch`, `baseBranch`, `headSha`, `mergedAt`, `fromAetherOs` | Hephaestus (artifact `state`, branch cleanup) |
+| `git.pushed` | `webhookDeliveryId`, `deliveryId`, `repositoryId`, `repository`, `projectIds`, `links`, `branch`, `before`, `after`, `fromAetherOs`; pushes to the default branch only, the delivery as aggregate | Seshat (repository documents read again) |
 
 ### Kairos (`kairos.events`)
 

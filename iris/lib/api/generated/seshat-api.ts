@@ -213,6 +213,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description The project's repositories whose documents Seshat indexes, oldest
+         *     first. Linking a repository to the project (Proxenos) adds it with
+         *     the default paths; its documents are read-only items
+         *     (`source.kind: repository`), indexed at the default branch's head
+         *     and again on every push to it.
+         */
+        get: operations["listKnowledgeRepositories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories/{linkId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                /** @description The repository link's ID in Proxenos. */
+                linkId: components["parameters"]["LinkId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getKnowledgeRepository"];
+        /**
+         * @description Which paths of a repository linked to the project are indexed (a
+         *     folder ends in `/`). Starts indexing a link that isn't indexed yet
+         *     (e.g. one linked before Seshat followed links, or removed with
+         *     `DELETE`); either way it's read again soon. A link that isn't the
+         *     project's fails when it's read (`status: failed`).
+         */
+        put: operations["putKnowledgeRepository"];
+        post?: never;
+        /**
+         * @description Stops indexing the repository: its documents are retired (still
+         *     readable, no longer searched). Unlinking it in Proxenos does the same.
+         */
+        delete: operations["deleteKnowledgeRepository"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories/{linkId}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                /** @description The repository link's ID in Proxenos. */
+                linkId: components["parameters"]["LinkId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Reads the repository again soon (e.g. after a push Seshat missed, or a failure). */
+        post: operations["syncKnowledgeRepository"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/projects/{projectId}/knowledge/search": {
         parameters: {
             query?: never;
@@ -279,7 +359,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "KNOWLEDGE_ITEM_INVALID_TRANSITION" | "KNOWLEDGE_ITEM_INVALID" | "KNOWLEDGE_DOCUMENT_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED";
+        DomainErrorCode: "KNOWLEDGE_ITEM_INVALID_TRANSITION" | "KNOWLEDGE_ITEM_INVALID" | "KNOWLEDGE_DOCUMENT_INVALID" | "KNOWLEDGE_ITEM_READ_ONLY" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -312,13 +392,35 @@ export interface components {
         };
         /**
          * @description Where the item came from, set by Seshat from the token: `person`
-         *     (a person wrote it), `task` (an agent proposed it, with `taskId`).
+         *     (a person wrote it), `task` (an agent proposed it, with `taskId`),
+         *     or `repository` (a document indexed from a repository linked to the
+         *     project, with `repository`; read-only: change it with a commit).
          */
         KnowledgeSource: {
             /** @enum {string} */
-            kind: "person" | "task";
+            kind: "person" | "task" | "repository";
             /** Format: uuid */
             taskId?: string | null;
+            repository?: components["schemas"]["KnowledgeRepositoryFile"] | null;
+        };
+        /** @description A file in a repository linked to the project, at a commit of its default branch. */
+        KnowledgeRepositoryFile: {
+            /**
+             * Format: uuid
+             * @description The repository link in Proxenos.
+             */
+            linkId: string;
+            /** @description `owner/name`. */
+            fullName: string;
+            path: string;
+            commit: string;
+            /** @description Git's blob SHA of the file's content. */
+            blobSha: string;
+            /**
+             * Format: uri
+             * @description The file at that commit on GitHub.
+             */
+            url: string;
         };
         DocumentIndexing: {
             /**
@@ -331,14 +433,19 @@ export interface components {
             /** Format: date-time */
             indexedAt: string | null;
         };
-        /** @description The document's file in Loculus (its ID; download it from Loculus). */
+        /**
+         * @description The document's file: in Loculus (`fileId`; download it from
+         *     Loculus), or in a repository linked to the project (`repository`;
+         *     `fileId` and `sha256` are null).
+         */
         KnowledgeDocumentFile: {
             /** Format: uuid */
-            fileId: string;
+            fileId: string | null;
             fileName: string;
             contentType: string;
             sizeBytes: number;
-            sha256: string;
+            sha256: string | null;
+            repository: components["schemas"]["KnowledgeRepositoryFile"] | null;
         };
         KnowledgeDocument: components["schemas"]["KnowledgeDocumentFile"] & {
             indexing: components["schemas"]["DocumentIndexing"];
@@ -433,6 +540,48 @@ export interface components {
         };
         KnowledgeItemVersionPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["KnowledgeItemVersionResponse"][];
+        };
+        /** @description Relative to the repository's root, without `..`; a folder ends in `/`. */
+        RepositoryPath: string;
+        PutKnowledgeRepositoryRequest: {
+            paths: components["schemas"]["RepositoryPath"][];
+        };
+        KnowledgeRepositoryResponse: {
+            /**
+             * Format: uuid
+             * @description The repository link in Proxenos.
+             */
+            linkId: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            projectId: string;
+            /** @description `owner/name`; null until it was first read. */
+            fullName: string | null;
+            /** @description What is indexed: folders (ending in `/`) and files. */
+            paths: string[];
+            /**
+             * @description `pending`: waiting to be read (again). `synced`: its documents
+             *     match `commit`; each is then indexed like any document (its
+             *     `document.indexing`). `failed`: it couldn't be read (`error`);
+             *     a push, `PUT` or `POST …/sync` tries again.
+             * @enum {string}
+             */
+            status: "pending" | "synced" | "failed";
+            /** @description The default branch's commit its documents were last read at. */
+            commit: string | null;
+            /** @description Its current documents. */
+            documentCount: number;
+            /** @description Files under its paths that aren't indexed (a type Seshat can't read, too large, or past the most per repository). */
+            skippedCount: number;
+            error: string | null;
+            /** Format: date-time */
+            syncedAt: string | null;
+            createdAt: components["schemas"]["Timestamp"];
+            updatedAt: components["schemas"]["Timestamp"];
+        };
+        KnowledgeRepositoryPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["KnowledgeRepositoryResponse"][];
         };
         KnowledgePassage: {
             /** @description Its place in the item, from 0. */
@@ -557,6 +706,8 @@ export interface components {
         OrganizationId: string;
         ProjectId: string;
         ItemId: string;
+        /** @description The repository link's ID in Proxenos. */
+        LinkId: string;
         /** @description Page size. */
         Limit: number;
         /**
@@ -927,6 +1078,166 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["KnowledgeItemResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listKnowledgeRepositories: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeRepositoryPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getKnowledgeRepository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                /** @description The repository link's ID in Proxenos. */
+                linkId: components["parameters"]["LinkId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeRepositoryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    putKnowledgeRepository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                /** @description The repository link's ID in Proxenos. */
+                linkId: components["parameters"]["LinkId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutKnowledgeRepositoryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeRepositoryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    deleteKnowledgeRepository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                /** @description The repository link's ID in Proxenos. */
+                linkId: components["parameters"]["LinkId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stopped */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    syncKnowledgeRepository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                /** @description The repository link's ID in Proxenos. */
+                linkId: components["parameters"]["LinkId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeRepositoryResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];

@@ -8,6 +8,7 @@ import { WRITABLE_TYPES } from "@/lib/knowledge";
 import type { FormState, ProjectRef } from "../actions";
 import {
   createKnowledgeItemAction,
+  putKnowledgeRepositoryAction,
   updateKnowledgeItemAction,
   uploadKnowledgeDocumentAction,
 } from "./actions";
@@ -145,6 +146,43 @@ export function EditKnowledgeItemForm({
       </label>
       <button type="submit" disabled={pending} className={buttonClass}>
         {pending ? "Saving…" : "Save a new version"}
+      </button>
+    </form>
+  );
+}
+
+/**
+ * The paths of a linked repository whose documents are indexed: saving
+ * starts indexing a repository that isn't yet.
+ */
+export function RepositoryPathsForm({
+  repository,
+  paths,
+  submitLabel,
+}: {
+  repository: ProjectRef & { linkId: string };
+  paths: string[];
+  submitLabel: string;
+}) {
+  const [state, action, pending] = useActionState<FormState, FormData>(
+    putKnowledgeRepositoryAction.bind(null, repository),
+    {},
+  );
+  return (
+    <form action={action} className="space-y-2">
+      <FormError error={state.error} />
+      <label className="block text-sm">
+        Paths{" "}
+        <span className="text-zinc-500">(one per line; folders end in /)</span>
+        <textarea
+          name="paths"
+          rows={Math.max(2, Math.min(paths.length, 6))}
+          defaultValue={state.values?.paths ?? paths.join("\n")}
+          className={`${inputClass} font-mono text-xs`}
+        />
+      </label>
+      <button type="submit" disabled={pending} className={buttonClass}>
+        {pending ? "Saving…" : submitLabel}
       </button>
     </form>
   );

@@ -6,6 +6,7 @@ export type WritableKnowledgeItemType = Schemas["WritableKnowledgeItemType"];
 export type KnowledgeItemStatus = Schemas["KnowledgeItemStatus"];
 export type KnowledgeItem = Schemas["KnowledgeItemResponse"];
 export type NewKnowledgeItem = Schemas["CreateKnowledgeItemRequest"];
+export type KnowledgeRepository = Schemas["KnowledgeRepositoryResponse"];
 
 export const TYPES: { value: KnowledgeItemType; label: string; hint: string }[] = [
   { value: "decision", label: "Decision", hint: "A choice and why it was made" },
@@ -58,10 +59,15 @@ export const isKnowledgeItemStatus = (
   value: string | undefined,
 ): value is KnowledgeItemStatus => value !== undefined && value in STATUS;
 
-/** What a person may do to an item now (Seshat checks `knowledge:approve`). */
+/**
+ * What a person may do to an item now (Seshat checks `knowledge:approve`);
+ * nothing to a repository's document, which changes with a commit.
+ */
 export function decisionsFor(
   status: KnowledgeItemStatus,
+  sourceKind: KnowledgeItem["source"]["kind"] = "person",
 ): ("accept" | "reject" | "retire")[] {
+  if (sourceKind === "repository") return [];
   if (status === "proposed") return ["accept", "reject"];
   if (status === "accepted") return ["retire"];
   return [];
@@ -69,9 +75,74 @@ export function decisionsFor(
 
 /** Where an item came from, in words. */
 export function sourceLabel(item: Pick<KnowledgeItem, "source" | "createdBy">) {
+  if (item.source.kind === "repository") {
+    return `From ${item.source.repository?.fullName ?? "a repository"}`;
+  }
   return item.source.kind === "task"
     ? "Proposed by an agent"
     : `Written by ${item.createdBy}`;
+}
+
+/** A commit's short form, as GitHub shows it. */
+export const shortCommit = (commit: string | null | undefined) =>
+  commit ? commit.slice(0, 7) : "";
+
+/** The most paths a repository indexes (Seshat's limit). */
+const MAX_PATHS = 20;
+
+/**
+ * A repository's paths to index, typed one per line (or comma-separated):
+ * folders end in `/`, anything else is one file; relative to the
+ * repository's root, without `..`.
+ */
+export function pathsFromText(
+  text: string | undefined,
+): { paths: string[] } | { error: string } {
+  const paths = [
+    ...new Set(
+      (text ?? "")
+        .split(/[\n,]/)
+        .map((path) => path.trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (paths.length === 0) {
+    return { error: "Give at least one folder (ending in /) or file." };
+  }
+  if (paths.length > MAX_PATHS) {
+    return { error: `At most ${MAX_PATHS} paths.` };
+  }
+  for (const path of paths) {
+    if (path.startsWith("/") || /(^|\/)\.\.(\/|$)/.test(path)) {
+      return {
+        error: `Paths are relative to the repository's root, without "..": not "${path}".`,
+      };
+    }
+    if (path.length > 500) {
+      return { error: "A path is at most 500 characters." };
+    }
+  }
+  return { paths };
+}
+
+/** A repository's indexing state, in words and colour. */
+export function repositoryStatus(status: KnowledgeRepository["status"]) {
+  return {
+    pending: {
+      label: "Reading",
+      classes:
+        "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200",
+    },
+    synced: {
+      label: "Up to date",
+      classes:
+        "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
+    },
+    failed: {
+      label: "Failed",
+      classes: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200",
+    },
+  }[status];
 }
 
 /** Tags from a comma-separated field: trimmed, without empties or repeats. */

@@ -5,10 +5,13 @@ import { ActionButton } from "@/app/components/action-forms";
 import { inputClass, secondaryButtonClass } from "@/app/components/form";
 import { orUnavailable } from "@/lib/api/http";
 import { getProject } from "@/lib/api/polis";
+import { listRepositoryLinks } from "@/lib/api/proxenos";
 import {
   listKnowledgeItems,
+  listKnowledgeRepositories,
   searchKnowledge,
   type KnowledgeItem,
+  type KnowledgeRepository,
 } from "@/lib/api/seshat";
 import { requireOrganization } from "@/lib/auth/current";
 import {
@@ -16,14 +19,27 @@ import {
   isKnowledgeItemType,
   knowledgeStatus,
   matchedByLabel,
+  repositoryStatus,
+  shortCommit,
   sourceLabel,
   TYPES,
   typeLabel,
 } from "@/lib/knowledge";
 import { formatTime } from "@/lib/tasks";
 
-import { decideKnowledgeItemAction } from "./actions";
-import { NewKnowledgeItemForm, UploadDocumentForm } from "./knowledge-forms";
+import {
+  decideKnowledgeItemAction,
+  deleteKnowledgeRepositoryAction,
+  syncKnowledgeRepositoryAction,
+} from "./actions";
+import {
+  NewKnowledgeItemForm,
+  RepositoryPathsForm,
+  UploadDocumentForm,
+} from "./knowledge-forms";
+
+/** What a newly linked repository indexes (Seshat's REPOSITORY_DEFAULT_PATHS default). */
+const DEFAULT_PATHS = ["docs/", "specs/", "adr/", "README.md"];
 
 type Props = PageProps<"/orgs/[organizationId]/projects/[projectId]/knowledge">;
 
@@ -61,7 +77,7 @@ async function Knowledge({ params, searchParams }: Props) {
     type: isKnowledgeItemType(type) ? type : undefined,
     status: isKnowledgeItemStatus(status) ? status : undefined,
   };
-  const [project, items, proposals, found] = await Promise.all([
+  const [project, items, proposals, found, links, indexed] = await Promise.all([
     getProject(token, organizationId, projectId),
     orUnavailable(listKnowledgeItems(token, organizationId, projectId, filter)),
     orUnavailable(
@@ -76,7 +92,29 @@ async function Knowledge({ params, searchParams }: Props) {
           limit: 20,
         }).catch(() => null)
       : Promise.resolve(null),
+    orUnavailable(listRepositoryLinks(token, organizationId, projectId)),
+    orUnavailable(listKnowledgeRepositories(token, organizationId, projectId)),
   ]);
+  // Each linked repository with how Seshat indexes it (if it does), and any
+  // Seshat indexes whose link Proxenos didn't list.
+  const repositories: {
+    linkId: string;
+    fullName: string;
+    indexed: KnowledgeRepository | undefined;
+  }[] = [
+    ...links.items.map((link) => ({
+      linkId: link.id,
+      fullName: link.repository.fullName,
+      indexed: indexed.items.find((entry) => entry.linkId === link.id),
+    })),
+    ...indexed.items
+      .filter((entry) => !links.items.some((link) => link.id === entry.linkId))
+      .map((entry) => ({
+        linkId: entry.linkId,
+        fullName: entry.fullName ?? "A repository",
+        indexed: entry,
+      })),
+  ];
   const ref = { organizationId, projectId };
   const filterHref = (next: { type?: string; status?: string }) => {
     const search = new URLSearchParams();
@@ -281,6 +319,121 @@ async function Knowledge({ params, searchParams }: Props) {
                 </span>
               </li>
             ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-medium">From repositories</h2>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          Documents in the project&apos;s linked repositories (Markdown, text,
+          HTML, PDF, Word) are indexed at the default branch and again after
+          every push. They&apos;re read-only here: change them with a commit.
+        </p>
+        {links.unavailable || indexed.unavailable ? (
+          <p className="text-sm text-amber-700 dark:text-amber-300">
+            Repositories can&apos;t all be shown right now (
+            {links.unavailable ? "Proxenos" : "Seshat"} isn&apos;t answering).
+          </p>
+        ) : null}
+        {repositories.length === 0 ? (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            No repositories are linked to this project.{" "}
+            <Link href={projectPath} className="underline">
+              Link one
+            </Link>{" "}
+            from the project page.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {repositories.map(({ linkId, fullName, indexed: entry }) => {
+              const repositoryRef = { ...ref, linkId };
+              const state = entry ? repositoryStatus(entry.status) : null;
+              return (
+                <li
+                  key={linkId}
+                  className="space-y-2 rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="font-medium">{fullName}</span>
+                      {state ? (
+                        <span
+                          className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${state.classes}`}
+                        >
+                          {state.label}
+                        </span>
+                      ) : (
+                        <span className="ml-2 text-xs text-zinc-500">
+                          not indexed
+                        </span>
+                      )}
+                      {entry ? (
+                        <span className="ml-2 text-xs text-zinc-500">
+                          {entry.documentCount} document
+                          {entry.documentCount === 1 ? "" : "s"}
+                          {entry.skippedCount > 0
+                            ? ` · ${entry.skippedCount} other file${entry.skippedCount === 1 ? "" : "s"} skipped`
+                            : ""}
+                          {entry.commit
+                            ? ` · at ${shortCommit(entry.commit)}`
+                            : ""}
+                          {entry.syncedAt
+                            ? ` · read ${formatTime(entry.syncedAt)}`
+                            : ""}
+                        </span>
+                      ) : null}
+                    </div>
+                    {entry ? (
+                      <div className="flex gap-2">
+                        <ActionButton
+                          action={syncKnowledgeRepositoryAction.bind(
+                            null,
+                            repositoryRef,
+                          )}
+                          label="Read again"
+                          pendingLabel="Asking…"
+                        />
+                        <ActionButton
+                          action={deleteKnowledgeRepositoryAction.bind(
+                            null,
+                            repositoryRef,
+                          )}
+                          label="Stop indexing"
+                          pendingLabel="Stopping…"
+                          confirmText={`Stop indexing ${fullName}? Its documents are retired.`}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                  {entry?.error ? (
+                    <p
+                      className={
+                        entry.status === "failed"
+                          ? "text-red-700 dark:text-red-300"
+                          : "text-amber-700 dark:text-amber-300"
+                      }
+                    >
+                      {entry.error}
+                    </p>
+                  ) : null}
+                  <details>
+                    <summary className="cursor-pointer text-xs text-zinc-600 dark:text-zinc-400">
+                      {entry
+                        ? `Paths: ${entry.paths.join(", ")}`
+                        : "Index its documents"}
+                    </summary>
+                    <div className="mt-2">
+                      <RepositoryPathsForm
+                        repository={repositoryRef}
+                        paths={entry?.paths ?? DEFAULT_PATHS}
+                        submitLabel={entry ? "Save paths" : "Index documents"}
+                      />
+                    </div>
+                  </details>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
