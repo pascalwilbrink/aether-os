@@ -192,10 +192,9 @@ describe('Tool servers (e2e)', () => {
         `Bearer ${await tokens.service('agora', ['platform:read'])}`,
       );
     const version = (tools: unknown) =>
-      agora.post(`/v1/organizations/${orgId}/agent-version-checks`).send({
-        tools,
-        skills: [],
-      });
+      agora
+        .post(`/v1/organizations/${orgId}/agent-version-checks`)
+        .send({ tools });
 
     await version([
       { name: 'docs', enabled: true, tools: ['lookup'] },

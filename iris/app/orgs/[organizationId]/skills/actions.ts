@@ -10,7 +10,7 @@ import {
   createSkillVersion,
   getSkill,
   getSkillVersion,
-} from "@/lib/api/hephaestus";
+} from "@/lib/api/agora";
 import { messageOf } from "@/lib/api/messages";
 import { requireOrganization } from "@/lib/auth/current";
 import { valuesOf } from "@/lib/forms";

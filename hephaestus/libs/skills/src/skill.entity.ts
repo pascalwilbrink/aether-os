@@ -1,12 +1,11 @@
 import { Check, Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
-import type { ApiTypes } from '@hephaestus/core';
-
-export type SkillStatus = ApiTypes.SkillStatus;
+export type SkillStatus = 'active' | 'archived';
 
 /**
- * An organization's skill (the Agent Skills format): its name and its
- * latest version; the versions, never changed, are `skill_versions`.
+ * Hephaestus's copy of one of Agora's skills (from `agora.events`): its
+ * name, status and latest version; the versions, never changed, are
+ * `skill_versions`.
  */
 @Entity({ name: 'skills' })
 @Check('ck_skills_status', `status IN ('active', 'archived')`)
@@ -30,8 +29,17 @@ export class SkillEntity {
   @Column({ type: 'text' })
   status: SkillStatus;
 
+  /** 0 until its first version's event is in. */
   @Column({ type: 'integer' })
   latestVersion: number;
+
+  /**
+   * The last event applied (its `aggregateVersion`): an event that isn't
+   * newer changes nothing. Rows from before Agora owned skills are 1, as
+   * Agora's import starts them.
+   */
+  @Column({ type: 'integer' })
+  revision: number;
 
   @Column({ type: 'text' })
   createdBy: string;

@@ -234,7 +234,7 @@ describe('Agents (e2e)', () => {
     });
   });
 
-  it("asks Hephaestus whether a version's model, tools and skills can be chosen", async () => {
+  it("checks a version's skills itself, and asks Pylon and Hephaestus about its model and tools", async () => {
     const id = await createAgent();
     const versions = `${base}/${id}/versions`;
 
@@ -245,7 +245,6 @@ describe('Agents (e2e)', () => {
         choices: expect.objectContaining({
           model: versionBody.model,
           tools: versionBody.tools,
-          skills: versionBody.skills,
         }),
       },
     ]);
@@ -258,6 +257,15 @@ describe('Agents (e2e)', () => {
       [{ tools: [{ name: 'search', enabled: true }] }, 'TOOL_SERVER_INVALID'],
       [
         { skills: [{ name: 'summarize', version: '1', enabled: true }] },
+        'SKILL_INVALID',
+      ],
+      [
+        {
+          skills: [
+            { name: 'summarize', version: '1', enabled: false },
+            { name: 'summarize', version: '1', enabled: false },
+          ],
+        },
         'SKILL_INVALID',
       ],
     ] as const) {
@@ -274,10 +282,34 @@ describe('Agents (e2e)', () => {
       .send({ ...versionBody, tools: [{ name: 'search', enabled: true }] })
       .expect(201);
 
+    // A skill of the organization's, at a version it has; not once archived.
+    const skillMd = '---\nname: summarize\ndescription: Summarizes\n---\n';
+    const skill = await http()
+      .post(`/v1/organizations/${orgId}/skills`)
+      .send({
+        name: 'summarize',
+        files: [{ path: 'SKILL.md', content: skillMd }],
+      })
+      .expect(201);
+    const pinning = (version: string) => ({
+      ...versionBody,
+      skills: [{ name: 'summarize', version, enabled: true }],
+    });
+    expect(
+      (await http().post(versions).send(pinning('2')).expect(409)).body.code,
+    ).toBe('SKILL_INVALID');
+    await http().post(versions).send(pinning('1')).expect(201);
+    await http()
+      .post(`/v1/organizations/${orgId}/skills/${skill.body.id}/archive`)
+      .expect(200);
+    expect(
+      (await http().post(versions).send(pinning('1')).expect(409)).body.code,
+    ).toBe('SKILL_INVALID');
+
     // Without Hephaestus no version is created, rather than an unchecked one.
     hephaestus.down = true;
     await http().post(versions).send(versionBody).expect(503);
     const list = await http().get(versions).expect(200);
-    expect(list.body.items).toHaveLength(2);
+    expect(list.body.items).toHaveLength(3);
   });
 });

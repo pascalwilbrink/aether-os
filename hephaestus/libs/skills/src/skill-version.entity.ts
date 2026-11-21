@@ -1,8 +1,8 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
-import type { ApiTypes } from '@hephaestus/core';
+import type { SkillFile } from './skill.types.js';
 
-/** One version of a skill: its folder's files, never changed. */
+/** One version of a skill (Agora's, copied): its folder's files, never changed. */
 @Entity({ name: 'skill_versions' })
 @Index('uq_skill_versions_skill_id_version', ['skillId', 'version'], {
   unique: true,
@@ -26,9 +26,9 @@ export class SkillVersionEntity {
   @Column({ type: 'text' })
   description: string;
 
-  /** Up to 1 MiB: only loaded when asked for (`SkillsService.loadFiles`). */
+  /** Up to 1 MiB: only loaded for a run (`SkillsService.forRun`). */
   @Column({ type: 'jsonb', select: false })
-  files?: ApiTypes.SkillFile[];
+  files?: SkillFile[];
 
   @Column({ type: 'integer' })
   fileCount: number;

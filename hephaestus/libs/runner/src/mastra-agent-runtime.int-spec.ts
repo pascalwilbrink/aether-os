@@ -45,7 +45,7 @@ import { RUNNER_OPTIONS } from './runner.options.js';
 import { SandboxProvisioner } from './sandbox-provisioner.js';
 import { TaskRunner } from './task-runner.js';
 import { TaskTokens } from './task-tokens.js';
-import { publishedAgent } from '../../../test/agora.js';
+import { PublishedSkill, publishedAgent } from '../../../test/agora.js';
 
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000aa';
 
@@ -125,14 +125,12 @@ describe('MastraAgentRuntime (Postgres)', () => {
   });
 
   /** A task for an agent whose published version has these settings. */
-  /** Agora's check of a new version's tools and skills (agent-version-checks). */
+  /** Agora's check of a new version's tools (agent-version-checks). */
   const choosable = (choices: {
     tools?: { name: string; enabled: boolean; tools?: string[] }[];
-    skills?: { name: string; version: string; enabled: boolean }[];
   }) =>
     moduleRef.get(AgentVersionChecks).assertChoosable(organizationId, {
       tools: choices.tools ?? [],
-      skills: choices.skills ?? [],
     });
 
   async function taskFor(
@@ -774,38 +772,22 @@ describe('MastraAgentRuntime (Postgres)', () => {
     }
   });
 
-  describe('skills', () => {
-    const skills = () =>
-      actingAs(
-        moduleRef.get(SkillsService),
-        testPrincipal({
-          sub: 'user-1',
-          subType: 'user',
-          organizationId,
-          organizationRoles: ['owner'],
-          scopes: [],
-        }),
-      );
+  describe("skills (a copy of Agora's, from its events)", () => {
     const skillMd = (body: string) =>
       `---\nname: login-fixes\ndescription: How we fix sign-in bugs\n---\n\n${body}`;
 
-    beforeEach(() => {});
-
     it('gives the agent the pinned version of its skills, through the skill tool', async () => {
-      const skill = await skills().create(organizationId, {
-        name: 'login-fixes',
-        files: [
-          {
-            path: 'SKILL.md',
-            content: skillMd('Always lowercase emails first.'),
-          },
-          { path: 'references/emails.md', content: 'RFC 5321' },
-        ],
-      });
+      const skill = await PublishedSkill.create(moduleRef, organizationId, [
+        {
+          path: 'SKILL.md',
+          content: skillMd('Always lowercase emails first.'),
+        },
+        { path: 'references/emails.md', content: 'RFC 5321' },
+      ]);
       // A later version doesn't change what the agent version pinned.
-      await skills().createVersion(organizationId, skill.id, {
-        files: [{ path: 'SKILL.md', content: skillMd('Something else.') }],
-      });
+      await skill.publish([
+        { path: 'SKILL.md', content: skillMd('Something else.') },
+      ]);
       models.replies = [
         { toolCall: { tool: 'skill', input: { name: 'login-fixes' } } },
         { text: 'Lowercased them.' },
@@ -829,33 +811,27 @@ describe('MastraAgentRuntime (Postgres)', () => {
       expect(answer).not.toContain('Something else.');
     });
 
-    it('refuses versions naming a skill, or a version of one, that the organization lacks', async () => {
-      await expect(
-        choosable({
-          skills: [{ name: 'nowhere', version: '1', enabled: true }],
-        }),
-      ).rejects.toMatchObject({ code: 'SKILL_INVALID' });
-      await skills().create(organizationId, {
-        name: 'login-fixes',
-        files: [{ path: 'SKILL.md', content: skillMd('x') }],
+    it('fails without retrying when a pinned version is not in the copy', async () => {
+      await PublishedSkill.create(moduleRef, organizationId, [
+        { path: 'SKILL.md', content: skillMd('Only version 1.') },
+      ]);
+      const { task: created } = await taskFor({
+        skills: [{ name: 'login-fixes', version: '2', enabled: true }],
       });
-      await expect(
-        choosable({
-          skills: [{ name: 'login-fixes', version: '2', enabled: true }],
-        }),
-      ).rejects.toMatchObject({ code: 'SKILL_INVALID' });
-      await expect(
-        choosable({
-          skills: [{ name: 'login-fixes', version: 'latest', enabled: true }],
-        }),
-      ).rejects.toMatchObject({ code: 'SKILL_INVALID' });
+
+      await runOnce();
+
+      await expect(task(created.id)).resolves.toMatchObject({
+        status: 'failed',
+        failureReason: 'infrastructure',
+      });
+      expect(models.calls).toHaveLength(0);
     });
 
     it('keeps running a pinned version after its skill is archived', async () => {
-      const skill = await skills().create(organizationId, {
-        name: 'login-fixes',
-        files: [{ path: 'SKILL.md', content: skillMd('Archived but pinned.') }],
-      });
+      const skill = await PublishedSkill.create(moduleRef, organizationId, [
+        { path: 'SKILL.md', content: skillMd('Archived but pinned.') },
+      ]);
       models.replies = [
         { toolCall: { tool: 'skill', input: { name: 'login-fixes' } } },
         { text: 'Done.' },
@@ -863,7 +839,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
       const { task: created } = await taskFor({
         skills: [{ name: 'login-fixes', version: '1', enabled: true }],
       });
-      await skills().archive(organizationId, skill.id);
+      await skill.archive();
 
       await runOnce();
 
@@ -873,12 +849,6 @@ describe('MastraAgentRuntime (Postgres)', () => {
       expect(JSON.stringify(models.calls[1].prompt)).toContain(
         'Archived but pinned.',
       );
-      // But new versions can't choose it (Agora's check).
-      await expect(
-        choosable({
-          skills: [{ name: 'login-fixes', version: '1', enabled: true }],
-        }),
-      ).rejects.toMatchObject({ code: 'SKILL_INVALID' });
     });
   });
 

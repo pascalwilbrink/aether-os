@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { listSkills } from "@/lib/api/hephaestus";
+import { listSkills } from "@/lib/api/agora";
 import { requireOrganization } from "@/lib/auth/current";
 
 import { createSkillAction } from "./actions";
@@ -74,7 +74,7 @@ async function Skills({ params }: Props) {
         <h2 className="font-medium">New skill</h2>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Iris writes a skill&apos;s SKILL.md; a skill with more files
-          (references, scripts) comes through Hephaestus&apos;s API, and Iris
+          (references, scripts) comes through Agora&apos;s API, and Iris
           keeps them in new versions.
         </p>
         <SkillForm action={createSkillAction.bind(null, organizationId)} />

@@ -1,97 +1,48 @@
 import { Injectable } from '@nestjs/common';
-import { v7 as uuidv7 } from 'uuid';
 
-import type { ApiTypes } from '@hephaestus/core';
+import type { AgoraEvents } from '@hephaestus/core';
 
-import type { CheckedSkill } from './skill-files.js';
 import { SkillVersionEntity } from './skill-version.entity.js';
 import { SkillEntity } from './skill.entity.js';
+import type { PublishedSkillVersion } from './skill.types.js';
 
+/** Agora's skill events → Hephaestus's copy (IDs are Agora's). */
 @Injectable()
 export class SkillMapper {
-  /** A new skill, at version 1; its ID (UUIDv7) is generated here. */
-  toEntity(
+  /** A new skill, without a version until `skill-version.published` comes. */
+  fromCreated(
+    payload: AgoraEvents.SkillCreated,
     organizationId: string,
-    checked: CheckedSkill,
-    createdBy: string,
-    now: Date,
+    revision: number,
   ): SkillEntity {
+    const createdAt = new Date(payload.createdAt);
     return Object.assign(new SkillEntity(), {
-      id: uuidv7(),
+      id: payload.skillId,
       organizationId,
-      name: checked.name,
-      description: checked.description,
+      name: payload.name,
+      description: '',
       status: 'active',
-      latestVersion: 1,
-      createdBy,
-      createdAt: now,
-      updatedAt: now,
+      latestVersion: 0,
+      revision,
+      createdBy: payload.createdBy,
+      createdAt,
+      updatedAt: createdAt,
     } satisfies SkillEntity);
   }
 
-  toVersionEntity(
-    skill: SkillEntity,
-    version: number,
-    files: ApiTypes.SkillFile[],
-    checked: CheckedSkill,
-    createdBy: string,
-    now: Date,
-  ): SkillVersionEntity {
+  fromPublished(version: PublishedSkillVersion): SkillVersionEntity {
     return Object.assign(new SkillVersionEntity(), {
-      id: uuidv7(),
-      skillId: skill.id,
-      organizationId: skill.organizationId,
-      name: skill.name,
-      version,
-      description: checked.description,
-      files: sortFiles(files),
-      fileCount: files.length,
-      sizeBytes: checked.sizeBytes,
-      createdBy,
-      createdAt: now,
+      id: version.id,
+      skillId: version.skillId,
+      organizationId: version.organizationId,
+      name: version.name,
+      version: version.version,
+      description: version.description,
+      files: version.files,
+      fileCount: version.fileCount,
+      sizeBytes: version.sizeBytes,
+      createdBy: version.createdBy,
+      createdAt: new Date(version.createdAt),
     } satisfies SkillVersionEntity);
   }
-
-  toResponse(entity: SkillEntity): ApiTypes.SkillResponse {
-    return {
-      id: entity.id,
-      organizationId: entity.organizationId,
-      name: entity.name,
-      description: entity.description,
-      status: entity.status,
-      latestVersion: entity.latestVersion,
-      createdBy: entity.createdBy,
-      createdAt: entity.createdAt.toISOString(),
-      updatedAt: entity.updatedAt.toISOString(),
-    };
-  }
-
-  /** With its files only when reading one version. */
-  toVersionResponse(
-    entity: SkillVersionEntity,
-    withFiles: boolean,
-  ): ApiTypes.SkillVersionResponse {
-    return {
-      id: entity.id,
-      skillId: entity.skillId,
-      organizationId: entity.organizationId,
-      name: entity.name,
-      version: entity.version,
-      description: entity.description,
-      sizeBytes: entity.sizeBytes,
-      fileCount: entity.fileCount,
-      ...(withFiles && entity.files ? { files: entity.files } : {}),
-      createdBy: entity.createdBy,
-      createdAt: entity.createdAt.toISOString(),
-    };
-  }
-}
-
-/** `SKILL.md` first, then by path. */
-function sortFiles(files: ApiTypes.SkillFile[]): ApiTypes.SkillFile[] {
-  const rank = (file: ApiTypes.SkillFile) => (file.path === 'SKILL.md' ? 0 : 1);
-  return [...files].sort(
-    (a, b) =>
-      rank(a) - rank(b) || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0),
-  );
 }

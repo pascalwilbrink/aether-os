@@ -15,9 +15,6 @@ import type {
   ApproveArtifactData,
   ApproveArtifactErrors,
   ApproveArtifactResponses,
-  ArchiveSkillData,
-  ArchiveSkillErrors,
-  ArchiveSkillResponses,
   ArchiveTaskTemplateData,
   ArchiveTaskTemplateErrors,
   ArchiveTaskTemplateResponses,
@@ -27,12 +24,6 @@ import type {
   CheckAgentVersionData,
   CheckAgentVersionErrors,
   CheckAgentVersionResponses,
-  CreateSkillData,
-  CreateSkillErrors,
-  CreateSkillResponses,
-  CreateSkillVersionData,
-  CreateSkillVersionErrors,
-  CreateSkillVersionResponses,
   CreateTaskData,
   CreateTaskErrors,
   CreateTaskFromTemplateData,
@@ -60,12 +51,6 @@ import type {
   DestroyWorkspaceData,
   DestroyWorkspaceErrors,
   DestroyWorkspaceResponses,
-  GetSkillData,
-  GetSkillErrors,
-  GetSkillResponses,
-  GetSkillVersionData,
-  GetSkillVersionErrors,
-  GetSkillVersionResponses,
   GetTaskArtifactData,
   GetTaskArtifactErrors,
   GetTaskArtifactResponses,
@@ -90,12 +75,6 @@ import type {
   ListExecutionEventsData,
   ListExecutionEventsErrors,
   ListExecutionEventsResponses,
-  ListSkillsData,
-  ListSkillsErrors,
-  ListSkillsResponses,
-  ListSkillVersionsData,
-  ListSkillVersionsErrors,
-  ListSkillVersionsResponses,
   ListTaskArtifactsData,
   ListTaskArtifactsErrors,
   ListTaskArtifactsResponses,
@@ -168,13 +147,11 @@ export type Options<
 };
 
 /**
- * Whether an agent version's tools and skills are choosable in the
- * organization, for Agora to check before it creates the version (its
- * model Agora checks with Pylon's catalogue): each enabled entry of `tools`
- * names one of the organization's tool servers, each at most once
- * (`TOOL_SERVER_INVALID`); each enabled entry of `skills` a version of
- * one of its active skills, each skill at most once (`SKILL_INVALID`).
- * Changes nothing.
+ * Whether an agent version's tools are choosable in the organization,
+ * for Agora to check before it creates the version (its model Agora
+ * checks with Pylon's catalogue, its skills itself): each enabled entry
+ * of `tools` names one of the organization's tool servers, each at
+ * most once (`TOOL_SERVER_INVALID`). Changes nothing.
  *
  */
 export const checkAgentVersion = <ThrowOnError extends boolean = false>(
@@ -984,143 +961,5 @@ export const listToolServerTools = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/tool-servers/{toolServerId}/tools',
-    ...options,
-  });
-
-/**
- * The organization's skills, by name, without their files.
- */
-export const listSkills = <ThrowOnError extends boolean = false>(
-  options: Options<ListSkillsData, ThrowOnError>,
-): RequestResult<ListSkillsResponses, ListSkillsErrors, ThrowOnError> =>
-  (options.client ?? client).get<
-    ListSkillsResponses,
-    ListSkillsErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/skills',
-    ...options,
-  });
-
-/**
- * Creates a skill with its first version: a folder of text files in the
- * Agent Skills format, with `SKILL.md` at its root (YAML front matter
- * with `name`, the skill's name, and `description`, then the
- * instructions). Agent versions pin a version of it (`skills[]`).
- *
- */
-export const createSkill = <ThrowOnError extends boolean = false>(
-  options: Options<CreateSkillData, ThrowOnError>,
-): RequestResult<CreateSkillResponses, CreateSkillErrors, ThrowOnError> =>
-  (options.client ?? client).post<
-    CreateSkillResponses,
-    CreateSkillErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/skills',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-export const getSkill = <ThrowOnError extends boolean = false>(
-  options: Options<GetSkillData, ThrowOnError>,
-): RequestResult<GetSkillResponses, GetSkillErrors, ThrowOnError> =>
-  (options.client ?? client).get<
-    GetSkillResponses,
-    GetSkillErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/skills/{skillId}',
-    ...options,
-  });
-
-/**
- * Archives it (idempotent): new agent versions can't choose it, and it
- * gets no new versions. Agent versions that already pin one of its
- * versions keep running with it.
- *
- */
-export const archiveSkill = <ThrowOnError extends boolean = false>(
-  options: Options<ArchiveSkillData, ThrowOnError>,
-): RequestResult<ArchiveSkillResponses, ArchiveSkillErrors, ThrowOnError> =>
-  (options.client ?? client).post<
-    ArchiveSkillResponses,
-    ArchiveSkillErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/skills/{skillId}/archive',
-    ...options,
-  });
-
-/**
- * Newest first, without their files.
- */
-export const listSkillVersions = <ThrowOnError extends boolean = false>(
-  options: Options<ListSkillVersionsData, ThrowOnError>,
-): RequestResult<
-  ListSkillVersionsResponses,
-  ListSkillVersionsErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    ListSkillVersionsResponses,
-    ListSkillVersionsErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/skills/{skillId}/versions',
-    ...options,
-  });
-
-/**
- * A new version (versions never change): the whole folder again, its
- * `SKILL.md` naming the same skill. Numbered by the server.
- *
- */
-export const createSkillVersion = <ThrowOnError extends boolean = false>(
-  options: Options<CreateSkillVersionData, ThrowOnError>,
-): RequestResult<
-  CreateSkillVersionResponses,
-  CreateSkillVersionErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).post<
-    CreateSkillVersionResponses,
-    CreateSkillVersionErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/skills/{skillId}/versions',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-/**
- * The version with its files.
- */
-export const getSkillVersion = <ThrowOnError extends boolean = false>(
-  options: Options<GetSkillVersionData, ThrowOnError>,
-): RequestResult<
-  GetSkillVersionResponses,
-  GetSkillVersionErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    GetSkillVersionResponses,
-    GetSkillVersionErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/skills/{skillId}/versions/{version}',
     ...options,
   });

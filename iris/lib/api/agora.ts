@@ -1,7 +1,7 @@
 import "server-only";
 
 import { config } from "../config";
-import type { Agent, AgentVersion, AgoraSchema } from "./index";
+import type { Agent, AgentVersion, AgoraSchema, Skill, SkillVersion } from "./index";
 import { call, type Page } from "./http";
 
 const agora = <T>(
@@ -74,4 +74,76 @@ export const publishAgentVersion = (
     {
       method: "POST",
     },
+  );
+
+// --- Skills (Agent Skills folders) agent versions pin ---
+
+const skillsOf = (organizationId: string) =>
+  `/v1/organizations/${organizationId}/skills`;
+
+export const listSkills = (
+  token: string,
+  organizationId: string,
+  status?: AgoraSchema<"SkillStatus">,
+) =>
+  agora<Page<Skill>>(
+    `${skillsOf(organizationId)}?limit=100${status ? `&status=${status}` : ""}`,
+    token,
+  );
+
+export const getSkill = (
+  token: string,
+  organizationId: string,
+  skillId: string,
+) => agora<Skill>(`${skillsOf(organizationId)}/${skillId}`, token);
+
+export const createSkill = (
+  token: string,
+  organizationId: string,
+  body: AgoraSchema<"CreateSkillRequest">,
+) =>
+  agora<Skill>(skillsOf(organizationId), token, { method: "POST", body });
+
+export const archiveSkill = (
+  token: string,
+  organizationId: string,
+  skillId: string,
+) =>
+  agora<Skill>(`${skillsOf(organizationId)}/${skillId}/archive`, token, {
+    method: "POST",
+  });
+
+/** Newest first, without files. */
+export const listSkillVersions = (
+  token: string,
+  organizationId: string,
+  skillId: string,
+) =>
+  agora<Page<SkillVersion>>(
+    `${skillsOf(organizationId)}/${skillId}/versions?limit=100`,
+    token,
+  );
+
+/** With its files. */
+export const getSkillVersion = (
+  token: string,
+  organizationId: string,
+  skillId: string,
+  version: number,
+) =>
+  agora<SkillVersion>(
+    `${skillsOf(organizationId)}/${skillId}/versions/${version}`,
+    token,
+  );
+
+export const createSkillVersion = (
+  token: string,
+  organizationId: string,
+  skillId: string,
+  body: AgoraSchema<"CreateSkillVersionRequest">,
+) =>
+  agora<SkillVersion>(
+    `${skillsOf(organizationId)}/${skillId}/versions`,
+    token,
+    { method: "POST", body },
   );

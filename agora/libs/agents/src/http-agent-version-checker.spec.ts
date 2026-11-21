@@ -24,7 +24,6 @@ const orgId = '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
 const choices = {
   model: { provider: 'anthropic', model: 'claude' },
   tools: [],
-  skills: [],
 };
 
 describe('HttpAgentVersionChecker', () => {
@@ -77,8 +76,9 @@ describe('HttpAgentVersionChecker', () => {
       {
         url: `/v1/organizations/${orgId}/agent-version-checks`,
         authorization: 'Bearer token-1',
-        // The model is Pylon's to check, before Hephaestus is asked.
-        body: { tools: [], skills: [] },
+        // The model is Pylon's to check, before Hephaestus is asked; the
+        // skills are Agora's own.
+        body: { tools: [] },
       },
     ]);
     expect(modelsChecked.at(-1)).toEqual(choices.model);
@@ -87,7 +87,7 @@ describe('HttpAgentVersionChecker', () => {
   it("passes on Hephaestus's refusal with its code", async () => {
     answers.push({
       status: 409,
-      body: { code: 'SKILL_INVALID', detail: 'No skill named x.' },
+      body: { code: 'TOOL_SERVER_INVALID', detail: 'No tool server named x.' },
     });
 
     const error = await checker()
@@ -95,8 +95,8 @@ describe('HttpAgentVersionChecker', () => {
       .catch((e: unknown) => e);
     expect(error).toBeInstanceOf(AgentVersionChoiceError);
     expect(error).toMatchObject({
-      code: 'SKILL_INVALID',
-      message: 'No skill named x.',
+      code: 'TOOL_SERVER_INVALID',
+      message: 'No tool server named x.',
     });
   });
 

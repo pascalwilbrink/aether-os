@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { ServiceTokens, type Env } from '@agora/core';
+import { SkillsModule } from '@agora/skills';
 import { TenancyModule } from '@agora/tenancy';
 
 import { AgentVersionChecker } from './agent-version-checker.js';
@@ -21,11 +22,12 @@ import {
 } from './http-agent-version-checker.js';
 import { HttpModelChecker } from './http-model-checker.js';
 
-/** Agents and their versions; new versions' choices are checked by Pylon (the model) and Hephaestus (tools, skills). */
+/** Agents and their versions; new versions' choices are checked by Pylon (the model), Hephaestus (tools) and the skills here. */
 @Module({
   imports: [
     TypeOrmModule.forFeature([AgentEntity, AgentVersionEntity]),
     TenancyModule,
+    SkillsModule,
   ],
   controllers: [AgentsController, AgentVersionsController],
   providers: [

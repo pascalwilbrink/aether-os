@@ -153,3 +153,94 @@ export async function archiveAgent(
     payload: { agentId },
   });
 }
+
+/** A file of a skill's folder. */
+export interface TestSkillFile {
+  path: string;
+  content: string;
+}
+
+/**
+ * One of Agora's skills, as its events announce it: `skill.created` and
+ * `skill-version.published` for the first version, then a
+ * `skill-version.published` per version and `skill.archived`, each one
+ * revision newer.
+ */
+export class PublishedSkill {
+  private revision = 0;
+  private versions = 0;
+
+  private constructor(
+    private readonly app: INestApplicationContext,
+    readonly organizationId: string,
+    readonly skillId: string,
+    readonly name: string,
+  ) {}
+
+  /** A new skill with its first version (its name from `SKILL.md`'s front matter). */
+  static async create(
+    app: INestApplicationContext,
+    organizationId: string,
+    files: TestSkillFile[],
+  ): Promise<PublishedSkill> {
+    const name = frontMatter(files).name;
+    const skill = new PublishedSkill(app, organizationId, uuidv7(), name);
+    await skill.deliver('skill.created', {
+      skillId: skill.skillId,
+      name,
+      createdBy: 'user-1',
+      createdAt: new Date().toISOString(),
+    });
+    await skill.publish(files);
+    return skill;
+  }
+
+  /** Its next version. */
+  async publish(files: TestSkillFile[]): Promise<void> {
+    this.versions += 1;
+    const id = uuidv7();
+    await this.deliver('skill-version.published', {
+      skillId: this.skillId,
+      skillVersionId: id,
+      version: {
+        id,
+        skillId: this.skillId,
+        organizationId: this.organizationId,
+        name: this.name,
+        version: this.versions,
+        description: frontMatter(files).description,
+        files,
+        fileCount: files.length,
+        sizeBytes: files.reduce((sum, file) => sum + file.content.length, 0),
+        createdBy: 'user-1',
+        createdAt: new Date().toISOString(),
+      },
+    });
+  }
+
+  archive(): Promise<boolean> {
+    return this.deliver('skill.archived', { skillId: this.skillId });
+  }
+
+  private deliver(eventType: string, payload: object): Promise<boolean> {
+    this.revision += 1;
+    return deliverAgoraEvent(this.app, {
+      eventType,
+      aggregateId: this.skillId,
+      aggregateVersion: this.revision,
+      organizationId: this.organizationId,
+      payload,
+    });
+  }
+}
+
+/** `name` and `description` from `SKILL.md`'s front matter. */
+function frontMatter(files: TestSkillFile[]): {
+  name: string;
+  description: string;
+} {
+  const skillMd = files.find((file) => file.path === 'SKILL.md')?.content ?? '';
+  const field = (key: string) =>
+    new RegExp(`^${key}:\\s*(.+)$`, 'm').exec(skillMd)?.[1].trim() ?? '';
+  return { name: field('name'), description: field('description') };
+}

@@ -6,7 +6,7 @@ import {
   getSkill,
   getSkillVersion,
   listSkillVersions,
-} from "@/lib/api/hephaestus";
+} from "@/lib/api/agora";
 import { requireOrganization } from "@/lib/auth/current";
 import { formatBytes } from "@/lib/skills";
 import { formatTime } from "@/lib/tasks";

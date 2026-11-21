@@ -2,7 +2,7 @@
 
 How agents get better at the work itself: reusable skills that agent versions pin, created by people first, and later extracted from successful work, evaluated and published. See `learning.md` for how skills differ from project knowledge.
 
-Status: phase 3 of `learning.md` (registry and manual creation) is **built**, and is moving from Hephaestus to Agora (below: Agora has the registry; Hephaestus and Iris switch to it next); phase 4 (evolution) is a proposal. Not built: usage and quality per skill version, extraction, evaluation, candidates and publishing.
+Status: phase 3 of `learning.md` (registry and manual creation) is **built, in Agora** (moved from Hephaestus, below); phase 4 (evolution) is a proposal. Not built: usage and quality per skill version, extraction, evaluation, candidates and publishing.
 
 ## Decisions
 
@@ -10,12 +10,12 @@ Status: phase 3 of `learning.md` (registry and manual creation) is **built**, an
 |---|---|
 | Format | **Agent Skills** folders: `SKILL.md` (front matter with `name` and a one-line `description`) and its files, as Mastra reads them. |
 | Scope | **Organization**: a skill is reusable across the organization's projects. Proposal: project skills later, if a need appears. |
-| Owner | **Agora**, with the agents (skills are part of what an agent is). Today they are in Hephaestus; they move with agents (Hephaestus then keeps a copy of the versions published agent versions pin, from Agora's events). |
+| Owner | **Agora**, with the agents (skills are part of what an agent is). Hephaestus keeps a copy of skills and their versions, from Agora's events, for runs. |
 | Versions | **Immutable and pinned**: an agent version pins a skill version; a new skill version changes nothing until a new agent version pins it. |
 | What a skill may hold | **Procedure, not project facts** (`learning.md`). No credentials, no organization data beyond what the procedure needs. |
 | Evolution | **Agents propose, Kriterion evaluates, people publish.** No skill version reaches an agent version without a person approving it. |
 
-## Phase 3: the registry (built, in Hephaestus)
+## Phase 3: the registry (built, in Agora)
 
 - `/v1/organizations/{id}/skills`: list and read (`agent:read`), create with the first version (`agent:write`), archive (no new versions; new agent versions can't choose it; versions already pinned keep running), and `…/versions` (create the next one, list, read one with its files).
 - A version is the whole folder (at most 100 files, 1 MiB) and never changes; it's checked when created (`SKILL.md` at the root with the skill's `name` and a `description`, no `.` or `..` path segments).
@@ -26,7 +26,7 @@ Status: phase 3 of `learning.md` (registry and manual creation) is **built**, an
 **Moving to Agora** (after agents), in two steps:
 
 1. **Built:** Agora has the same API (`../contracts/agora.openapi.yaml`, `agora/libs/skills`) and publishes every change (`skill.created`, `skill-version.published` with the version's files, `skill.archived`; the skill is the aggregate, its `revision` the `aggregateVersion`); `pnpm import:hephaestus` in `agora/` brings Hephaestus's skills and versions over with their IDs, at `revision` 1, publishing nothing.
-2. **Next:** Hephaestus keeps a copy of skills and versions from those events (its tables, at `revision` 1 for the rows from before) and drops its skills API; Agora checks a version's skills itself instead of asking Hephaestus; Iris's skill pages call Agora. Until then Hephaestus's API stays the one Iris writes to and runs read from.
+2. **Built:** Hephaestus keeps a copy of skills and versions from those events (its tables, at `revision` 1 for the rows from before) and has dropped its skills API; Agora checks a version's skills itself instead of asking Hephaestus; Iris's skill pages call Agora. Moving an installation: run Agora's migrations, then `pnpm import:hephaestus` in `agora/` once, before skills are written in Agora.
 
 Versions travel inside the event, files included, instead of in Loculus by reference as first planned: a version is at most 1 MiB, Loculus's files belong to a project while skills belong to the organization, and Hephaestus then never has to fetch anything to run one.
 
