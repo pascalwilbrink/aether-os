@@ -176,6 +176,17 @@ export class KnowledgeItemsService {
     return this.versions.list(itemId, page);
   }
 
+  /** The item's current version's passages, in order (a document's text). */
+  async passagesOf(
+    organizationId: string,
+    projectId: string,
+    itemId: string,
+    page: PageRequest,
+  ): Promise<Page<ApiTypes.KnowledgePassage>> {
+    const item = await this.load(organizationId, projectId, itemId);
+    return this.chunks.page(item.id, item.version, page);
+  }
+
   /** A new version of a written item. Agents may only change proposals. */
   @Transactional()
   async update(

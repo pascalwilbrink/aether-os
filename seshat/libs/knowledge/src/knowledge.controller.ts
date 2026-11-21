@@ -23,6 +23,8 @@ import {
   KnowledgeSearchResponse,
   ListKnowledgeItemsQuery,
   ListKnowledgeItemVersionsQuery,
+  ListKnowledgeItemPassagesQuery,
+  KnowledgePassagePage,
   ProjectParams,
   SearchKnowledgeRequest,
   UpdateKnowledgeDocumentRequest,
@@ -87,6 +89,16 @@ export class KnowledgeController {
     @Query() page: ListKnowledgeItemVersionsQuery,
   ) {
     return this.items.versionsOf(organizationId, projectId, itemId, page);
+  }
+
+  @Get('items/:itemId/passages')
+  @RequirePermission('knowledge:read', IN_PROJECT)
+  @ZodSerializerDto(KnowledgePassagePage)
+  passages(
+    @Param() { organizationId, projectId, itemId }: ItemParams,
+    @Query() page: ListKnowledgeItemPassagesQuery,
+  ) {
+    return this.items.passagesOf(organizationId, projectId, itemId, page);
   }
 
   @Post('items/:itemId/accept')
