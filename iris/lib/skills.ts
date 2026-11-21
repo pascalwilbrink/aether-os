@@ -1,7 +1,7 @@
-import type { ApiSchema, Skill } from "./api";
+import type { AgoraSchema, Skill } from "./api";
 
-export type SkillFile = ApiSchema<"SkillFile">;
-export type AgentSkill = ApiSchema<"AgentSkillConfiguration">;
+export type SkillFile = AgoraSchema<"SkillFile">;
+export type AgentSkill = AgoraSchema<"AgentSkillConfiguration">;
 
 /** The version form's fields: `skill:<name>` checked, `skillVersion:<name>` its pinned version. */
 export const SKILL_FIELD = "skill:";

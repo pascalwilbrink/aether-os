@@ -12,6 +12,7 @@ import {
   type PageRequest,
   Transactional,
 } from '@agora/core';
+import { SkillsService } from '@agora/skills';
 
 import { AgentVersionChecker } from './agent-version-checker.js';
 import { nextAgentVersionStatus } from './agent-transitions.js';
@@ -39,6 +40,7 @@ export class AgentVersionsService {
     private readonly agents: AgentsService,
     private readonly access: AccessControl,
     private readonly checker: AgentVersionChecker,
+    private readonly skills: SkillsService,
     private readonly events: AgoraEvents,
   ) {}
 
@@ -49,6 +51,8 @@ export class AgentVersionsService {
     dto: CreateAgentVersionRequest,
   ): Promise<AgentVersionResponse> {
     await this.agents.lockForVersionChange(organizationId, agentId);
+    // Its skills are Agora's own; its model Pylon's and its tools Hephaestus's.
+    await this.skills.assertChoosable(organizationId, dto.skills);
     await this.checker.assertChoosable(organizationId, dto);
 
     const current = await this.versions.maximum('version', { agentId });

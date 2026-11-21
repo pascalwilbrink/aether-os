@@ -34,7 +34,7 @@ import {
   WorkspaceSandboxProvisioner,
   type SandboxOptions,
 } from './workspace-sandbox-provisioner.js';
-import { publishedAgent } from '../../../test/agora.js';
+import { PublishedSkill, publishedAgent } from '../../../test/agora.js';
 
 const SERVICE_ACCOUNT = '0193a1b2-c3d4-7e5f-8a9b-0000000000aa';
 const docker = new Docker();
@@ -610,20 +610,14 @@ describe('Sandboxes for executions (Docker, Postgres)', () => {
   });
 
   it("copies the version's skills into the sandbox, to run their scripts", async () => {
-    await actingAs(moduleRef.get(SkillsService), caller()).create(
-      organizationId,
+    await PublishedSkill.create(moduleRef, organizationId, [
       {
-        name: 'greet',
-        files: [
-          {
-            path: 'SKILL.md',
-            content:
-              '---\nname: greet\ndescription: Greets\n---\n\nRun scripts/hello.sh.',
-          },
-          { path: 'scripts/hello.sh', content: 'echo "hello from $1"\n' },
-        ],
+        path: 'SKILL.md',
+        content:
+          '---\nname: greet\ndescription: Greets\n---\n\nRun scripts/hello.sh.',
       },
-    );
+      { path: 'scripts/hello.sh', content: 'echo "hello from $1"\n' },
+    ]);
     models.replies = [
       {
         toolCall: {

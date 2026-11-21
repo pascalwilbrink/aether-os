@@ -145,10 +145,7 @@ describe('Agents (e2e)', () => {
         'authorization',
         `Bearer ${await tokens.service('agora', ['platform:read'])}`,
       );
-    const choices = {
-      tools: versionBody.tools,
-      skills: versionBody.skills,
-    };
+    const choices = { tools: versionBody.tools };
 
     await agora.post(checks).send(choices).expect(204);
     const tools = await agora
@@ -156,15 +153,11 @@ describe('Agents (e2e)', () => {
       .send({ ...choices, tools: [{ name: 'search', enabled: true }] })
       .expect(409);
     expect(tools.body.code).toBe('TOOL_SERVER_INVALID');
-    const skills = await agora
+    // Skills are Agora's to check, and the model Pylon's: neither is taken.
+    await agora
       .post(checks)
-      .send({
-        ...choices,
-        skills: [{ name: 'summarize', version: '1', enabled: true }],
-      })
-      .expect(409);
-    expect(skills.body.code).toBe('SKILL_INVALID');
-    // The model is Pylon's to check (Agora asks its catalogue).
+      .send({ ...choices, skills: versionBody.skills })
+      .expect(400);
     await agora
       .post(checks)
       .send({ ...choices, model: versionBody.model })

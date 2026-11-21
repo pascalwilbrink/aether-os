@@ -11,11 +11,8 @@ import {
   versionStatusClasses,
   versionStatusLabel,
 } from "@/lib/agents";
-import { getAgent, listAgentVersions } from "@/lib/api/agora";
-import {
-  listSkills,
-  listToolServers,
-} from "@/lib/api/hephaestus";
+import { getAgent, listAgentVersions, listSkills } from "@/lib/api/agora";
+import { listToolServers } from "@/lib/api/hephaestus";
 import {
   getAgentBudget,
   listActiveModels,

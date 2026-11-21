@@ -28,6 +28,7 @@ import { Skills1795110000000 } from './1795110000000-Skills.js';
 import { ToolServers1795100000000 } from './1795100000000-ToolServers.js';
 import { WorkspaceBlockedHosts1795085475839 } from './1795085475839-WorkspaceBlockedHosts.js';
 import { PylonKeySource1795210000000 } from './1795210000000-PylonKeySource.js';
+import { SkillsFromAgora1795410000000 } from './1795410000000-SkillsFromAgora.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -66,4 +67,5 @@ export const migrations = [
   ExecutionEvents1795165184112,
   AgentsFromAgora1795190000000,
   PylonKeySource1795210000000,
+  SkillsFromAgora1795410000000,
 ];

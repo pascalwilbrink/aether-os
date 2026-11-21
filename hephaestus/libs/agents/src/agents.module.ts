@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { SkillsModule } from '@hephaestus/skills';
 import { TenancyModule } from '@hephaestus/tenancy';
 import { ToolsModule } from '@hephaestus/tools';
 
@@ -16,14 +15,13 @@ import { AgentsService } from './agents.service.js';
 
 /**
  * Hephaestus's copy of Agora's agents and versions (from `agora.events`),
- * and Agora's check of a version's tools and skills.
+ * and Agora's check of a version's tools.
  */
 @Module({
   imports: [
     TypeOrmModule.forFeature([AgentEntity, AgentVersionEntity]),
     TenancyModule,
     ToolsModule,
-    SkillsModule,
   ],
   controllers: [AgentVersionChecksController],
   providers: [

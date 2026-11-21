@@ -36,13 +36,17 @@ export const POLIS_SUBSCRIPTIONS = [
 
 /**
  * Agora's events: Hephaestus's copy of agents and their published versions
- * (libs/agents), which tasks pin and the runner runs.
+ * (libs/agents), which tasks pin and the runner runs, and of skills and
+ * their versions (libs/skills), which runs read.
  */
 export const AGORA_SUBSCRIPTIONS = [
   'agent.created',
   'agent.archived',
   'agent-version.published',
   'agent-version.deprecated',
+  'skill.created',
+  'skill-version.published',
+  'skill.archived',
 ] as const;
 
 /** Proxenos's events Hephaestus handles (docs/git.md). */
