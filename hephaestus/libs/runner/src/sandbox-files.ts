@@ -17,6 +17,8 @@ export interface FileSubmission {
   contentType?: string;
   primary?: boolean;
   revises?: string;
+  /** The task's deliverable it is. */
+  deliverable?: string;
 }
 
 /** Media types by extension, for files the agent doesn't type. */
@@ -105,6 +107,7 @@ export class SandboxFiles {
       title: submission.title,
       primary: submission.primary,
       revisionOf: submission.revises,
+      deliverableKey: submission.deliverable,
       ...stored,
     };
   }

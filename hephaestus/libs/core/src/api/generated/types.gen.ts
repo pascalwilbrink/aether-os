@@ -406,7 +406,8 @@ export type TemplateExtends = {
 
 /**
  * One version of a template, with a task's fields (`{{input}}`
- * placeholders in the text ones). A project template that `extends`
+ * placeholders in the text ones); `instructions` becomes the task's
+ * `description`. A project template that `extends`
  * an organization template inherits its agent, title, inputs,
  * criteria and review settings, appends its own description and
  * expected outcome to the organization's, and can only add inputs,
@@ -415,11 +416,8 @@ export type TemplateExtends = {
  */
 export type TaskTemplateContent = {
     title?: string;
-    description?: string;
     /**
-     * The old name of `description`; ignored when `description` is given.
-     *
-     * @deprecated
+     * The task's description (what and why); `description` is the template's own.
      */
     instructions?: string;
     requirements?: Array<TaskItem>;

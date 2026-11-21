@@ -1570,20 +1570,19 @@ components:
       additionalProperties: false
       description: |
         One version of a template, with a task's fields (`{{input}}`
-        placeholders in the text ones). A project template that `extends`
+        placeholders in the text ones); `instructions` becomes the task's
+        `description`. A project template that `extends`
         an organization template inherits its agent, title, inputs,
         criteria and review settings, appends its own description and
         expected outcome to the organization's, and can only add inputs,
         requirements, constraints, deliverables and criteria.
       properties:
         title: { type: string, minLength: 1, maxLength: 200 }
-        description: { type: string, minLength: 1, maxLength: 100000 }
         instructions:
           type: string
           minLength: 1
           maxLength: 100000
-          deprecated: true
-          description: The old name of `description`; ignored when `description` is given.
+          description: The task's description (what and why); `description` is the template's own.
         requirements:
           type: array
           maxItems: 50

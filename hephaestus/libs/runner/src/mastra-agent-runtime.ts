@@ -32,6 +32,7 @@ import {
   type ArtifactSink,
 } from './agent-runtime.js';
 import { KnowledgeBase, NoKnowledgeBase } from './knowledge-base.js';
+import { briefOf } from './task-brief.js';
 import {
   knowledgeTools,
   withKnowledge,
@@ -348,10 +349,7 @@ export function promptFor(
   conflict: AgentRunInput['conflict'] = null,
 ): string {
   const prompt = withConflict(
-    withFailedChecks(
-      withRepository(`# ${task.title}\n\n${task.instructions}`, repository),
-      failedChecks,
-    ),
+    withFailedChecks(withRepository(briefOf(task), repository), failedChecks),
     conflict,
     repository,
   );
@@ -655,6 +653,14 @@ function submitArtifactTool(artifacts: ArtifactSink) {
         .describe(
           'When revising: the ID of the artifact a reviewer sent back that this replaces',
         ),
+      deliverable: z
+        .string()
+        .min(1)
+        .max(64)
+        .optional()
+        .describe(
+          "The key of the task's deliverable this is, when it's one of them",
+        ),
     }),
     execute: async (input) => {
       let artifact: NewArtifact;
@@ -666,6 +672,7 @@ function submitArtifactTool(artifacts: ArtifactSink) {
           content: input.content,
           primary: input.primary,
           revisionOf: input.revises,
+          deliverableKey: input.deliverable,
         };
       } else {
         let content: unknown;
@@ -681,6 +688,7 @@ function submitArtifactTool(artifacts: ArtifactSink) {
           content,
           primary: input.primary,
           revisionOf: input.revises,
+          deliverableKey: input.deliverable,
         };
       }
       return artifacts.submit(artifact);
@@ -728,6 +736,14 @@ function submitFileTool(
         .optional()
         .describe(
           'When revising: the ID of the artifact a reviewer sent back that this replaces',
+        ),
+      deliverable: z
+        .string()
+        .min(1)
+        .max(64)
+        .optional()
+        .describe(
+          "The key of the task's deliverable this is, when it's one of them",
         ),
     }),
     execute: async (input) => {

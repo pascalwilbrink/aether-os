@@ -124,7 +124,12 @@ describe('Task templates (e2e)', () => {
       .expect(200);
     expect(v1.body.effective).toEqual({
       title: 'Fix {{issue}}',
+      description: 'Fix the bug described in {{issue}}.',
       instructions: 'Fix the bug described in {{issue}}.',
+      requirements: [],
+      expectedOutcome: null,
+      constraints: [],
+      deliverables: [],
       agentId,
       inputs: [{ name: 'issue', description: 'The issue', required: true }],
       acceptanceCriteria: [TESTS_PASS],

@@ -302,7 +302,8 @@ export const zTaskReviewSettings = z.object({
 
 /**
  * One version of a template, with a task's fields (`{{input}}`
- * placeholders in the text ones). A project template that `extends`
+ * placeholders in the text ones); `instructions` becomes the task's
+ * `description`. A project template that `extends`
  * an organization template inherits its agent, title, inputs,
  * criteria and review settings, appends its own description and
  * expected outcome to the organization's, and can only add inputs,
@@ -311,7 +312,6 @@ export const zTaskReviewSettings = z.object({
  */
 export const zTaskTemplateContent = z.object({
     title: z.string().min(1).max(200).optional(),
-    description: z.string().min(1).max(100000).optional(),
     instructions: z.string().min(1).max(100000).optional(),
     requirements: z.array(zTaskItem).max(50).optional(),
     expectedOutcome: z.string().max(65536).optional(),

@@ -3,14 +3,19 @@ import { Injectable } from '@nestjs/common';
 import { Transactional, type ApiTypes } from '@hephaestus/core';
 import { TasksService, type TaskResponse } from '@hephaestus/tasks';
 
-import { render, TemplateProblem } from './template-content.js';
+import {
+  render,
+  TemplateProblem,
+  type RenderedTemplate,
+} from './template-content.js';
 import { TaskTemplateInputsInvalidError } from './task-template.errors.js';
 import { TaskTemplatesService } from './task-templates.service.js';
 
 /**
  * Tasks from templates (docs/tasks.md, Task templates): a template version
  * (its latest unless one is given) with the inputs filled in becomes the
- * task's title and instructions, its agent the task's agent, and its
+ * task's title, description, requirements, expected outcome,
+ * constraints and deliverables, its agent the task's agent, and its
  * acceptance criteria and review kinds the task's, plus any the request
  * adds; it can't remove any. The version is pinned on the task.
  */
@@ -36,7 +41,7 @@ export class TemplatedTasksService {
       request.version,
     );
     const { effective } = resolved;
-    let rendered: { title: string; instructions: string };
+    let rendered: RenderedTemplate;
     try {
       rendered = render(effective, request.inputs ?? {});
     } catch (error) {
