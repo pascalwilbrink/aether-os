@@ -58,6 +58,10 @@ export const config = {
   get agoraUrl() {
     return value("AGORA_URL", "http://localhost:3008");
   },
+  /** Project knowledge: items, documents, search. */
+  get seshatUrl() {
+    return value("SESHAT_URL", "http://localhost:3009");
+  },
   /** The model gateway: the model catalogue, provider keys and budgets. */
   get pylonUrl() {
     return value("PYLON_URL", "http://localhost:3011");

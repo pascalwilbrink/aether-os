@@ -22,3 +22,4 @@ export * from './repository-checkouts.js';
 export * from './git-client.js';
 export * from './pull-requests.js';
 export * from './deliveries.js';
+export * from './knowledge-base.js';

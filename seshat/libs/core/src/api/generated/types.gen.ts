@@ -182,6 +182,22 @@ export type KnowledgeItemVersionPage = PageMeta & {
   items: Array<KnowledgeItemVersionResponse>;
 };
 
+export type KnowledgePassage = {
+  /**
+   * Its place in the item, from 0.
+   */
+  ordinal: number;
+  /**
+   * The item's version it belongs to.
+   */
+  version: number;
+  text: string;
+};
+
+export type KnowledgePassagePage = PageMeta & {
+  items: Array<KnowledgePassage>;
+};
+
 export type SearchKnowledgeRequest = {
   query: string;
   types?: Array<KnowledgeItemType>;
@@ -613,6 +629,68 @@ export type ListKnowledgeItemVersionsResponses = {
 
 export type ListKnowledgeItemVersionsResponse =
   ListKnowledgeItemVersionsResponses[keyof ListKnowledgeItemVersionsResponses];
+
+export type ListKnowledgeItemPassagesData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    projectId: string;
+    itemId: string;
+  };
+  query?: {
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+  };
+  url: '/v1/organizations/{organizationId}/projects/{projectId}/knowledge/items/{itemId}/passages';
+};
+
+export type ListKnowledgeItemPassagesErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type ListKnowledgeItemPassagesError =
+  ListKnowledgeItemPassagesErrors[keyof ListKnowledgeItemPassagesErrors];
+
+export type ListKnowledgeItemPassagesResponses = {
+  /**
+   * In order
+   */
+  200: KnowledgePassagePage;
+};
+
+export type ListKnowledgeItemPassagesResponse =
+  ListKnowledgeItemPassagesResponses[keyof ListKnowledgeItemPassagesResponses];
 
 export type AcceptKnowledgeItemData = {
   body?: never;

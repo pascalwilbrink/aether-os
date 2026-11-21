@@ -255,6 +255,22 @@ async function Project({ params, searchParams }: Props) {
         )}
       </section>
 
+      <section id="knowledge" className="space-y-1">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <h2 className="font-medium">Knowledge</h2>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              The project&apos;s decisions, conventions, facts, architecture,
+              lessons and documents: what agents search while they work, and
+              the proposals they make for you to accept.
+            </p>
+          </div>
+          <Link href={`${path}/knowledge`} className="text-sm underline">
+            Open knowledge
+          </Link>
+        </div>
+      </section>
+
       <section id="automations" className="space-y-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>

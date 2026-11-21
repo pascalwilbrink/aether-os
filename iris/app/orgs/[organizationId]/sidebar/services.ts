@@ -13,6 +13,7 @@ export const SERVICES = () => [
   { name: "Loculus", url: config.loculusUrl },
   { name: "Agora", url: config.agoraUrl },
   { name: "Pylon", url: config.pylonUrl },
+  { name: "Seshat", url: config.seshatUrl },
 ];
 
 export interface ServiceStatus {

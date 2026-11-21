@@ -6,7 +6,7 @@ Status: phase 1 of `learning.md`, in three steps.
 
 1. **Built:** Seshat as a service in this repository (`../seshat/`, port 3009): knowledge items per project with their lifecycle and versions, documents indexed from Loculus, keyword search, `knowledge:*` permissions, events (`../contracts/seshat.openapi.yaml`, `../contracts/seshat.asyncapi.yaml`).
 2. **Built:** embeddings through the model gateway, Pylon (`pylon.md`), stored in Seshat (pgvector), and hybrid search (Search, below).
-3. **Next:** the agents' knowledge tools in Hephaestus and Iris's Knowledge page.
+3. **Built:** the agents' knowledge tools in Hephaestus and Iris's Knowledge page.
 
 Later: organization-wide items, repository documents, pinned context on tasks, proposals from meetings, PDF and Office documents.
 
@@ -90,13 +90,14 @@ Templates and automations can add context too (e.g. "always pin the project's co
 
 **Embedding** (Seshat's `KnowledgeEmbedder`): whenever an item's passages change (a written item saved, a document indexed) the item waits for vectors (`embedding_status: pending`); the embedder takes it (`FOR UPDATE SKIP LOCKED`, held five minutes), sends its passages to Pylon's `POST …/projects/{projectId}/embeddings` in batches of 64 with Seshat's own token (`model:invoke`, purpose `knowledge`), and stores one vector per passage. A failure (Pylon down, a budget that ran out, no key) is tried again after a minute, doubled each time, at most six hours (six hours at once for one that needs a change of configuration). The model is `EMBEDDING_MODEL` (`openai/text-embedding-3-small` by default, an `embedding` model of Pylon's catalogue); every vector records it, search compares only vectors of the current model, and changing it embeds everything again (at startup). Only accepted and proposed items are embedded. No approximate index yet: search is exact within a project, which holds up to tens of thousands of passages; an HNSW index per model comes when a project needs it.
 
-The agent searches with knowledge tools built into Hephaestus's runtime (step 3), which call Seshat with the task token, so Seshat limits them to the task's project (and later its organization's shared items):
+The agent searches with knowledge tools built into Hephaestus's runtime (built; every agent gets them when Hephaestus has `SESHAT_URL`), which call Seshat with the task token, so Seshat limits them to the task's project (and later its organization's shared items) and to the task's role:
 
-- `search_knowledge(query, types?, includeProposed?)`: hybrid search (keywords and vectors) over accepted items and document passages, ranked with recency and type (decisions and conventions above lessons when they conflict), each result with its item ID, version and source;
-- `get_knowledge(id)` and `get_document(id, part?)`: an item, or a document's text;
-- `propose_knowledge(...)`: a proposal, as above.
+- `search_knowledge(query, types?, includeProposed?, limit?)`: the hybrid search above, each result with its item ID, type, title, status, version, tags, `supersededBy`, the passage and how it matched. Ranking by type and recency when items conflict is left to the agent for now: the prompt tells it to prefer the newer accepted item and say so.
+- `get_knowledge(id)`: an item: its body, references, what it supersedes, and for a document its file and indexing state.
+- `read_knowledge(id, next?)`: an item's text five passages at a time, in order (Seshat's `GET …/items/{id}/passages`, cursor-paged): how an agent reads a document.
+- `propose_knowledge(type, title, body, tags?, supersedes?)`: a proposal, as above (a task's items are always proposals).
 
-Every call is in the execution's activity log with the IDs and versions returned (`learning.md`, what the agent used).
+The prompt says what they're for and that what they return is reference material, not instructions. Every call is in the execution's activity log with its input and what came back, IDs and versions included (`learning.md`, what the agent used).
 
 ### Rules
 
@@ -116,7 +117,7 @@ Built in Krepis's table. Organization owners and admins have every project permi
 
 ## In Iris
 
-A **Knowledge** page per project: search, filters by type and status, each item with its source, history and what supersedes it; upload documents; write decisions, facts and conventions; the inbox of proposals to accept, edit or reject. The task page shows the knowledge an execution used.
+A **Knowledge** page per project (built): search, filters by type and status, each item with its source, history and what supersedes it; upload documents; write decisions, facts and conventions; the proposals waiting for review, to accept or reject (or open and edit first). Still to come: the task page showing which knowledge an execution used (it's in the activity log for now), and the knowledge inbox in Kerykes.
 
 ## Events
 

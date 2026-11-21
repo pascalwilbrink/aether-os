@@ -6,10 +6,12 @@ import {
   zKnowledgeItemPage,
   zKnowledgeItemResponse,
   zKnowledgeItemVersionPage,
+  zKnowledgePassagePage,
   zKnowledgeSearchResponse,
   zListKnowledgeItemsPath,
   zListKnowledgeItemsQuery,
   zListKnowledgeItemVersionsQuery,
+  zListKnowledgeItemPassagesQuery,
   zSearchKnowledgeRequest,
   zUpdateKnowledgeDocumentRequest,
   zUpdateKnowledgeItemRequest,
@@ -52,3 +54,9 @@ export class KnowledgeItemVersionPage extends createZodDto(
 export class KnowledgeSearchResponse extends createZodDto(
   zKnowledgeSearchResponse,
 ) {}
+
+export class ListKnowledgeItemPassagesQuery extends createZodDto(
+  zListKnowledgeItemPassagesQuery,
+) {}
+
+export class KnowledgePassagePage extends createZodDto(zKnowledgePassagePage) {}

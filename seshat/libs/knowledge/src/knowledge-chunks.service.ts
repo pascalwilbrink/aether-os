@@ -3,7 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { redactText, Transactional } from '@seshat/core';
+import {
+  findPage,
+  mapPage,
+  redactText,
+  Transactional,
+  type ApiTypes,
+  type Page,
+  type PageRequest,
+} from '@seshat/core';
 
 import { chunkText } from './chunks.js';
 import { KnowledgeChunkEntity } from './knowledge-chunk.entity.js';
@@ -87,6 +95,28 @@ export class KnowledgeChunksService {
       ),
     );
     return pieces.length;
+  }
+
+  /** A page of an item's version's passages, in order. */
+  async page(
+    itemId: string,
+    version: number,
+    page: PageRequest,
+  ): Promise<Page<ApiTypes.KnowledgePassage>> {
+    const chunks = await findPage(
+      this.chunks,
+      {
+        where: { itemId, version },
+        sortBy: 'ordinal',
+        direction: 'ASC',
+      },
+      page,
+    );
+    return mapPage(chunks, (chunk) => ({
+      ordinal: chunk.ordinal,
+      version: chunk.version,
+      text: chunk.text,
+    }));
   }
 
   /** The passages of an item's version, in order. */

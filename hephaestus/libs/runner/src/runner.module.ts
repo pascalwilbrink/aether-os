@@ -35,6 +35,11 @@ import { GitHubPullRequests, PullRequests } from './pull-requests.js';
 import { TaskRepositoryAccess } from './task-repository-access.js';
 import { PistisTaskTokens } from './pistis-task-tokens.js';
 import { FileStore, LoculusFileStore, NoFileStore } from './file-store.js';
+import {
+  HttpKnowledgeBase,
+  KnowledgeBase,
+  NoKnowledgeBase,
+} from './knowledge-base.js';
 import { RepositoryCheckouts } from './repository-checkouts.js';
 import { SandboxFiles } from './sandbox-files.js';
 import { TaskInputs } from './task-inputs.js';
@@ -87,6 +92,7 @@ import {
         ToolServersService,
         SkillsService,
         FileStore,
+        KnowledgeBase,
       ],
       useFactory: (
         config: ConfigService<Env, true>,
@@ -94,6 +100,7 @@ import {
         toolServers: ToolServersService,
         skills: SkillsService,
         files: FileStore,
+        knowledge: KnowledgeBase,
       ) => {
         switch (config.get('AGENT_RUNTIME', { infer: true })) {
           case 'mastra':
@@ -107,6 +114,7 @@ import {
                 files,
                 config.get('TASK_FILE_MAX_BYTES', { infer: true }),
               ),
+              knowledge,
             );
           case 'echo':
             return new EchoAgentRuntime();
@@ -176,6 +184,15 @@ import {
       useFactory: (config: ConfigService<Env, true>) => {
         const url = config.get('PROXENOS_URL', { infer: true });
         return url ? new HttpRepositoryTokens(url) : new NoRepositoryTokens();
+      },
+    },
+    {
+      // The agents' knowledge tools, with SESHAT_URL.
+      provide: KnowledgeBase,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => {
+        const url = config.get('SESHAT_URL', { infer: true });
+        return url ? new HttpKnowledgeBase(url) : new NoKnowledgeBase();
       },
     },
     {
