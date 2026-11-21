@@ -134,6 +134,119 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        /** @description The organization's skills, by name, without their files. */
+        get: operations["listSkills"];
+        put?: never;
+        /**
+         * @description Creates a skill with its first version: a folder of text files in the
+         *     Agent Skills format, with `SKILL.md` at its root (YAML front matter
+         *     with `name`, the skill's name, and `description`, then the
+         *     instructions). Agent versions pin a version of it (`skills[]`).
+         */
+        post: operations["createSkill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/skills/{skillId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getSkill"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/skills/{skillId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Archives it (idempotent): new agent versions can't choose it, and it
+         *     gets no new versions. Agent versions that already pin one of its
+         *     versions keep running with it.
+         */
+        post: operations["archiveSkill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/skills/{skillId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+            };
+            cookie?: never;
+        };
+        /** @description Newest first, without their files. */
+        get: operations["listSkillVersions"];
+        put?: never;
+        /**
+         * @description A new version (versions never change): the whole folder again, its
+         *     `SKILL.md` naming the same skill. Numbered by the server.
+         */
+        post: operations["createSkillVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/skills/{skillId}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+                version: number;
+            };
+            cookie?: never;
+        };
+        /** @description The version with its files. */
+        get: operations["getSkillVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -170,7 +283,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "MODEL_NOT_AVAILABLE" | "ORGANIZATION_SUSPENDED" | "SKILL_INVALID" | "TOOL_SERVER_INVALID";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "MODEL_NOT_AVAILABLE" | "ORGANIZATION_SUSPENDED" | "SKILL_ALREADY_EXISTS" | "SKILL_ARCHIVED" | "SKILL_INVALID" | "TOOL_SERVER_INVALID";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -288,6 +401,62 @@ export interface components {
         AgentVersionPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["AgentVersionResponse"][];
         };
+        /** @description Lowercase letters, digits and hyphens (the Agent Skills format), unique in the organization. */
+        SkillName: string;
+        /** @enum {string} */
+        SkillStatus: "active" | "archived";
+        SkillFile: {
+            /** @description Relative to the skill's folder, e.g. `SKILL.md` or `references/checklist.md`; no `..`. */
+            path: string;
+            /** @description The file's text (UTF-8). */
+            content: string;
+        };
+        /** @description The skill's folder, with `SKILL.md` at its root; at most 100 files and 1 MiB in all. */
+        SkillFiles: components["schemas"]["SkillFile"][];
+        CreateSkillRequest: {
+            name: components["schemas"]["SkillName"];
+            files: components["schemas"]["SkillFiles"];
+        };
+        CreateSkillVersionRequest: {
+            files: components["schemas"]["SkillFiles"];
+        };
+        SkillResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            name: components["schemas"]["SkillName"];
+            /** @description The latest version's, from its `SKILL.md`. */
+            description: string;
+            status: components["schemas"]["SkillStatus"];
+            latestVersion: number;
+            createdBy: string;
+            createdAt: components["schemas"]["Timestamp"];
+            updatedAt: components["schemas"]["Timestamp"];
+        };
+        SkillPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["SkillResponse"][];
+        };
+        SkillVersionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            skillId: string;
+            /** Format: uuid */
+            organizationId: string;
+            name: components["schemas"]["SkillName"];
+            version: number;
+            description: string;
+            sizeBytes: number;
+            fileCount: number;
+            /** @description Only when reading one version. */
+            files?: components["schemas"]["SkillFile"][];
+            createdBy: string;
+            createdAt: components["schemas"]["Timestamp"];
+        };
+        SkillVersionPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["SkillVersionResponse"][];
+        };
         /** @description Pass as `cursor` to get the next page; `null` on the last page. */
         NextCursor: string | null;
         /** @description One invalid input. Exactly one of `pointer` and `parameter` is set. */
@@ -380,6 +549,7 @@ export interface components {
         OrganizationId: string;
         AgentId: string;
         VersionId: string;
+        SkillId: string;
         /** @description Page size. */
         Limit: number;
         /**
@@ -647,6 +817,228 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
             503: components["responses"]["Unavailable"];
+        };
+    };
+    listSkills: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["SkillStatus"];
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description By name */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    createSkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSkillRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getSkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    archiveSkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listSkillVersions: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillVersionPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createSkillVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSkillVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillVersionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getSkillVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                skillId: components["parameters"]["SkillId"];
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillVersionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

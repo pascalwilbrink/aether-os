@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Agora events
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Events Agora publishes to the `agora.events` topic exchange on RabbitMQ;
     the routing key is the event type. Every message is the Krepis
@@ -9,13 +9,15 @@ info:
     the event ID as AMQP `messageId` and the event type as `type`.
 
     Delivery is at least once (transactional outbox and relay): deduplicate
-    on `eventId`. Every event has the agent as its aggregate, and the
-    agent's `aggregateVersion` grows by one with each change (its creation is
-    1), so a consumer can tell an old event from a newer one.
+    on `eventId`. Agents' events have the agent as their aggregate, skills'
+    the skill, and its `aggregateVersion` grows by one with each change (its
+    creation is 1), so a consumer can tell an old event from a newer one.
 
-    Hephaestus keeps a copy of agents and their published versions from
-    these events, to create and run tasks with. Versions are immutable, so
-    `agent-version.published` carries the whole version.
+    Hephaestus keeps a copy of agents and their published versions, and of
+    skills and their versions, from these events, to create and run tasks
+    with. Versions are immutable, so `agent-version.published` and
+    `skill-version.published` carry the whole version (a skill version's
+    files too: at most 1 MiB).
 
 defaultContentType: application/json
 
@@ -42,6 +44,9 @@ channels:
       agentArchived: { $ref: '#/components/messages/agentArchived' }
       agentVersionPublished: { $ref: '#/components/messages/agentVersionPublished' }
       agentVersionDeprecated: { $ref: '#/components/messages/agentVersionDeprecated' }
+      skillCreated: { $ref: '#/components/messages/skillCreated' }
+      skillArchived: { $ref: '#/components/messages/skillArchived' }
+      skillVersionPublished: { $ref: '#/components/messages/skillVersionPublished' }
 
 operations:
   publishAgoraEvents:
@@ -52,6 +57,9 @@ operations:
       - $ref: '#/channels/agoraEvents/messages/agentArchived'
       - $ref: '#/channels/agoraEvents/messages/agentVersionPublished'
       - $ref: '#/channels/agoraEvents/messages/agentVersionDeprecated'
+      - $ref: '#/channels/agoraEvents/messages/skillCreated'
+      - $ref: '#/channels/agoraEvents/messages/skillArchived'
+      - $ref: '#/channels/agoraEvents/messages/skillVersionPublished'
 
 components:
   messages:
@@ -95,6 +103,36 @@ components:
             properties:
               eventType: { const: agent-version.deprecated }
               payload: { $ref: '#/components/schemas/AgentVersionDeprecated' }
+    skillCreated:
+      name: skill.created
+      summary: A skill was created; its first version follows (`skill-version.published`) in the same transaction (Hephaestus's copy).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: skill.created }
+              payload: { $ref: '#/components/schemas/SkillCreated' }
+    skillArchived:
+      name: skill.archived
+      summary: A skill was archived; new agent versions can't choose it, versions that pinned it keep running with it.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: skill.archived }
+              payload: { $ref: '#/components/schemas/SkillArchived' }
+    skillVersionPublished:
+      name: skill-version.published
+      summary: A skill got a new version, with its files; agent versions can pin it (Hephaestus's copy, Kriterion).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: skill-version.published }
+              payload: { $ref: '#/components/schemas/SkillVersionPublished' }
 
   schemas:
     Uuid: { type: string, format: uuid }
@@ -225,3 +263,51 @@ components:
           oneOf:
             - { type: string, format: date-time }
             - type: 'null'
+    SkillCreated:
+      type: object
+      additionalProperties: false
+      required: [skillId, name, createdBy, createdAt]
+      properties:
+        skillId: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+    SkillArchived:
+      type: object
+      additionalProperties: false
+      required: [skillId]
+      properties:
+        skillId: { $ref: '#/components/schemas/Uuid' }
+    SkillVersionPublished:
+      type: object
+      additionalProperties: false
+      required: [skillId, skillVersionId, version]
+      properties:
+        skillId: { $ref: '#/components/schemas/Uuid' }
+        skillVersionId: { $ref: '#/components/schemas/Uuid' }
+        version: { $ref: '#/components/schemas/SkillVersion' }
+    SkillVersion:
+      type: object
+      description: The whole version, as `SkillVersionResponse` in `agora.openapi.yaml` with its files (immutable once created).
+      additionalProperties: false
+      required: [id, skillId, organizationId, name, version, description, files, fileCount, sizeBytes, createdBy, createdAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        skillId: { $ref: '#/components/schemas/Uuid' }
+        organizationId: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string }
+        version: { type: integer, minimum: 1 }
+        description: { type: string }
+        files:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [path, content]
+            properties:
+              path: { type: string }
+              content: { type: string }
+        fileCount: { type: integer, minimum: 1 }
+        sizeBytes: { type: integer, minimum: 0 }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }

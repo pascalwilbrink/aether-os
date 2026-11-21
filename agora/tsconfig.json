@@ -35,6 +35,12 @@
       "@agora/tenancy/*": [
         "./libs/tenancy/src/*"
       ],
+      "@agora/skills": [
+        "./libs/skills/src/index.ts"
+      ],
+      "@agora/skills/*": [
+        "./libs/skills/src/*"
+      ],
       "@agora/agents": [
         "./libs/agents/src/index.ts"
       ],

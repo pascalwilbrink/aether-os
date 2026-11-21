@@ -81,12 +81,59 @@ export interface AgentCreated {
   createdAt: string;
 }
 
+/**
+ * Payload of `skill-version.published`.
+ */
+export interface SkillVersionPublished {
+  skillId: string;
+  skillVersionId: string;
+  /**
+   * The whole version, as `SkillVersionResponse` in `agora.openapi.yaml` with its files (immutable once created).
+   */
+  version: {
+    id: string;
+    skillId: string;
+    organizationId: string;
+    name: string;
+    version: number;
+    description: string;
+    files: {
+      path: string;
+      content: string;
+    }[];
+    fileCount: number;
+    sizeBytes: number;
+    createdBy: string;
+    createdAt: string;
+  };
+}
+
+/**
+ * Payload of `skill.archived`.
+ */
+export interface SkillArchived {
+  skillId: string;
+}
+
+/**
+ * Payload of `skill.created`.
+ */
+export interface SkillCreated {
+  skillId: string;
+  name: string;
+  createdBy: string;
+  createdAt: string;
+}
+
 /** Every Agora event type, mapped to its payload. */
 export interface AgoraEventPayloads {
   'agent-version.deprecated': AgentVersionDeprecated;
   'agent-version.published': AgentVersionPublished;
   'agent.archived': AgentArchived;
   'agent.created': AgentCreated;
+  'skill-version.published': SkillVersionPublished;
+  'skill.archived': SkillArchived;
+  'skill.created': SkillCreated;
 }
 
 export type AgoraEventType = keyof AgoraEventPayloads;
@@ -97,4 +144,7 @@ export const AGORA_EVENT_TYPES = [
   'agent-version.published',
   'agent.archived',
   'agent.created',
+  'skill-version.published',
+  'skill.archived',
+  'skill.created',
 ] as const satisfies readonly AgoraEventType[];
