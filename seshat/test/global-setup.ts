@@ -3,6 +3,7 @@ import type { TestProject } from 'vitest/node';
 
 import { postgresOptions } from '@aether-os/krepis';
 import {
+  PGVECTOR_TEST_IMAGE,
   startTestPostgres,
   startTestRabbitMq,
 } from '@aether-os/krepis/testing';
@@ -24,7 +25,8 @@ declare module 'vitest' {
  */
 export default async function setup(project: TestProject) {
   const [postgres, rabbitmq] = await Promise.all([
-    startTestPostgres(),
+    // With pgvector: passages' embeddings.
+    startTestPostgres(PGVECTOR_TEST_IMAGE),
     startTestRabbitMq(),
   ]);
   const dataSource = new DataSource(

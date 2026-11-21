@@ -5,4 +5,8 @@ export interface KnowledgeOptions {
   indexerIntervalMs: number;
   /** The largest document read to index (bytes). */
   documentMaxBytes: number;
+  /** How often the embedder looks for passages (ms); 0 turns it off. */
+  embedderIntervalMs: number;
+  /** The least cosine similarity a passage needs to match by meaning. */
+  searchMinSimilarity: number;
 }

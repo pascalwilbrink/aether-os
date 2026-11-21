@@ -22,13 +22,37 @@ export const zEnv = z.object({
   LOCULUS_URL: z.url({ protocol: /^https?$/ }),
   /** How often the indexer looks for documents to index (ms); 0 turns it off. */
   INDEXER_INTERVAL_MS: z.coerce.number().int().min(0).default(2000),
+  /**
+   * Pylon's API (the model gateway, ../docs/pylon.md): passages and queries
+   * are embedded there with Seshat's own token (`model:invoke`), charged to
+   * the project. Without it, search is by keyword only.
+   */
+  PYLON_URL: z.url({ protocol: /^https?$/ }).optional(),
+  /**
+   * The embedding model, `<provider>/<model>` of Pylon's catalogue. Every
+   * vector of a project comes from it; changing it embeds everything again.
+   */
+  EMBEDDING_MODEL: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]*\/[a-zA-Z0-9][a-zA-Z0-9._:-]*$/)
+    .default('openai/text-embedding-3-small'),
+  /** How often the embedder looks for passages to embed (ms); 0 turns it off. */
+  EMBEDDER_INTERVAL_MS: z.coerce.number().int().min(0).default(2000),
+  /**
+   * The least cosine similarity a passage needs to be a semantic match
+   * (vectors always have a nearest neighbour, related or not).
+   */
+  SEARCH_MIN_SIMILARITY: z.coerce.number().min(-1).max(1).default(0.3),
   /** The largest document Seshat reads to index (bytes); larger ones fail. */
   DOCUMENT_MAX_BYTES: z.coerce
     .number()
     .int()
     .positive()
     .default(10 * 1024 * 1024),
-  /** Seshat's own client at Pistis (client credentials, `platform:read`). */
+  /**
+   * Seshat's own client at Pistis (client credentials, `platform:read`, and
+   * `model:invoke` with Pylon).
+   */
   PISTIS_CLIENT_ID: z.string().min(1).default('seshat'),
   PISTIS_CLIENT_SECRET: z.string().min(16),
 });

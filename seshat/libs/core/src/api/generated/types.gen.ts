@@ -202,10 +202,18 @@ export type KnowledgeSearchResult = {
    * Higher is better; only comparable within one search.
    */
   score: number;
+  /**
+   * How it matched; the passage shown is the better-ranked one.
+   */
+  matchedBy: Array<'keyword' | 'semantic'>;
 };
 
 export type KnowledgeSearchResponse = {
   results: Array<KnowledgeSearchResult>;
+  /**
+   * Whether the query's embedding was compared with the passages'; false when search was by keyword only.
+   */
+  semantic: boolean;
 };
 
 /**

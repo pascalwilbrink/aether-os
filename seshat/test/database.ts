@@ -8,6 +8,6 @@ export async function resetDatabase(
   await app
     .get(DataSource)
     .query(
-      'TRUNCATE knowledge_items, knowledge_item_versions, knowledge_chunks, outbox',
+      'TRUNCATE knowledge_items, knowledge_item_versions, knowledge_chunks, knowledge_embeddings, outbox',
     );
 }

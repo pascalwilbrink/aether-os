@@ -10,6 +10,7 @@
     "generate:api": "pnpm -r --if-present generate:api",
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
+    "infra:reindex": "sh infra/postgres/reindex.sh",
     "start:dev": "pnpm infra:up && pnpm --filter @aether-os/krepis build && pnpm -r --parallel --no-bail --if-present start:dev"
   },
   "packageManager": "pnpm@10.34.9"

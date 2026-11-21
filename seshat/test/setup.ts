@@ -19,4 +19,7 @@ process.env.POLIS_URL = 'http://polis.invalid';
 process.env.LOCULUS_URL = 'http://loculus.invalid';
 // Tests index documents themselves (DocumentIndexer.drain).
 process.env.INDEXER_INTERVAL_MS = '0';
+// Tests embed passages themselves (KnowledgeEmbedder.drain), with
+// test/fake-embeddings.ts in place of Pylon.
+process.env.EMBEDDER_INTERVAL_MS = '0';
 initializeTransactions();

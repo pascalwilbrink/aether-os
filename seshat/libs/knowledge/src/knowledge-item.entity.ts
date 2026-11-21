@@ -33,6 +33,14 @@ export type IndexingStatus = ApiTypes.DocumentIndexing['status'];
   'createdAt',
   'id',
 ])
+@Check(
+  'ck_knowledge_items_embedding_status',
+  `embedding_status IS NULL OR embedding_status IN ('pending', 'embedded')`,
+)
+// The embedder's queue: items whose passages wait for vectors.
+@Index('ix_knowledge_items_embedding', ['embeddingStatus', 'nextEmbedAt'], {
+  where: `embedding_status = 'pending'`,
+})
 // The indexer's queue: documents waiting to be read.
 @Index('ix_knowledge_items_indexing', ['indexingStatus', 'nextIndexAt'], {
   where: `indexing_status = 'pending'`,
@@ -128,6 +136,30 @@ export class KnowledgeItemEntity {
 
   @Column({ type: 'timestamptz', nullable: true })
   indexedAt: Date | null;
+
+  // ---- embeddings (vectors of its passages, through Pylon) ----
+
+  /** `pending` once its passages change, `embedded` once they all have vectors; null before it has passages. */
+  @Column({ type: 'text', nullable: true })
+  embeddingStatus: 'pending' | 'embedded' | null;
+
+  /** The model its vectors came from (`<provider>/<model>`). */
+  @Column({ type: 'text', nullable: true })
+  embeddingModel: string | null;
+
+  @Column({ type: 'integer', default: 0 })
+  embeddingAttempts: number;
+
+  /** When the embedder may take it (again): a lease, or a failure's backoff. */
+  @Column({ type: 'timestamptz', nullable: true })
+  nextEmbedAt: Date | null;
+
+  /** Why the last try failed. */
+  @Column({ type: 'text', nullable: true })
+  embeddingError: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  embeddedAt: Date | null;
   // ------------------------
 
   @Column({ type: 'text' })

@@ -169,10 +169,12 @@ export const zKnowledgeSearchResult = z.object({
   item: zKnowledgeItemResponse,
   passage: z.string(),
   score: z.number(),
+  matchedBy: z.array(z.enum(['keyword', 'semantic'])).min(1),
 });
 
 export const zKnowledgeSearchResponse = z.object({
   results: z.array(zKnowledgeSearchResult),
+  semantic: z.boolean(),
 });
 
 /**
