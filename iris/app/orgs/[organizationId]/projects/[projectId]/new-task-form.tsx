@@ -9,7 +9,7 @@ import {
 } from "@/app/components/knowledge-picker";
 import { formatBytes, INPUT_FILE_LIMITS } from "@/lib/files";
 
-import { DeliverablesEditor } from "./deliverables-editor";
+import { DeliverablesEditor } from "@/app/components/deliverables-editor";
 
 import { createTaskAction, type FormState, type ProjectRef } from "./actions";
 

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { ActionButton } from "@/app/components/action-forms";
 import { TaskBrief } from "@/app/components/task-brief";
+import { TemplateForm } from "@/app/components/template-form";
 import { getTaskTemplate, getTaskTemplateVersion } from "@/lib/api/hephaestus";
 import { ApiError } from "@/lib/api/http";
 import { listServiceAccounts } from "@/lib/api/pistis";
@@ -11,7 +13,13 @@ import { listKnowledgeItems } from "@/lib/api/seshat";
 import { requireOrganization } from "@/lib/auth/current";
 import { repositoryChoices } from "@/lib/github";
 import { runnableServiceAccounts } from "@/lib/members";
+import { fieldsFromContent } from "@/lib/templates";
 
+import {
+  archiveTemplateAction,
+  createTemplateVersionAction,
+} from "../../../../templates/actions";
+import { templateFormOptions } from "../../../../templates/options";
 import { TemplateTaskForm } from "../../template-task-form";
 
 type Props =
@@ -58,6 +66,13 @@ async function Template({ params }: Pick<Props, "params">) {
     template.latestVersion,
   );
   const { effective } = version;
+  // Only a project's own template is edited here; an organization one on its page.
+  const ownTemplate = template.projectId === projectId;
+  const ref = { organizationId, projectId, templateId };
+  const options =
+    ownTemplate && template.status === "active"
+      ? await templateFormOptions(token, organizationId, projectId)
+      : null;
 
   return (
     <div className="space-y-8">
@@ -79,6 +94,26 @@ async function Template({ params }: Pick<Props, "params">) {
         </p>
         {template.description ? (
           <p className="mt-2 text-sm">{template.description}</p>
+        ) : null}
+        {!template.projectId ? (
+          <p className="mt-2 text-sm">
+            <Link
+              href={`/orgs/${organizationId}/templates/${templateId}`}
+              className="underline"
+            >
+              Edit it on the organization&apos;s templates
+            </Link>
+          </p>
+        ) : null}
+        {ownTemplate && template.status === "active" ? (
+          <div className="mt-3">
+            <ActionButton
+              action={archiveTemplateAction.bind(null, ref)}
+              label="Archive"
+              pendingLabel="Archiving…"
+              confirmText={`Archive ${template.name}? No new tasks start from it; tasks that pinned a version keep it.`}
+            />
+          </div>
         ) : null}
       </div>
 
@@ -169,6 +204,30 @@ async function Template({ params }: Pick<Props, "params">) {
           />
         </section>
       )}
+      {options ? (
+        <section className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+          <div>
+            <h2 className="font-medium">
+              Edit: version {template.latestVersion + 1}
+            </h2>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Starts from version {version.version}. Tasks that pinned an
+              earlier version keep it.
+            </p>
+          </div>
+          {/* Keyed: after a save, the form starts from the new latest version. */}
+          <TemplateForm
+            key={template.latestVersion}
+            action={createTemplateVersionAction.bind(null, ref)}
+            defaults={fieldsFromContent(version.content)}
+            creating={false}
+            agents={options.agents}
+            organizationTemplates={options.organizationTemplates}
+            knowledge={options.knowledge}
+            submitLabel="Save as a new version"
+          />
+        </section>
+      ) : null}
     </div>
   );
 }
