@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import type { INestApplication } from '@nestjs/common';
 import type { App } from 'supertest/types.js';
 
@@ -7,6 +9,9 @@ import { asMember, asTask, createApp, TASK_ID, type Client } from './app.js';
 import type { FakeFiles } from './fake-files.js';
 import type { FakePolis } from './fake-polis.js';
 import { outboxEvents } from './outbox.js';
+
+const fixture = (name: string) =>
+  new Uint8Array(readFileSync(new URL(`fixtures/${name}`, import.meta.url)));
 
 const MISSING_ID = '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
 
@@ -395,13 +400,18 @@ describe('Knowledge (e2e)', () => {
       .send({ fileId: files.add(orgId, projectId, 'x') })
       .expect(409);
 
-    const pdf = files.add(orgId, projectId, new Uint8Array([37, 80, 68, 70]), {
-      fileName: 'Architecture overview.pdf',
-      contentType: 'application/pdf',
-    });
+    const image = files.add(
+      orgId,
+      projectId,
+      new Uint8Array([137, 80, 78, 71]),
+      {
+        fileName: 'Architecture overview.png',
+        contentType: 'image/png',
+      },
+    );
     const doc = await admin
       .post(`${base}/documents`)
-      .send({ fileId: pdf })
+      .send({ fileId: image })
       .expect(201);
     await indexDocuments();
     const item = await admin.get(`${base}/items/${doc.body.id}`).expect(200);
@@ -414,6 +424,52 @@ describe('Knowledge (e2e)', () => {
         (r) => r.item.id,
       ),
     ).toEqual([doc.body.id]);
+  });
+
+  it('reads the text of PDFs and Word documents, and fails a PDF it cannot read', async () => {
+    const upload = async (name: string, contentType: string) => {
+      const fileId = files.add(orgId, projectId, fixture(name), {
+        fileName: name,
+        contentType,
+      });
+      const res = await admin
+        .post(`${base}/documents`)
+        .send({ fileId })
+        .expect(201);
+      return res.body.id as string;
+    };
+    const pdf = await upload('two-pages.pdf', 'application/pdf');
+    const docx = await upload(
+      'checklist.docx',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    );
+    const broken = await upload('broken.pdf', 'application/pdf');
+    await indexDocuments();
+
+    for (const id of [pdf, docx]) {
+      const item = await admin.get(`${base}/items/${id}`).expect(200);
+      expect(item.body.document.indexing).toMatchObject({ status: 'indexed' });
+    }
+    const passages = await admin
+      .get(`${base}/items/${pdf}/passages`)
+      .expect(200);
+    expect(
+      passages.body.items.map((p: { text: string }) => p.text).join('\n'),
+    ).toContain('Refunds go through the payments team.');
+    expect(
+      (await search(admin, { query: 'refunds payments' })).map(
+        (r) => r.item.id,
+      ),
+    ).toEqual([pdf]);
+    expect(
+      (await search(admin, { query: 'migrations release' })).map(
+        (r) => r.item.id,
+      ),
+    ).toEqual([docx]);
+
+    const failed = await admin.get(`${base}/items/${broken}`).expect(200);
+    expect(failed.body.document.indexing).toMatchObject({ status: 'failed' });
+    expect(failed.body.document.indexing.error).toMatch(/PDF can't be read/);
   });
 
   it('retries a document while Loculus is unavailable and gives up on a broken one', async () => {

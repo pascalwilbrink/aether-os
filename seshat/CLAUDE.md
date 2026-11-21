@@ -9,7 +9,7 @@ Seshat is the Aether-os service for **project knowledge** (see `../CLAUDE.md` an
 Agents search, read and propose it with Hephaestus's knowledge tools (with their task token); people manage it on Iris's Knowledge page.
 
 Planned:
-- organization-wide items, repository documents, pinned context on tasks, PDF and Office text.
+- organization-wide items, repository documents, pinned context on tasks, other Office formats, OCR for scanned PDFs.
 
 It follows `../docs/engineering.md` like Agora: NestJS 12 (ESM, TypeScript 6), controller → service → TypeORM repository with mappers, Zod DTOs generated from the spec, `typeorm-transactional`, Postgres with migrations, and tests against Postgres (with pgvector) and RabbitMQ in containers.
 
@@ -71,7 +71,7 @@ Same layout as Agora (`../agora/CLAUDE.md`): `src/` is the app shell, and code l
   - **Indexing** (`DocumentIndexer`, every `INDEXER_INTERVAL_MS`; `drain()` in tests):
     - `KnowledgeItemsService.claimDocument` takes the next `pending` document with `FOR UPDATE SKIP LOCKED` and holds it for five minutes.
     - `HttpDocumentFiles` reads the file with Seshat's own token (`platform:read` on Loculus's file and download routes) through a fresh signed URL, and checks its size and SHA-256. A refused token is renewed once.
-    - `extractText` (`document-text.ts`) turns Markdown, plain text, CSV, JSON and HTML into text. Anything else is `unsupported`: listed, and searchable by title only.
+    - `extractText` (`document-text.ts`, async) turns Markdown, plain text, CSV, JSON and HTML into text, PDFs too (`unpdf`, pages separated by a blank line; also by a `.pdf` name with a generic type) and Word `.docx` (`mammoth`, its raw text). Anything else is `unsupported`: listed, and searchable by title only. A PDF or Word file that can't be read, or has no text (a scanned PDF), is `unreadable`: the document `failed` with the reason, not retried. Fixtures for the tests are in `test/fixtures/`.
     - `finishIndexing` replaces the item's passages. When Loculus or the storage doesn't answer, it retries after a minute, doubled each try, five tries in all. A missing or mismatched file fails at once. The outcome is on the item (`document.indexing`).
     - A version replaced while it was being indexed is left alone.
   - **Passages** (`KnowledgeChunksService`, `knowledge_chunks`):
@@ -100,7 +100,7 @@ Same layout as Agora (`../agora/CLAUDE.md`): `src/` is the app shell, and code l
 - `test/fake-files.ts`: Loculus's files, with `failure` to make reading fail;
 - `test/fake-embeddings.ts`: Pylon's embeddings, vectors from a few concepts ("car" near "automobile") and hashed words, recording every call, with `failure`; `createApp({ embeddings: null })` for none.
 
-`test/global-setup.ts` starts Postgres with pgvector (`PGVECTOR_TEST_IMAGE`), applies the migrations and fails if the entities differ from them. `test/embeddings.e2e-spec.ts` covers embedding, hybrid search, new versions, failures and search without Pylon. Every test empties the tables (`test/database.ts`).
+`test/global-setup.ts` starts Postgres with pgvector (`PGVECTOR_TEST_IMAGE`), applies the migrations and fails if the entities differ from them. `test/knowledge.e2e-spec.ts` covers items, documents (PDF and Word included) and their events; `test/embeddings.e2e-spec.ts` covers embedding, hybrid search, new versions, failures and search without Pylon. Every test empties the tables (`test/database.ts`).
 
 Clients come from the run's `TestTokens`: `asMember` and `asTask` (a task token). `test/outbox.ts` reads the events written to the outbox.
 
