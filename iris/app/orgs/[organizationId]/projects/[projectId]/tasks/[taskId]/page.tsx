@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { ArtifactContent } from "@/app/components/artifact-view";
 import { BudgetForm, BudgetMeter } from "@/app/components/budget";
 import { StatusBadge } from "@/app/components/status-badge";
-import type { Execution } from "@/lib/api";
+import type { Execution, Task } from "@/lib/api";
 import {
   getTask,
   getTaskTreeBudget,
@@ -145,6 +145,12 @@ async function TaskView({
               fileIds={task.inputFiles.map((file) => file.fileId)}
             />
           </Suspense>
+        ) : null}
+        {task.context.length > 0 ? (
+          <PinnedKnowledge
+            context={task.context}
+            knowledgePath={`/orgs/${organizationId}/projects/${projectId}/knowledge`}
+          />
         ) : null}
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
           <Fact label="Attempt">{task.attempt}</Fact>
@@ -481,6 +487,38 @@ async function ActivityLoader({
       url={`${path}/executions/${execution.id}/events`}
       initial={initial}
     />
+  );
+}
+
+/** The knowledge pinned on the task: the versions its runs get, linked to each item. */
+function PinnedKnowledge({
+  context,
+  knowledgePath,
+}: {
+  context: Task["context"];
+  knowledgePath: string;
+}) {
+  return (
+    <div className="text-sm">
+      <p className="text-zinc-600 dark:text-zinc-400">
+        Knowledge pinned on it (every run gets these versions):
+      </p>
+      <ul className="mt-1 space-y-1">
+        {context.map((item) => (
+          <li key={item.itemId} className="flex flex-wrap items-baseline gap-2">
+            <Link
+              href={`${knowledgePath}/${item.itemId}`}
+              className="underline"
+            >
+              {item.title}
+            </Link>
+            <span className="text-zinc-500">
+              {item.type} · version {item.version}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

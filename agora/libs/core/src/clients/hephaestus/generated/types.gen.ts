@@ -13,6 +13,7 @@ export type DomainErrorCode =
   | 'TASK_BUDGET_INVALID'
   | 'TASK_CONCURRENCY_INVALID'
   | 'TASK_CONCURRENCY_SKIPPED'
+  | 'TASK_CONTEXT_INVALID'
   | 'ORGANIZATION_SUSPENDED'
   | 'PROJECT_ARCHIVED'
   | 'TASK_CRITERIA_INVALID'
@@ -250,6 +251,43 @@ export type CreateTaskRequest = {
    *
    */
   inputFiles?: Array<TaskInputFile>;
+  /**
+   * Project knowledge the task should know (docs/tasks.md, `context`):
+   * accepted items of its project in Seshat, each pinned at its
+   * current version when the task is created, so every execution
+   * and retry gets the same. Their text goes into the agent's
+   * prompt as reference material (a document's is listed, to read
+   * with the knowledge tools). An item that isn't an accepted item
+   * of the project is `TASK_CONTEXT_INVALID`; Seshat not answering
+   * is `503`.
+   *
+   */
+  context?: Array<TaskContextReference>;
+};
+
+export type TaskContextReference = {
+  /**
+   * Only project knowledge (Seshat) so far.
+   */
+  kind: 'knowledge';
+  /**
+   * A knowledge item of the task's project.
+   */
+  itemId: string;
+};
+
+export type PinnedTaskContext = {
+  kind: 'knowledge';
+  itemId: string;
+  /**
+   * The item's version the task got.
+   */
+  version: number;
+  /**
+   * The item's kind in Seshat: decision, convention, fact, architecture, lesson or document.
+   */
+  type: string;
+  title: string;
 };
 
 export type TaskInputFile = {
@@ -522,6 +560,10 @@ export type TaskResponse = {
    * Files the task starts from (Loculus), in `/workspace/inputs` of its sandbox.
    */
   inputFiles: Array<TaskInputFile>;
+  /**
+   * The project knowledge pinned on it, at the versions it got.
+   */
+  context: Array<PinnedTaskContext>;
   /**
    * The template it was created from, if any.
    */

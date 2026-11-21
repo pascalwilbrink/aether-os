@@ -287,6 +287,10 @@ export class TaskRunner
         this.preparer.inputFiles(task, token, sandbox),
         signal,
       );
+      const context = await this.untilStopped(
+        this.preparer.context(task),
+        signal,
+      );
       if (checkout) {
         activity.log(
           `Checked out ${checkout.fullName} at ${checkout.path}, on ${checkout.branch}`,
@@ -336,6 +340,7 @@ export class TaskRunner
           startedFrom: checkout.startedFrom,
         },
         inputFiles,
+        context,
         artifacts: {
           submit: async (artifact) => ({
             artifactId: await this.executions.recordArtifact(source, artifact),

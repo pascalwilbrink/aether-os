@@ -1,6 +1,10 @@
 import { posix } from 'node:path';
 
-import type { TaskResponse } from '@hephaestus/tasks';
+import type {
+  PinnedKnowledge,
+  TaskResponse,
+  TasksService,
+} from '@hephaestus/tasks';
 
 import type { AgentInputFile } from './agent-runtime.js';
 import { FileStore, FileStoreError } from './file-store.js';
@@ -41,7 +45,14 @@ export class TaskInputs {
   constructor(
     private readonly files: FileStore,
     private readonly maxBytes: number,
+    private readonly tasks: Pick<TasksService, 'pinnedContext'>,
   ) {}
+
+  /** The knowledge pinned on the task, at the versions it got (docs/tasks.md, `context`). */
+  context(task: TaskResponse): Promise<PinnedKnowledge[]> {
+    if (task.context.length === 0) return Promise.resolve([]);
+    return this.tasks.pinnedContext(task.organizationId, task.id);
+  }
 
   async copyInto(
     task: TaskResponse,

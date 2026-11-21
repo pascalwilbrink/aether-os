@@ -3,6 +3,7 @@ import { Check, Column, Entity, Index, PrimaryColumn, Unique } from 'typeorm';
 import type { ApiTypes } from '@hephaestus/core';
 import type { BudgetScope } from '@hephaestus/models';
 
+import type { PinnedKnowledge } from './task-context.js';
 import type { TaskFailureReason, TaskStatus } from './task-transitions.js';
 
 /**
@@ -140,6 +141,17 @@ export class TaskEntity {
    */
   @Column({ type: 'uuid', array: true, default: () => "'{}'" })
   inputFileIds: string[];
+
+  /**
+   * The knowledge pinned on it (docs/tasks.md, `context`): each item and the
+   * version it got. Their text is in `contextContent`.
+   */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  context: ApiTypes.PinnedTaskContext[];
+
+  /** The pinned items' text, for the runner's prompt; not read with the task. */
+  @Column({ type: 'jsonb', default: () => "'[]'", select: false })
+  contextContent?: PinnedKnowledge[];
 
   /** The template version it was created from (docs/tasks.md), if any. */
   @Column({ type: 'uuid', nullable: true })

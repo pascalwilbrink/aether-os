@@ -4,6 +4,7 @@ import type { App } from 'supertest/types.js';
 
 import { createApp, MISSING_ID } from './app.js';
 import { asMember, type Client } from './auth.js';
+import type { FakeTaskContextSource } from './fake-knowledge.js';
 import type { FakePylon } from './fake-models.js';
 import { projectArchived, type FakePolis } from './fake-polis.js';
 import { archiveAgent, createAgent, publishedAgent } from './agora.js';
@@ -26,6 +27,7 @@ describe('Tasks (e2e)', () => {
   let app: INestApplication<App>;
   let polis: FakePolis;
   let pylon: FakePylon;
+  let knowledge: FakeTaskContextSource;
   let orgId: string;
   let projectId: string;
   let owner: Client;
@@ -35,7 +37,7 @@ describe('Tasks (e2e)', () => {
   let key = 0;
 
   beforeEach(async () => {
-    ({ app, polis, pylon } = await createApp());
+    ({ app, polis, pylon, knowledge } = await createApp());
     orgId = polis.organization();
     projectId = polis.project(orgId);
     owner = await asMember(app, orgId, ['owner']);
@@ -128,6 +130,7 @@ describe('Tasks (e2e)', () => {
       repository: null,
       concurrency: null,
       inputFiles: [],
+      context: [],
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
       finishedAt: null,
@@ -165,6 +168,89 @@ describe('Tasks (e2e)', () => {
       { inputFiles: Array.from({ length: 21 }, () => ({ fileId })) },
       'too-many-files',
     ).expect(400);
+  });
+
+  it('pins accepted knowledge at its current version, once each', async () => {
+    const decision = knowledge.add({
+      id: '0195f2a0-0000-7000-8000-0000000000c1',
+      title: 'Use Postgres',
+      body: 'One database engine.',
+      version: 3,
+    });
+    const doc = knowledge.add({
+      id: '0195f2a0-0000-7000-8000-0000000000c2',
+      title: 'Billing runbook',
+      type: 'document',
+    });
+    const created = await create(
+      owner,
+      {
+        context: [
+          { kind: 'knowledge', itemId: decision },
+          { kind: 'knowledge', itemId: doc },
+          { kind: 'knowledge', itemId: decision },
+        ],
+      },
+      'with-context',
+    ).expect(201);
+    const pinned = [
+      {
+        kind: 'knowledge',
+        itemId: decision,
+        version: 3,
+        type: 'decision',
+        title: 'Use Postgres',
+      },
+      {
+        kind: 'knowledge',
+        itemId: doc,
+        version: 1,
+        type: 'document',
+        title: 'Billing runbook',
+      },
+    ];
+    expect(created.body.context).toEqual(pinned);
+
+    // A newer version since doesn't change what the task got.
+    knowledge.add({
+      id: decision,
+      title: 'Use Postgres and Redis',
+      version: 4,
+    });
+    expect(
+      (await owner.get(`${base}/${created.body.id}`).expect(200)).body.context,
+    ).toEqual(pinned);
+    // Asked again with the same key: the same task, Seshat not asked again.
+    const calls = knowledge.calls.length;
+    await create(
+      owner,
+      { context: [{ kind: 'knowledge', itemId: decision }] },
+      'with-context',
+    ).expect(200);
+    expect(knowledge.calls).toHaveLength(calls);
+  });
+
+  it("refuses knowledge it can't pin, and waits for Seshat", async () => {
+    const proposal = knowledge.add({
+      id: '0195f2a0-0000-7000-8000-0000000000c3',
+      title: 'Maybe use Redis',
+      status: 'proposed',
+    });
+    for (const itemId of [proposal, MISSING_ID]) {
+      const res = await create(owner, {
+        context: [{ kind: 'knowledge', itemId }],
+      }).expect(409);
+      expect(res.body.code).toBe('TASK_CONTEXT_INVALID');
+    }
+    await create(owner, {
+      context: [{ kind: 'file', itemId: proposal }],
+    }).expect(400);
+    knowledge.down = true;
+    await create(owner, {
+      context: [{ kind: 'knowledge', itemId: proposal }],
+    }).expect(503);
+    // Nothing was created.
+    expect((await owner.get(base).expect(200)).body.items).toEqual([]);
   });
 
   it('needs an idempotency key, a published agent and an active project', async () => {

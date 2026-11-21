@@ -11,6 +11,7 @@ import {
 } from '@hephaestus/runner';
 
 import { createApp, MISSING_ID } from './app.js';
+import type { FakeTaskContextSource } from './fake-knowledge.js';
 import { asMember, type Client } from './auth.js';
 import type { FakePolis } from './fake-polis.js';
 import {
@@ -38,6 +39,7 @@ const versionBody = {
 describe('Running tasks (e2e)', () => {
   let app: INestApplication<App>;
   let polis: FakePolis;
+  let knowledge: FakeTaskContextSource;
   let runtime: FakeAgentRuntime;
   let orgId: string;
   let projectId: string;
@@ -46,7 +48,7 @@ describe('Running tasks (e2e)', () => {
 
   beforeEach(async () => {
     runtime = new FakeAgentRuntime();
-    ({ app, polis } = await createApp((builder) =>
+    ({ app, polis, knowledge } = await createApp((builder) =>
       builder
         .overrideProvider(RUNNER_OPTIONS)
         .useValue(testRunnerOptions())
@@ -83,6 +85,45 @@ describe('Running tasks (e2e)', () => {
         .expect(201)
     ).body.id;
   }
+
+  it('gives the agent the knowledge pinned on its task', async () => {
+    const itemId = knowledge.add({
+      id: '0195f2a0-0000-7000-8000-0000000000d1',
+      title: 'Emails are case-insensitive',
+      type: 'convention',
+      body: 'Compare emails lowercased.',
+      version: 2,
+    });
+    const published = await publishedAgent(app, orgId, versionBody);
+    await owner
+      .post(base)
+      .set('idempotency-key', 'with-knowledge')
+      .send({
+        title: 'Fix the login bug',
+        instructions: 'Users with uppercase emails cannot sign in.',
+        agentId: published.agentId,
+        serviceAccountId: SERVICE_ACCOUNT,
+        context: [{ kind: 'knowledge', itemId }],
+      })
+      .expect(201);
+    // Changed in Seshat since: the run still gets what the task pinned.
+    knowledge.add({ id: itemId, title: 'Changed', version: 3 });
+    const runner = app.get(TaskRunner);
+    await runner.tick();
+    await runner.drain();
+    expect(runtime.runs.at(-1)?.context).toEqual([
+      {
+        kind: 'knowledge',
+        itemId,
+        version: 2,
+        type: 'convention',
+        title: 'Emails are case-insensitive',
+        body: 'Compare emails lowercased.',
+        truncated: false,
+        fileName: null,
+      },
+    ]);
+  });
 
   it('runs a task and lists its executions', async () => {
     const taskId = await queuedTask();

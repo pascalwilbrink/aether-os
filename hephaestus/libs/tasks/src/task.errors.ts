@@ -63,3 +63,10 @@ export class TaskConcurrencySkippedError extends DomainError {
     );
   }
 }
+
+/** A task's `context` names knowledge it can't pin (docs/tasks.md, `context`). */
+export class TaskContextInvalidError extends DomainError {
+  constructor(reason: string) {
+    super(reason, 'TASK_CONTEXT_INVALID');
+  }
+}

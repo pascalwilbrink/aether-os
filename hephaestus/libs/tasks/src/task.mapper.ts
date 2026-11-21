@@ -5,6 +5,7 @@ import type { ApiTypes } from '@hephaestus/core';
 
 import type { CreateTaskRequest } from './dto/create-task.request.js';
 import type { TaskResponse } from './dto/task.response.js';
+import type { PinnedKnowledge } from './task-context.js';
 import { TaskEntity } from './task.entity.js';
 import type { TaskStatus } from './task-transitions.js';
 
@@ -22,6 +23,8 @@ export interface NewTask {
   repositoryLinkId: string | null;
   /** Set when it comes from a template. */
   template?: TaskTemplateOrigin;
+  /** The knowledge pinned on it, at the versions it got. */
+  context: PinnedKnowledge[];
 }
 
 /** The template version a task comes from, and the criteria it brings. */
@@ -70,6 +73,8 @@ export class TaskMapper {
       inputFileIds: [
         ...new Set((task.dto.inputFiles ?? []).map((file) => file.fileId)),
       ],
+      context: task.context.map(contextOf),
+      contextContent: task.context,
       taskTemplateId: task.template?.templateId ?? null,
       taskTemplateVersion: task.template?.version ?? null,
       attempt: 1,
@@ -115,6 +120,7 @@ export class TaskMapper {
           ? { key: entity.concurrencyKey, policy: entity.concurrencyPolicy }
           : null,
       inputFiles: entity.inputFileIds.map((fileId) => ({ fileId })),
+      context: entity.context,
       taskTemplateId: entity.taskTemplateId,
       taskTemplateVersion: entity.taskTemplateVersion,
       createdAt: entity.createdAt.toISOString(),
@@ -123,4 +129,15 @@ export class TaskMapper {
       version: entity.version,
     };
   }
+}
+
+/** What the API shows of a pinned item: which one, at which version. */
+function contextOf(pinned: PinnedKnowledge): ApiTypes.PinnedTaskContext {
+  return {
+    kind: pinned.kind,
+    itemId: pinned.itemId,
+    version: pinned.version,
+    type: pinned.type,
+    title: pinned.title,
+  };
 }

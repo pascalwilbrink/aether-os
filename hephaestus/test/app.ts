@@ -4,17 +4,20 @@ import type { App } from 'supertest/types.js';
 
 import { configureHttpApp, EventConsumer } from '@hephaestus/core';
 import { Pylon, PylonModels } from '@hephaestus/models';
+import { TaskContextSource } from '@hephaestus/tasks';
 import { PolisClient } from '@hephaestus/tenancy';
 
 import { AppModule } from '../src/app.module.js';
 import { resetDatabase } from './database.js';
 import { FakePylon, ScriptedPylonModels } from './fake-models.js';
+import { FakeTaskContextSource } from './fake-knowledge.js';
 import { FakePolis } from './fake-polis.js';
 
 /**
  * The whole Hephaestus app, configured as in main.ts, on an empty database,
  * consuming from the run's RabbitMQ, with a fake Polis behind PolisClient
- * and a fake Pylon (budgets, usage) and scripted models behind Pylon's ports.
+ * and a fake Pylon (budgets, usage) and scripted models behind Pylon's ports,
+ * and Seshat's items for pinning knowledge on tasks (`knowledge`).
  */
 export async function createApp(
   override: (builder: TestingModuleBuilder) => TestingModuleBuilder = (
@@ -24,8 +27,10 @@ export async function createApp(
   app: INestApplication<App>;
   polis: FakePolis;
   pylon: FakePylon;
+  knowledge: FakeTaskContextSource;
 }> {
   const polis = new FakePolis();
+  const knowledge = new FakeTaskContextSource();
   const models = new ScriptedPylonModels();
   const pylon = new FakePylon(models);
   const moduleRef = await override(
@@ -35,7 +40,9 @@ export async function createApp(
       .overrideProvider(Pylon)
       .useValue(pylon)
       .overrideProvider(PylonModels)
-      .useValue(models),
+      .useValue(models)
+      .overrideProvider(TaskContextSource)
+      .useValue(knowledge),
   ).compile();
   const app = configureHttpApp(
     moduleRef.createNestApplication({ logger: false }),
@@ -45,7 +52,7 @@ export async function createApp(
   await app.get(EventConsumer).ready();
   await resetDatabase(app);
 
-  return { app: app as INestApplication<App>, polis, pylon };
+  return { app: app as INestApplication<App>, polis, pylon, knowledge };
 }
 
 /** A valid UUID that no resource has. */

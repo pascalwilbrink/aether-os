@@ -10,7 +10,7 @@ import { ModelGateway, ModelsModule } from '@hephaestus/models';
 import { SkillsModule, SkillsService } from '@hephaestus/skills';
 import { ToolServersService, ToolsModule } from '@hephaestus/tools';
 import { WorkspacesModule, WorkspacesService } from '@hephaestus/workspaces';
-import { TasksModule } from '@hephaestus/tasks';
+import { TasksModule, TasksService } from '@hephaestus/tasks';
 
 import { AgentRuntime } from './agent-runtime.js';
 import { EchoAgentRuntime, NoAgentRuntime } from './echo-agent-runtime.js';
@@ -205,11 +205,16 @@ import {
     },
     {
       provide: TaskInputs,
-      inject: [FileStore, ConfigService],
-      useFactory: (files: FileStore, config: ConfigService<Env, true>) =>
+      inject: [FileStore, ConfigService, TasksService],
+      useFactory: (
+        files: FileStore,
+        config: ConfigService<Env, true>,
+        tasks: TasksService,
+      ) =>
         new TaskInputs(
           files,
           config.get('TASK_FILE_MAX_BYTES', { infer: true }),
+          tasks,
         ),
     },
     { provide: GitClient, useFactory: () => new GitClient() },

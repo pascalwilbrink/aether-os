@@ -10,7 +10,11 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { RequirePermission, ZodSerializerDto } from '@seshat/core';
+import {
+  PlatformAccess,
+  RequirePermission,
+  ZodSerializerDto,
+} from '@seshat/core';
 
 import { DocumentsService } from './documents.service.js';
 import {
@@ -66,6 +70,8 @@ export class KnowledgeController {
 
   @Get('items/:itemId')
   @RequirePermission('knowledge:read', IN_PROJECT)
+  // Platform services read items too (Hephaestus pins them on tasks).
+  @PlatformAccess('platform:read')
   @ZodSerializerDto(KnowledgeItemResponse)
   findById(@Param() { organizationId, projectId, itemId }: ItemParams) {
     return this.items.findById(organizationId, projectId, itemId);

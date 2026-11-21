@@ -89,7 +89,7 @@ paths:
     get:
       tags: [knowledge]
       operationId: getKnowledgeItem
-      x-permission: '`knowledge:read` in the project'
+      x-permission: '`knowledge:read` in the project, or `platform:read` (platform services: Hephaestus pins items on tasks)'
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }

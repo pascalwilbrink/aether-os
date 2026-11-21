@@ -9,7 +9,7 @@ Seshat is the Aether-os service for **project knowledge** (see `../CLAUDE.md` an
 Agents search, read and propose it with Hephaestus's knowledge tools (with their task token); people manage it on Iris's Knowledge page.
 
 Planned:
-- organization-wide items, repository documents, pinned context on tasks, other Office formats, OCR for scanned PDFs.
+- organization-wide items, repository documents, other Office formats, OCR for scanned PDFs.
 
 It follows `../docs/engineering.md` like Agora: NestJS 12 (ESM, TypeScript 6), controller → service → TypeORM repository with mappers, Zod DTOs generated from the spec, `typeorm-transactional`, Postgres with migrations, and tests against Postgres (with pgvector) and RabbitMQ in containers.
 
@@ -60,7 +60,7 @@ Same layout as Agora (`../agora/CLAUDE.md`): `src/` is the app shell, and code l
     - Agents may change only proposals: changing an accepted item is a proposal that `supersedes` it (`KNOWLEDGE_ITEM_INVALID`).
     - `POST /items/{id}/accept`, `/reject` and `/retire` need `knowledge:approve`, which Krepis gives only to users. Transitions are in `knowledge-transitions.ts` (`KNOWLEDGE_ITEM_INVALID_TRANSITION`), and repeating the action that's already done returns the item.
     - Accepting an item that `supersedes` an accepted one marks the old one `superseded` (with `supersededBy`) in the same transaction. A person's superseding item does it at once.
-    - `GET /items` (`?type=`, `?status=`, newest first) and `GET /items/{id}` need `knowledge:read`. Another project's item is a 404.
+    - `GET /items` (`?type=`, `?status=`, newest first) and `GET /items/{id}` need `knowledge:read`. Another project's item is a 404. `GET /items/{id}` also takes a platform service's own token with `platform:read` (`@PlatformAccess`): Hephaestus pins items on new tasks with it.
     - `GET /items/{id}/passages` (`knowledge:read`, cursor-paged by `ordinal`): its current version's passages in order, a document's text; agents read documents with it (Hephaestus's `read_knowledge`).
   - **Versions** (`KnowledgeVersionsService`, `knowledge_item_versions`): every edit is a new `version`, and each version's content is kept (`GET /items/{id}/versions`, newest first).
   - **Redaction:** bodies are redacted with Krepis's `redactText(…, { keepEmails: true })` before they're stored.
@@ -102,6 +102,6 @@ Same layout as Agora (`../agora/CLAUDE.md`): `src/` is the app shell, and code l
 
 `test/global-setup.ts` starts Postgres with pgvector (`PGVECTOR_TEST_IMAGE`), applies the migrations and fails if the entities differ from them. `test/knowledge.e2e-spec.ts` covers items, documents (PDF and Word included) and their events; `test/embeddings.e2e-spec.ts` covers embedding, hybrid search, new versions, failures and search without Pylon. Every test empties the tables (`test/database.ts`).
 
-Clients come from the run's `TestTokens`: `asMember` and `asTask` (a task token). `test/outbox.ts` reads the events written to the outbox.
+Clients come from the run's `TestTokens`: `asMember`, `asTask` (a task token) and `asService` (a platform service's own token). `test/outbox.ts` reads the events written to the outbox.
 
 `http-document-files.spec.ts` and `http-embeddings.spec.ts` run the Loculus and Pylon clients against a local HTTP server.

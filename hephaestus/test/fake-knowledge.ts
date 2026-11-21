@@ -1,3 +1,11 @@
+import { ServiceUnavailableException } from '@nestjs/common';
+
+import {
+  pinnedOf,
+  TaskContextInvalidError,
+  TaskContextSource,
+  type PinnedKnowledge,
+} from '@hephaestus/tasks';
 import {
   KnowledgeBase,
   KnowledgeError,
@@ -98,5 +106,55 @@ export class FakeKnowledgeBase extends KnowledgeBase {
         source: { kind: 'task', taskId: null },
       }),
     );
+  }
+}
+
+/**
+ * Seshat as Hephaestus pins knowledge on new tasks (`TaskContextSource`):
+ * the items it has, `down` for Seshat not answering, and the calls made.
+ * Seshat's own answers are tested against `SeshatTaskContextSource`
+ * (`libs/tasks/src/task-context.spec.ts`).
+ */
+export class FakeTaskContextSource extends TaskContextSource {
+  readonly items = new Map<string, KnowledgeItem>();
+  readonly calls: string[][] = [];
+  down = false;
+
+  add(item: Partial<KnowledgeItem> & Pick<KnowledgeItem, 'id' | 'title'>) {
+    this.items.set(item.id, knowledgeItem(item));
+    return item.id;
+  }
+
+  pin(
+    _organizationId: string,
+    _projectId: string,
+    itemIds: readonly string[],
+  ): Promise<PinnedKnowledge[]> {
+    this.calls.push([...itemIds]);
+    if (this.down) {
+      return Promise.reject(
+        new ServiceUnavailableException('Seshat is unavailable'),
+      );
+    }
+    const pinned: PinnedKnowledge[] = [];
+    for (const itemId of new Set(itemIds)) {
+      const item = this.items.get(itemId);
+      if (!item) {
+        return Promise.reject(
+          new TaskContextInvalidError(
+            `Knowledge item ${itemId} isn't in the task's project.`,
+          ),
+        );
+      }
+      if (item.status !== 'accepted') {
+        return Promise.reject(
+          new TaskContextInvalidError(
+            `Knowledge item ${itemId} is ${item.status}: a task pins accepted knowledge only.`,
+          ),
+        );
+      }
+      pinned.push(pinnedOf(item));
+    }
+    return Promise.resolve(pinned);
   }
 }

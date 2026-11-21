@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.30.0
+  version: 0.31.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -1082,6 +1082,7 @@ components:
         - TASK_BUDGET_INVALID
         - TASK_CONCURRENCY_INVALID
         - TASK_CONCURRENCY_SKIPPED
+        - TASK_CONTEXT_INVALID
         - ORGANIZATION_SUSPENDED
         - PROJECT_ARCHIVED
         - TASK_CRITERIA_INVALID
@@ -1357,6 +1358,41 @@ components:
             sandbox, in `/workspace/inputs`, so its version needs one
             (else the execution fails without retrying).
           items: { $ref: '#/components/schemas/TaskInputFile' }
+        context:
+          type: array
+          maxItems: 50
+          description: |
+            Project knowledge the task should know (docs/tasks.md, `context`):
+            accepted items of its project in Seshat, each pinned at its
+            current version when the task is created, so every execution
+            and retry gets the same. Their text goes into the agent's
+            prompt as reference material (a document's is listed, to read
+            with the knowledge tools). An item that isn't an accepted item
+            of the project is `TASK_CONTEXT_INVALID`; Seshat not answering
+            is `503`.
+          items: { $ref: '#/components/schemas/TaskContextReference' }
+    TaskContextReference:
+      type: object
+      additionalProperties: false
+      required: [kind, itemId]
+      properties:
+        kind:
+          type: string
+          enum: [knowledge]
+          description: Only project knowledge (Seshat) so far.
+        itemId: { type: string, format: uuid, description: A knowledge item of the task's project. }
+    PinnedTaskContext:
+      type: object
+      additionalProperties: false
+      required: [kind, itemId, version, type, title]
+      properties:
+        kind:
+          type: string
+          enum: [knowledge]
+        itemId: { type: string, format: uuid }
+        version: { type: integer, minimum: 1, description: The item's version the task got. }
+        type: { type: string, description: 'The item''s kind in Seshat: decision, convention, fact, architecture, lesson or document.' }
+        title: { type: string }
     TaskInputFile:
       type: object
       additionalProperties: false
@@ -1604,7 +1640,7 @@ components:
           items: { type: string, minLength: 1, maxLength: 50 }
     TaskResponse:
       type: object
-      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, pausedFor, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, concurrency, inputFiles, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
+      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, pausedFor, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, concurrency, inputFiles, context, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -1662,6 +1698,10 @@ components:
           type: array
           description: Files the task starts from (Loculus), in `/workspace/inputs` of its sandbox.
           items: { $ref: '#/components/schemas/TaskInputFile' }
+        context:
+          type: array
+          description: The project knowledge pinned on it, at the versions it got.
+          items: { $ref: '#/components/schemas/PinnedTaskContext' }
         taskTemplateId:
           type: [string, 'null']
           format: uuid

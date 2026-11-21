@@ -60,7 +60,7 @@ A task's brief is split into fields with one purpose each, instead of one block 
 | `requirements` | Explicit constraints on the result: things that must be implemented | List of `{ key, description }`, e.g. `{ key: 'REQ-1', description: 'Expose GET /v1/invoices' }` | New |
 | `expectedOutcome` | What the completed task should produce, in words: the end state | Markdown | New |
 | `acceptanceCriteria` | How the system decides the task is complete | List of criteria with checks (Definition of done, below) | Built |
-| `context` | Relevant project knowledge, documents and references | List of references (below), pinned when the task is created | New; `inputFiles` becomes its `file` entries |
+| `context` | Relevant project knowledge, documents and references | List of references (below), pinned when the task is created | `knowledge` entries built; `inputFiles` becomes its `file` entries |
 | `constraints` | Technical, architectural or operational limits on **how** it's done | List of `{ key, description }`, e.g. "No new dependencies", "Don't change the public API", "Finish within the existing schema" | New |
 | `deliverables` | The expected files, artifacts or outputs | List of `{ key, kind, description, primary?, path? }` (below) | New (templates had a free-form `artifacts` field) |
 
