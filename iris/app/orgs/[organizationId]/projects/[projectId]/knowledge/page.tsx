@@ -293,8 +293,9 @@ async function Knowledge({ params, searchParams }: Props) {
         <section className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
           <h2 className="font-medium">Add a document</h2>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Markdown, text, CSV, JSON and HTML are searchable by their text;
-            other files by their title.
+            Markdown, text, CSV, JSON, HTML, PDF and Word (.docx) are
+            searchable by their text; other files by their title. Scanned PDFs
+            have no text to read yet.
           </p>
           <UploadDocumentForm project={ref} />
         </section>

@@ -103,7 +103,15 @@ export class DocumentIndexer
         sha256: item.sha256!,
         sizeBytes: item.sizeBytes!,
       });
-      return extractText(bytes, item.contentType ?? '', item.fileName ?? '');
+      const extracted = await extractText(
+        bytes,
+        item.contentType ?? '',
+        item.fileName ?? '',
+      );
+      // A file that can't be read won't read better next time.
+      return extracted.kind === 'unreadable'
+        ? { kind: 'failed', error: extracted.reason, retryable: false }
+        : extracted;
     } catch (error) {
       if (error instanceof DocumentFileError) {
         return {

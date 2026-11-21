@@ -180,7 +180,9 @@ export interface paths {
          * @description Registers a file of the project in Loculus (uploaded first, `available`)
          *     as a `document` item. Seshat indexes it in the background: it reads the
          *     file from Loculus, extracts its text (Markdown, plain text, CSV, JSON,
-         *     HTML; other types are kept but `unsupported`), and splits it into chunks
+         *     HTML, PDF with a text layer, Word `.docx`; other types are kept but
+         *     `unsupported`; a PDF or Word file it can't read, or a scanned PDF
+         *     without text, `failed`), and splits it into chunks
          *     for search. `indexing` says how far it got.
          */
         post: operations["createKnowledgeDocument"];

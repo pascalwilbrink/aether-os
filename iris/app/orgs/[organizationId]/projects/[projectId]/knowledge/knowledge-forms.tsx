@@ -69,7 +69,7 @@ export function NewKnowledgeItemForm({ project }: { project: ProjectRef }) {
   );
 }
 
-/** Uploads a document (Markdown, text, CSV, JSON, HTML are searchable). */
+/** Uploads a document (Markdown, text, CSV, JSON, HTML, PDF and .docx are searchable). */
 export function UploadDocumentForm({ project }: { project: ProjectRef }) {
   const [state, action, pending] = useActionState<FormState, FormData>(
     uploadKnowledgeDocumentAction.bind(null, project),
