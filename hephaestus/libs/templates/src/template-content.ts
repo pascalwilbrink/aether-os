@@ -23,10 +23,7 @@ export function effectiveTemplate(
   base?: EffectiveTemplate,
 ): EffectiveTemplate {
   const title = content.title ?? base?.title;
-  const description = appended(
-    base?.description,
-    content.instructions,
-  );
+  const description = appended(base?.description, content.instructions);
   const expectedOutcome =
     appended(base?.expectedOutcome ?? undefined, content.expectedOutcome) ??
     null;
