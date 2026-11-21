@@ -63,7 +63,7 @@ Rules:
 
 ### Agora (`agora.events`)
 
-Every event has the agent as its aggregate; the agent's version grows by one per event (`../contracts/agora.asyncapi.yaml`).
+Agents' events have the agent as their aggregate, skills' the skill; its version grows by one per event (`../contracts/agora.asyncapi.yaml`).
 
 | Event | Payload | Consumers |
 |---|---|---|
@@ -71,6 +71,9 @@ Every event has the agent as its aggregate; the agent's version grows by one per
 | `agent.archived` | `agentId` | Hephaestus (no new tasks), Kairos |
 | `agent-version.published` | `agentId`, `agentVersionId`, `policySetVersionId` (null until Themis), `previousVersionId`, `version` (the whole version) | Hephaestus (its copy: new tasks pin it), Kairos, Kriterion |
 | `agent-version.deprecated` | `agentId`, `agentVersionId` | Kairos (warn about automations still using it) |
+| `skill.created` | `skillId`, `name`, `createdBy`, `createdAt` (its first version follows) | Hephaestus (its copy of skills) |
+| `skill.archived` | `skillId` | Hephaestus (new versions can't choose it) |
+| `skill-version.published` | `skillId`, `skillVersionId`, `version` (the whole version, its files included: at most 1 MiB) | Hephaestus (its copy: runs read it), Kriterion |
 
 ### Themis (`themis.events`)
 
@@ -153,7 +156,7 @@ From `learning.md`, `knowledge.md`, `skills.md` and `interaction.md`; none are p
 | Hephaestus | `task.feedback-recorded` | `taskId`, `artifactId`, `rating`, `givenBy` | Kriterion, Iris |
 | Hephaestus | `task.outcome-recorded` | `taskId`, `agentVersionId`, `taskTemplateVersion`, skill versions and knowledge items used, verification rounds, review and delivery outcome, `costUsd` (IDs and numbers, no content) | Kriterion, Kairos (skill extraction triggers) |
 | Hephaestus | `session.started` / `session.ended` | `sessionId`, `projectId`, `agentVersionId`, `userId`; usage when ended | Iris |
-| Agora | `skill-version.published` | `skillId`, `skillVersionId`, `version`, provenance | Hephaestus (its copy), Kriterion |
+| Agora | provenance on `skill-version.published` (built without it, above) | where a version came from (a person, a candidate) | Kriterion |
 | Agora | `skill-candidate.created` / `.evaluated` / `.rejected` | `candidateId`, `skillId`, evaluation reference | Kriterion, Kerykes, Iris |
 | Proxenos | `meeting.scheduled` / `.started` / `.failed` | `meetingId`, `projectId` | Iris |
 | Proxenos | `meeting.transcript-ready` | `meetingId`, `projectId`, `fileId`, participants' display names | Kairos (meeting automations), Iris |

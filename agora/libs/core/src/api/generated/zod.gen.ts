@@ -8,6 +8,8 @@ export const zDomainErrorCode = z.enum([
   'AGENT_VERSION_INVALID_TRANSITION',
   'MODEL_NOT_AVAILABLE',
   'ORGANIZATION_SUSPENDED',
+  'SKILL_ALREADY_EXISTS',
+  'SKILL_ARCHIVED',
   'SKILL_INVALID',
   'TOOL_SERVER_INVALID',
 ]);
@@ -122,6 +124,64 @@ export const zAgentVersionResponse = z.object({
 });
 
 /**
+ * Lowercase letters, digits and hyphens (the Agent Skills format), unique in the organization.
+ */
+export const zSkillName = z
+  .string()
+  .max(64)
+  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+
+export const zSkillStatus = z.enum(['active', 'archived']);
+
+export const zSkillFile = z.object({
+  path: z
+    .string()
+    .max(200)
+    .regex(/^[A-Za-z0-9_-][A-Za-z0-9._-]*(\/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$/),
+  content: z.string(),
+});
+
+/**
+ * The skill's folder, with `SKILL.md` at its root; at most 100 files and 1 MiB in all.
+ */
+export const zSkillFiles = z.array(zSkillFile).min(1).max(100);
+
+export const zCreateSkillRequest = z.object({
+  name: zSkillName,
+  files: zSkillFiles,
+});
+
+export const zCreateSkillVersionRequest = z.object({
+  files: zSkillFiles,
+});
+
+export const zSkillResponse = z.object({
+  id: z.uuid(),
+  organizationId: z.uuid(),
+  name: zSkillName,
+  description: z.string(),
+  status: zSkillStatus,
+  latestVersion: z.int().gte(1),
+  createdBy: z.string(),
+  createdAt: zTimestamp,
+  updatedAt: zTimestamp,
+});
+
+export const zSkillVersionResponse = z.object({
+  id: z.uuid(),
+  skillId: z.uuid(),
+  organizationId: z.uuid(),
+  name: zSkillName,
+  version: z.int().gte(1),
+  description: z.string(),
+  sizeBytes: z.int().gte(0),
+  fileCount: z.int().gte(1),
+  files: z.array(zSkillFile).optional(),
+  createdBy: z.string(),
+  createdAt: zTimestamp,
+});
+
+/**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
 export const zNextCursor = z.string().nullable();
@@ -139,6 +199,18 @@ export const zAgentPage = zPageMeta.and(
 export const zAgentVersionPage = zPageMeta.and(
   z.object({
     items: z.array(zAgentVersionResponse),
+  }),
+);
+
+export const zSkillPage = zPageMeta.and(
+  z.object({
+    items: z.array(zSkillResponse),
+  }),
+);
+
+export const zSkillVersionPage = zPageMeta.and(
+  z.object({
+    items: z.array(zSkillVersionResponse),
   }),
 );
 
@@ -185,6 +257,8 @@ export const zOrganizationId = z.uuid();
 export const zAgentId = z.uuid();
 
 export const zVersionId = z.uuid();
+
+export const zSkillId = z.uuid();
 
 /**
  * Page size.
@@ -305,3 +379,87 @@ export const zPublishAgentVersionPath = z.object({
  * Published
  */
 export const zPublishAgentVersionResponse = zAgentVersionResponse;
+
+export const zListSkillsPath = z.object({
+  organizationId: z.uuid(),
+});
+
+export const zListSkillsQuery = z.object({
+  status: zSkillStatus.optional(),
+  limit: z.int().gte(1).lte(100).optional().default(50),
+  cursor: z.string().min(1).max(1024).optional(),
+});
+
+/**
+ * By name
+ */
+export const zListSkillsResponse = zSkillPage;
+
+export const zCreateSkillBody = zCreateSkillRequest;
+
+export const zCreateSkillPath = z.object({
+  organizationId: z.uuid(),
+});
+
+/**
+ * Created
+ */
+export const zCreateSkillResponse = zSkillResponse;
+
+export const zGetSkillPath = z.object({
+  organizationId: z.uuid(),
+  skillId: z.uuid(),
+});
+
+/**
+ * OK
+ */
+export const zGetSkillResponse = zSkillResponse;
+
+export const zArchiveSkillPath = z.object({
+  organizationId: z.uuid(),
+  skillId: z.uuid(),
+});
+
+/**
+ * OK
+ */
+export const zArchiveSkillResponse = zSkillResponse;
+
+export const zListSkillVersionsPath = z.object({
+  organizationId: z.uuid(),
+  skillId: z.uuid(),
+});
+
+export const zListSkillVersionsQuery = z.object({
+  limit: z.int().gte(1).lte(100).optional().default(50),
+  cursor: z.string().min(1).max(1024).optional(),
+});
+
+/**
+ * Newest first
+ */
+export const zListSkillVersionsResponse = zSkillVersionPage;
+
+export const zCreateSkillVersionBody = zCreateSkillVersionRequest;
+
+export const zCreateSkillVersionPath = z.object({
+  organizationId: z.uuid(),
+  skillId: z.uuid(),
+});
+
+/**
+ * Created
+ */
+export const zCreateSkillVersionResponse = zSkillVersionResponse;
+
+export const zGetSkillVersionPath = z.object({
+  organizationId: z.uuid(),
+  skillId: z.uuid(),
+  version: z.int().gte(1),
+});
+
+/**
+ * OK
+ */
+export const zGetSkillVersionResponse = zSkillVersionResponse;

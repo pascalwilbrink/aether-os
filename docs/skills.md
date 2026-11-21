@@ -2,7 +2,7 @@
 
 How agents get better at the work itself: reusable skills that agent versions pin, created by people first, and later extracted from successful work, evaluated and published. See `learning.md` for how skills differ from project knowledge.
 
-Status: phase 3 of `learning.md` (registry and manual creation) is **built in Hephaestus** (`libs/skills`, below); phase 4 (evolution) is a proposal. Not built: the move to Agora, usage and quality per skill version, extraction, evaluation, candidates and publishing.
+Status: phase 3 of `learning.md` (registry and manual creation) is **built**, and is moving from Hephaestus to Agora (below: Agora has the registry; Hephaestus and Iris switch to it next); phase 4 (evolution) is a proposal. Not built: usage and quality per skill version, extraction, evaluation, candidates and publishing.
 
 ## Decisions
 
@@ -23,7 +23,12 @@ Status: phase 3 of `learning.md` (registry and manual creation) is **built in He
 - At run time the pinned versions are in the agent's Mastra workspace (`skill`, `skill_read`, `skill_search` tools; the prompt lists each skill's name and description and says to read one before doing what it's for), and with a sandbox their files are copied to `/workspace/skills/<name>` so their scripts can run.
 - Iris: a Skills page (write and version skills) and choosing an agent version's skills.
 
-**Moving to Agora** (after agents): the same API in Agora; skill versions published as events with their files' location (the folder stored once, in Loculus, by reference), so Hephaestus keeps the versions agents pin without calling Agora; `pnpm import:hephaestus` brings existing skills over with their IDs.
+**Moving to Agora** (after agents), in two steps:
+
+1. **Built:** Agora has the same API (`../contracts/agora.openapi.yaml`, `agora/libs/skills`) and publishes every change (`skill.created`, `skill-version.published` with the version's files, `skill.archived`; the skill is the aggregate, its `revision` the `aggregateVersion`); `pnpm import:hephaestus` in `agora/` brings Hephaestus's skills and versions over with their IDs, at `revision` 1, publishing nothing.
+2. **Next:** Hephaestus keeps a copy of skills and versions from those events (its tables, at `revision` 1 for the rows from before) and drops its skills API; Agora checks a version's skills itself instead of asking Hephaestus; Iris's skill pages call Agora. Until then Hephaestus's API stays the one Iris writes to and runs read from.
+
+Versions travel inside the event, files included, instead of in Loculus by reference as first planned: a version is at most 1 MiB, Loculus's files belong to a project while skills belong to the organization, and Hephaestus then never has to fetch anything to run one.
 
 ### Added for learning (Proposal)
 

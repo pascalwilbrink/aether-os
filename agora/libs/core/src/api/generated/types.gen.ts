@@ -12,6 +12,8 @@ export type DomainErrorCode =
   | 'AGENT_VERSION_INVALID_TRANSITION'
   | 'MODEL_NOT_AVAILABLE'
   | 'ORGANIZATION_SUSPENDED'
+  | 'SKILL_ALREADY_EXISTS'
+  | 'SKILL_ARCHIVED'
   | 'SKILL_INVALID'
   | 'TOOL_SERVER_INVALID';
 
@@ -151,6 +153,78 @@ export type AgentVersionPage = PageMeta & {
 };
 
 /**
+ * Lowercase letters, digits and hyphens (the Agent Skills format), unique in the organization.
+ */
+export type SkillName = string;
+
+export type SkillStatus = 'active' | 'archived';
+
+export type SkillFile = {
+  /**
+   * Relative to the skill's folder, e.g. `SKILL.md` or `references/checklist.md`; no `..`.
+   */
+  path: string;
+  /**
+   * The file's text (UTF-8).
+   */
+  content: string;
+};
+
+/**
+ * The skill's folder, with `SKILL.md` at its root; at most 100 files and 1 MiB in all.
+ */
+export type SkillFiles = Array<SkillFile>;
+
+export type CreateSkillRequest = {
+  name: SkillName;
+  files: SkillFiles;
+};
+
+export type CreateSkillVersionRequest = {
+  files: SkillFiles;
+};
+
+export type SkillResponse = {
+  id: string;
+  organizationId: string;
+  name: SkillName;
+  /**
+   * The latest version's, from its `SKILL.md`.
+   */
+  description: string;
+  status: SkillStatus;
+  latestVersion: number;
+  createdBy: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+};
+
+export type SkillPage = PageMeta & {
+  items: Array<SkillResponse>;
+};
+
+export type SkillVersionResponse = {
+  id: string;
+  skillId: string;
+  organizationId: string;
+  name: SkillName;
+  version: number;
+  description: string;
+  sizeBytes: number;
+  fileCount: number;
+  /**
+   * Only when reading one version.
+   */
+  files?: Array<SkillFile>;
+  createdBy: string;
+  createdAt: Timestamp;
+};
+
+export type SkillVersionPage = PageMeta & {
+  items: Array<SkillVersionResponse>;
+};
+
+/**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
 export type NextCursor = string | null;
@@ -221,6 +295,8 @@ export type OrganizationId = string;
 export type AgentId = string;
 
 export type VersionId = string;
+
+export type SkillId = string;
 
 /**
  * Page size.
@@ -721,3 +797,400 @@ export type PublishAgentVersionResponses = {
 
 export type PublishAgentVersionResponse =
   PublishAgentVersionResponses[keyof PublishAgentVersionResponses];
+
+export type ListSkillsData = {
+  body?: never;
+  path: {
+    organizationId: string;
+  };
+  query?: {
+    status?: SkillStatus;
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+  };
+  url: '/v1/organizations/{organizationId}/skills';
+};
+
+export type ListSkillsErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type ListSkillsError = ListSkillsErrors[keyof ListSkillsErrors];
+
+export type ListSkillsResponses = {
+  /**
+   * By name
+   */
+  200: SkillPage;
+};
+
+export type ListSkillsResponse = ListSkillsResponses[keyof ListSkillsResponses];
+
+export type CreateSkillData = {
+  body: CreateSkillRequest;
+  path: {
+    organizationId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/skills';
+};
+
+export type CreateSkillErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type CreateSkillError = CreateSkillErrors[keyof CreateSkillErrors];
+
+export type CreateSkillResponses = {
+  /**
+   * Created
+   */
+  201: SkillResponse;
+};
+
+export type CreateSkillResponse =
+  CreateSkillResponses[keyof CreateSkillResponses];
+
+export type GetSkillData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    skillId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/skills/{skillId}';
+};
+
+export type GetSkillErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type GetSkillError = GetSkillErrors[keyof GetSkillErrors];
+
+export type GetSkillResponses = {
+  /**
+   * OK
+   */
+  200: SkillResponse;
+};
+
+export type GetSkillResponse = GetSkillResponses[keyof GetSkillResponses];
+
+export type ArchiveSkillData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    skillId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/skills/{skillId}/archive';
+};
+
+export type ArchiveSkillErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type ArchiveSkillError = ArchiveSkillErrors[keyof ArchiveSkillErrors];
+
+export type ArchiveSkillResponses = {
+  /**
+   * OK
+   */
+  200: SkillResponse;
+};
+
+export type ArchiveSkillResponse =
+  ArchiveSkillResponses[keyof ArchiveSkillResponses];
+
+export type ListSkillVersionsData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    skillId: string;
+  };
+  query?: {
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+  };
+  url: '/v1/organizations/{organizationId}/skills/{skillId}/versions';
+};
+
+export type ListSkillVersionsErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type ListSkillVersionsError =
+  ListSkillVersionsErrors[keyof ListSkillVersionsErrors];
+
+export type ListSkillVersionsResponses = {
+  /**
+   * Newest first
+   */
+  200: SkillVersionPage;
+};
+
+export type ListSkillVersionsResponse =
+  ListSkillVersionsResponses[keyof ListSkillVersionsResponses];
+
+export type CreateSkillVersionData = {
+  body: CreateSkillVersionRequest;
+  path: {
+    organizationId: string;
+    skillId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/skills/{skillId}/versions';
+};
+
+export type CreateSkillVersionErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type CreateSkillVersionError =
+  CreateSkillVersionErrors[keyof CreateSkillVersionErrors];
+
+export type CreateSkillVersionResponses = {
+  /**
+   * Created
+   */
+  201: SkillVersionResponse;
+};
+
+export type CreateSkillVersionResponse =
+  CreateSkillVersionResponses[keyof CreateSkillVersionResponses];
+
+export type GetSkillVersionData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    skillId: string;
+    version: number;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/skills/{skillId}/versions/{version}';
+};
+
+export type GetSkillVersionErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type GetSkillVersionError =
+  GetSkillVersionErrors[keyof GetSkillVersionErrors];
+
+export type GetSkillVersionResponses = {
+  /**
+   * OK
+   */
+  200: SkillVersionResponse;
+};
+
+export type GetSkillVersionResponse =
+  GetSkillVersionResponses[keyof GetSkillVersionResponses];
