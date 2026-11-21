@@ -6,9 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Seshat is the Aether-os service for **project knowledge** (see `../CLAUDE.md` and `../docs/knowledge.md`); Seshat was the Egyptian goddess of writing and record-keeping. It keeps each project's **knowledge items**: documents, decisions, facts, conventions, architecture and lessons learned. People write them, agents propose them, approvers accept them, and they're versioned, superseded and retired, never overwritten. Documents are files in Loculus that Seshat indexes. Their passages are embedded through Pylon, the model gateway (`../docs/pylon.md`), and searched by keywords and by meaning together. Every change is published as an event.
 
+Agents search, read and propose it with Hephaestus's knowledge tools (with their task token); people manage it on Iris's Knowledge page.
+
 Planned:
-- the agents' knowledge tools in Hephaestus, and Iris's Knowledge page;
-- organization-wide items, repository documents, PDF and Office text.
+- organization-wide items, repository documents, pinned context on tasks, PDF and Office text.
 
 It follows `../docs/engineering.md` like Agora: NestJS 12 (ESM, TypeScript 6), controller → service → TypeORM repository with mappers, Zod DTOs generated from the spec, `typeorm-transactional`, Postgres with migrations, and tests against Postgres (with pgvector) and RabbitMQ in containers.
 
@@ -60,6 +61,7 @@ Same layout as Agora (`../agora/CLAUDE.md`): `src/` is the app shell, and code l
     - `POST /items/{id}/accept`, `/reject` and `/retire` need `knowledge:approve`, which Krepis gives only to users. Transitions are in `knowledge-transitions.ts` (`KNOWLEDGE_ITEM_INVALID_TRANSITION`), and repeating the action that's already done returns the item.
     - Accepting an item that `supersedes` an accepted one marks the old one `superseded` (with `supersededBy`) in the same transaction. A person's superseding item does it at once.
     - `GET /items` (`?type=`, `?status=`, newest first) and `GET /items/{id}` need `knowledge:read`. Another project's item is a 404.
+    - `GET /items/{id}/passages` (`knowledge:read`, cursor-paged by `ordinal`): its current version's passages in order, a document's text; agents read documents with it (Hephaestus's `read_knowledge`).
   - **Versions** (`KnowledgeVersionsService`, `knowledge_item_versions`): every edit is a new `version`, and each version's content is kept (`GET /items/{id}/versions`, newest first).
   - **Redaction:** bodies are redacted with Krepis's `redactText(…, { keepEmails: true })` before they're stored.
   - **Documents** (`DocumentsService`):
