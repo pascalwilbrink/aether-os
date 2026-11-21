@@ -20,7 +20,11 @@ export class KnowledgeItemMapper {
       version: entity.version,
       tags: entity.tags,
       references: entity.references,
-      source: { kind: entity.sourceKind, taskId: entity.sourceTaskId },
+      source: {
+        kind: entity.sourceKind,
+        taskId: entity.sourceTaskId,
+        repository: this.repositoryFileOf(entity),
+      },
       supersedes: entity.supersedes,
       supersededBy: entity.supersededBy,
       reviewBy: entity.reviewBy,
@@ -44,20 +48,7 @@ export class KnowledgeItemMapper {
       body: entity.body,
       tags: entity.tags,
       references: entity.references,
-      document:
-        entity.fileId &&
-        entity.fileName &&
-        entity.contentType &&
-        entity.sizeBytes !== null &&
-        entity.sha256
-          ? {
-              fileId: entity.fileId,
-              fileName: entity.fileName,
-              contentType: entity.contentType,
-              sizeBytes: entity.sizeBytes,
-              sha256: entity.sha256,
-            }
-          : null,
+      document: this.fileOf(entity),
       createdBy: entity.updatedBy,
       createdAt: entity.updatedAt,
     } satisfies KnowledgeItemVersionEntity);
@@ -73,7 +64,10 @@ export class KnowledgeItemMapper {
       body: entity.body,
       tags: entity.tags,
       references: entity.references,
-      document: entity.document,
+      document: entity.document && {
+        ...entity.document,
+        repository: entity.document.repository ?? null,
+      },
       createdBy: entity.createdBy,
       createdAt: entity.createdAt.toISOString(),
     };
@@ -82,14 +76,32 @@ export class KnowledgeItemMapper {
   private documentOf(
     entity: KnowledgeItemEntity,
   ): ApiTypes.KnowledgeDocument | null {
+    const file = this.fileOf(entity);
+    if (!file || !entity.indexingStatus) {
+      return null;
+    }
+    return {
+      ...file,
+      indexing: {
+        status: entity.indexingStatus,
+        chunkCount: entity.chunkCount,
+        error: entity.indexingError,
+        indexedAt: entity.indexedAt?.toISOString() ?? null,
+      },
+    };
+  }
+
+  /** A document's file: in Loculus, or in a linked repository. */
+  private fileOf(
+    entity: KnowledgeItemEntity,
+  ): ApiTypes.KnowledgeDocumentFile | null {
+    const repository = this.repositoryFileOf(entity);
     if (
       entity.type !== 'document' ||
-      !entity.fileId ||
       !entity.fileName ||
       !entity.contentType ||
       entity.sizeBytes === null ||
-      !entity.sha256 ||
-      !entity.indexingStatus
+      (!repository && (!entity.fileId || !entity.sha256))
     ) {
       return null;
     }
@@ -99,12 +111,27 @@ export class KnowledgeItemMapper {
       contentType: entity.contentType,
       sizeBytes: entity.sizeBytes,
       sha256: entity.sha256,
-      indexing: {
-        status: entity.indexingStatus,
-        chunkCount: entity.chunkCount,
-        error: entity.indexingError,
-        indexedAt: entity.indexedAt?.toISOString() ?? null,
-      },
+      repository,
     };
+  }
+
+  private repositoryFileOf(
+    entity: KnowledgeItemEntity,
+  ): ApiTypes.KnowledgeRepositoryFile | null {
+    return entity.repositoryLinkId &&
+      entity.repositoryFullName &&
+      entity.repositoryPath &&
+      entity.repositoryCommit &&
+      entity.repositoryBlobSha &&
+      entity.repositoryUrl
+      ? {
+          linkId: entity.repositoryLinkId,
+          fullName: entity.repositoryFullName,
+          path: entity.repositoryPath,
+          commit: entity.repositoryCommit,
+          blobSha: entity.repositoryBlobSha,
+          url: entity.repositoryUrl,
+        }
+      : null;
   }
 }

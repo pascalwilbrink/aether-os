@@ -49,6 +49,49 @@ export interface GitPullRequestUpdated {
 }
 
 /**
+ * Payload of `git.pushed`.
+ */
+export interface GitPushed {
+  webhookDeliveryId: string;
+  /**
+   * GitHub's `X-GitHub-Delivery`.
+   */
+  deliveryId: string;
+  repositoryId: string;
+  /**
+   * `owner/name`.
+   */
+  repository: string;
+  /**
+   * The projects the repository is linked to (none when it isn't linked).
+   */
+  projectIds: string[];
+  /**
+   * The same projects with their repository link.
+   */
+  links: {
+    projectId: string;
+    linkId: string;
+  }[];
+  /**
+   * The default branch, without `refs/heads/`.
+   */
+  branch: string;
+  /**
+   * The commit the branch was at (all zeros for a new branch).
+   */
+  before: string;
+  /**
+   * The commit it is at now.
+   */
+  after: string;
+  /**
+   * The app's own bot pushed.
+   */
+  fromAetherOs: boolean;
+}
+
+/**
  * Payload of `git.repository-linked`.
  */
 export interface GitRepositoryLinked {
@@ -277,6 +320,7 @@ export interface GithubIssueOpened {
 export interface ProxenosEventPayloads {
   'git.installation-changed': GitInstallationChanged;
   'git.pull-request.updated': GitPullRequestUpdated;
+  'git.pushed': GitPushed;
   'git.repository-linked': GitRepositoryLinked;
   'git.repository-unlinked': GitRepositoryUnlinked;
   'github.issue-comment.created': GithubIssueCommentCreated;
@@ -290,6 +334,7 @@ export type ProxenosEventType = keyof ProxenosEventPayloads;
 export const PROXENOS_EVENT_TYPES = [
   'git.installation-changed',
   'git.pull-request.updated',
+  'git.pushed',
   'git.repository-linked',
   'git.repository-unlinked',
   'github.issue-comment.created',

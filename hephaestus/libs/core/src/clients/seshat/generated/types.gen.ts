@@ -10,6 +10,7 @@ export type DomainErrorCode =
   | 'KNOWLEDGE_ITEM_INVALID_TRANSITION'
   | 'KNOWLEDGE_ITEM_INVALID'
   | 'KNOWLEDGE_DOCUMENT_INVALID'
+  | 'KNOWLEDGE_ITEM_READ_ONLY'
   | 'ORGANIZATION_SUSPENDED'
   | 'PROJECT_ARCHIVED';
 
@@ -57,12 +58,39 @@ export type KnowledgeReference = {
 
 /**
  * Where the item came from, set by Seshat from the token: `person`
- * (a person wrote it), `task` (an agent proposed it, with `taskId`).
+ * (a person wrote it), `task` (an agent proposed it, with `taskId`),
+ * or `repository` (a document indexed from a repository linked to the
+ * project, with `repository`; read-only: change it with a commit).
  *
  */
 export type KnowledgeSource = {
-  kind: 'person' | 'task';
+  kind: 'person' | 'task' | 'repository';
   taskId?: string | null;
+  repository?: KnowledgeRepositoryFile | null;
+};
+
+/**
+ * A file in a repository linked to the project, at a commit of its default branch.
+ */
+export type KnowledgeRepositoryFile = {
+  /**
+   * The repository link in Proxenos.
+   */
+  linkId: string;
+  /**
+   * `owner/name`.
+   */
+  fullName: string;
+  path: string;
+  commit: string;
+  /**
+   * Git's blob SHA of the file's content.
+   */
+  blobSha: string;
+  /**
+   * The file at that commit on GitHub.
+   */
+  url: string;
 };
 
 export type DocumentIndexing = {
@@ -76,14 +104,18 @@ export type DocumentIndexing = {
 };
 
 /**
- * The document's file in Loculus (its ID; download it from Loculus).
+ * The document's file: in Loculus (`fileId`; download it from
+ * Loculus), or in a repository linked to the project (`repository`;
+ * `fileId` and `sha256` are null).
+ *
  */
 export type KnowledgeDocumentFile = {
-  fileId: string;
+  fileId: string | null;
   fileName: string;
   contentType: string;
   sizeBytes: number;
-  sha256: string;
+  sha256: string | null;
+  repository: KnowledgeRepositoryFile | null;
 };
 
 export type KnowledgeDocument = KnowledgeDocumentFile & {
@@ -180,6 +212,60 @@ export type KnowledgeItemVersionResponse = {
 
 export type KnowledgeItemVersionPage = PageMeta & {
   items: Array<KnowledgeItemVersionResponse>;
+};
+
+/**
+ * Relative to the repository's root, without `..`; a folder ends in `/`.
+ */
+export type RepositoryPath = string;
+
+export type PutKnowledgeRepositoryRequest = {
+  paths: Array<RepositoryPath>;
+};
+
+export type KnowledgeRepositoryResponse = {
+  /**
+   * The repository link in Proxenos.
+   */
+  linkId: string;
+  organizationId: string;
+  projectId: string;
+  /**
+   * `owner/name`; null until it was first read.
+   */
+  fullName: string | null;
+  /**
+   * What is indexed: folders (ending in `/`) and files.
+   */
+  paths: Array<string>;
+  /**
+   * `pending`: waiting to be read (again). `synced`: its documents
+   * match `commit`; each is then indexed like any document (its
+   * `document.indexing`). `failed`: it couldn't be read (`error`);
+   * a push, `PUT` or `POST …/sync` tries again.
+   *
+   */
+  status: 'pending' | 'synced' | 'failed';
+  /**
+   * The default branch's commit its documents were last read at.
+   */
+  commit: string | null;
+  /**
+   * Its current documents.
+   */
+  documentCount: number;
+  /**
+   * Files under its paths that aren't indexed (a type Seshat can't read, too large, or past the most per repository).
+   */
+  skippedCount: number;
+  error: string | null;
+  syncedAt: string | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+};
+
+export type KnowledgeRepositoryPage = PageMeta & {
+  items: Array<KnowledgeRepositoryResponse>;
 };
 
 export type KnowledgePassage = {
@@ -303,6 +389,11 @@ export type OrganizationId = string;
 export type ProjectId = string;
 
 export type ItemId = string;
+
+/**
+ * The repository link's ID in Proxenos.
+ */
+export type LinkId = string;
 
 /**
  * Page size.
@@ -990,6 +1081,309 @@ export type UpdateKnowledgeDocumentResponses = {
 
 export type UpdateKnowledgeDocumentResponse =
   UpdateKnowledgeDocumentResponses[keyof UpdateKnowledgeDocumentResponses];
+
+export type ListKnowledgeRepositoriesData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    projectId: string;
+  };
+  query?: {
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+  };
+  url: '/v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories';
+};
+
+export type ListKnowledgeRepositoriesErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type ListKnowledgeRepositoriesError =
+  ListKnowledgeRepositoriesErrors[keyof ListKnowledgeRepositoriesErrors];
+
+export type ListKnowledgeRepositoriesResponses = {
+  /**
+   * OK
+   */
+  200: KnowledgeRepositoryPage;
+};
+
+export type ListKnowledgeRepositoriesResponse =
+  ListKnowledgeRepositoriesResponses[keyof ListKnowledgeRepositoriesResponses];
+
+export type DeleteKnowledgeRepositoryData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    projectId: string;
+    /**
+     * The repository link's ID in Proxenos.
+     */
+    linkId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories/{linkId}';
+};
+
+export type DeleteKnowledgeRepositoryErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type DeleteKnowledgeRepositoryError =
+  DeleteKnowledgeRepositoryErrors[keyof DeleteKnowledgeRepositoryErrors];
+
+export type DeleteKnowledgeRepositoryResponses = {
+  /**
+   * Stopped
+   */
+  204: void;
+};
+
+export type DeleteKnowledgeRepositoryResponse =
+  DeleteKnowledgeRepositoryResponses[keyof DeleteKnowledgeRepositoryResponses];
+
+export type GetKnowledgeRepositoryData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    projectId: string;
+    /**
+     * The repository link's ID in Proxenos.
+     */
+    linkId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories/{linkId}';
+};
+
+export type GetKnowledgeRepositoryErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type GetKnowledgeRepositoryError =
+  GetKnowledgeRepositoryErrors[keyof GetKnowledgeRepositoryErrors];
+
+export type GetKnowledgeRepositoryResponses = {
+  /**
+   * OK
+   */
+  200: KnowledgeRepositoryResponse;
+};
+
+export type GetKnowledgeRepositoryResponse =
+  GetKnowledgeRepositoryResponses[keyof GetKnowledgeRepositoryResponses];
+
+export type PutKnowledgeRepositoryData = {
+  body: PutKnowledgeRepositoryRequest;
+  path: {
+    organizationId: string;
+    projectId: string;
+    /**
+     * The repository link's ID in Proxenos.
+     */
+    linkId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories/{linkId}';
+};
+
+export type PutKnowledgeRepositoryErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type PutKnowledgeRepositoryError =
+  PutKnowledgeRepositoryErrors[keyof PutKnowledgeRepositoryErrors];
+
+export type PutKnowledgeRepositoryResponses = {
+  /**
+   * OK
+   */
+  200: KnowledgeRepositoryResponse;
+};
+
+export type PutKnowledgeRepositoryResponse =
+  PutKnowledgeRepositoryResponses[keyof PutKnowledgeRepositoryResponses];
+
+export type SyncKnowledgeRepositoryData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    projectId: string;
+    /**
+     * The repository link's ID in Proxenos.
+     */
+    linkId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories/{linkId}/sync';
+};
+
+export type SyncKnowledgeRepositoryErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type SyncKnowledgeRepositoryError =
+  SyncKnowledgeRepositoryErrors[keyof SyncKnowledgeRepositoryErrors];
+
+export type SyncKnowledgeRepositoryResponses = {
+  /**
+   * OK
+   */
+  200: KnowledgeRepositoryResponse;
+};
+
+export type SyncKnowledgeRepositoryResponse =
+  SyncKnowledgeRepositoryResponses[keyof SyncKnowledgeRepositoryResponses];
 
 export type SearchKnowledgeData = {
   body: SearchKnowledgeRequest;

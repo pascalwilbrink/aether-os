@@ -18,10 +18,12 @@ import {
   KNOWLEDGE_OPTIONS,
   type KnowledgeOptions,
 } from './knowledge.options.js';
+import { RepositoryFiles } from './repository-files.js';
 
 /**
  * Indexes documents in the background: claims a pending one, reads its
- * file from Loculus, extracts its text (`extractText`) and stores it as
+ * file from Loculus (or a repository document's from its repository,
+ * through Proxenos), extracts its text (`extractText`) and stores it as
  * searchable passages (`finishIndexing`). A failure that may pass is tried
  * again with backoff, up to five times; one that won't fails it.
  */
@@ -36,6 +38,7 @@ export class DocumentIndexer
   constructor(
     private readonly items: KnowledgeItemsService,
     private readonly files: DocumentFiles,
+    private readonly repositoryFiles: RepositoryFiles,
     @Inject(KNOWLEDGE_OPTIONS) private readonly options: KnowledgeOptions,
   ) {}
 
@@ -70,8 +73,17 @@ export class DocumentIndexer
   /** Indexes one waiting document; false when there was none. */
   async indexOne(): Promise<boolean> {
     const item = await this.items.claimDocument();
-    if (!item?.fileId || !item.sha256 || item.sizeBytes === null) {
-      return item !== null;
+    if (!item) {
+      return false;
+    }
+    const fromRepository = Boolean(
+      item.repositoryLinkId && item.repositoryBlobSha,
+    );
+    if (
+      item.sizeBytes === null ||
+      (!fromRepository && (!item.fileId || !item.sha256))
+    ) {
+      return true;
     }
     await runWithLogContext(
       { organizationId: item.organizationId, projectId: item.projectId },
@@ -96,13 +108,25 @@ export class DocumentIndexer
     sizeBytes: number | null;
     contentType: string | null;
     fileName: string | null;
+    repositoryLinkId: string | null;
+    repositoryBlobSha: string | null;
   }): Promise<IndexingResult> {
     try {
-      const bytes = await this.files.read(item.organizationId, item.projectId, {
-        id: item.fileId!,
-        sha256: item.sha256!,
-        sizeBytes: item.sizeBytes!,
-      });
+      // A repository document's file is in the repository (through
+      // Proxenos), any other one in Loculus.
+      const bytes =
+        item.repositoryLinkId && item.repositoryBlobSha
+          ? await this.repositoryFiles.read(
+              item.organizationId,
+              item.projectId,
+              item.repositoryLinkId,
+              { sha: item.repositoryBlobSha, sizeBytes: item.sizeBytes! },
+            )
+          : await this.files.read(item.organizationId, item.projectId, {
+              id: item.fileId!,
+              sha256: item.sha256!,
+              sizeBytes: item.sizeBytes!,
+            });
       const extracted = await extractText(
         bytes,
         item.contentType ?? '',

@@ -1,5 +1,7 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 
+import { DomainError } from '@proxenos/core';
+
 /** What Proxenos knows about a GitHub App installation. */
 export interface GitHubInstallation {
   id: string;
@@ -19,6 +21,21 @@ export interface GitHubRepository {
 /** Someone's role on a repository, from GitHub; `none` without access. */
 export type RepositoryPermission =
   'admin' | 'maintain' | 'write' | 'triage' | 'read' | 'none';
+
+/** The files of a repository at a branch's head (`GitHubApp.files`). */
+export interface GitHubFileTree {
+  commit: string;
+  files: { path: string; sha: string; size: number }[];
+  /** GitHub listed only part of a very large repository. */
+  truncated: boolean;
+}
+
+/** A repository as the installation's calls name it. */
+export interface GitHubRepositoryRef {
+  /** GitHub's repository ID: tokens are narrowed to it. */
+  id: string;
+  fullName: string;
+}
 
 /** GitHub's per-token permissions (docs/git.md: never `workflows`). */
 export type GitHubPermissions = Partial<
@@ -85,6 +102,28 @@ export abstract class GitHubApp {
     login: string,
   ): Promise<RepositoryPermission>;
 
+  /**
+   * Every file (blob) of the repository at the head of `branch`, with its
+   * blob SHA and size; null when the branch doesn't exist (an empty
+   * repository). Read with a read-only token narrowed to the repository.
+   */
+  abstract files(
+    installationId: string,
+    repository: GitHubRepositoryRef,
+    branch: string,
+  ): Promise<GitHubFileTree | null>;
+
+  /**
+   * A blob's bytes, or null when the repository has no such blob. Refuses
+   * one larger than `maxBytes` (`RepositoryBlobTooLargeError`).
+   */
+  abstract blob(
+    installationId: string,
+    repository: GitHubRepositoryRef,
+    sha: string,
+    maxBytes: number,
+  ): Promise<Uint8Array | null>;
+
   /** Whether `signature` (`X-Hub-Signature-256`) is the app's for `body`. */
   abstract verifyWebhook(body: Buffer, signature: string): Promise<boolean>;
 }
@@ -100,5 +139,15 @@ export class GitHubUnavailableError extends ServiceUnavailableException {
 export class GitHubNotConfiguredError extends ServiceUnavailableException {
   constructor() {
     super('GitHub is not configured for this Aether-os (no GitHub App).');
+  }
+}
+
+/** A blob larger than Proxenos hands out: 409. */
+export class RepositoryBlobTooLargeError extends DomainError {
+  constructor(sha: string, maxBytes: number) {
+    super(
+      `Blob ${sha} is larger than ${maxBytes} bytes, the most Proxenos reads.`,
+      'REPOSITORY_BLOB_TOO_LARGE',
+    );
   }
 }

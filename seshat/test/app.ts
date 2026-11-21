@@ -4,8 +4,13 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
 import type { OrganizationRole, ProjectRole } from '@aether-os/krepis';
-import { configureHttpApp } from '@seshat/core';
-import { DocumentFiles, Embeddings, NoEmbeddings } from '@seshat/knowledge';
+import { configureHttpApp, EventConsumer } from '@seshat/core';
+import {
+  DocumentFiles,
+  Embeddings,
+  NoEmbeddings,
+  RepositoryFiles,
+} from '@seshat/knowledge';
 import { PolisClient } from '@seshat/tenancy';
 
 import { AppModule } from '../src/app.module.js';
@@ -13,12 +18,13 @@ import { resetDatabase } from './database.js';
 import { FakeEmbeddings } from './fake-embeddings.js';
 import { FakeFiles } from './fake-files.js';
 import { FakePolis } from './fake-polis.js';
+import { FakeRepositories } from './fake-repositories.js';
 import { tokens } from './tokens.js';
 
 /**
  * The whole Seshat app, configured as in main.ts, on an empty database,
- * with fakes for Polis, Loculus and Pylon's embeddings (`embeddings: null`
- * for none, as without PYLON_URL).
+ * with fakes for Polis, Loculus, Proxenos's repositories and Pylon's
+ * embeddings (`embeddings: null` for none, as without PYLON_URL).
  */
 export async function createApp(
   options: { embeddings?: Embeddings | null } = {},
@@ -27,15 +33,19 @@ export async function createApp(
   polis: FakePolis;
   files: FakeFiles;
   embeddings: FakeEmbeddings;
+  repositories: FakeRepositories;
 }> {
   const polis = new FakePolis();
   const files = new FakeFiles();
   const embeddings = new FakeEmbeddings();
+  const repositories = new FakeRepositories();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(PolisClient)
     .useValue(polis)
     .overrideProvider(DocumentFiles)
     .useValue(files)
+    .overrideProvider(RepositoryFiles)
+    .useValue(repositories)
     .overrideProvider(Embeddings)
     .useValue(
       options.embeddings === undefined
@@ -47,8 +57,16 @@ export async function createApp(
     moduleRef.createNestApplication({ logger: false }),
   );
   await app.init();
+  // Queues bound before a test starts (and before it can close the app).
+  await app.get(EventConsumer).ready();
   await resetDatabase(app);
-  return { app: app as INestApplication<App>, polis, files, embeddings };
+  return {
+    app: app as INestApplication<App>,
+    polis,
+    files,
+    embeddings,
+    repositories,
+  };
 }
 
 export type Client = ReturnType<typeof request.agent>;

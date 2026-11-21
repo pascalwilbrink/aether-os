@@ -6,6 +6,7 @@ export const zDomainErrorCode = z.enum([
   'KNOWLEDGE_ITEM_INVALID_TRANSITION',
   'KNOWLEDGE_ITEM_INVALID',
   'KNOWLEDGE_DOCUMENT_INVALID',
+  'KNOWLEDGE_ITEM_READ_ONLY',
   'ORGANIZATION_SUSPENDED',
   'PROJECT_ARCHIVED',
 ]);
@@ -59,13 +60,28 @@ export const zKnowledgeReference = z.object({
 });
 
 /**
+ * A file in a repository linked to the project, at a commit of its default branch.
+ */
+export const zKnowledgeRepositoryFile = z.object({
+  linkId: z.uuid(),
+  fullName: z.string(),
+  path: z.string(),
+  commit: z.string(),
+  blobSha: z.string(),
+  url: z.url(),
+});
+
+/**
  * Where the item came from, set by Seshat from the token: `person`
- * (a person wrote it), `task` (an agent proposed it, with `taskId`).
+ * (a person wrote it), `task` (an agent proposed it, with `taskId`),
+ * or `repository` (a document indexed from a repository linked to the
+ * project, with `repository`; read-only: change it with a commit).
  *
  */
 export const zKnowledgeSource = z.object({
-  kind: z.enum(['person', 'task']),
+  kind: z.enum(['person', 'task', 'repository']),
   taskId: z.uuid().nullish(),
+  repository: zKnowledgeRepositoryFile.nullish(),
 });
 
 export const zDocumentIndexing = z.object({
@@ -76,14 +92,18 @@ export const zDocumentIndexing = z.object({
 });
 
 /**
- * The document's file in Loculus (its ID; download it from Loculus).
+ * The document's file: in Loculus (`fileId`; download it from
+ * Loculus), or in a repository linked to the project (`repository`;
+ * `fileId` and `sha256` are null).
+ *
  */
 export const zKnowledgeDocumentFile = z.object({
-  fileId: z.uuid(),
+  fileId: z.uuid().nullable(),
   fileName: z.string(),
   contentType: z.string(),
   sizeBytes: z.int().gte(0),
-  sha256: z.string(),
+  sha256: z.string().nullable(),
+  repository: zKnowledgeRepositoryFile.nullable(),
 });
 
 export const zKnowledgeDocument = zKnowledgeDocumentFile.and(
@@ -158,6 +178,35 @@ export const zKnowledgeItemVersionResponse = z.object({
   createdAt: zTimestamp,
 });
 
+/**
+ * Relative to the repository's root, without `..`; a folder ends in `/`.
+ */
+export const zRepositoryPath = z
+  .string()
+  .min(1)
+  .max(500)
+  .regex(/^(?!\/)(?!(.*\/)?\.\.(\/|$)).+$/);
+
+export const zPutKnowledgeRepositoryRequest = z.object({
+  paths: z.array(zRepositoryPath).min(1).max(20),
+});
+
+export const zKnowledgeRepositoryResponse = z.object({
+  linkId: z.uuid(),
+  organizationId: z.uuid(),
+  projectId: z.uuid(),
+  fullName: z.string().nullable(),
+  paths: z.array(z.string()),
+  status: z.enum(['pending', 'synced', 'failed']),
+  commit: z.string().nullable(),
+  documentCount: z.int().gte(0),
+  skippedCount: z.int().gte(0),
+  error: z.string().nullable(),
+  syncedAt: z.iso.datetime().nullable(),
+  createdAt: zTimestamp,
+  updatedAt: zTimestamp,
+});
+
 export const zKnowledgePassage = z.object({
   ordinal: z.int().gte(0),
   version: z.int().gte(1),
@@ -201,6 +250,12 @@ export const zKnowledgeItemPage = zPageMeta.and(
 export const zKnowledgeItemVersionPage = zPageMeta.and(
   z.object({
     items: z.array(zKnowledgeItemVersionResponse),
+  }),
+);
+
+export const zKnowledgeRepositoryPage = zPageMeta.and(
+  z.object({
+    items: z.array(zKnowledgeRepositoryResponse),
   }),
 );
 
@@ -253,6 +308,11 @@ export const zOrganizationId = z.uuid();
 export const zProjectId = z.uuid();
 
 export const zItemId = z.uuid();
+
+/**
+ * The repository link's ID in Proxenos.
+ */
+export const zLinkId = z.uuid();
 
 /**
  * Page size.
@@ -422,6 +482,67 @@ export const zUpdateKnowledgeDocumentPath = z.object({
  * The new version
  */
 export const zUpdateKnowledgeDocumentResponse = zKnowledgeItemResponse;
+
+export const zListKnowledgeRepositoriesPath = z.object({
+  organizationId: z.uuid(),
+  projectId: z.uuid(),
+});
+
+export const zListKnowledgeRepositoriesQuery = z.object({
+  limit: z.int().gte(1).lte(100).optional().default(50),
+  cursor: z.string().min(1).max(1024).optional(),
+});
+
+/**
+ * OK
+ */
+export const zListKnowledgeRepositoriesResponse = zKnowledgeRepositoryPage;
+
+export const zDeleteKnowledgeRepositoryPath = z.object({
+  organizationId: z.uuid(),
+  projectId: z.uuid(),
+  linkId: z.uuid(),
+});
+
+/**
+ * Stopped
+ */
+export const zDeleteKnowledgeRepositoryResponse = z.void();
+
+export const zGetKnowledgeRepositoryPath = z.object({
+  organizationId: z.uuid(),
+  projectId: z.uuid(),
+  linkId: z.uuid(),
+});
+
+/**
+ * OK
+ */
+export const zGetKnowledgeRepositoryResponse = zKnowledgeRepositoryResponse;
+
+export const zPutKnowledgeRepositoryBody = zPutKnowledgeRepositoryRequest;
+
+export const zPutKnowledgeRepositoryPath = z.object({
+  organizationId: z.uuid(),
+  projectId: z.uuid(),
+  linkId: z.uuid(),
+});
+
+/**
+ * OK
+ */
+export const zPutKnowledgeRepositoryResponse = zKnowledgeRepositoryResponse;
+
+export const zSyncKnowledgeRepositoryPath = z.object({
+  organizationId: z.uuid(),
+  projectId: z.uuid(),
+  linkId: z.uuid(),
+});
+
+/**
+ * OK
+ */
+export const zSyncKnowledgeRepositoryResponse = zKnowledgeRepositoryResponse;
 
 export const zSearchKnowledgeBody = zSearchKnowledgeRequest;
 

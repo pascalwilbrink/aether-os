@@ -36,11 +36,13 @@ export class KnowledgeItemVersionEntity {
   /** For a document: the file of this version. */
   @Column({ type: 'jsonb', nullable: true })
   document: {
-    fileId: string;
+    fileId: string | null;
     fileName: string;
     contentType: string;
     sizeBytes: number;
-    sha256: string;
+    sha256: string | null;
+    /** A repository document's file (absent on versions from before them). */
+    repository?: ApiTypes.KnowledgeRepositoryFile | null;
   } | null;
 
   @Column({ type: 'text' })

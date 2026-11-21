@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'INSTALLATION_NOT_ACTIVE' | 'REPOSITORY_UNAVAILABLE' | 'REPOSITORY_ALREADY_LINKED';
+export type DomainErrorCode = 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'INSTALLATION_NOT_ACTIVE' | 'REPOSITORY_UNAVAILABLE' | 'REPOSITORY_ALREADY_LINKED' | 'REPOSITORY_BLOB_TOO_LARGE';
 
 /**
  * Problem details for a business-rule violation.
@@ -142,6 +142,41 @@ export type RepositoryTokenResponse = {
         name: string;
         email: string;
     };
+};
+
+/**
+ * Relative to the repository's root, without `..`; a folder ends in `/`.
+ */
+export type RepositoryPath = string;
+
+export type RepositoryFilesResponse = {
+    fullName: string;
+    defaultBranch: string;
+    /**
+     * The default branch's head commit
+     */
+    commit: string;
+    /**
+     * By path.
+     */
+    files: Array<RepositoryFile>;
+    /**
+     * GitHub listed the repository in part (too many entries), so files may be missing.
+     */
+    truncated: boolean;
+};
+
+export type RepositoryFile = {
+    path: string;
+    /**
+     * The blob's SHA.
+     */
+    sha: string;
+    sizeBytes: number;
+    /**
+     * The file at that commit on GitHub.
+     */
+    url: string;
 };
 
 export type WebhookDeliveryResponse = {
@@ -865,6 +900,131 @@ export type CreateRepositoryTokenResponses = {
 };
 
 export type CreateRepositoryTokenResponse = CreateRepositoryTokenResponses[keyof CreateRepositoryTokenResponses];
+
+export type ListRepositoryFilesData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+        linkId: string;
+    };
+    query: {
+        /**
+         * A folder (`docs/`) or a file (`README.md`), relative to the repository's root; at most 20.
+         */
+        path: Array<RepositoryPath>;
+    };
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/repositories/{linkId}/files';
+};
+
+export type ListRepositoryFilesErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type ListRepositoryFilesError = ListRepositoryFilesErrors[keyof ListRepositoryFilesErrors];
+
+export type ListRepositoryFilesResponses = {
+    /**
+     * OK
+     */
+    200: RepositoryFilesResponse;
+};
+
+export type ListRepositoryFilesResponse = ListRepositoryFilesResponses[keyof ListRepositoryFilesResponses];
+
+export type GetRepositoryBlobData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+        linkId: string;
+        /**
+         * A blob's SHA, from `GET …/files`.
+         */
+        sha: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/repositories/{linkId}/blobs/{sha}';
+};
+
+export type GetRepositoryBlobErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type GetRepositoryBlobError = GetRepositoryBlobErrors[keyof GetRepositoryBlobErrors];
+
+export type GetRepositoryBlobResponses = {
+    /**
+     * The blob's bytes.
+     */
+    200: Blob | File;
+};
+
+export type GetRepositoryBlobResponse = GetRepositoryBlobResponses[keyof GetRepositoryBlobResponses];
 
 export type GetWebhookDeliveryData = {
     body?: never;

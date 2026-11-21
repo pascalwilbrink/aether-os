@@ -7,7 +7,8 @@ export const zDomainErrorCode = z.enum([
     'PROJECT_ARCHIVED',
     'INSTALLATION_NOT_ACTIVE',
     'REPOSITORY_UNAVAILABLE',
-    'REPOSITORY_ALREADY_LINKED'
+    'REPOSITORY_ALREADY_LINKED',
+    'REPOSITORY_BLOB_TOO_LARGE'
 ]);
 
 export const zTimestamp = z.iso.datetime();
@@ -98,6 +99,26 @@ export const zRepositoryTokenResponse = z.object({
         name: z.string(),
         email: z.string()
     })
+});
+
+/**
+ * Relative to the repository's root, without `..`; a folder ends in `/`.
+ */
+export const zRepositoryPath = z.string().min(1).max(500).regex(/^(?!\/)(?!(.*\/)?\.\.(\/|$)).+$/);
+
+export const zRepositoryFile = z.object({
+    path: z.string(),
+    sha: z.string(),
+    sizeBytes: z.int().gte(0),
+    url: z.url()
+});
+
+export const zRepositoryFilesResponse = z.object({
+    fullName: z.string(),
+    defaultBranch: z.string(),
+    commit: z.string(),
+    files: z.array(zRepositoryFile),
+    truncated: z.boolean()
 });
 
 export const zWebhookDeliveryResponse = z.object({
@@ -341,6 +362,33 @@ export const zCreateRepositoryTokenPath = z.object({
  * Created
  */
 export const zCreateRepositoryTokenResponse = zRepositoryTokenResponse;
+
+export const zListRepositoryFilesPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    linkId: z.uuid()
+});
+
+export const zListRepositoryFilesQuery = z.object({
+    path: z.array(zRepositoryPath).min(1).max(20)
+});
+
+/**
+ * OK
+ */
+export const zListRepositoryFilesResponse = zRepositoryFilesResponse;
+
+export const zGetRepositoryBlobPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    linkId: z.uuid(),
+    sha: z.string().regex(/^[0-9a-f]{40}$/)
+});
+
+/**
+ * The blob's bytes.
+ */
+export const zGetRepositoryBlobResponse = z.string();
 
 export const zGetWebhookDeliveryPath = z.object({
     organizationId: z.uuid(),

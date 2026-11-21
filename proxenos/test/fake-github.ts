@@ -1,4 +1,4 @@
-import { generateKeyPairSync, randomBytes } from 'node:crypto';
+import { createHash, generateKeyPairSync, randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
@@ -40,6 +40,17 @@ export class FakeGitHub {
    */
   readonly roles = new Map<string, string>();
   permissionsUnavailable = false;
+  /**
+   * Repositories' contents at their default branch's head, by `owner/name`:
+   * the head commit and each file's text (`setFiles`); none is an empty
+   * repository.
+   */
+  readonly contents = new Map<
+    string,
+    { commit: string; files: Map<string, Buffer> }
+  >();
+  /** Every blob read, by SHA. */
+  readonly blobReads: string[] = [];
   /** Every installation token asked for. */
   readonly tokenRequests: {
     installationId: string;
@@ -54,6 +65,14 @@ export class FakeGitHub {
     this.server = createServer((request, response) => {
       this.handle(request)
         .then(({ status, body }) => {
+          if (Buffer.isBuffer(body)) {
+            response.writeHead(status, {
+              'content-type': 'application/vnd.github.raw+json',
+              'content-length': body.byteLength,
+            });
+            response.end(body);
+            return;
+          }
           response.writeHead(status, { 'content-type': 'application/json' });
           response.end(JSON.stringify(body));
         })
@@ -81,6 +100,23 @@ export class FakeGitHub {
     this.installationTokens.clear();
     this.roles.clear();
     this.permissionsUnavailable = false;
+    this.contents.clear();
+    this.blobReads.length = 0;
+  }
+
+  /** The repository's files at a new head commit (its SHA, returned). */
+  setFiles(fullName: string, files: Record<string, string | Buffer>): string {
+    const commit = randomBytes(20).toString('hex');
+    this.contents.set(fullName, {
+      commit,
+      files: new Map(
+        Object.entries(files).map(([path, text]) => [
+          path,
+          Buffer.isBuffer(text) ? text : Buffer.from(text),
+        ]),
+      ),
+    });
+    return commit;
   }
 
   addInstallation(
@@ -175,6 +211,73 @@ export class FakeGitHub {
         body: { permission: legacy[role], role_name: role, user: { login } },
       };
     }
+    const contents =
+      /^\/repos\/([^/]+)\/([^/]+)\/(commits|git\/trees|git\/blobs)\/([^/]+)$/.exec(
+        path,
+      );
+    if (contents) {
+      if (!this.installationTokens.has(auth.replace(/^Bearer /, ''))) {
+        return { status: 401, body: { message: 'Bad credentials' } };
+      }
+      const [, owner, name, kind, ref] = contents.map(decodeURIComponent);
+      const repository = this.contents.get(`${owner}/${name}`);
+      if (!repository) {
+        return kind === 'commits'
+          ? { status: 409, body: { message: 'Git Repository is empty.' } }
+          : { status: 404, body: { message: 'Not Found' } };
+      }
+      const blobs = new Map(
+        [...repository.files.values()].map((bytes) => [blobSha(bytes), bytes]),
+      );
+      if (kind === 'commits') {
+        return {
+          status: 200,
+          body: {
+            sha: repository.commit,
+            commit: { tree: { sha: `tree-${repository.commit}` } },
+          },
+        };
+      }
+      if (kind === 'git/trees') {
+        if (ref !== `tree-${repository.commit}`) {
+          return { status: 404, body: { message: 'Not Found' } };
+        }
+        const folders = new Set<string>();
+        for (const file of repository.files.keys()) {
+          const parts = file.split('/');
+          for (let i = 1; i < parts.length; i++) {
+            folders.add(parts.slice(0, i).join('/'));
+          }
+        }
+        return {
+          status: 200,
+          body: {
+            sha: ref,
+            truncated: false,
+            tree: [
+              ...[...folders].map((folder) => ({
+                path: folder,
+                type: 'tree',
+                sha: blobSha(Buffer.from(folder)),
+              })),
+              ...[...repository.files].map(([file, bytes]) => ({
+                path: file,
+                type: 'blob',
+                sha: blobSha(bytes),
+                size: bytes.byteLength,
+              })),
+            ],
+          },
+        };
+      }
+      const bytes = blobs.get(ref);
+      if (!bytes) return { status: 404, body: { message: 'Not Found' } };
+      if (request.headers.accept !== 'application/vnd.github.raw+json') {
+        return { status: 415, body: { message: 'Expected the raw type' } };
+      }
+      this.blobReads.push(ref);
+      return { status: 200, body: bytes };
+    }
     if (path === '/installation/repositories') {
       const id = this.installationTokens.get(auth.replace(/^Bearer /, ''));
       const installation = id ? this.installations.get(id) : undefined;
@@ -256,6 +359,14 @@ export class FakeGitHub {
       return false;
     }
   }
+}
+
+/** Git's blob SHA: SHA-1 of `blob <size>\0` and the bytes. */
+export function blobSha(bytes: Buffer): string {
+  return createHash('sha1')
+    .update(`blob ${bytes.byteLength}\0`)
+    .update(bytes)
+    .digest('hex');
 }
 
 function readBody(request: IncomingMessage): Promise<string> {
