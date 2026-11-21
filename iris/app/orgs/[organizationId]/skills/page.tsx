@@ -73,9 +73,9 @@ async function Skills({ params }: Props) {
       <section className="space-y-3">
         <h2 className="font-medium">New skill</h2>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Iris writes a skill&apos;s SKILL.md; a skill with more files
-          (references, scripts) comes through Agora&apos;s API, and Iris
-          keeps them in new versions.
+          Write its SKILL.md here, or upload the skill&apos;s folder (or a .zip
+          of it) with its references and scripts: its SKILL.md opens in the
+          editor, to check before it&apos;s saved.
         </p>
         <SkillForm action={createSkillAction.bind(null, organizationId)} />
       </section>

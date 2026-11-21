@@ -1,4 +1,5 @@
 import type { AgoraSchema, Skill } from "./api";
+import { checkSkillFolder, uploadedFilesOf } from "./skill-upload";
 
 export type SkillFile = AgoraSchema<"SkillFile">;
 export type AgentSkill = AgoraSchema<"AgentSkillConfiguration">;
@@ -14,8 +15,9 @@ export const skillTemplate = (name: string) =>
   `---\nname: ${name || "my-skill"}\ndescription: What this skill does, and when to use it.\n---\n\n# ${name || "My skill"}\n\nStep-by-step instructions for the agent.\n`;
 
 /**
- * A skill's request from its form: its name and SKILL.md (other files come
- * along unchanged from the version it started from), or what's wrong.
+ * A skill's request from its form: its name and SKILL.md, with the other
+ * files of an uploaded folder or .zip (`files`, JSON) or else those of the
+ * version it started from, unchanged; or what's wrong.
  */
 export function skillFilesFromForm(
   fields: Record<string, string | undefined>,
@@ -32,13 +34,17 @@ export function skillFilesFromForm(
   if (!skillMd.trim()) {
     return { error: "Write the skill's SKILL.md." };
   }
-  return {
-    name,
-    files: [
-      { path: "SKILL.md", content: skillMd },
-      ...keep.filter((file) => file.path !== "SKILL.md"),
-    ],
-  };
+  const uploaded = uploadedFilesOf(fields.files);
+  if (uploaded && "error" in uploaded) return uploaded;
+  const others = (uploaded?.files ?? keep).filter(
+    (file) => file.path !== "SKILL.md",
+  );
+  const checked = checkSkillFolder([
+    { path: "SKILL.md", content: skillMd },
+    ...others,
+  ]);
+  if ("error" in checked) return checked;
+  return { name, files: checked.files };
 }
 
 /** The form's fields for a version's skills. */
