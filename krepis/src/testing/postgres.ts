@@ -13,12 +13,21 @@ export interface TestPostgres {
 }
 
 /**
+ * Postgres with pgvector (Seshat's embeddings), the same server and version
+ * as `POSTGRES_TEST_IMAGE`: the one in docker-compose.yml.
+ */
+export const PGVECTOR_TEST_IMAGE =
+  process.env.PGVECTOR_TEST_IMAGE ?? 'pgvector/pgvector:0.8.0-pg17';
+
+/**
  * Starts a throwaway Postgres in a container (Testcontainers), for a test
  * run's global setup. Tests never use SQLite (docs/engineering.md).
  */
-export async function startTestPostgres(): Promise<TestPostgres> {
+export async function startTestPostgres(
+  image: string = POSTGRES_TEST_IMAGE,
+): Promise<TestPostgres> {
   const container: StartedPostgreSqlContainer = await new PostgreSqlContainer(
-    POSTGRES_TEST_IMAGE,
+    image,
   ).start();
 
   return {

@@ -5,8 +5,8 @@ What agents know about the project they work in: its documents, the decisions ta
 Status: phase 1 of `learning.md`, in three steps.
 
 1. **Built:** Seshat as a service in this repository (`../seshat/`, port 3009): knowledge items per project with their lifecycle and versions, documents indexed from Loculus, keyword search, `knowledge:*` permissions, events (`../contracts/seshat.openapi.yaml`, `../contracts/seshat.asyncapi.yaml`).
-2. **Next:** embeddings through the model gateway, Pylon (`pylon.md`), stored in Seshat (pgvector), and hybrid search.
-3. **Then:** the agents' knowledge tools in Hephaestus and Iris's Knowledge page.
+2. **Built:** embeddings through the model gateway, Pylon (`pylon.md`), stored in Seshat (pgvector), and hybrid search (Search, below).
+3. **Next:** the agents' knowledge tools in Hephaestus and Iris's Knowledge page.
 
 Later: organization-wide items, repository documents, pinned context on tasks, proposals from meetings, PDF and Office documents.
 
@@ -81,7 +81,14 @@ Templates and automations can add context too (e.g. "always pin the project's co
 
 ### Search (while the task runs)
 
-`POST …/knowledge/search` (`query`, `types?`, `includeProposed?`, `limit?`) returns the best passage of each matching item with the item. Built: Postgres full-text search (`websearch_to_tsquery`, English) over the passages of each item's current version; step 2 adds vectors (the caller's query embedding) and ranks both together.
+`POST …/knowledge/search` (`query`, `types?`, `includeProposed?`, `limit?`) returns the best passage of each matching item with the item. Built, hybrid:
+
+- **By keywords:** Postgres full-text search (`websearch_to_tsquery`, English) over the passages of each item's current version.
+- **By meaning:** the query's embedding (through Pylon, charged to the project) against the passages' (pgvector, cosine), from the same model, at least `SEARCH_MIN_SIMILARITY` alike (0.3: vectors always have a nearest neighbour).
+- **Ranked together** with reciprocal rank fusion (each item scores 1 / (60 + rank) in each list it's in), so items found both ways come first and the two lists' scores, which aren't comparable, are never mixed. Each result says how it matched (`matchedBy`) and shows the passage from the list where it ranked higher.
+- **Without vectors** (no Pylon, or the query couldn't be embedded within 5 s), by keyword only, and the response says so (`semantic: false`). Passages not embedded yet are found by their keywords.
+
+**Embedding** (Seshat's `KnowledgeEmbedder`): whenever an item's passages change (a written item saved, a document indexed) the item waits for vectors (`embedding_status: pending`); the embedder takes it (`FOR UPDATE SKIP LOCKED`, held five minutes), sends its passages to Pylon's `POST …/projects/{projectId}/embeddings` in batches of 64 with Seshat's own token (`model:invoke`, purpose `knowledge`), and stores one vector per passage. A failure (Pylon down, a budget that ran out, no key) is tried again after a minute, doubled each time, at most six hours (six hours at once for one that needs a change of configuration). The model is `EMBEDDING_MODEL` (`openai/text-embedding-3-small` by default, an `embedding` model of Pylon's catalogue); every vector records it, search compares only vectors of the current model, and changing it embeds everything again (at startup). Only accepted and proposed items are embedded. No approximate index yet: search is exact within a project, which holds up to tens of thousands of passages; an HNSW index per model comes when a project needs it.
 
 The agent searches with knowledge tools built into Hephaestus's runtime (step 3), which call Seshat with the task token, so Seshat limits them to the task's project (and later its organization's shared items):
 
@@ -117,5 +124,5 @@ Seshat publishes to `seshat.events` (`events.md`, `../contracts/seshat.asyncapi.
 
 ## Open questions
 
-- Which embedding model, and whether an organization can choose its own (every vector of a project must come from the same model to be comparable).
+- Whether an organization (or project) can choose its own embedding model: for now it's the platform's (`EMBEDDING_MODEL`), since a project's vectors must all come from one model to be comparable.
 - Retention: is knowledge kept for the project's life by default, and do proposals that nobody reviews expire?

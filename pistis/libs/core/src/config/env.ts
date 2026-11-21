@@ -141,7 +141,8 @@ const DEV_CLIENTS = [
     response_types: [],
     grant_types: ['client_credentials'],
     token_endpoint_auth_method: 'client_secret_basic',
-    platform_permissions: ['platform:read'],
+    // model:invoke: embeddings through Pylon, charged to the project.
+    platform_permissions: ['platform:read', 'model:invoke'],
   },
   // Pylon's own token (client credentials): organizations and projects
   // from Polis.

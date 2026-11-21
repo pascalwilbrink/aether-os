@@ -47,6 +47,19 @@ export type IndexingResult =
 const MAX_INDEXING_ATTEMPTS = 5;
 /** How long an indexer holds a document it claimed. */
 const INDEXING_LEASE_MS = 5 * 60_000;
+/** How long the embedder holds an item it took. */
+const EMBEDDING_LEASE_MS = 5 * 60_000;
+/** The longest wait before embedding is tried again (and the wait for a failure that won't pass soon). */
+const MAX_EMBEDDING_BACKOFF_MS = 6 * 60 * 60_000;
+
+/** How embedding an item's passages went. */
+export type EmbeddingResult =
+  | {
+      kind: 'embedded';
+      model: string;
+      vectors: { chunkId: string; vector: number[] }[];
+    }
+  | { kind: 'failed'; error: string; retryable: boolean };
 
 /**
  * A project's knowledge items (../../../../docs/knowledge.md): written by
@@ -289,6 +302,105 @@ export class KnowledgeItemsService {
   }
 
   /**
+   * The next searchable item (accepted or proposed) whose passages wait for
+   * vectors, held for a few minutes (so instances share the work); null
+   * when there's none.
+   */
+  @Transactional()
+  async claimForEmbedding(
+    now = new Date(),
+  ): Promise<KnowledgeItemEntity | null> {
+    const item = await this.items
+      .createQueryBuilder('item')
+      .setLock('pessimistic_write')
+      .setOnLocked('skip_locked')
+      .where(`item.embeddingStatus = 'pending'`)
+      .andWhere(`item.status IN ('accepted', 'proposed')`)
+      .andWhere('(item.nextEmbedAt IS NULL OR item.nextEmbedAt <= :now)', {
+        now,
+      })
+      .orderBy('item.nextEmbedAt', 'ASC', 'NULLS FIRST')
+      .addOrderBy('item.updatedAt', 'ASC')
+      .getOne();
+    if (!item) {
+      return null;
+    }
+    item.embeddingAttempts += 1;
+    item.nextEmbedAt = new Date(now.getTime() + EMBEDDING_LEASE_MS);
+    await this.items.save(item);
+    return item;
+  }
+
+  /**
+   * Records how embedding an item's version went: its vectors stored, or
+   * tried again later (a minute, doubled per try, at most six hours; six
+   * hours for a failure only a change of configuration fixes). A version
+   * replaced in the meantime is left alone (its passages wait their turn).
+   */
+  @Transactional()
+  async finishEmbedding(
+    itemId: string,
+    version: number,
+    result: EmbeddingResult,
+    now = new Date(),
+  ): Promise<void> {
+    const item = await this.items.findOne({
+      where: { id: itemId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (
+      !item ||
+      item.version !== version ||
+      item.embeddingStatus !== 'pending'
+    ) {
+      return;
+    }
+    if (result.kind === 'failed') {
+      item.embeddingError = result.error;
+      item.nextEmbedAt = new Date(
+        now.getTime() +
+          (result.retryable
+            ? Math.min(
+                60_000 * 2 ** (item.embeddingAttempts - 1),
+                MAX_EMBEDDING_BACKOFF_MS,
+              )
+            : MAX_EMBEDDING_BACKOFF_MS),
+      );
+      await this.items.save(item);
+      return;
+    }
+    await this.chunks.storeEmbeddings(item, result.model, result.vectors);
+    item.embeddingStatus = 'embedded';
+    item.embeddingModel = result.model;
+    item.embeddingAttempts = 0;
+    item.embeddingError = null;
+    item.nextEmbedAt = null;
+    item.embeddedAt = now;
+    await this.items.save(item);
+  }
+
+  /**
+   * Items embedded with another model than `model` wait to be embedded
+   * again: a project's vectors are only comparable from one model.
+   */
+  async requeueEmbeddingsNotFrom(model: string): Promise<number> {
+    const result = await this.items
+      .createQueryBuilder()
+      .update()
+      .set({
+        embeddingStatus: 'pending',
+        embeddingAttempts: 0,
+        nextEmbedAt: null,
+        embeddingError: null,
+      })
+      .where(`embedding_status = 'embedded' AND embedding_model <> :model`, {
+        model,
+      })
+      .execute();
+    return result.affected ?? 0;
+  }
+
+  /**
    * The next document waiting to be indexed, held for a few minutes (so
    * instances share the work); null when there's none.
    */
@@ -358,6 +470,7 @@ export class KnowledgeItemsService {
       item.indexingStatus = 'indexed';
       item.chunkCount = await this.chunks.replace(item, result.text);
     }
+    awaitEmbedding(item);
     await this.save(item, 'knowledge-item.indexed');
   }
 
@@ -399,6 +512,12 @@ export class KnowledgeItemsService {
       indexingAttempts: 0,
       nextIndexAt: null,
       indexedAt: null,
+      embeddingStatus: null,
+      embeddingModel: null,
+      embeddingAttempts: 0,
+      nextEmbedAt: null,
+      embeddingError: null,
+      embeddedAt: null,
       createdBy: principal.sub,
       updatedBy: principal.sub,
       acceptedBy: person ? principal.sub : null,
@@ -453,6 +572,7 @@ export class KnowledgeItemsService {
   /** A written item's passages (its title and body), searchable at once. */
   private async indexText(item: KnowledgeItemEntity): Promise<void> {
     item.chunkCount = await this.chunks.replace(item, item.body);
+    awaitEmbedding(item);
     await this.save(item, 'knowledge-item.indexed');
   }
 
@@ -588,4 +708,12 @@ export class KnowledgeItemsService {
     }
     return item;
   }
+}
+
+/** New passages wait for their vectors (none to embed without passages). */
+function awaitEmbedding(item: KnowledgeItemEntity): void {
+  item.embeddingStatus = item.chunkCount > 0 ? 'pending' : null;
+  item.embeddingAttempts = 0;
+  item.nextEmbedAt = null;
+  item.embeddingError = null;
 }

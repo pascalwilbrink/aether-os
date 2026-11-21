@@ -20,7 +20,11 @@ name: aether-os
 
 services:
   postgres:
-    image: postgres:17.5-alpine
+    # Postgres 17 with pgvector (Seshat's embeddings). A volume made by the
+    # earlier postgres:17.5-alpine image needs its text indexes rebuilt
+    # (glibc sorts text differently from musl): `pnpm infra:reindex`, or
+    # `docker compose down -v` to start over.
+    image: pgvector/pgvector:0.8.0-pg17
     environment:
       POSTGRES_USER: aether
       POSTGRES_PASSWORD: aether

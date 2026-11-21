@@ -145,7 +145,7 @@ Pylon publishes no per-call events: a task's cost is read with the usage API whe
    - Kerykes consumes `budget.threshold-reached` from `pylon.events`; Hephaestus no longer publishes it.
 
    Hephaestus's old tables (`models`, `model_prices`, `model_keys`, `budgets`, `model_calls`) are left in its database until `pnpm import:hephaestus` has run everywhere; a later migration drops them. Run the import before deploying step 2: without it, the budgets and history Hephaestus had don't apply in Pylon.
-3. **Seshat's embeddings** (`knowledge.md`, step 2) on top of it.
+3. **Seshat's embeddings** (built; `knowledge.md`, step 2) on top of it: Seshat embeds passages and queries with its own token (`model:invoke`), charged to the project.
 
 ## Open questions
 

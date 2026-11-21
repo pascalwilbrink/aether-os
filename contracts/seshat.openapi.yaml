@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Seshat API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Project knowledge (`../docs/knowledge.md`): what agents know about the
     project they work in. Typed items (decisions, facts, conventions,
@@ -284,11 +284,15 @@ paths:
       operationId: searchKnowledge
       x-permission: '`knowledge:read` in the project'
       description: |
-        Searches the project's knowledge: accepted items and indexed documents,
-        by their text (Postgres full-text search, best match first; items that
-        were superseded, retired or rejected never come back, proposed ones only
-        with `includeProposed`). Each result is an item with the passage that
-        matched. A read; `POST` only because the query is a body.
+        Searches the project's knowledge: accepted items and indexed documents
+        (items that were superseded, retired or rejected never come back,
+        proposed ones only with `includeProposed`). Hybrid: by keywords
+        (Postgres full-text search, English) and by meaning (the query's
+        embedding against the passages', through Pylon), each item ranked by
+        both (reciprocal rank fusion), best first. Without vectors (no Pylon,
+        the query couldn't be embedded), by keyword only (`semantic: false`).
+        Each result is an item with the passage that matched. A read; `POST`
+        only because the query is a body.
       requestBody:
         required: true
         content:
@@ -618,7 +622,7 @@ components:
         limit: { type: integer, minimum: 1, maximum: 50 }
     KnowledgeSearchResult:
       type: object
-      required: [item, passage, score]
+      required: [item, passage, score, matchedBy]
       properties:
         item: { $ref: '#/components/schemas/KnowledgeItemResponse' }
         passage:
@@ -627,10 +631,21 @@ components:
         score:
           type: number
           description: Higher is better; only comparable within one search.
+        matchedBy:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          description: How it matched; the passage shown is the better-ranked one.
+          items:
+            type: string
+            enum: [keyword, semantic]
     KnowledgeSearchResponse:
       type: object
-      required: [results]
+      required: [results, semantic]
       properties:
         results:
           type: array
           items: { $ref: '#/components/schemas/KnowledgeSearchResult' }
+        semantic:
+          type: boolean
+          description: Whether the query's embedding was compared with the passages'; false when search was by keyword only.

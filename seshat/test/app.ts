@@ -5,35 +5,50 @@ import type { App } from 'supertest/types.js';
 
 import type { OrganizationRole, ProjectRole } from '@aether-os/krepis';
 import { configureHttpApp } from '@seshat/core';
-import { DocumentFiles } from '@seshat/knowledge';
+import { DocumentFiles, Embeddings, NoEmbeddings } from '@seshat/knowledge';
 import { PolisClient } from '@seshat/tenancy';
 
 import { AppModule } from '../src/app.module.js';
 import { resetDatabase } from './database.js';
+import { FakeEmbeddings } from './fake-embeddings.js';
 import { FakeFiles } from './fake-files.js';
 import { FakePolis } from './fake-polis.js';
 import { tokens } from './tokens.js';
 
-/** The whole Seshat app, configured as in main.ts, on an empty database. */
-export async function createApp(): Promise<{
+/**
+ * The whole Seshat app, configured as in main.ts, on an empty database,
+ * with fakes for Polis, Loculus and Pylon's embeddings (`embeddings: null`
+ * for none, as without PYLON_URL).
+ */
+export async function createApp(
+  options: { embeddings?: Embeddings | null } = {},
+): Promise<{
   app: INestApplication<App>;
   polis: FakePolis;
   files: FakeFiles;
+  embeddings: FakeEmbeddings;
 }> {
   const polis = new FakePolis();
   const files = new FakeFiles();
+  const embeddings = new FakeEmbeddings();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(PolisClient)
     .useValue(polis)
     .overrideProvider(DocumentFiles)
     .useValue(files)
+    .overrideProvider(Embeddings)
+    .useValue(
+      options.embeddings === undefined
+        ? embeddings
+        : (options.embeddings ?? new NoEmbeddings()),
+    )
     .compile();
   const app = configureHttpApp(
     moduleRef.createNestApplication({ logger: false }),
   );
   await app.init();
   await resetDatabase(app);
-  return { app: app as INestApplication<App>, polis, files };
+  return { app: app as INestApplication<App>, polis, files, embeddings };
 }
 
 export type Client = ReturnType<typeof request.agent>;
