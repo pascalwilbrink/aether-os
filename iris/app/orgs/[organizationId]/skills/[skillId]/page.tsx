@@ -2,11 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { ActionButton } from "@/app/components/action-forms";
-import {
-  getSkill,
-  getSkillVersion,
-  listSkillVersions,
-} from "@/lib/api/agora";
+import { getSkill, getSkillVersion, listSkillVersions } from "@/lib/api/agora";
 import { requireOrganization } from "@/lib/auth/current";
 import { formatBytes } from "@/lib/skills";
 import { formatTime } from "@/lib/tasks";
@@ -46,9 +42,9 @@ async function SkillDetails({ params, searchParams }: Props) {
       ? null
       : getSkillVersion(token, organizationId, skillId, skill.latestVersion),
   ]);
+  const latestFiles = (latest ?? version).files ?? [];
   const latestSkillMd =
-    (latest ?? version).files?.find((file) => file.path === "SKILL.md")
-      ?.content ?? "";
+    latestFiles.find((file) => file.path === "SKILL.md")?.content ?? "";
   const ref = { organizationId, skillId };
 
   return (
@@ -131,6 +127,9 @@ async function SkillDetails({ params, searchParams }: Props) {
             key={skill.latestVersion}
             action={createSkillVersionAction.bind(null, ref)}
             skillMd={latestSkillMd}
+            keptFiles={latestFiles
+              .map((file) => file.path)
+              .filter((path) => path !== "SKILL.md")}
           />
         </section>
       ) : null}

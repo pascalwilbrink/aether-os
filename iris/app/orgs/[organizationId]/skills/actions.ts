@@ -40,7 +40,7 @@ const skillMessageOf = (error: unknown) =>
     SKILL_ARCHIVED: "This skill is archived: it gets no new versions.",
   });
 
-/** Creates a skill from its SKILL.md (`agent:write`), then opens it. */
+/** Creates a skill from its SKILL.md and any uploaded files (`agent:write`), then opens it. */
 export async function createSkillAction(
   organizationId: string,
   _state: SkillFormState,
@@ -64,8 +64,8 @@ export async function createSkillAction(
 }
 
 /**
- * A new version with this SKILL.md; the latest version's other files come
- * along unchanged (Iris edits only SKILL.md).
+ * A new version with this SKILL.md, and an uploaded folder's other files, or
+ * else the latest version's, unchanged.
  */
 export async function createSkillVersionAction(
   ref: SkillRef,
