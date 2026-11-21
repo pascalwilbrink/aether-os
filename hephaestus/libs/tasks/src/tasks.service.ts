@@ -20,6 +20,7 @@ import { OrganizationsService, ProjectsService } from '@hephaestus/tenancy';
 import type { CreateTaskRequest } from './dto/create-task.request.js';
 import type { ListTasksQuery } from './dto/list-tasks.query.js';
 import type { TaskResponse } from './dto/task.response.js';
+import type { PinnedKnowledge } from './task-context.js';
 import { TaskEntity } from './task.entity.js';
 import {
   InvalidTaskCriteriaError,
@@ -64,6 +65,30 @@ export class TasksService {
    * false`), so a retried request or a redelivered command never starts the
    * same task twice.
    */
+  /** The task this idempotency key created in the organization, if any. */
+  async findByIdempotencyKey(
+    organizationId: string,
+    idempotencyKey: string,
+  ): Promise<TaskResponse | null> {
+    const existing = await this.tasks.findOneBy({
+      organizationId,
+      idempotencyKey,
+    });
+    return existing ? this.mapper.toResponse(existing) : null;
+  }
+
+  /** The text of the knowledge pinned on a task, for the runner's prompt. */
+  async pinnedContext(
+    organizationId: string,
+    taskId: string,
+  ): Promise<PinnedKnowledge[]> {
+    const row = await this.tasks.findOne({
+      where: { organizationId, id: taskId },
+      select: { id: true, contextContent: true },
+    });
+    return row?.contextContent ?? [];
+  }
+
   @Transactional()
   async create(
     organizationId: string,
@@ -72,13 +97,15 @@ export class TasksService {
     idempotencyKey: string,
     /** A task from a template: its version and criteria (TemplatesService). */
     template?: TaskTemplateOrigin,
+    /** The knowledge pinned on it (`TaskContextSource`, before). */
+    context: PinnedKnowledge[] = [],
   ): Promise<{ task: TaskResponse; created: boolean }> {
-    const existing = await this.tasks.findOneBy({
+    const existing = await this.findByIdempotencyKey(
       organizationId,
       idempotencyKey,
-    });
+    );
     if (existing) {
-      return { task: this.mapper.toResponse(existing), created: false };
+      return { task: existing, created: false };
     }
 
     const keys = [
@@ -136,6 +163,7 @@ export class TasksService {
         status: ready ? 'queued' : 'blocked',
         repositoryLinkId,
         template,
+        context,
       },
       new Date(),
     );

@@ -9,6 +9,7 @@ export const zDomainErrorCode = z.enum([
     'TASK_BUDGET_INVALID',
     'TASK_CONCURRENCY_INVALID',
     'TASK_CONCURRENCY_SKIPPED',
+    'TASK_CONTEXT_INVALID',
     'ORGANIZATION_SUSPENDED',
     'PROJECT_ARCHIVED',
     'TASK_CRITERIA_INVALID',
@@ -153,6 +154,19 @@ export const zTaskFailureReason = z.enum([
     'subtask_failed',
     'access_denied'
 ]);
+
+export const zTaskContextReference = z.object({
+    kind: z.enum(['knowledge']),
+    itemId: z.uuid()
+});
+
+export const zPinnedTaskContext = z.object({
+    kind: z.enum(['knowledge']),
+    itemId: z.uuid(),
+    version: z.int().gte(1),
+    type: z.string(),
+    title: z.string()
+});
 
 export const zTaskInputFile = z.object({
     fileId: z.uuid()
@@ -566,7 +580,8 @@ export const zCreateTaskRequest = z.object({
     repository: zTaskRepository.nullish(),
     budgetUsd: zUsd.nullish(),
     concurrency: zTaskConcurrency.nullish(),
-    inputFiles: z.array(zTaskInputFile).max(20).optional()
+    inputFiles: z.array(zTaskInputFile).max(20).optional(),
+    context: z.array(zTaskContextReference).max(50).optional()
 });
 
 /**
@@ -638,6 +653,7 @@ export const zTaskResponse = z.object({
     repository: zTaskRepository.nullable(),
     concurrency: zTaskConcurrency.nullable(),
     inputFiles: z.array(zTaskInputFile),
+    context: z.array(zPinnedTaskContext),
     taskTemplateId: z.uuid().nullable(),
     taskTemplateVersion: z.int().gte(1).nullable(),
     createdAt: z.iso.datetime(),

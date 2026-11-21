@@ -736,7 +736,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "TASK_CONTEXT_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -905,6 +905,40 @@ export interface components {
              *     (else the execution fails without retrying).
              */
             inputFiles?: components["schemas"]["TaskInputFile"][];
+            /**
+             * @description Project knowledge the task should know (docs/tasks.md, `context`):
+             *     accepted items of its project in Seshat, each pinned at its
+             *     current version when the task is created, so every execution
+             *     and retry gets the same. Their text goes into the agent's
+             *     prompt as reference material (a document's is listed, to read
+             *     with the knowledge tools). An item that isn't an accepted item
+             *     of the project is `TASK_CONTEXT_INVALID`; Seshat not answering
+             *     is `503`.
+             */
+            context?: components["schemas"]["TaskContextReference"][];
+        };
+        TaskContextReference: {
+            /**
+             * @description Only project knowledge (Seshat) so far.
+             * @enum {string}
+             */
+            kind: "knowledge";
+            /**
+             * Format: uuid
+             * @description A knowledge item of the task's project.
+             */
+            itemId: string;
+        };
+        PinnedTaskContext: {
+            /** @enum {string} */
+            kind: "knowledge";
+            /** Format: uuid */
+            itemId: string;
+            /** @description The item's version the task got. */
+            version: number;
+            /** @description The item's kind in Seshat: decision, convention, fact, architecture, lesson or document. */
+            type: string;
+            title: string;
         };
         TaskInputFile: {
             /**
@@ -1137,6 +1171,8 @@ export interface components {
             concurrency: components["schemas"]["TaskConcurrency"] | null;
             /** @description Files the task starts from (Loculus), in `/workspace/inputs` of its sandbox. */
             inputFiles: components["schemas"]["TaskInputFile"][];
+            /** @description The project knowledge pinned on it, at the versions it got. */
+            context: components["schemas"]["PinnedTaskContext"][];
             /**
              * Format: uuid
              * @description The template it was created from, if any.

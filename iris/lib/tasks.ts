@@ -144,3 +144,21 @@ export function blockedHosts(
     }))
     .sort((a, b) => a.host.localeCompare(b.host));
 }
+
+/** At most this many knowledge items pinned on one task (Hephaestus's limit). */
+export const MAX_TASK_CONTEXT = 50;
+
+/** A new task's `context` from the knowledge items checked on its form, each once. */
+export function taskContextOf(
+  itemIds: readonly string[],
+): { context: { kind: "knowledge"; itemId: string }[] } | { error: string } {
+  const unique = [...new Set(itemIds.filter(Boolean))];
+  if (unique.length > MAX_TASK_CONTEXT) {
+    return {
+      error: `A task pins at most ${MAX_TASK_CONTEXT} knowledge items; ${unique.length} are checked.`,
+    };
+  }
+  return {
+    context: unique.map((itemId) => ({ kind: "knowledge" as const, itemId })),
+  };
+}

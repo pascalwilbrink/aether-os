@@ -15,6 +15,7 @@ import {
   statusLabel,
   TASK_STATUSES,
   taskActions,
+  taskContextOf,
 } from "./tasks";
 
 describe("task helpers", () => {
@@ -121,5 +122,24 @@ describe("task helpers", () => {
       { host: "example.com", executions: [1, 3] },
     ]);
     expect(blockedHosts([])).toEqual([]);
+  });
+});
+
+describe("taskContextOf", () => {
+  it("pins each checked item once", () => {
+    expect(taskContextOf(["a", "b", "a", ""])).toEqual({
+      context: [
+        { kind: "knowledge", itemId: "a" },
+        { kind: "knowledge", itemId: "b" },
+      ],
+    });
+    expect(taskContextOf([])).toEqual({ context: [] });
+  });
+
+  it("refuses more than 50", () => {
+    const many = Array.from({ length: 51 }, (_, i) => `item-${i}`);
+    expect(taskContextOf(many)).toEqual({
+      error: "A task pins at most 50 knowledge items; 51 are checked.",
+    });
   });
 });

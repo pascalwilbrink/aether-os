@@ -32,7 +32,11 @@ import {
   type ArtifactSink,
 } from './agent-runtime.js';
 import { KnowledgeBase, NoKnowledgeBase } from './knowledge-base.js';
-import { knowledgeTools, withKnowledge } from './knowledge-tools.js';
+import {
+  knowledgeTools,
+  withKnowledge,
+  withPinnedContext,
+} from './knowledge-tools.js';
 import { FileStoreError } from './file-store.js';
 import { RunnerFailure } from './runner.errors.js';
 import type { SandboxFiles } from './sandbox-files.js';
@@ -101,6 +105,7 @@ export class MastraAgentRuntime extends AgentRuntime {
     token,
     activity,
     inputFiles,
+    context: pinned,
   }: AgentRunInput): Promise<AgentRunResult> {
     const context: ModelCallContext = {
       organizationId: task.organizationId,
@@ -130,7 +135,7 @@ export class MastraAgentRuntime extends AgentRuntime {
           failedChecks,
           token,
         },
-        { repository, conflict, signal, activity, inputFiles },
+        { repository, conflict, signal, activity, inputFiles, pinned },
         context,
         resolved,
         connected,
@@ -166,10 +171,11 @@ export class MastraAgentRuntime extends AgentRuntime {
       signal,
       activity,
       inputFiles,
+      pinned,
     }: Pick<
       AgentRunInput,
       'repository' | 'conflict' | 'signal' | 'activity' | 'inputFiles'
-    >,
+    > & { pinned: AgentRunInput['context'] },
     context: ModelCallContext,
     resolved: ResolvedModel,
     connected: ConnectedTools,
@@ -232,15 +238,19 @@ export class MastraAgentRuntime extends AgentRuntime {
           withKnowledge(
             withSkills(
               withTools(
-                withInputs(
-                  promptFor(
-                    task,
-                    revisions,
-                    failedChecks,
-                    repository,
-                    conflict,
+                withPinnedContext(
+                  withInputs(
+                    promptFor(
+                      task,
+                      revisions,
+                      failedChecks,
+                      repository,
+                      conflict,
+                    ),
+                    inputFiles ?? [],
                   ),
-                  inputFiles ?? [],
+                  pinned ?? [],
+                  this.knowledge.available,
                 ),
                 Object.keys(connected.tools),
               ),

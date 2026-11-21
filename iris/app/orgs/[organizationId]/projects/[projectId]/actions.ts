@@ -31,6 +31,7 @@ import { parseLimit } from "@/lib/budgets";
 import { contentTypeFor, inputFilesProblem, pickedFiles } from "@/lib/files";
 import { valuesOf } from "@/lib/forms";
 import { isProjectRole } from "@/lib/members";
+import { taskContextOf } from "@/lib/tasks";
 
 /** What a form shows after a failed submit. */
 export interface FormState {
@@ -75,10 +76,15 @@ export async function createTaskAction(
   if ("error" in budget) {
     return { error: budget.error, values: valuesOf(form) };
   }
+  const values = { ...valuesOf(form), context: contextIdsOf(form).join(",") };
+  const context = taskContextOf(contextIdsOf(form));
+  if ("error" in context) {
+    return { error: context.error, values };
+  }
   const picked = pickedFiles<File>(form.getAll("inputFiles"));
   const problem = inputFilesProblem(picked);
   if (problem) {
-    return { error: problem, values: valuesOf(form) };
+    return { error: problem, values };
   }
   let taskId: string;
   try {
@@ -112,15 +118,20 @@ export async function createTaskAction(
           ...repositoryOf(form),
           ...(budget.limitUsd === null ? {} : { budgetUsd: budget.limitUsd }),
           ...(inputFiles.length > 0 ? { inputFiles } : {}),
+          ...(context.context.length > 0 ? { context: context.context } : {}),
         },
         text(form, "idempotencyKey"),
       )
     ).id;
   } catch (error) {
-    return { error: messageOf(error), values: valuesOf(form) };
+    return { error: messageOf(error), values };
   }
   redirect(`${projectPath(ref)}/tasks/${taskId}`);
 }
+
+/** The knowledge items checked on the form (`context`). */
+const contextIdsOf = (form: FormData) =>
+  form.getAll("context").filter((id): id is string => typeof id === "string");
 
 /** The repository link a task works in (`repositoryLinkId`), when one was chosen. */
 const repositoryOf = (form: FormData) => {

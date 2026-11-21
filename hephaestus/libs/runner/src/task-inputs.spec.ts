@@ -56,6 +56,8 @@ function recordingSandbox() {
   return { sandbox, written };
 }
 
+const noTasks = { pinnedContext: () => Promise.resolve([]) };
+
 describe('TaskInputs', () => {
   it('names files apart in one directory', () => {
     expect(
@@ -70,6 +72,7 @@ describe('TaskInputs', () => {
         b: file('brief.md', 'v2'),
       }),
       1024,
+      noTasks,
     );
     const { sandbox, written } = recordingSandbox();
     expect(await inputs.copyInto(taskWith('a', 'b'), 'token', sandbox)).toEqual(
@@ -103,6 +106,7 @@ describe('TaskInputs', () => {
         down: new FileStoreError('Loculus could not be reached', true),
       }),
       1024,
+      noTasks,
     );
     const { sandbox } = recordingSandbox();
     await expect(

@@ -2,7 +2,7 @@ import type { NewArtifact } from '@hephaestus/artifacts';
 
 import type { ExecutionActivity } from './execution-activity.js';
 import type { AgentVersion, ApiTypes } from '@hephaestus/core';
-import type { TaskResponse } from '@hephaestus/tasks';
+import type { PinnedKnowledge, TaskResponse } from '@hephaestus/tasks';
 
 import type { Sandbox } from './sandbox-provisioner.js';
 
@@ -48,6 +48,12 @@ export interface AgentRunInput {
    * docs/files.md). Absent or empty without any.
    */
   inputFiles?: AgentInputFile[];
+  /**
+   * Project knowledge pinned on the task (docs/tasks.md, `context`): reference
+   * material for the prompt, at the versions the task got. Absent or empty
+   * without any.
+   */
+  context?: PinnedKnowledge[];
   /**
    * After the task tree's branch moved and the agent's commits conflict
    * with it (docs/git.md): a rebase onto the branch is in progress in the

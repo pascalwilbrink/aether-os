@@ -20,6 +20,7 @@ import {
   listProjectMemberships,
 } from "@/lib/api/polis";
 import { listAutomations } from "@/lib/api/kairos";
+import { listKnowledgeItems } from "@/lib/api/seshat";
 import {
   listRepositories,
   listRepositoryLinks,
@@ -100,6 +101,7 @@ async function Project({ params, searchParams }: Props) {
     repositories,
     budget,
     automations,
+    knowledge,
   ] = await Promise.all([
     getOrganization(token, organizationId),
     getProject(token, organizationId, projectId),
@@ -115,6 +117,12 @@ async function Project({ params, searchParams }: Props) {
     orUnavailable(listRepositories(token, organizationId)),
     getProjectBudget(token, organizationId, projectId),
     orUnavailable(listAutomations(token, organizationId, projectId)),
+    // What a new task can pin (Seshat); none when Seshat doesn't answer.
+    orUnavailable(
+      listKnowledgeItems(token, organizationId, projectId, {
+        status: "accepted",
+      }),
+    ),
   ]);
   const runnable = agents.items.filter(
     (agent) => agent.status === "active" && agent.latestVersionId,
@@ -487,6 +495,11 @@ async function Project({ params, searchParams }: Props) {
           agents={runnable.map(({ id, name }) => ({ id, name }))}
           serviceAccounts={accounts.map(({ id, name }) => ({ id, name }))}
           repositories={repositoryChoices(links.items)}
+          knowledge={knowledge.items.map(({ id, title, type }) => ({
+            id,
+            title,
+            type,
+          }))}
           idempotencyKey={crypto.randomUUID()}
         />
       </section>

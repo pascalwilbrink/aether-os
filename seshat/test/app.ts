@@ -96,3 +96,10 @@ export const asTask = async (
       scope: 'api',
     }),
   );
+
+/** A platform service with its own token (Hephaestus pinning items on tasks). */
+export const asService = async (
+  app: INestApplication<App>,
+  sub = 'hephaestus',
+  scopes = ['platform:read'],
+) => client(app, await tokens.service(sub, scopes));

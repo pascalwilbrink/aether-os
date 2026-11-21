@@ -5,7 +5,14 @@ import type { App } from 'supertest/types.js';
 
 import { DocumentFileError, DocumentIndexer } from '@seshat/knowledge';
 
-import { asMember, asTask, createApp, TASK_ID, type Client } from './app.js';
+import {
+  asMember,
+  asService,
+  asTask,
+  createApp,
+  TASK_ID,
+  type Client,
+} from './app.js';
 import type { FakeFiles } from './fake-files.js';
 import type { FakePolis } from './fake-polis.js';
 import { outboxEvents } from './outbox.js';
@@ -54,6 +61,21 @@ describe('Knowledge (e2e)', () => {
       score: number;
     }[];
   }
+
+  it('lets a platform service read an item, and only read it', async () => {
+    const created = await admin
+      .post(`${base}/items`)
+      .send(decision)
+      .expect(201);
+    const service = await asService(app);
+    const read = await service
+      .get(`${base}/items/${created.body.id}`)
+      .expect(200);
+    expect(read.body).toMatchObject({ title: decision.title, version: 1 });
+    await service.post(`${base}/items`).send(decision).expect(403);
+    const other = `/v1/organizations/${orgId}/projects/${polis.project(orgId)}/knowledge`;
+    await service.get(`${other}/items/${created.body.id}`).expect(404);
+  });
 
   it("accepts a person's item at once and keeps each edit as a version", async () => {
     const created = await admin

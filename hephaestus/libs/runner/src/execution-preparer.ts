@@ -3,7 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { AgentVersionsService } from '@hephaestus/agents';
 import type { AgentVersion } from '@hephaestus/core';
 import { BudgetExceededError, Pylon } from '@hephaestus/models';
-import type { TaskResponse } from '@hephaestus/tasks';
+import type { PinnedKnowledge, TaskResponse } from '@hephaestus/tasks';
 
 import {
   RepositoryCheckouts,
@@ -120,6 +120,11 @@ export class ExecutionPreparer {
     sandbox: Sandbox | null,
   ): Promise<AgentInputFile[]> {
     return this.inputs.copyInto(task, token, sandbox);
+  }
+
+  /** The knowledge pinned on the task, for the agent's prompt. */
+  context(task: TaskResponse): Promise<PinnedKnowledge[]> {
+    return this.inputs.context(task);
   }
 
   /** What the agent committed, out of the sandbox and into Hephaestus's clone. */
