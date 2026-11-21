@@ -35,6 +35,17 @@ export default defineConfig([
     },
     plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
   },
+  // Proxenos's API: a linked repository's files and blobs, used behind
+  // RepositoryFiles (repository documents, docs/knowledge.md).
+  {
+    input: 'node_modules/@aether-os/contracts/proxenos.openapi.yaml',
+    output: {
+      path: 'libs/core/src/clients/proxenos/generated',
+      importFileExtension: '.js',
+      clean: true,
+    },
+    plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
+  },
   // Polis's API: a typed HTTP client, used behind PolisClient.
   {
     input: 'node_modules/@aether-os/contracts/polis.openapi.yaml',

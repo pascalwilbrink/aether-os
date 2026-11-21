@@ -28,3 +28,13 @@ export class KnowledgeDocumentInvalidError extends DomainError {
     super(reason, 'KNOWLEDGE_DOCUMENT_INVALID');
   }
 }
+
+/** A repository document changes with a commit, not through Seshat: 409. */
+export class KnowledgeItemReadOnlyError extends DomainError {
+  constructor(itemId: string, fullName: string | null) {
+    super(
+      `Knowledge item ${itemId} is a document from ${fullName ?? 'a repository'}: change it with a commit there.`,
+      'KNOWLEDGE_ITEM_READ_ONLY',
+    );
+  }
+}

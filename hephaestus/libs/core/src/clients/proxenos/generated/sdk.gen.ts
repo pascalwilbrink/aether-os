@@ -18,6 +18,9 @@ import type {
   GetInstallationData,
   GetInstallationErrors,
   GetInstallationResponses,
+  GetRepositoryBlobData,
+  GetRepositoryBlobErrors,
+  GetRepositoryBlobResponses,
   GetRepositoryLinkData,
   GetRepositoryLinkErrors,
   GetRepositoryLinkResponses,
@@ -37,6 +40,9 @@ import type {
   ListRepositoriesData,
   ListRepositoriesErrors,
   ListRepositoriesResponses,
+  ListRepositoryFilesData,
+  ListRepositoryFilesErrors,
+  ListRepositoryFilesResponses,
   ListRepositoryLinksData,
   ListRepositoryLinksErrors,
   ListRepositoryLinksResponses,
@@ -310,6 +316,52 @@ export const createRepositoryToken = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  });
+
+/**
+ * The files of the linked repository at the head of its default
+ * branch, under the given paths: a path ending in `/` is a folder
+ * (everything below it), any other one file. Each file has its blob
+ * SHA (Git's, so an unchanged file keeps it) and size, read with
+ * `GET …/blobs/{sha}`. GitHub lists at most about 100,000 entries:
+ * a larger repository is listed in part (`truncated`).
+ *
+ */
+export const listRepositoryFiles = <ThrowOnError extends boolean = false>(
+  options: Options<ListRepositoryFilesData, ThrowOnError>,
+): RequestResult<
+  ListRepositoryFilesResponses,
+  ListRepositoryFilesErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListRepositoryFilesResponses,
+    ListRepositoryFilesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/repositories/{linkId}/files',
+    ...options,
+  });
+
+/**
+ * A file's bytes in the linked repository, by its blob SHA (at most 10 MiB).
+ */
+export const getRepositoryBlob = <ThrowOnError extends boolean = false>(
+  options: Options<GetRepositoryBlobData, ThrowOnError>,
+): RequestResult<
+  GetRepositoryBlobResponses,
+  GetRepositoryBlobErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetRepositoryBlobResponses,
+    GetRepositoryBlobErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/repositories/{linkId}/blobs/{sha}',
+    ...options,
   });
 
 /**

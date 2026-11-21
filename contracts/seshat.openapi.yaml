@@ -1,12 +1,13 @@
 openapi: 3.1.0
 info:
   title: Seshat API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Project knowledge (`../docs/knowledge.md`): what agents know about the
     project they work in. Typed items (decisions, facts, conventions,
     architecture notes, lessons learned) and documents (files of the project
-    in Loculus, indexed for search), each with where it came from, a
+    in Loculus, or in a repository linked to it, indexed for search), each
+    with where it came from, a
     lifecycle (`proposed` → `accepted` → `superseded` / `retired`, or
     `rejected`) and a history of versions.
 
@@ -303,6 +304,116 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
         '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      tags: [knowledge]
+      operationId: listKnowledgeRepositories
+      x-permission: '`knowledge:read` in the project'
+      description: |
+        The project's repositories whose documents Seshat indexes, oldest
+        first. Linking a repository to the project (Proxenos) adds it with
+        the default paths; its documents are read-only items
+        (`source.kind: repository`), indexed at the default branch's head
+        and again on every push to it.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeRepositoryPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories/{linkId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/LinkId'
+    get:
+      tags: [knowledge]
+      operationId: getKnowledgeRepository
+      x-permission: '`knowledge:read` in the project'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeRepositoryResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [knowledge]
+      operationId: putKnowledgeRepository
+      x-permission: '`knowledge:approve` in the project (people only)'
+      description: |
+        Which paths of a repository linked to the project are indexed (a
+        folder ends in `/`). Starts indexing a link that isn't indexed yet
+        (e.g. one linked before Seshat followed links, or removed with
+        `DELETE`); either way it's read again soon. A link that isn't the
+        project's fails when it's read (`status: failed`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PutKnowledgeRepositoryRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeRepositoryResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    delete:
+      tags: [knowledge]
+      operationId: deleteKnowledgeRepository
+      x-permission: '`knowledge:approve` in the project (people only)'
+      description: |
+        Stops indexing the repository: its documents are retired (still
+        readable, no longer searched). Unlinking it in Proxenos does the same.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '204': { description: Stopped }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories/{linkId}/sync:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/LinkId'
+    post:
+      tags: [knowledge]
+      operationId: syncKnowledgeRepository
+      x-permission: '`knowledge:approve` in the project (people only)'
+      description: Reads the repository again soon (e.g. after a push Seshat missed, or a failure).
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeRepositoryResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
   /v1/organizations/{organizationId}/projects/{projectId}/knowledge/search:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
@@ -354,6 +465,12 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    LinkId:
+      name: linkId
+      in: path
+      required: true
+      description: The repository link's ID in Proxenos.
+      schema: { type: string, format: uuid }
     Limit: { $ref: './common.openapi.yaml#/components/parameters/Limit' }
     Cursor: { $ref: './common.openapi.yaml#/components/parameters/Cursor' }
 
@@ -383,6 +500,7 @@ components:
         - KNOWLEDGE_ITEM_INVALID_TRANSITION
         - KNOWLEDGE_ITEM_INVALID
         - KNOWLEDGE_DOCUMENT_INVALID
+        - KNOWLEDGE_ITEM_READ_ONLY
         - ORGANIZATION_SUSPENDED
         - PROJECT_ARCHIVED
     DomainProblem:
@@ -436,12 +554,29 @@ components:
       required: [kind]
       description: |
         Where the item came from, set by Seshat from the token: `person`
-        (a person wrote it), `task` (an agent proposed it, with `taskId`).
+        (a person wrote it), `task` (an agent proposed it, with `taskId`),
+        or `repository` (a document indexed from a repository linked to the
+        project, with `repository`; read-only: change it with a commit).
       properties:
-        kind: { type: string, enum: [person, task] }
+        kind: { type: string, enum: [person, task, repository] }
         taskId:
           type: [string, 'null']
           format: uuid
+        repository:
+          oneOf:
+            - $ref: '#/components/schemas/KnowledgeRepositoryFile'
+            - type: 'null'
+    KnowledgeRepositoryFile:
+      type: object
+      required: [linkId, fullName, path, commit, blobSha, url]
+      description: A file in a repository linked to the project, at a commit of its default branch.
+      properties:
+        linkId: { type: string, format: uuid, description: The repository link in Proxenos. }
+        fullName: { type: string, description: '`owner/name`.' }
+        path: { type: string }
+        commit: { type: string }
+        blobSha: { type: string, description: "Git's blob SHA of the file's content." }
+        url: { type: string, format: uri, description: The file at that commit on GitHub. }
     DocumentIndexing:
       type: object
       required: [status, chunkCount, error, indexedAt]
@@ -457,14 +592,23 @@ components:
           format: date-time
     KnowledgeDocumentFile:
       type: object
-      required: [fileId, fileName, contentType, sizeBytes, sha256]
-      description: The document's file in Loculus (its ID; download it from Loculus).
+      required: [fileId, fileName, contentType, sizeBytes, sha256, repository]
+      description: |
+        The document's file: in Loculus (`fileId`; download it from
+        Loculus), or in a repository linked to the project (`repository`;
+        `fileId` and `sha256` are null).
       properties:
-        fileId: { type: string, format: uuid }
+        fileId:
+          type: [string, 'null']
+          format: uuid
         fileName: { type: string }
         contentType: { type: string }
         sizeBytes: { type: integer, minimum: 0 }
-        sha256: { type: string }
+        sha256: { type: [string, 'null'] }
+        repository:
+          oneOf:
+            - $ref: '#/components/schemas/KnowledgeRepositoryFile'
+            - type: 'null'
     KnowledgeDocument:
       allOf:
         - $ref: '#/components/schemas/KnowledgeDocumentFile'
@@ -633,6 +777,69 @@ components:
             items:
               type: array
               items: { $ref: '#/components/schemas/KnowledgeItemVersionResponse' }
+
+    RepositoryPath:
+      type: string
+      minLength: 1
+      maxLength: 500
+      pattern: '^(?!/)(?!(.*/)?\.\.(/|$)).+$'
+      description: Relative to the repository's root, without `..`; a folder ends in `/`.
+    PutKnowledgeRepositoryRequest:
+      type: object
+      additionalProperties: false
+      required: [paths]
+      properties:
+        paths:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/RepositoryPath' }
+    KnowledgeRepositoryResponse:
+      type: object
+      required: [linkId, organizationId, projectId, fullName, paths, status, commit, documentCount, skippedCount, error, syncedAt, createdAt, updatedAt]
+      properties:
+        linkId: { type: string, format: uuid, description: The repository link in Proxenos. }
+        organizationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        fullName:
+          type: [string, 'null']
+          description: '`owner/name`; null until it was first read.'
+        paths:
+          type: array
+          items: { type: string }
+          description: 'What is indexed: folders (ending in `/`) and files.'
+        status:
+          type: string
+          enum: [pending, synced, failed]
+          description: |
+            `pending`: waiting to be read (again). `synced`: its documents
+            match `commit`; each is then indexed like any document (its
+            `document.indexing`). `failed`: it couldn't be read (`error`);
+            a push, `PUT` or `POST …/sync` tries again.
+        commit:
+          type: [string, 'null']
+          description: The default branch's commit its documents were last read at.
+        documentCount: { type: integer, minimum: 0, description: Its current documents. }
+        skippedCount:
+          type: integer
+          minimum: 0
+          description: Files under its paths that aren't indexed (a type Seshat can't read, too large, or past the most per repository).
+        error: { type: [string, 'null'] }
+        syncedAt:
+          type: [string, 'null']
+          format: date-time
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    KnowledgeRepositoryPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/KnowledgeRepositoryResponse' }
 
     KnowledgePassage:
       type: object

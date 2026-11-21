@@ -4,7 +4,10 @@ import type { ApiTypes } from '@seshat/core';
 
 import { DocumentFiles } from './document-files.js';
 import { KnowledgeItemsService } from './knowledge-items.service.js';
-import { KnowledgeDocumentInvalidError } from './knowledge.errors.js';
+import {
+  KnowledgeDocumentInvalidError,
+  KnowledgeItemReadOnlyError,
+} from './knowledge.errors.js';
 import {
   KNOWLEDGE_OPTIONS,
   type KnowledgeOptions,
@@ -38,6 +41,14 @@ export class DocumentsService {
     itemId: string,
     dto: ApiTypes.UpdateKnowledgeDocumentRequest,
   ): Promise<ApiTypes.KnowledgeItemResponse> {
+    // A repository document changes with a commit: refused before Loculus is asked.
+    const item = await this.items.findById(organizationId, projectId, itemId);
+    if (item.source.kind === 'repository') {
+      throw new KnowledgeItemReadOnlyError(
+        itemId,
+        item.source.repository?.fullName ?? null,
+      );
+    }
     const file = await this.file(organizationId, projectId, dto.fileId);
     return this.items.updateDocument(
       organizationId,

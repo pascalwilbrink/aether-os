@@ -1,6 +1,11 @@
 import {
   createZodDto,
   zCreateKnowledgeDocumentRequest,
+  zGetKnowledgeRepositoryPath,
+  zKnowledgeRepositoryPage,
+  zKnowledgeRepositoryResponse,
+  zListKnowledgeRepositoriesQuery,
+  zPutKnowledgeRepositoryRequest,
   zCreateKnowledgeItemRequest,
   zGetKnowledgeItemPath,
   zKnowledgeItemPage,
@@ -60,3 +65,20 @@ export class ListKnowledgeItemPassagesQuery extends createZodDto(
 ) {}
 
 export class KnowledgePassagePage extends createZodDto(zKnowledgePassagePage) {}
+
+/** `:organizationId`, `:projectId` and `:linkId` (UUIDs). */
+export class RepositoryParams extends createZodDto(
+  zGetKnowledgeRepositoryPath,
+) {}
+export class ListKnowledgeRepositoriesQuery extends createZodDto(
+  zListKnowledgeRepositoriesQuery,
+) {}
+export class PutKnowledgeRepositoryRequest extends createZodDto(
+  zPutKnowledgeRepositoryRequest,
+) {}
+export class KnowledgeRepositoryResponse extends createZodDto(
+  zKnowledgeRepositoryResponse,
+) {}
+export class KnowledgeRepositoryPage extends createZodDto(
+  zKnowledgeRepositoryPage,
+) {}

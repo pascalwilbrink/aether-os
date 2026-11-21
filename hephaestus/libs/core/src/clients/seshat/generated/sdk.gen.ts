@@ -18,9 +18,15 @@ import type {
   CreateKnowledgeItemData,
   CreateKnowledgeItemErrors,
   CreateKnowledgeItemResponses,
+  DeleteKnowledgeRepositoryData,
+  DeleteKnowledgeRepositoryErrors,
+  DeleteKnowledgeRepositoryResponses,
   GetKnowledgeItemData,
   GetKnowledgeItemErrors,
   GetKnowledgeItemResponses,
+  GetKnowledgeRepositoryData,
+  GetKnowledgeRepositoryErrors,
+  GetKnowledgeRepositoryResponses,
   ListKnowledgeItemPassagesData,
   ListKnowledgeItemPassagesErrors,
   ListKnowledgeItemPassagesResponses,
@@ -30,6 +36,12 @@ import type {
   ListKnowledgeItemVersionsData,
   ListKnowledgeItemVersionsErrors,
   ListKnowledgeItemVersionsResponses,
+  ListKnowledgeRepositoriesData,
+  ListKnowledgeRepositoriesErrors,
+  ListKnowledgeRepositoriesResponses,
+  PutKnowledgeRepositoryData,
+  PutKnowledgeRepositoryErrors,
+  PutKnowledgeRepositoryResponses,
   RejectKnowledgeItemData,
   RejectKnowledgeItemErrors,
   RejectKnowledgeItemResponses,
@@ -39,6 +51,9 @@ import type {
   SearchKnowledgeData,
   SearchKnowledgeErrors,
   SearchKnowledgeResponses,
+  SyncKnowledgeRepositoryData,
+  SyncKnowledgeRepositoryErrors,
+  SyncKnowledgeRepositoryResponses,
   UpdateKnowledgeDocumentData,
   UpdateKnowledgeDocumentErrors,
   UpdateKnowledgeDocumentResponses,
@@ -316,6 +331,119 @@ export const updateKnowledgeDocument = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  });
+
+/**
+ * The project's repositories whose documents Seshat indexes, oldest
+ * first. Linking a repository to the project (Proxenos) adds it with
+ * the default paths; its documents are read-only items
+ * (`source.kind: repository`), indexed at the default branch's head
+ * and again on every push to it.
+ *
+ */
+export const listKnowledgeRepositories = <ThrowOnError extends boolean = false>(
+  options: Options<ListKnowledgeRepositoriesData, ThrowOnError>,
+): RequestResult<
+  ListKnowledgeRepositoriesResponses,
+  ListKnowledgeRepositoriesErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListKnowledgeRepositoriesResponses,
+    ListKnowledgeRepositoriesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories',
+    ...options,
+  });
+
+/**
+ * Stops indexing the repository: its documents are retired (still
+ * readable, no longer searched). Unlinking it in Proxenos does the same.
+ *
+ */
+export const deleteKnowledgeRepository = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteKnowledgeRepositoryData, ThrowOnError>,
+): RequestResult<
+  DeleteKnowledgeRepositoryResponses,
+  DeleteKnowledgeRepositoryErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).delete<
+    DeleteKnowledgeRepositoryResponses,
+    DeleteKnowledgeRepositoryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories/{linkId}',
+    ...options,
+  });
+
+export const getKnowledgeRepository = <ThrowOnError extends boolean = false>(
+  options: Options<GetKnowledgeRepositoryData, ThrowOnError>,
+): RequestResult<
+  GetKnowledgeRepositoryResponses,
+  GetKnowledgeRepositoryErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetKnowledgeRepositoryResponses,
+    GetKnowledgeRepositoryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories/{linkId}',
+    ...options,
+  });
+
+/**
+ * Which paths of a repository linked to the project are indexed (a
+ * folder ends in `/`). Starts indexing a link that isn't indexed yet
+ * (e.g. one linked before Seshat followed links, or removed with
+ * `DELETE`); either way it's read again soon. A link that isn't the
+ * project's fails when it's read (`status: failed`).
+ *
+ */
+export const putKnowledgeRepository = <ThrowOnError extends boolean = false>(
+  options: Options<PutKnowledgeRepositoryData, ThrowOnError>,
+): RequestResult<
+  PutKnowledgeRepositoryResponses,
+  PutKnowledgeRepositoryErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    PutKnowledgeRepositoryResponses,
+    PutKnowledgeRepositoryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories/{linkId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Reads the repository again soon (e.g. after a push Seshat missed, or a failure).
+ */
+export const syncKnowledgeRepository = <ThrowOnError extends boolean = false>(
+  options: Options<SyncKnowledgeRepositoryData, ThrowOnError>,
+): RequestResult<
+  SyncKnowledgeRepositoryResponses,
+  SyncKnowledgeRepositoryErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    SyncKnowledgeRepositoryResponses,
+    SyncKnowledgeRepositoryErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/knowledge/repositories/{linkId}/sync',
+    ...options,
   });
 
 /**
