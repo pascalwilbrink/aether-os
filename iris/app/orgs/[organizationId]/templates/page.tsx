@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { listOrganizationTaskTemplates } from "@/lib/api/hephaestus";
-import { listProjects } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
 
 type Props = PageProps<"/orgs/[organizationId]/templates">;
@@ -22,21 +21,26 @@ async function Templates({ params }: Pick<Props, "params">) {
     organizationId,
     `/orgs/${organizationId}/templates`,
   );
-  const [templates, projects] = await Promise.all([
-    listOrganizationTaskTemplates(session.accessToken, organizationId),
-    listProjects(session.accessToken, organizationId),
-  ]);
+  const templates = await listOrganizationTaskTemplates(
+    session.accessToken,
+    organizationId,
+  );
   const active = templates.items.filter(
     (template) => template.status === "active",
-  );
-  const firstProject = projects.items.find(
-    (project) => project.status === "active",
   );
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Templates</h1>
+        <div className="flex items-baseline justify-between gap-4">
+          <h1 className="text-2xl font-semibold">Templates</h1>
+          <Link
+            href={`/orgs/${organizationId}/templates/new`}
+            className="text-sm underline"
+          >
+            New template
+          </Link>
+        </div>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Task templates every project of the organization can start tasks from,
           with their definition of done. A project&apos;s own templates are on
@@ -64,14 +68,12 @@ async function Templates({ params }: Pick<Props, "params">) {
               </span>
               <span className="flex shrink-0 items-center gap-3 text-sm text-zinc-500">
                 v{template.latestVersion}
-                {firstProject ? (
-                  <Link
-                    href={`/orgs/${organizationId}/projects/${firstProject.id}/templates/${template.id}`}
-                    className="underline"
-                  >
-                    Open
-                  </Link>
-                ) : null}
+                <Link
+                  href={`/orgs/${organizationId}/templates/${template.id}`}
+                  className="underline"
+                >
+                  Open
+                </Link>
               </span>
             </li>
           ))}
