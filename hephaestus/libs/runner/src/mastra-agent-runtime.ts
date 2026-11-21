@@ -31,6 +31,8 @@ import {
   type AgentRunResult,
   type ArtifactSink,
 } from './agent-runtime.js';
+import { KnowledgeBase, NoKnowledgeBase } from './knowledge-base.js';
+import { knowledgeTools, withKnowledge } from './knowledge-tools.js';
 import { FileStoreError } from './file-store.js';
 import { RunnerFailure } from './runner.errors.js';
 import type { SandboxFiles } from './sandbox-files.js';
@@ -76,6 +78,11 @@ export class MastraAgentRuntime extends AgentRuntime {
      * without it, or without a sandbox, the agent has no `submit_file`.
      */
     private readonly files?: SandboxFiles,
+    /**
+     * The project's knowledge (Seshat): without it the agent has no
+     * knowledge tools.
+     */
+    private readonly knowledge: KnowledgeBase = new NoKnowledgeBase(),
   ) {
     super();
   }
@@ -182,6 +189,14 @@ export class MastraAgentRuntime extends AgentRuntime {
       tools: {
         ...connected.tools,
         submit_artifact: submitArtifactTool(artifacts),
+        // The project's knowledge, with the task's own token.
+        ...(this.knowledge.available
+          ? knowledgeTools(this.knowledge, {
+              organizationId: task.organizationId,
+              projectId: task.projectId,
+              token,
+            })
+          : {}),
         ...(files && sandbox
           ? {
               submit_file: submitFileTool(artifacts, (submission) =>
@@ -214,16 +229,25 @@ export class MastraAgentRuntime extends AgentRuntime {
     try {
       const result = await agent.generate(
         withKeeping(
-          withSkills(
-            withTools(
-              withInputs(
-                promptFor(task, revisions, failedChecks, repository, conflict),
-                inputFiles ?? [],
+          withKnowledge(
+            withSkills(
+              withTools(
+                withInputs(
+                  promptFor(
+                    task,
+                    revisions,
+                    failedChecks,
+                    repository,
+                    conflict,
+                  ),
+                  inputFiles ?? [],
+                ),
+                Object.keys(connected.tools),
               ),
-              Object.keys(connected.tools),
+              skills,
+              Boolean(sandbox?.exec),
             ),
-            skills,
-            Boolean(sandbox?.exec),
+            this.knowledge.available,
           ),
           { sandbox: Boolean(sandbox), files: Boolean(files), repository },
         ),

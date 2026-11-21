@@ -325,6 +325,29 @@ describe('Knowledge (e2e)', () => {
       await search(admin, { query: 'ingestion', types: ['fact'] }),
     ).toEqual([]);
 
+    // Its text, a passage at a time (agents' read_knowledge), for readers.
+    const viewer = await asMember(app, orgId, ['member'], {
+      projectRoles: { [projectId]: 'viewer' },
+    });
+    const passages = await viewer
+      .get(`${base}/items/${id}/passages?limit=1`)
+      .expect(200);
+    expect(passages.body).toEqual({
+      items: [
+        {
+          ordinal: 0,
+          version: 1,
+          text: expect.stringContaining('make restart-ingest'),
+        },
+      ],
+      nextCursor: null,
+    });
+    await admin
+      .get(
+        `/v1/organizations/${orgId}/projects/${polis.project(orgId)}/knowledge/items/${id}/passages`,
+      )
+      .expect(404);
+
     // A new file is a new version, indexed again.
     const next = files.add(orgId, projectId, 'Use the dashboard to restart.', {
       fileName: 'runbook-v2.txt',

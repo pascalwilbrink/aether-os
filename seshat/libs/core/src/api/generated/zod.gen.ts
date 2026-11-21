@@ -158,6 +158,12 @@ export const zKnowledgeItemVersionResponse = z.object({
   createdAt: zTimestamp,
 });
 
+export const zKnowledgePassage = z.object({
+  ordinal: z.int().gte(0),
+  version: z.int().gte(1),
+  text: z.string(),
+});
+
 export const zSearchKnowledgeRequest = z.object({
   query: z.string().min(1).max(1000),
   types: z.array(zKnowledgeItemType).optional(),
@@ -195,6 +201,12 @@ export const zKnowledgeItemPage = zPageMeta.and(
 export const zKnowledgeItemVersionPage = zPageMeta.and(
   z.object({
     items: z.array(zKnowledgeItemVersionResponse),
+  }),
+);
+
+export const zKnowledgePassagePage = zPageMeta.and(
+  z.object({
+    items: z.array(zKnowledgePassage),
   }),
 );
 
@@ -336,6 +348,22 @@ export const zListKnowledgeItemVersionsQuery = z.object({
  * Newest first
  */
 export const zListKnowledgeItemVersionsResponse = zKnowledgeItemVersionPage;
+
+export const zListKnowledgeItemPassagesPath = z.object({
+  organizationId: z.uuid(),
+  projectId: z.uuid(),
+  itemId: z.uuid(),
+});
+
+export const zListKnowledgeItemPassagesQuery = z.object({
+  limit: z.int().gte(1).lte(100).optional().default(50),
+  cursor: z.string().min(1).max(1024).optional(),
+});
+
+/**
+ * In order
+ */
+export const zListKnowledgeItemPassagesResponse = zKnowledgePassagePage;
 
 export const zAcceptKnowledgeItemPath = z.object({
   organizationId: z.uuid(),

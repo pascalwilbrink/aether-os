@@ -44,6 +44,16 @@ export default defineConfig([
     },
     plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
   },
+  // Seshat's API: the agents' knowledge tools (docs/knowledge.md).
+  {
+    input: 'node_modules/@aether-os/contracts/seshat.openapi.yaml',
+    output: {
+      path: 'libs/core/src/clients/seshat/generated',
+      importFileExtension: '.js',
+      clean: true,
+    },
+    plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
+  },
   // Pylon's API: budgets, task trees' budgets and usage (docs/pylon.md).
   {
     input: 'node_modules/@aether-os/contracts/pylon.openapi.yaml',
