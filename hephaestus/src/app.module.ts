@@ -3,12 +3,16 @@ import { ConfigService } from '@nestjs/config';
 
 import {
   AuthModule,
-  HEPHAESTUS_COMMAND_TYPES,
-  HEPHAESTUS_PUBLISHED_EVENTS,
-  HephaestusEventsModule,
   DatabaseModule,
   EventsModule,
+  HealthModule,
+  HEPHAESTUS_COMMAND_TYPES,
+  HEPHAESTUS_PUBLISHED_EVENTS,
   hephaestusConfigModule,
+  HephaestusEventsModule,
+  openBaoCheck,
+  checkIf,
+  serviceCheck,
   type Env,
 } from '@hephaestus/core';
 import { AgentsModule } from '@hephaestus/agents';
@@ -49,6 +53,28 @@ export const PROXENOS_SUBSCRIPTIONS = ['git.pull-request.updated'] as const;
   imports: [
     hephaestusConfigModule(),
     DatabaseModule,
+    // /health and /health/live (Krepis): the database and RabbitMQ, and what it calls.
+    HealthModule.forRoot({
+      service: 'hephaestus',
+      inject: [ConfigService],
+      checks: (config: ConfigService<Env, true>) => [
+        serviceCheck('pistis', config.get('PISTIS_ISSUER', { infer: true })),
+        serviceCheck('polis', config.get('POLIS_URL', { infer: true })),
+        serviceCheck('pylon', config.get('PYLON_URL', { infer: true })),
+        ...checkIf(config.get('PROXENOS_URL', { infer: true }), (url) =>
+          serviceCheck('proxenos', url),
+        ),
+        ...checkIf(config.get('LOCULUS_URL', { infer: true }), (url) =>
+          serviceCheck('loculus', url),
+        ),
+        ...checkIf(config.get('SESHAT_URL', { infer: true }), (url) =>
+          serviceCheck('seshat', url),
+        ),
+        ...checkIf(config.get('OPENBAO_ADDR', { infer: true }), (url) =>
+          openBaoCheck(url),
+        ),
+      ],
+    }),
     // Consumes Polis's, Proxenos's and Agora's events from
     // hephaestus.<producer>-events (inbox, retries, dead-lettering), and publishes Hephaestus's own (task events) to
     // hephaestus.events through the outbox.

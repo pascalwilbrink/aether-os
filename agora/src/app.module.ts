@@ -3,11 +3,13 @@ import { ConfigService } from '@nestjs/config';
 
 import {
   AGORA_PUBLISHED_EVENTS,
-  AgoraEventsModule,
   agoraConfigModule,
+  AgoraEventsModule,
   AuthModule,
   DatabaseModule,
   EventsModule,
+  HealthModule,
+  serviceCheck,
   type Env,
 } from '@agora/core';
 import { AgentsModule } from '@agora/agents';
@@ -17,6 +19,20 @@ import { AgentsModule } from '@agora/agents';
   imports: [
     agoraConfigModule(),
     DatabaseModule,
+    // /health and /health/live (Krepis): the database and RabbitMQ, and what it calls.
+    HealthModule.forRoot({
+      service: 'agora',
+      inject: [ConfigService],
+      checks: (config: ConfigService<Env, true>) => [
+        serviceCheck('pistis', config.get('PISTIS_ISSUER', { infer: true })),
+        serviceCheck('polis', config.get('POLIS_URL', { infer: true })),
+        serviceCheck(
+          'hephaestus',
+          config.get('HEPHAESTUS_URL', { infer: true }),
+        ),
+        serviceCheck('pylon', config.get('PYLON_URL', { infer: true })),
+      ],
+    }),
     // Publishes Agora's events to agora.events through the outbox; consumes
     // nothing yet.
     EventsModule.forRoot({

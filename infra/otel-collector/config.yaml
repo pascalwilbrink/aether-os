@@ -47,6 +47,10 @@ processors:
       span:
         - 'attributes["gen_ai.operation.name"] == nil and attributes["gen_ai.request.model"] == nil and attributes["gen_ai.system"] == nil and attributes["langfuse.trace.name"] == nil'
 
+# Answers on :13133 while the Collector runs (Uptime Kuma checks it).
+extensions:
+  health_check: { endpoint: 0.0.0.0:13133 }
+
 exporters:
   otlp/jaeger:
     endpoint: jaeger:4317
@@ -60,6 +64,7 @@ exporters:
       Authorization: Basic cGstbGYtbG9jYWw6c2stbGYtbG9jYWw=
 
 service:
+  extensions: [health_check]
   pipelines:
     traces/jaeger:
       receivers: [otlp]

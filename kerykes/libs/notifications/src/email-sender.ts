@@ -31,6 +31,11 @@ export class SmtpEmailSender extends EmailSender {
   async send(message: EmailMessage): Promise<void> {
     await this.transport.sendMail({ from: this.from, ...message });
   }
+
+  /** Whether the server answers and takes Kerykes's login, for `/health`. */
+  async verify(): Promise<void> {
+    await this.transport.verify();
+  }
 }
 
 /** No email (`EMAIL_DRIVER=none`): deliveries are recorded as skipped instead. */

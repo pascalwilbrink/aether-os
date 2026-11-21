@@ -2,8 +2,8 @@ import "server-only";
 
 import { config } from "@/lib/config";
 
-/** The services Iris calls, by name. */
-const SERVICES = () => [
+/** The services Iris calls, by name (also checked by Iris's `/health`). */
+export const SERVICES = () => [
   { name: "Pistis", url: config.pistisUrl },
   { name: "Polis", url: config.polisUrl },
   { name: "Hephaestus", url: config.hephaestusUrl },
@@ -22,18 +22,18 @@ export interface ServiceStatus {
 }
 
 /**
- * Whether each service answers at all (any HTTP response within 1.5 s; its
- * `/health`, unversioned): reachability, not a health check of its own.
+ * Whether each service runs (its `/health/live` answers within 1.5 s):
+ * reachability, not its dependencies (its `/health` has those).
  */
 export async function serviceStatuses(): Promise<ServiceStatus[]> {
   return Promise.all(
     SERVICES().map(async ({ name, url }) => {
       try {
-        await fetch(new URL("/health", url), {
+        const response = await fetch(new URL("/health/live", url), {
           cache: "no-store",
           signal: AbortSignal.timeout(1500),
         });
-        return { name, up: true };
+        return { name, up: response.ok };
       } catch {
         return { name, up: false };
       }

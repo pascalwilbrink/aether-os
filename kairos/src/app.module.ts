@@ -5,9 +5,11 @@ import {
   AuthModule,
   DatabaseModule,
   EventsModule,
+  HealthModule,
   KAIROS_PUBLISHED_EVENTS,
-  KairosEventsModule,
   kairosConfigModule,
+  KairosEventsModule,
+  serviceCheck,
   type Env,
 } from '@kairos/core';
 import { AutomationsModule } from '@kairos/automations';
@@ -30,6 +32,15 @@ export const HEPHAESTUS_SUBSCRIPTIONS = [
   imports: [
     kairosConfigModule(),
     DatabaseModule,
+    // /health and /health/live (Krepis): the database and RabbitMQ, and what it calls.
+    HealthModule.forRoot({
+      service: 'kairos',
+      inject: [ConfigService],
+      checks: (config: ConfigService<Env, true>) => [
+        serviceCheck('pistis', config.get('PISTIS_ISSUER', { infer: true })),
+        serviceCheck('polis', config.get('POLIS_URL', { infer: true })),
+      ],
+    }),
     // Consumes Proxenos's and Hephaestus's events (kairos.proxenos-events,
     // kairos.hephaestus-events: inbox, retries, dead-lettering); publishes
     // its own to kairos.events and sends task.create to hephaestus.commands,

@@ -16,7 +16,7 @@ Status: agreed, documentation only. Sections marked **Proposal** are not agreed 
 | Code generation from `contracts/` (types, Zod schemas, HTTP clients) | `@hey-api/openapi-ts` |
 | Logging | `nest-winston` |
 | RabbitMQ (topic exchanges, own queues, manual ack, headers), **only inside Krepis's messaging module** | `@golevelup/nestjs-rabbitmq` (rather than `@nestjs/microservices`, whose RMQ transport is built for request/response and fits our exchange-per-service model less well) |
-| Health checks (`/health`) | `@nestjs/terminus` |
+| Health checks (`/health`) | Krepis's `HealthModule` (see Health checks) |
 | Rate limiting (`429`) | `@nestjs/throttler`, with Redis storage when a service runs more than one instance |
 | Scheduled work (outbox relay, retention, digests, budget windows) | `@nestjs/schedule` |
 | Local events (everything services emit and handle; see Events in code) | `@nestjs/event-emitter` |
@@ -210,6 +210,33 @@ Rules:
 - **Never logged:** secrets, tokens, `Authorization` and `Cookie` headers, prompts, completions, artifact content, email addresses. Krepis's logger redacts values under secret-looking keys (`authorization`, `cookie`, `password`, `secret`, `token`, `apiKey`, `email`, …) at any depth, and secret-looking text anywhere (bearer and basic credentials, JWTs, provider keys, GitHub tokens, email addresses, passwords in URLs); the Collector redacts the same patterns again. Anything content-like isn't logged at all. LLM content belongs in Langfuse, with its own redaction.
 - Levels: `error` for something an operator must look at, `warn` for something unexpected that was handled, `info` for lifecycle events (started, task state changes), `debug` off in production.
 - Logs leave through the OpenTelemetry Collector (OTLP logs), like traces: the logger writes every line to OpenTelemetry's logs API too (`@opentelemetry/winston-transport`), which `startTelemetry` exports over OTLP (`OTEL_LOGS_EXPORTER=none` keeps them on stdout only). The Collector sends them to **Grafana Loki**, labelled `service_name`, with the record's trace and the line's fields as structured metadata. Grafana shows them next to the traces from Jaeger: a log line links to its trace, and a span to the logs of its trace.
+
+## Health checks
+
+Every service imports Krepis's `HealthModule` once, in its app module, and serves two unversioned routes without a token (`docs/api.md`):
+
+- **`GET /health/live`**: `200 { "status": "ok", "service": … }` while the process runs; nothing is checked. For restarts (a liveness probe), and for other services checking this one.
+- **`GET /health`**: what the service depends on, each check at once, within its timeout (3 s by default); the report is reused for 2 s. `200` when it's `ok` or `degraded`, `503` when a **required** check fails, or while the service shuts down (`shuttingDown: true`). For readiness probes and monitors (Uptime Kuma locally).
+
+  ```json
+  { "status": "degraded", "service": "agora",
+    "checks": {
+      "database": { "status": "up", "required": true, "latencyMs": 2 },
+      "rabbitmq": { "status": "up", "required": false, "latencyMs": 0 },
+      "polis": { "status": "down", "required": false, "latencyMs": 3, "error": "fetch failed: connect ECONNREFUSED 127.0.0.1:3001" } } }
+  ```
+
+What each service checks:
+
+- **Found by Krepis:** the service's Postgres (`database`, `SELECT 1`; required) and, with `EventsModule`'s RabbitMQ, the connection (`rabbitmq`; not required: events wait in the outbox, requests are still served).
+- **From its configuration** (`HealthModule.forRoot({ checks })`): the Aether-os services it calls (`serviceCheck`, their `/health/live` only, never their `/health`: one service down mustn't spread through every caller, and services that call each other mustn't check each other in a loop; not required), OpenBao (`openBaoCheck`, `sys/health`; required where keys live: Pylon, Proxenos), anything optional only when it's configured (`checkIf`).
+- **From feature modules**, for what only they reach: they register on `HealthRegistry` (`@Optional()`): Loculus's object store (`storage`, `HeadBucket`; required), Kerykes's SMTP server (`smtp`, with `EMAIL_DRIVER=smtp`), Hephaestus's Docker engine (`docker`, with `SANDBOX_DRIVER=docker`).
+
+A check is **required** when the service can't do its main work without it; anything else failing makes the service `degraded`. A check that goes down is logged once (`warn`), and once again when it's back. Health requests aren't traced (Krepis's `startTelemetry`).
+
+Checks name the reason a dependency failed, which can include internal addresses: route only `/health/live` publicly, and keep `/health` for monitors inside the network. External providers (GitHub, the model providers) aren't checked: their rate limits and costs don't suit a check every minute.
+
+Not `@nestjs/terminus`: it fails the whole check when any indicator fails, and Aether-os needs dependencies that only degrade a service.
 
 ## Testing
 

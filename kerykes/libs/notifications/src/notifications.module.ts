@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import type { Env } from '@kerykes/core';
+import { HealthRegistry, type Env } from '@kerykes/core';
 import { DirectoryModule } from '@kerykes/directory';
 import { MembershipsModule } from '@kerykes/memberships';
 
@@ -61,4 +61,16 @@ import { NotificationsService } from './notifications.service.js';
   ],
   exports: [NotificationsService, EmailDispatcher],
 })
-export class NotificationsModule {}
+export class NotificationsModule {
+  constructor(sender: EmailSender, @Optional() health?: HealthRegistry) {
+    // The SMTP server, on /health (Krepis's HealthModule) when email is on.
+    // Not required: emails wait and are retried, the inbox still works.
+    if (sender instanceof SmtpEmailSender) {
+      health?.register({
+        name: 'smtp',
+        required: false,
+        check: () => sender.verify(),
+      });
+    }
+  }
+}

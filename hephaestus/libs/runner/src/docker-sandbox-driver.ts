@@ -58,6 +58,12 @@ export class DockerSandboxDriver extends SandboxDriver {
     super();
   }
 
+  /** Whether the Docker engine answers, for `/health`. */
+  async ping(): Promise<{ engine: string }> {
+    const version = await this.docker.version();
+    return { engine: version.Version };
+  }
+
   async create(
     spec: SandboxSpec,
     signal: AbortSignal,

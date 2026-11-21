@@ -1,9 +1,9 @@
 import Docker from 'dockerode';
-import { Module } from '@nestjs/common';
+import { Module, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import type { Env } from '@hephaestus/core';
+import { HealthRegistry, type Env } from '@hephaestus/core';
 import { AgentsModule } from '@hephaestus/agents';
 import { ArtifactsModule } from '@hephaestus/artifacts';
 import { ModelGateway, ModelsModule } from '@hephaestus/models';
@@ -230,4 +230,23 @@ import {
   ],
   exports: [ExecutionsService, ExecutionHistory, TaskRunner],
 })
-export class RunnerModule {}
+export class RunnerModule {
+  constructor(
+    config: ConfigService<Env, true>,
+    driver: SandboxDriver,
+    @Optional() health?: HealthRegistry,
+  ) {
+    // The Docker engine, on /health (Krepis's HealthModule) when sandboxes
+    // run there. Not required: only versions that need a sandbox wait.
+    if (
+      config.get('SANDBOX_DRIVER', { infer: true }) === 'docker' &&
+      driver instanceof DockerSandboxDriver
+    ) {
+      health?.register({
+        name: 'docker',
+        required: false,
+        check: () => driver.ping(),
+      });
+    }
+  }
+}

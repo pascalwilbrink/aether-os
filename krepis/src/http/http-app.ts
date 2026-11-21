@@ -12,7 +12,7 @@ import { ZodValidationPipe } from './zod-validation.pipe.js';
 export const API_VERSION_PREFIX = 'v1';
 
 /** Paths fixed by external standards, served without the version prefix. */
-export const UNVERSIONED_PATHS = ['health'];
+export const UNVERSIONED_PATHS = ['health', 'health/live'];
 
 /**
  * Applies the platform's HTTP conventions to a Nest app: the `/v1` prefix,

@@ -1,0 +1,81 @@
+# Aether-os's local start page (docker-compose.yml, `dashy`: http://localhost:3500).
+# Links open from the browser (localhost); status checks run inside the
+# container, so they use compose's service names, and host.docker.internal
+# for Iris, which runs on the host. Edit this file and reload the page; the
+# UI can't save changes (the file is mounted read-only).
+pageInfo:
+  title: Aether-os
+  description: Local development
+  navLinks:
+    - title: Docs
+      path: https://github.com/pascalwilbrink/aether-os/tree/main/docs
+
+appConfig:
+  theme: nord-frost
+  layout: auto
+  iconSize: large
+  statusCheck: true
+  statusCheckInterval: 30
+  preventWriteToDisk: true
+  hideComponents:
+    hideSettings: false
+    hideFooter: true
+
+sections:
+  - name: Aether-os
+    icon: 🏛️
+    displayData:
+      itemSize: large
+      cols: 3
+    items:
+      - title: Iris
+        description: Operate Aether-os (pnpm start:dev)
+        url: http://localhost:3010
+        icon: 🌈
+        statusCheckUrl: http://host.docker.internal:3010/health/live
+      - title: Uptime Kuma
+        description: Health of every service
+        url: http://localhost:3400
+        icon: 💓
+        statusCheckUrl: http://uptime-kuma:3001
+      - title: Grafana
+        description: Logs, linked to traces
+        url: http://localhost:3300
+        icon: 📈
+        statusCheckUrl: http://grafana:3000/api/health
+
+  - name: Tools
+    icon: 🧰
+    displayData:
+      cols: 3
+    items:
+      - title: Jaeger
+        description: Traces of every service
+        url: http://localhost:16686
+        icon: 🧭
+        statusCheckUrl: http://jaeger:16686
+      - title: Langfuse
+        description: Agent runs (dev@aether-os.local / aether-dev)
+        url: http://localhost:3100
+        icon: 🤖
+        statusCheckUrl: http://langfuse-web:3000/api/public/health
+      - title: RabbitMQ
+        description: Exchanges and queues (aether / aether)
+        url: http://localhost:15672
+        icon: 🐇
+        statusCheckUrl: http://rabbitmq:15672
+      - title: Mailpit
+        description: Every email sent locally
+        url: http://localhost:8025
+        icon: ✉️
+        statusCheckUrl: http://mailpit:8025/livez
+      - title: RustFS
+        description: Loculus's files (loculus / loculus-dev-secret)
+        url: http://localhost:9101/rustfs/console/index.html
+        icon: 🗄️
+        statusCheckUrl: http://rustfs:9000/health
+      - title: OpenBao
+        description: Secrets (token dev-root-token)
+        url: http://localhost:8200/ui
+        icon: 🔐
+        statusCheckUrl: http://openbao:8200/v1/sys/health

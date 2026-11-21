@@ -1,8 +1,8 @@
-import { Module, type OnApplicationBootstrap } from '@nestjs/common';
+import { Module, Optional, type OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import type { Env } from '@loculus/core';
+import { HealthRegistry, type Env } from '@loculus/core';
 
 import { FileEntity } from './file.entity.js';
 import { FileMapper } from './file.mapper.js';
@@ -59,7 +59,15 @@ export class FilesModule implements OnApplicationBootstrap {
   constructor(
     private readonly storage: ObjectStorage,
     private readonly config: ConfigService<Env, true>,
-  ) {}
+    @Optional() health?: HealthRegistry,
+  ) {
+    // The object store, on /health (Krepis's HealthModule): files can't be
+    // uploaded or downloaded without it.
+    health?.register({
+      name: 'storage',
+      check: (signal) => this.storage.ping(signal),
+    });
+  }
 
   /** Locally, the bucket is made if it's missing (`S3_CREATE_BUCKET`). */
   async onApplicationBootstrap(): Promise<void> {
