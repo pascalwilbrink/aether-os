@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { config } from "@/lib/config";
 import { callbackUrl, finishSignIn } from "@/lib/auth/oidc";
+import { isRunning } from "@/lib/services";
 import {
   cookieOptions,
   openPendingSignIn,
@@ -54,6 +55,10 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (failure) {
     console.error("Sign-in failed", failure);
-    return home("/?error=sign-in-failed");
+    return home(
+      (await isRunning(config.pistisUrl))
+        ? "/?error=sign-in-failed"
+        : "/?error=pistis-unavailable",
+    );
   }
 }

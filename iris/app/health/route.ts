@@ -1,8 +1,7 @@
 import { connection, NextResponse } from "next/server";
 
 import { summarize, type DependencyCheck } from "@/lib/health";
-
-import { SERVICES } from "../orgs/[organizationId]/sidebar/services";
+import { SERVICES } from "@/lib/services";
 
 const TIMEOUT_MS = 3000;
 

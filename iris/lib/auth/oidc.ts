@@ -35,6 +35,23 @@ function pistis(): Promise<client.Configuration> {
   return discovered;
 }
 
+/**
+ * Whether Pistis refused (an OAuth error: an invalid or revoked refresh
+ * token, a membership gone, no refresh token at all), as opposed to not
+ * answering or failing on its side. A refusal means the session is over;
+ * anything else may pass once Pistis is up (see `pistisRunning`).
+ */
+export function isRefusal(error: unknown): boolean {
+  return (
+    (error instanceof client.ResponseBodyError && error.status < 500) ||
+    error instanceof client.AuthorizationResponseError ||
+    error instanceof client.WWWAuthenticateChallengeError ||
+    (error instanceof Error && error.message === NO_REFRESH_TOKEN)
+  );
+}
+
+const NO_REFRESH_TOKEN = "No refresh token";
+
 export const callbackUrl = () => new URL("/auth/callback", config.url).href;
 
 /**
@@ -108,7 +125,7 @@ export async function finishSignIn(
  */
 export async function refreshSession(session: Session): Promise<Session> {
   if (!session.refreshToken) {
-    throw new Error("No refresh token");
+    throw new Error(NO_REFRESH_TOKEN);
   }
   const tokens = await client.refreshTokenGrant(
     await pistis(),

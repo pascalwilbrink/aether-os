@@ -14,10 +14,16 @@ export async function POST(request: NextRequest) {
     request.cookies.get(SESSION_COOKIE)?.value,
     config.sessionSecret,
   );
-  const response = NextResponse.redirect(
-    await signOutUrl(session?.idToken ?? null),
-    303,
-  );
+  let target: URL;
+  try {
+    target = await signOutUrl(session?.idToken ?? null);
+  } catch (error) {
+    // Pistis doesn't answer: out of Iris at least (Pistis's own session
+    // stays until it expires or the next sign-out).
+    console.error("Signing out at Pistis failed", error);
+    target = new URL("/", config.url);
+  }
+  const response = NextResponse.redirect(target, 303);
   response.cookies.delete(SESSION_COOKIE);
   return response;
 }

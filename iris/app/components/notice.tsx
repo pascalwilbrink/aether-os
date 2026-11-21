@@ -3,6 +3,8 @@ const MESSAGES: Record<string, string> = {
     "You can't enter that organization: you're not a member, or it's suspended.",
   expired: "That sign-in took too long. Please try again.",
   "sign-in-failed": "Signing in failed. Please try again.",
+  "pistis-unavailable":
+    "Pistis, which signs you in, can't be reached right now. It may still be starting: try again in a moment.",
 };
 
 /** A message for an `?error=` code from the sign-in flow. */

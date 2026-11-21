@@ -3,6 +3,7 @@ import "server-only";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { tokenFingerprint } from "../auth/session";
+import { serviceNameFor } from "../services";
 
 /**
  * A problem details error (RFC 9457) from an Aether-os API, with its
@@ -19,7 +20,35 @@ export class ApiError extends Error {
   }
 }
 
-/** A JSON call to an Aether-os API with the session's access token. */
+/** The problem code of a service that can't be reached or answers 502–504. */
+export const SERVICE_UNAVAILABLE = "SERVICE_UNAVAILABLE";
+
+/** Statuses meaning "not now": a gateway, an unavailable service, a timeout. */
+const UNAVAILABLE_STATUSES = new Set([502, 503, 504]);
+
+/**
+ * Whether an error means a service can't answer right now (unreachable,
+ * starting, or itself waiting on another), so trying again later may work.
+ */
+export function isUnavailable(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.code === SERVICE_UNAVAILABLE ||
+      UNAVAILABLE_STATUSES.has(error.status))
+  );
+}
+
+/** The message for a service that doesn't answer (`serviceNameFor`'s name, or null). */
+export function unavailableMessage(service: string | null): string {
+  return `${service ?? "A service"} can't be reached right now. It may still be starting: try again in a moment.`;
+}
+
+/**
+ * A JSON call to an Aether-os API with the session's access token. A
+ * service that doesn't answer (refused, timed out) or answers 502–504 is an
+ * `ApiError` with status 503 and `SERVICE_UNAVAILABLE` (`isUnavailable`),
+ * naming the service unless it said more itself.
+ */
 export async function call<T>(
   base: string,
   path: string,
@@ -30,20 +59,31 @@ export async function call<T>(
     headers?: Record<string, string>;
   } = {},
 ): Promise<T> {
-  const response = await fetch(new URL(path, base), {
-    method: init.method ?? "GET",
-    headers: {
-      authorization: `Bearer ${token}`,
-      accept: "application/json",
-      ...(init.body === undefined
-        ? {}
-        : { "content-type": "application/json" }),
-      ...init.headers,
-    },
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
-    cache: "no-store",
-    signal: AbortSignal.timeout(10_000),
-  });
+  let response: Response;
+  try {
+    response = await fetch(new URL(path, base), {
+      method: init.method ?? "GET",
+      headers: {
+        authorization: `Bearer ${token}`,
+        accept: "application/json",
+        ...(init.body === undefined
+          ? {}
+          : { "content-type": "application/json" }),
+        ...init.headers,
+      },
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch (error) {
+    // Refused, reset or timed out: no answer at all.
+    console.warn(`No answer from ${new URL(path, base).origin}`, error);
+    throw new ApiError(
+      503,
+      SERVICE_UNAVAILABLE,
+      unavailableMessage(serviceNameFor(base)),
+    );
+  }
   if (response.status === 401) {
     // The token is invalid or expired (e.g. Pistis's keys changed, or the
     // session was revoked): the session is no use any more, so sign out.
@@ -54,6 +94,14 @@ export async function call<T>(
       code?: string;
       detail?: string;
     };
+    if (UNAVAILABLE_STATUSES.has(response.status)) {
+      // Its own words when it gave some (e.g. "Polis can't be reached").
+      throw new ApiError(
+        503,
+        problem.code ?? SERVICE_UNAVAILABLE,
+        problem.detail ?? unavailableMessage(serviceNameFor(base)),
+      );
+    }
     throw new ApiError(
       response.status,
       problem.code,
@@ -88,7 +136,8 @@ export async function orUnavailable<T>(
     if (error instanceof ApiError && error.status < 500) {
       throw error;
     }
-    // Unreachable (a fetch error or timeout), 503 (not configured, GitHub down) or another 5xx.
+    // Unreachable (a fetch error or timeout, `isUnavailable`), 503 (not
+    // configured, GitHub down) or another 5xx.
     return { items: [], unavailable: true };
   }
 }
