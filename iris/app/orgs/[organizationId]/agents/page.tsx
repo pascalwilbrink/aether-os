@@ -35,6 +35,12 @@ async function Agents({ params }: Pick<Props, "params">) {
         </div>
         <div className="flex shrink-0 gap-2">
           <Link
+            href={`/orgs/${organizationId}/councils`}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          >
+            Councils
+          </Link>
+          <Link
             href={`/orgs/${organizationId}/skills`}
             className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
           >

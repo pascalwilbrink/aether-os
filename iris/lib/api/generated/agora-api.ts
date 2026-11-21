@@ -247,6 +247,141 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/councils": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listCouncils"];
+        put?: never;
+        /**
+         * @description Creates a council, without a version yet. Its `key` is unique in the
+         *     organization (`COUNCIL_ALREADY_EXISTS`).
+         */
+        post: operations["createCouncil"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/councils/{councilId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                councilId: components["parameters"]["CouncilId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getCouncil"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/councils/{councilId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                councilId: components["parameters"]["CouncilId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description No new versions or sessions; archiving an archived council returns it unchanged. */
+        post: operations["archiveCouncil"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/councils/{councilId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                councilId: components["parameters"]["CouncilId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listCouncilVersions"];
+        put?: never;
+        /**
+         * @description Creates a draft version (numbered by the server). Its facilitator and
+         *     members are agents of the organization, referenced by ID: each must
+         *     exist, be active and have a published version; the facilitator isn't
+         *     also a member, and each agent is a member once; a `conditional`
+         *     member says `when` it takes part; `settings.defaultMode` is a mode
+         *     the settings allow (`COUNCIL_VERSION_INVALID` otherwise).
+         */
+        post: operations["createCouncilVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/councils/{councilId}/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                councilId: components["parameters"]["CouncilId"];
+                versionId: components["parameters"]["VersionId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getCouncilVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/councils/{councilId}/versions/{versionId}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                councilId: components["parameters"]["CouncilId"];
+                versionId: components["parameters"]["VersionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Publishes a draft and deprecates the previously published version.
+         *     Its agents are checked again (one may have been archived since the
+         *     draft was made: `COUNCIL_VERSION_INVALID`). Publishing the published
+         *     version returns it unchanged; a deprecated version can't be published
+         *     again (409).
+         */
+        post: operations["publishCouncilVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -283,7 +418,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "MODEL_NOT_AVAILABLE" | "ORGANIZATION_SUSPENDED" | "SKILL_ALREADY_EXISTS" | "SKILL_ARCHIVED" | "SKILL_INVALID" | "TOOL_SERVER_INVALID";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_VERSION_CONFLICT" | "AGENT_VERSION_INVALID_TRANSITION" | "COUNCIL_ALREADY_EXISTS" | "COUNCIL_ARCHIVED" | "COUNCIL_VERSION_CONFLICT" | "COUNCIL_VERSION_INVALID" | "COUNCIL_VERSION_INVALID_TRANSITION" | "MODEL_NOT_AVAILABLE" | "ORGANIZATION_SUSPENDED" | "SKILL_ALREADY_EXISTS" | "SKILL_ARCHIVED" | "SKILL_INVALID" | "TOOL_SERVER_INVALID";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -457,6 +592,134 @@ export interface components {
         SkillVersionPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["SkillVersionResponse"][];
         };
+        /** @enum {string} */
+        CouncilStatus: "active" | "archived";
+        /** @description Lowercase letters, digits and hyphens, starting with a letter; unique in the organization. */
+        CouncilKey: string;
+        CreateCouncilRequest: {
+            key: components["schemas"]["CouncilKey"];
+            name: string;
+            description: string;
+        };
+        CouncilResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            key: components["schemas"]["CouncilKey"];
+            name: string;
+            description: string;
+            status: components["schemas"]["CouncilStatus"];
+            /**
+             * Format: uuid
+             * @description The currently published version, if any.
+             */
+            latestVersionId: string | null;
+            createdBy: string;
+            createdAt: components["schemas"]["Timestamp"];
+            updatedAt: components["schemas"]["Timestamp"];
+        };
+        CouncilPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["CouncilResponse"][];
+        };
+        /** @enum {string} */
+        CouncilVersionStatus: "draft" | "published" | "deprecated";
+        /**
+         * @description How a session works together (`../docs/councils.md`, Collaboration
+         *     modes): `direct` (a person addresses one member), `facilitated`
+         *     (always allowed), `discussion` (deliberation rounds), `planning`,
+         *     `delegation`.
+         * @enum {string}
+         */
+        CouncilMode: "direct" | "facilitated" | "discussion" | "planning" | "delegation";
+        /**
+         * @description `required`: always takes part; `conditional`: when the facilitator judges `when` applies; `optional`: only when invited.
+         * @enum {string}
+         */
+        CouncilParticipation: "required" | "conditional" | "optional";
+        CouncilFacilitator: {
+            /**
+             * Format: uuid
+             * @description An agent of the organization.
+             */
+            agentId: string;
+        };
+        CouncilMember: {
+            /**
+             * Format: uuid
+             * @description An agent of the organization.
+             */
+            agentId: string;
+            participation: components["schemas"]["CouncilParticipation"];
+            /** @description When a `conditional` member takes part (required for one). */
+            when?: string;
+            /** @description What the member is there for in this council; adds to the agent's own instructions in a session. */
+            role?: string;
+        };
+        /** @description Every field optional; a missing one takes its default. */
+        CouncilSettingsRequest: {
+            /** @description Default `facilitated`. */
+            defaultMode?: components["schemas"]["CouncilMode"];
+            /** @description Default true. */
+            allowDirectInteraction?: boolean;
+            /** @description Default true. */
+            allowDiscussion?: boolean;
+            /** @description Default true. */
+            allowPlanning?: boolean;
+            /** @description Default false. */
+            allowDelegation?: boolean;
+            /** @description Default true. */
+            requireSynthesis?: boolean;
+        };
+        CouncilSettings: {
+            defaultMode: components["schemas"]["CouncilMode"];
+            allowDirectInteraction: boolean;
+            allowDiscussion: boolean;
+            allowPlanning: boolean;
+            allowDelegation: boolean;
+            requireSynthesis: boolean;
+        };
+        /** @description Every field optional; a missing one takes its default. */
+        CouncilDiscussionRequest: {
+            /** @description Default 3. */
+            maxRounds?: number;
+            /** @description Default true: later participants in a round see earlier answers. */
+            allowAgentResponses?: boolean;
+            /** @description Default true. */
+            requireFacilitatorConclusion?: boolean;
+        };
+        CouncilDiscussion: {
+            maxRounds: number;
+            allowAgentResponses: boolean;
+            requireFacilitatorConclusion: boolean;
+        };
+        CreateCouncilVersionRequest: {
+            facilitator: components["schemas"]["CouncilFacilitator"];
+            members: components["schemas"]["CouncilMember"][];
+            settings?: components["schemas"]["CouncilSettingsRequest"];
+            discussion?: components["schemas"]["CouncilDiscussionRequest"];
+        };
+        CouncilVersionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            councilId: string;
+            /** Format: uuid */
+            organizationId: string;
+            version: number;
+            status: components["schemas"]["CouncilVersionStatus"];
+            facilitator: components["schemas"]["CouncilFacilitator"];
+            members: components["schemas"]["CouncilMember"][];
+            settings: components["schemas"]["CouncilSettings"];
+            discussion: components["schemas"]["CouncilDiscussion"];
+            createdBy: string;
+            createdAt: components["schemas"]["Timestamp"];
+            /** Format: date-time */
+            publishedAt: string | null;
+        };
+        CouncilVersionPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["CouncilVersionResponse"][];
+        };
         /** @description Pass as `cursor` to get the next page; `null` on the last page. */
         NextCursor: string | null;
         /** @description One invalid input. Exactly one of `pointer` and `parameter` is set. */
@@ -549,6 +812,7 @@ export interface components {
         OrganizationId: string;
         AgentId: string;
         VersionId: string;
+        CouncilId: string;
         SkillId: string;
         /** @description Page size. */
         Limit: number;
@@ -1039,6 +1303,256 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listCouncils: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouncilPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createCouncil: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCouncilRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouncilResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getCouncil: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                councilId: components["parameters"]["CouncilId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouncilResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    archiveCouncil: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                councilId: components["parameters"]["CouncilId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archived (or already archived) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouncilResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listCouncilVersions: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                councilId: components["parameters"]["CouncilId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Highest version first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouncilVersionPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createCouncilVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                councilId: components["parameters"]["CouncilId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCouncilVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouncilVersionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getCouncilVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                councilId: components["parameters"]["CouncilId"];
+                versionId: components["parameters"]["VersionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouncilVersionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    publishCouncilVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                councilId: components["parameters"]["CouncilId"];
+                versionId: components["parameters"]["VersionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Published */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouncilVersionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
     };
 }

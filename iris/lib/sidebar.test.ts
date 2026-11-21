@@ -44,6 +44,7 @@ describe("sidebar helpers", () => {
     );
     expect(sectionOf(`${base}/agents/new`, ORG)).toBe("agents");
     expect(sectionOf(`${base}/skills/x`, ORG)).toBe("agents");
+    expect(sectionOf(`${base}/councils/x`, ORG)).toBe("agents");
     expect(sectionOf(`${base}/members`, ORG)).toBe("members");
     for (const page of [
       "settings",

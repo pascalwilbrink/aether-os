@@ -72,6 +72,7 @@ export function sectionOf(
       return rest.includes("/templates/") ? "templates" : "projects";
     case "agents":
     case "skills":
+    case "councils":
       return "agents";
     case "templates":
       return "templates";
