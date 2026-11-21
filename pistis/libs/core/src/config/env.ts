@@ -66,12 +66,18 @@ export const zUpstreamProvider = z.object({
 });
 export type UpstreamProviderConfig = z.infer<typeof zUpstreamProvider>;
 
+/**
+ * Where Iris runs locally: its own default port, and the one `pnpm
+ * start:dev` at the root gives it (`IRIS_PORT`, 3010 by default).
+ */
+const DEV_IRIS_ORIGINS = ['http://localhost:3000', 'http://localhost:3010'];
+
 /** Iris on localhost, for development. */
 const DEV_CLIENTS = [
   {
     client_id: 'iris',
-    redirect_uris: ['http://localhost:3000/auth/callback'],
-    post_logout_redirect_uris: ['http://localhost:3000/'],
+    redirect_uris: DEV_IRIS_ORIGINS.map((origin) => `${origin}/auth/callback`),
+    post_logout_redirect_uris: DEV_IRIS_ORIGINS.map((origin) => `${origin}/`),
     grant_types: ['authorization_code', 'refresh_token'],
     token_endpoint_auth_method: 'none',
   },

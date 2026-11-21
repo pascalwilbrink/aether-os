@@ -31,6 +31,21 @@ describe('zEnv', () => {
     expect(env.PISTIS_SIGNING_KEYS).toBeUndefined();
   });
 
+  it("lets Iris sign in on its own port and on `pnpm start:dev`'s", () => {
+    const iris = zEnv
+      .parse(base)
+      .PISTIS_CLIENTS.find((client) => client.client_id === 'iris');
+
+    expect(iris?.redirect_uris).toEqual([
+      'http://localhost:3000/auth/callback',
+      'http://localhost:3010/auth/callback',
+    ]);
+    expect(iris?.post_logout_redirect_uris).toEqual([
+      'http://localhost:3000/',
+      'http://localhost:3010/',
+    ]);
+  });
+
   it('parses keys and clients from JSON', () => {
     const env = zEnv.parse({
       ...base,
