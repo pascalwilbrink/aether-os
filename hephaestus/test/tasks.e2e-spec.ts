@@ -111,7 +111,12 @@ describe('Tasks (e2e)', () => {
       parentTaskId: null,
       topLevelTaskId: first.body.id,
       title: 'Fix the login bug',
-      instructions: expect.any(String),
+      description: "Users can't sign in with uppercase emails.",
+      instructions: "Users can't sign in with uppercase emails.",
+      requirements: [],
+      expectedOutcome: null,
+      constraints: [],
+      deliverables: [],
       agentId,
       agentVersionId: versionId,
       serviceAccountId: SERVICE_ACCOUNT,
@@ -168,6 +173,110 @@ describe('Tasks (e2e)', () => {
       { inputFiles: Array.from({ length: 21 }, () => ({ fileId })) },
       'too-many-files',
     ).expect(400);
+  });
+
+  it("keeps a task's brief, and the criteria its deliverables imply", async () => {
+    const created = await create(
+      owner,
+      {
+        instructions: undefined,
+        description: 'Customers need invoices.',
+        requirements: [
+          { key: 'REQ-1', description: 'Expose GET /v1/invoices' },
+        ],
+        expectedOutcome: 'Invoices can be listed.',
+        constraints: [{ key: 'CON-1', description: 'No new dependencies' }],
+        deliverables: [
+          {
+            key: 'notes',
+            kind: 'file',
+            description: 'Release notes',
+            path: 'notes-*.md',
+            primary: true,
+          },
+        ],
+        acceptanceCriteria: [
+          {
+            key: 'listed',
+            description: 'Invoices are listed',
+            requirementKey: 'REQ-1',
+            check: { type: 'manual' },
+          },
+        ],
+      },
+      'with-brief',
+    ).expect(201);
+    expect(created.body).toMatchObject({
+      description: 'Customers need invoices.',
+      instructions: 'Customers need invoices.',
+      requirements: [{ key: 'REQ-1', description: 'Expose GET /v1/invoices' }],
+      expectedOutcome: 'Invoices can be listed.',
+      constraints: [{ key: 'CON-1', description: 'No new dependencies' }],
+      deliverables: [{ key: 'notes', kind: 'file', path: 'notes-*.md' }],
+      acceptanceCriteria: [
+        { key: 'listed', requirementKey: 'REQ-1', source: 'task' },
+        {
+          key: 'deliverable.notes',
+          description: 'Deliverable notes: Release notes',
+          check: { type: 'artifact', deliverable: 'notes' },
+          source: 'deliverable',
+        },
+      ],
+    });
+  });
+
+  it("refuses a brief that doesn't hold together", async () => {
+    const refusals: [Record<string, unknown>, string][] = [
+      [{ instructions: undefined }, 'TASK_FIELDS_INVALID'],
+      [
+        {
+          requirements: [{ key: 'A', description: 'a' }],
+          constraints: [{ key: 'A', description: 'b' }],
+        },
+        'TASK_FIELDS_INVALID',
+      ],
+      [
+        {
+          deliverables: [
+            { key: 'pr', kind: 'pull_request', description: 'The fix' },
+          ],
+        },
+        'TASK_FIELDS_INVALID',
+      ],
+      [
+        {
+          acceptanceCriteria: [
+            {
+              key: 'c',
+              description: 'C',
+              requirementKey: 'REQ-9',
+              check: { type: 'manual' },
+            },
+          ],
+        },
+        'TASK_CRITERIA_INVALID',
+      ],
+      [
+        {
+          deliverables: [{ key: 'a', kind: 'text', description: 'A' }],
+          acceptanceCriteria: [
+            {
+              key: 'deliverable.a',
+              description: 'Clashes',
+              check: { type: 'manual' },
+            },
+          ],
+        },
+        'TASK_CRITERIA_INVALID',
+      ],
+    ];
+    for (const [extra, code] of refusals) {
+      const res = await create(owner, extra).expect(409);
+      expect(res.body.code).toBe(code);
+    }
+    await create(owner, {
+      deliverables: [{ key: 'a', kind: 'task_plan', description: 'Later' }],
+    }).expect(400);
   });
 
   it('pins accepted knowledge at its current version, once each', async () => {

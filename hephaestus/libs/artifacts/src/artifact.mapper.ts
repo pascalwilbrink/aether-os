@@ -33,6 +33,8 @@ export class ArtifactMapper {
       primary: input.primary ?? false,
       revisionOf:
         input.kind === 'verification' ? null : (input.revisionOf ?? null),
+      deliverableKey:
+        input.kind === 'verification' ? null : (input.deliverableKey ?? null),
       title: input.title,
       metadata: input.metadata ?? {},
       review: null,
@@ -54,6 +56,7 @@ export class ArtifactMapper {
       status: entity.status,
       primary: entity.primary,
       revisionOf: entity.revisionOf,
+      deliverableKey: entity.deliverableKey,
       title: entity.title,
       metadata: entity.metadata,
       review: entity.review,

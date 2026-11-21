@@ -97,7 +97,11 @@ describe('Verification (Postgres)', () => {
 
   async function taskWith(
     acceptanceCriteria: ApiTypes.AcceptanceCriterionRequest[],
-    options: { sandboxRequired?: boolean; artifactKinds?: string[] } = {},
+    options: {
+      sandboxRequired?: boolean;
+      artifactKinds?: string[];
+      deliverables?: ApiTypes.TaskDeliverable[];
+    } = {},
   ) {
     const published = await publishedAgent(moduleRef, organizationId, {
       instructions: 'Do the work.',
@@ -122,6 +126,7 @@ describe('Verification (Postgres)', () => {
           agentId,
           serviceAccountId: SERVICE_ACCOUNT,
           acceptanceCriteria,
+          deliverables: options.deliverables,
           review: { artifactKinds: options.artifactKinds ?? [] },
         },
         `key-${++key}`,
@@ -330,6 +335,69 @@ describe('Verification (Postgres)', () => {
       failureReason: 'infrastructure',
     });
     expect(runtime.runs).toHaveLength(0);
+  });
+
+  it('checks deliverables: the artifact submitted for one, of its kind', async () => {
+    const refusals: string[] = [];
+    runtime.behaviour = async ({ artifacts }) => {
+      for (const submission of [
+        // Not one of the task's deliverables, then the wrong kind.
+        { kind: 'text' as const, deliverableKey: 'other' },
+        { kind: 'text' as const, deliverableKey: 'report' },
+      ]) {
+        await artifacts
+          .submit({
+            ...submission,
+            title: 'Report',
+            format: 'markdown',
+            content: 'x',
+          })
+          .catch((error: Error) => refusals.push(error.message));
+      }
+      await artifacts.submit({
+        kind: 'json',
+        title: 'Report',
+        content: { ok: true },
+        deliverableKey: 'report',
+      });
+      return { outcome: 'completed', summary: 'Done.' };
+    };
+    const created = await taskWith([], {
+      sandboxRequired: false,
+      deliverables: [
+        {
+          key: 'report',
+          kind: 'json',
+          description: 'The report',
+          primary: true,
+        },
+      ],
+    });
+
+    await runOnce();
+
+    expect(refusals).toEqual([
+      'The task has no deliverable other (it has report)',
+      'The deliverable report is a json, not a text',
+    ]);
+    await expect(task(created.id)).resolves.toMatchObject({
+      status: 'succeeded',
+    });
+    const [round] = await verifications(created.id);
+    expect(round.results).toEqual([
+      {
+        key: 'deliverable.report',
+        outcome: 'passed',
+        output: 'The artifacts are as expected.',
+      },
+    ]);
+    // The primary deliverable's artifact is the outcome.
+    const primary = (
+      await moduleRef
+        .get(ArtifactsService)
+        .list(organizationId, projectId, created.id, { limit: 100 })
+    ).items.find((artifact) => artifact.primary);
+    expect(primary).toMatchObject({ kind: 'json', deliverableKey: 'report' });
   });
 
   it('needs unique criterion keys', async () => {

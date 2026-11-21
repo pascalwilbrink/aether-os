@@ -81,8 +81,8 @@ export interface TaskCreate {
   automationId?: string | null;
   /**
    * A `CreateTaskRequest` of `hephaestus.openapi.yaml` (title,
-   * instructions, agentId, serviceAccountId, and the optional
-   * fields), validated against that schema. Not repeated here: the
+   * description (or `instructions`), agentId, serviceAccountId, and
+   * the optional fields), validated against that schema. Not repeated here: the
    * HTTP API's schema is the one definition.
    *
    */

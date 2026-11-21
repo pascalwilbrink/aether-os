@@ -6,6 +6,7 @@ import type { ApiTypes } from '@hephaestus/core';
 import type { CreateTaskRequest } from './dto/create-task.request.js';
 import type { TaskResponse } from './dto/task.response.js';
 import type { PinnedKnowledge } from './task-context.js';
+import type { TaskBrief } from './task-fields.js';
 import { TaskEntity } from './task.entity.js';
 import type { TaskStatus } from './task-transitions.js';
 
@@ -25,6 +26,8 @@ export interface NewTask {
   template?: TaskTemplateOrigin;
   /** The knowledge pinned on it, at the versions it got. */
   context: PinnedKnowledge[];
+  /** Its brief, checked (`taskBriefOf`). */
+  brief: TaskBrief;
 }
 
 /** The template version a task comes from, and the criteria it brings. */
@@ -46,7 +49,11 @@ export class TaskMapper {
       parentTaskId: task.dto.parentTaskId ?? null,
       topLevelTaskId: task.topLevelTaskId ?? id,
       title: task.dto.title,
-      instructions: task.dto.instructions,
+      instructions: task.brief.description,
+      requirements: task.brief.requirements,
+      expectedOutcome: task.brief.expectedOutcome,
+      constraints: task.brief.constraints,
+      deliverables: task.brief.deliverables,
       agentId: task.dto.agentId,
       agentVersionId: task.agentVersionId,
       serviceAccountId: task.dto.serviceAccountId,
@@ -66,6 +73,7 @@ export class TaskMapper {
           ...criterion,
           source: 'task' as const,
         })),
+        ...task.brief.deliverableCriteria,
       ],
       repositoryLinkId: task.repositoryLinkId,
       concurrencyKey: task.dto.concurrency?.key ?? null,
@@ -98,7 +106,12 @@ export class TaskMapper {
       parentTaskId: entity.parentTaskId,
       topLevelTaskId: entity.topLevelTaskId,
       title: entity.title,
+      description: entity.instructions,
       instructions: entity.instructions,
+      requirements: entity.requirements,
+      expectedOutcome: entity.expectedOutcome,
+      constraints: entity.constraints,
+      deliverables: entity.deliverables,
       agentId: entity.agentId,
       agentVersionId: entity.agentVersionId,
       serviceAccountId: entity.serviceAccountId,

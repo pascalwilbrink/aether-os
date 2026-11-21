@@ -2,8 +2,13 @@ import { promptFor } from './mastra-agent-runtime.js';
 
 const task = {
   title: 'Write it up',
-  instructions: 'A summary, please.',
-} as Parameters<typeof promptFor>[0];
+  description: 'A summary, please.',
+  expectedOutcome: null,
+  requirements: [],
+  constraints: [],
+  deliverables: [],
+  acceptanceCriteria: [],
+} as unknown as Parameters<typeof promptFor>[0];
 
 describe('promptFor', () => {
   it('is the task alone on a first run', () => {

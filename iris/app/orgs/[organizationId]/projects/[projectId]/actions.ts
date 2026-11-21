@@ -31,6 +31,7 @@ import { parseLimit } from "@/lib/budgets";
 import { contentTypeFor, inputFilesProblem, pickedFiles } from "@/lib/files";
 import { valuesOf } from "@/lib/forms";
 import { isProjectRole } from "@/lib/members";
+import { briefFromForm } from "@/lib/task-brief";
 import { taskContextOf } from "@/lib/tasks";
 
 /** What a form shows after a failed submit. */
@@ -81,6 +82,10 @@ export async function createTaskAction(
   if ("error" in context) {
     return { error: context.error, values };
   }
+  const brief = briefFromForm(values);
+  if ("error" in brief) {
+    return { error: brief.error, values };
+  }
   const picked = pickedFiles<File>(form.getAll("inputFiles"));
   const problem = inputFilesProblem(picked);
   if (problem) {
@@ -111,7 +116,7 @@ export async function createTaskAction(
         ref.projectId,
         {
           title: text(form, "title"),
-          instructions: text(form, "instructions"),
+          ...brief.brief,
           agentId: text(form, "agentId"),
           serviceAccountId: text(form, "serviceAccountId"),
           review: { artifactKinds: form.get("review") === "all" ? ["*"] : [] },

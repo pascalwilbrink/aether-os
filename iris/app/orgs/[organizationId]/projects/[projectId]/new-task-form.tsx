@@ -6,6 +6,8 @@ import { buttonClass, FormError, inputClass } from "@/app/components/form";
 import { formatBytes, INPUT_FILE_LIMITS } from "@/lib/files";
 import { MAX_TASK_CONTEXT } from "@/lib/tasks";
 
+import { DeliverablesEditor } from "./deliverables-editor";
+
 import { createTaskAction, type FormState, type ProjectRef } from "./actions";
 
 interface Option {
@@ -65,15 +67,59 @@ export function NewTaskForm({
         />
       </label>
       <label className="block text-sm">
-        Instructions
+        Description{" "}
+        <span className="text-zinc-500">(what needs to be done, and why)</span>
         <textarea
-          name="instructions"
+          name="description"
           required
           rows={4}
-          defaultValue={state.values?.instructions}
+          defaultValue={state.values?.description}
           className={inputClass}
         />
       </label>
+      <label className="block text-sm">
+        Expected outcome <span className="text-zinc-500">(optional)</span>
+        <textarea
+          name="expectedOutcome"
+          rows={2}
+          placeholder="The end state when it's done"
+          defaultValue={state.values?.expectedOutcome}
+          className={inputClass}
+        />
+      </label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block text-sm">
+          Requirements <span className="text-zinc-500">(optional)</span>
+          <textarea
+            name="requirements"
+            rows={3}
+            placeholder={
+              "What must be implemented, one per line\nREQ-1: Expose GET /v1/invoices"
+            }
+            defaultValue={state.values?.requirements}
+            className={`${inputClass} font-mono text-xs`}
+          />
+        </label>
+        <label className="block text-sm">
+          Constraints <span className="text-zinc-500">(optional)</span>
+          <textarea
+            name="constraints"
+            rows={3}
+            placeholder={"Limits on how, one per line\nNo new dependencies"}
+            defaultValue={state.values?.constraints}
+            className={`${inputClass} font-mono text-xs`}
+          />
+        </label>
+      </div>
+      <p className="-mt-1 text-xs text-zinc-500">
+        One per line; start a line with its key (<code>REQ-1:</code>) to name
+        it, else it&apos;s numbered.
+      </p>
+      <DeliverablesEditor
+        // Keyed: a refused form starts from what was sent.
+        key={state.values?.deliverables ?? ""}
+        initial={state.values?.deliverables}
+      />
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm">
           Agent

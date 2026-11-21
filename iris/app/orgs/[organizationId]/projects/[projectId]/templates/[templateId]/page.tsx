@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { TaskBrief } from "@/app/components/task-brief";
 import { getTaskTemplate, getTaskTemplateVersion } from "@/lib/api/hephaestus";
 import { ApiError } from "@/lib/api/http";
 import { listServiceAccounts } from "@/lib/api/pistis";
@@ -82,9 +83,13 @@ async function Template({ params }: Pick<Props, "params">) {
           <span className="text-zinc-500">Title: </span>
           {effective.title}
         </p>
-        <pre className="whitespace-pre-wrap rounded-md bg-zinc-100 p-3 text-sm dark:bg-zinc-900">
-          {effective.instructions}
-        </pre>
+        <TaskBrief
+          description={effective.description}
+          expectedOutcome={effective.expectedOutcome}
+          requirements={effective.requirements}
+          constraints={effective.constraints}
+          deliverables={effective.deliverables}
+        />
         {effective.acceptanceCriteria.length > 0 ? (
           <ul className="list-inside list-disc text-sm">
             {effective.acceptanceCriteria.map((criterion) => (

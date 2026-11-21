@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { ArtifactContent } from "@/app/components/artifact-view";
 import { BudgetForm, BudgetMeter } from "@/app/components/budget";
+import { TaskBrief } from "@/app/components/task-brief";
 import { StatusBadge } from "@/app/components/status-badge";
 import type { Execution, Task } from "@/lib/api";
 import {
@@ -132,10 +133,14 @@ async function TaskView({
       </div>
 
       <section className="space-y-2">
-        <h2 className="font-medium">Instructions</h2>
-        <pre className="whitespace-pre-wrap rounded-md bg-zinc-100 p-3 text-sm dark:bg-zinc-900">
-          {task.instructions}
-        </pre>
+        <h2 className="font-medium">Brief</h2>
+        <TaskBrief
+          description={task.description}
+          expectedOutcome={task.expectedOutcome}
+          requirements={task.requirements}
+          constraints={task.constraints}
+          deliverables={task.deliverables}
+        />
         {task.inputFiles.length > 0 ? (
           <Suspense fallback={<p className="text-sm text-zinc-500">Files…</p>}>
             <InputFiles
@@ -187,7 +192,13 @@ async function TaskView({
                 {criterion.description}{" "}
                 <span className="text-xs text-zinc-500">
                   ({criterion.check.type}
+                  {criterion.requirementKey
+                    ? `, checks ${criterion.requirementKey}`
+                    : ""}
                   {criterion.source === "template" ? ", from the template" : ""}
+                  {criterion.source === "deliverable"
+                    ? ", from a deliverable"
+                    : ""}
                   )
                 </span>
               </li>
@@ -231,6 +242,9 @@ async function TaskView({
                       · {artifact.status.replace("_", " ")}
                       {artifact.primary ? " · primary" : ""}
                       {artifact.revisionOf ? " · revision" : ""}
+                      {artifact.deliverableKey
+                        ? ` · deliverable ${artifact.deliverableKey}`
+                        : ""}
                     </span>
                   </header>
                   <ArtifactContent artifact={artifact} />

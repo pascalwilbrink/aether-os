@@ -267,6 +267,7 @@ describe('Running tasks (e2e)', () => {
           status: 'final',
           primary: true,
           revisionOf: null,
+          deliverableKey: null,
           title: 'Answer',
           // Made from the agent's final answer.
           metadata: { 'aether-os.final-answer': 'true' },

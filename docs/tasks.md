@@ -56,13 +56,13 @@ A task's brief is split into fields with one purpose each, instead of one block 
 | Field | Purpose | Shape | Today |
 |---|---|---|---|
 | `title` | Short, descriptive name | Text, at most 200 characters | Built |
-| `description` | What needs to be done and why | Markdown | Built as `instructions` (renamed; `instructions` stays accepted as an alias for one contract version) |
-| `requirements` | Explicit constraints on the result: things that must be implemented | List of `{ key, description }`, e.g. `{ key: 'REQ-1', description: 'Expose GET /v1/invoices' }` | New |
-| `expectedOutcome` | What the completed task should produce, in words: the end state | Markdown | New |
+| `description` | What needs to be done and why | Markdown | Built (`instructions`, its old name, is still accepted and returned for one contract version; a template's `instructions` stays, as `description` is the template's own) |
+| `requirements` | Explicit constraints on the result: things that must be implemented | List of `{ key, description }`, e.g. `{ key: 'REQ-1', description: 'Expose GET /v1/invoices' }` | Built |
+| `expectedOutcome` | What the completed task should produce, in words: the end state | Markdown | Built |
 | `acceptanceCriteria` | How the system decides the task is complete | List of criteria with checks (Definition of done, below) | Built |
 | `context` | Relevant project knowledge, documents and references | List of references (below), pinned when the task is created | `knowledge` entries built; `inputFiles` becomes its `file` entries |
-| `constraints` | Technical, architectural or operational limits on **how** it's done | List of `{ key, description }`, e.g. "No new dependencies", "Don't change the public API", "Finish within the existing schema" | New |
-| `deliverables` | The expected files, artifacts or outputs | List of `{ key, kind, description, primary?, path? }` (below) | New (templates had a free-form `artifacts` field) |
+| `constraints` | Technical, architectural or operational limits on **how** it's done | List of `{ key, description }`, e.g. "No new dependencies", "Don't change the public API", "Finish within the existing schema" | Built |
+| `deliverables` | The expected files, artifacts or outputs | List of `{ key, kind, description, primary?, path? }` (below) | Built for `text`, `json`, `file` and `pull_request` (`task_plan` and `document` with those artifacts) |
 
 **Requirements, constraints and acceptance criteria are different things.** A requirement says *what* must be built ("expose `GET /v1/invoices`"), a constraint limits *how* ("no new dependencies"), and an acceptance criterion says *how it's checked* ("`pnpm test` passes", "the endpoint is in the OpenAPI spec"). A requirement or constraint can come with criteria that check it (`requirementKey` on a criterion), as spec requirements already do (`satisfies`, Spec-driven development).
 
@@ -85,9 +85,11 @@ Short items (facts, decisions, conventions) go into the prompt; long ones (docum
 
 What the task must hand over, each with a `key`, a `kind` (`pull_request`, `file`, `text`, `json`, `task_plan`, or `document`), a `description`, optionally `primary` (at most one), and for files a `path` or name pattern. Verification checks them: **every deliverable implies an `artifact` criterion** (source `deliverable`) that the task produced a final artifact of that kind matching it, so "the PR and a migration file" can't be forgotten. The agent is told the list and records each with `submit_artifact` / `submit_file` naming the deliverable's `key`.
 
+**Built:** keys up to 64 characters (the implied criterion is `deliverable.<key>`, `source: deliverable`, its check `{ type: artifact, deliverable: <key> }`); `submit_artifact` and `submit_file` take `deliverable`, which must be one of the task's of the same kind (a file's name matching its `path`, where `*` matches anything), and an artifact for the primary deliverable becomes the primary artifact; the artifact records `deliverableKey`. A `pull_request` deliverable needs a repository (`TASK_FIELDS_INVALID` otherwise): it passes when the run committed on top of where the repository started (`git rev-list --count` in the sandbox), and the pull request artifact Hephaestus makes from the commits carries its key. Requirements and constraints share one set of keys, which a criterion's `requirementKey` names (`TASK_CRITERIA_INVALID` otherwise).
+
 ### How the fields are used
 
-- **Prompt.** The runtime builds the agent's input in a fixed order: title, description, expected outcome, requirements, constraints, deliverables, acceptance criteria (the checks the agent will be held to), then context. Fields that came from untrusted sources (an issue's body through an automation) are marked as data.
+- **Prompt.** The runtime builds the agent's input in a fixed order: title, description, expected outcome, requirements, constraints, deliverables, acceptance criteria (the checks the agent will be held to), then context. Fields that came from untrusted sources (an issue's body through an automation) are marked as data. Built (`briefOf` in Hephaestus), except the marking of untrusted fields.
 - **Templates** have the same fields (with `{{placeholders}}` in the text ones). A project template extending an organization template **adds** requirements, constraints, deliverables, criteria and context and appends to the description; it can't remove or weaken the organization's.
 - **Plan entries** (`task_plan`) and **automations** fill in the same fields: Kairos maps an issue's title to `title` and its body to `description` (untrusted), and an automation can add constraints and context (e.g. "pin the project's conventions").
 - **Iris** shows them as separate sections on the new-task form and the task page; the copilot (`interaction.md`) can draft them for a person to review.

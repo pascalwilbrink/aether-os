@@ -413,8 +413,13 @@ export class TaskRunner
           .then((artifacts) =>
             this.verifier.verify({
               criteria: task.acceptanceCriteria,
+              deliverables: task.deliverables,
               artifacts,
               sandbox,
+              repository: checkout && {
+                path: checkout.path,
+                baseSha: checkout.baseSha,
+              },
             }),
           ),
         signal,
@@ -533,6 +538,10 @@ export class TaskRunner
         revisionOf: input.revisions.find(
           (artifact) => artifact.kind === 'pull_request',
         )?.id,
+        // The task's pull request deliverable is these commits.
+        deliverableKey: task.deliverables.find(
+          (deliverable) => deliverable.kind === 'pull_request',
+        )?.key,
         linkId: checkout.linkId,
         repository: checkout.fullName,
         branch: checkout.branch,

@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'ARTIFACT_NOT_DRAFT' | 'TASK_BUDGET_INVALID' | 'TASK_CONCURRENCY_INVALID' | 'TASK_CONCURRENCY_SKIPPED' | 'TASK_CONTEXT_INVALID' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'TASK_TEMPLATE_ARCHIVED' | 'TASK_TEMPLATE_INPUTS_INVALID' | 'TASK_TEMPLATE_INVALID' | 'TOOL_SERVER_ALREADY_EXISTS' | 'TOOL_SERVER_INVALID' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
+export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'ARTIFACT_NOT_DRAFT' | 'TASK_BUDGET_INVALID' | 'TASK_CONCURRENCY_INVALID' | 'TASK_CONCURRENCY_SKIPPED' | 'TASK_CONTEXT_INVALID' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_FIELDS_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'TASK_TEMPLATE_ARCHIVED' | 'TASK_TEMPLATE_INPUTS_INVALID' | 'TASK_TEMPLATE_INVALID' | 'TOOL_SERVER_ALREADY_EXISTS' | 'TOOL_SERVER_INVALID' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
 
 /**
  * Problem details for a business-rule violation.
@@ -152,9 +152,51 @@ export type TaskStatus = 'blocked' | 'queued' | 'provisioning' | 'running' | 've
  */
 export type TaskFailureReason = 'agent_failed' | 'verification_failed' | 'rejected' | 'timeout' | 'budget_exceeded' | 'infrastructure' | 'subtask_failed' | 'access_denied';
 
+/**
+ * A task's brief (docs/tasks.md, Task fields): what and why
+ * (`description`), what must be implemented (`requirements`), the end
+ * state (`expectedOutcome`), limits on how (`constraints`), what it
+ * hands over (`deliverables`) and how it's checked
+ * (`acceptanceCriteria`). `description` or, until the next contract
+ * version, its old name `instructions` is required
+ * (`TASK_FIELDS_INVALID`).
+ *
+ */
 export type CreateTaskRequest = {
     title: string;
-    instructions: string;
+    /**
+     * What needs to be done and why (Markdown).
+     */
+    description?: string;
+    /**
+     * The old name of `description`; ignored when `description` is given.
+     *
+     * @deprecated
+     */
+    instructions?: string;
+    /**
+     * What must be implemented, e.g. `REQ-1`, "Expose GET /v1/invoices". Keys are unique among requirements and constraints.
+     */
+    requirements?: Array<TaskItem>;
+    /**
+     * The end state the completed task should leave, in words (Markdown).
+     */
+    expectedOutcome?: string;
+    /**
+     * Limits on how it's done, e.g. "No new dependencies".
+     */
+    constraints?: Array<TaskItem>;
+    /**
+     * What the task hands over. Each is checked: it implies an
+     * `artifact` criterion (`source: deliverable`, key
+     * `deliverable.<key>`) that the run submitted an artifact for it
+     * (the agent names the deliverable's key), or for a
+     * `pull_request` deliverable that it committed in the task's
+     * repository (which the task then needs). Keys are unique; at
+     * most one is `primary`.
+     *
+     */
+    deliverables?: Array<TaskDeliverable>;
     /**
      * Its published version is pinned when the task is created.
      */
@@ -240,6 +282,28 @@ export type PinnedTaskContext = {
     title: string;
 };
 
+export type TaskItem = {
+    key: string;
+    description: string;
+};
+
+export type TaskDeliverable = {
+    key: string;
+    /**
+     * The artifact kind it is (task plans and documents later).
+     */
+    kind: 'text' | 'json' | 'file' | 'pull_request';
+    description: string;
+    /**
+     * The task's main outcome; the artifact submitted for it becomes the primary one.
+     */
+    primary?: boolean;
+    /**
+     * For a `file` deliverable, its file name, or a pattern with `*` (e.g. `report-*.md`).
+     */
+    path?: string;
+};
+
 export type TaskInputFile = {
     /**
      * A file of the task's project in Loculus.
@@ -257,14 +321,18 @@ export type TaskRepository = {
 export type AcceptanceCriterionRequest = {
     key: string;
     description: string;
+    /**
+     * The requirement or constraint it checks (one of the task's keys, else `TASK_CRITERIA_INVALID`).
+     */
+    requirementKey?: string;
     check: CriterionCheck;
 };
 
 export type AcceptanceCriterion = AcceptanceCriterionRequest & {
     /**
-     * Where it came from (spec requirements later).
+     * Where it came from; `deliverable` for those a deliverable implies (spec requirements later).
      */
-    source: 'template' | 'task';
+    source: 'template' | 'task' | 'deliverable';
 };
 
 /**
@@ -303,6 +371,10 @@ export type ArtifactCheck = {
      * Artifacts with these titles exist.
      */
     titles?: Array<string>;
+    /**
+     * An artifact was submitted for this deliverable of the task (for a `pull_request` one, the run committed in the repository).
+     */
+    deliverable?: string;
 };
 
 /**
@@ -314,7 +386,7 @@ export type ManualCheck = {
 
 export type TemplateInput = {
     /**
-     * Referred to as `{{name}}` in the title and instructions.
+     * Referred to as `{{name}}` in the title and the text fields (description, expected outcome, and the descriptions of requirements, constraints and deliverables).
      */
     name: string;
     description?: string;
@@ -333,15 +405,25 @@ export type TemplateExtends = {
 };
 
 /**
- * One version of a template. A project template that `extends` an
- * organization template inherits its agent, title, inputs, criteria
- * and review settings, appends its own instructions to the
- * organization's, and can only add inputs and criteria.
+ * One version of a template, with a task's fields (`{{input}}`
+ * placeholders in the text ones); `instructions` becomes the task's
+ * `description`. A project template that `extends`
+ * an organization template inherits its agent, title, inputs,
+ * criteria and review settings, appends its own description and
+ * expected outcome to the organization's, and can only add inputs,
+ * requirements, constraints, deliverables and criteria.
  *
  */
 export type TaskTemplateContent = {
     title?: string;
+    /**
+     * The task's description (what and why); `description` is the template's own.
+     */
     instructions?: string;
+    requirements?: Array<TaskItem>;
+    expectedOutcome?: string;
+    constraints?: Array<TaskItem>;
+    deliverables?: Array<TaskDeliverable>;
     agentId?: string;
     inputs?: Array<TemplateInput>;
     acceptanceCriteria?: Array<AcceptanceCriterionRequest>;
@@ -380,7 +462,17 @@ export type TaskTemplatePage = PageMeta & {
  */
 export type EffectiveTaskTemplate = {
     title: string;
+    description: string;
+    /**
+     * The same as `description`
+     *
+     * @deprecated
+     */
     instructions: string;
+    requirements: Array<TaskItem>;
+    expectedOutcome: string | null;
+    constraints: Array<TaskItem>;
+    deliverables: Array<TaskDeliverable>;
     agentId: string;
     inputs: Array<TemplateInput>;
     acceptanceCriteria: Array<AcceptanceCriterionRequest>;
@@ -466,7 +558,20 @@ export type TaskResponse = {
      */
     topLevelTaskId: string;
     title: string;
+    /**
+     * What needs to be done and why.
+     */
+    description: string;
+    /**
+     * The same as `description`
+     *
+     * @deprecated
+     */
     instructions: string;
+    requirements: Array<TaskItem>;
+    expectedOutcome: string | null;
+    constraints: Array<TaskItem>;
+    deliverables: Array<TaskDeliverable>;
     agentId: string;
     /**
      * The agent version pinned when the task was created.
@@ -551,6 +656,10 @@ export type ArtifactBase = {
     status: ArtifactStatus;
     primary: boolean;
     revisionOf: string | null;
+    /**
+     * The task's deliverable it was submitted for, if any.
+     */
+    deliverableKey: string | null;
     title: string;
     metadata: {
         [key: string]: string;

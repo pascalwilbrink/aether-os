@@ -21,6 +21,7 @@ import type { CreateTaskRequest } from './dto/create-task.request.js';
 import type { ListTasksQuery } from './dto/list-tasks.query.js';
 import type { TaskResponse } from './dto/task.response.js';
 import type { PinnedKnowledge } from './task-context.js';
+import { taskBriefOf } from './task-fields.js';
 import { TaskEntity } from './task.entity.js';
 import {
   InvalidTaskCriteriaError,
@@ -108,15 +109,6 @@ export class TasksService {
       return { task: existing, created: false };
     }
 
-    const keys = [
-      ...(template?.acceptanceCriteria ?? []),
-      ...(dto.acceptanceCriteria ?? []),
-    ].map((criterion) => criterion.key);
-    if (new Set(keys).size !== keys.length) {
-      throw new InvalidTaskCriteriaError(
-        'Acceptance criteria need unique keys',
-      );
-    }
     await this.projects.assertAcceptsWrites(organizationId, projectId);
     const agentVersionId = await this.agents.publishedVersion(
       organizationId,
@@ -137,6 +129,19 @@ export class TasksService {
       topLevelTaskId = parent.topLevelTaskId;
       // The tree shares a branch (docs/git.md), so a repository too.
       repositoryLinkId ??= parent.repositoryLinkId;
+    }
+    const criteria = [
+      ...(template?.acceptanceCriteria ?? []),
+      ...(dto.acceptanceCriteria ?? []),
+    ];
+    const brief = taskBriefOf(dto, criteria, repositoryLinkId !== null);
+    const keys = [...criteria, ...brief.deliverableCriteria].map(
+      (criterion) => criterion.key,
+    );
+    if (new Set(keys).size !== keys.length) {
+      throw new InvalidTaskCriteriaError(
+        'Acceptance criteria need unique keys',
+      );
     }
     if (dto.concurrency) {
       if (dto.parentTaskId) {
@@ -164,6 +169,7 @@ export class TasksService {
         repositoryLinkId,
         template,
         context,
+        brief,
       },
       new Date(),
     );
