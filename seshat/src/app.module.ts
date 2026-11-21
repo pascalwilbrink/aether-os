@@ -2,12 +2,15 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import {
-  SESHAT_PUBLISHED_EVENTS,
-  SeshatEventsModule,
-  seshatConfigModule,
   AuthModule,
   DatabaseModule,
   EventsModule,
+  HealthModule,
+  checkIf,
+  serviceCheck,
+  SESHAT_PUBLISHED_EVENTS,
+  seshatConfigModule,
+  SeshatEventsModule,
   type Env,
 } from '@seshat/core';
 import { KnowledgeModule } from '@seshat/knowledge';
@@ -17,6 +20,19 @@ import { KnowledgeModule } from '@seshat/knowledge';
   imports: [
     seshatConfigModule(),
     DatabaseModule,
+    // /health and /health/live (Krepis): the database and RabbitMQ, and what it calls.
+    HealthModule.forRoot({
+      service: 'seshat',
+      inject: [ConfigService],
+      checks: (config: ConfigService<Env, true>) => [
+        serviceCheck('pistis', config.get('PISTIS_ISSUER', { infer: true })),
+        serviceCheck('polis', config.get('POLIS_URL', { infer: true })),
+        serviceCheck('loculus', config.get('LOCULUS_URL', { infer: true })),
+        ...checkIf(config.get('PYLON_URL', { infer: true }), (url) =>
+          serviceCheck('pylon', url),
+        ),
+      ],
+    }),
     // Publishes Seshat's events to seshat.events through the outbox; consumes
     // nothing yet.
     EventsModule.forRoot({

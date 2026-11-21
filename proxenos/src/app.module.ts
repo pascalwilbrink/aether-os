@@ -5,9 +5,13 @@ import {
   AuthModule,
   DatabaseModule,
   EventsModule,
+  HealthModule,
+  openBaoCheck,
+  checkIf,
   PROXENOS_PUBLISHED_EVENTS,
-  ProxenosEventsModule,
   proxenosConfigModule,
+  ProxenosEventsModule,
+  serviceCheck,
   type Env,
 } from '@proxenos/core';
 import { InstallationsModule } from '@proxenos/installations';
@@ -19,6 +23,18 @@ import { WebhooksModule } from '@proxenos/webhooks';
   imports: [
     proxenosConfigModule(),
     DatabaseModule,
+    // /health and /health/live (Krepis): the database and RabbitMQ, and what it calls.
+    HealthModule.forRoot({
+      service: 'proxenos',
+      inject: [ConfigService],
+      checks: (config: ConfigService<Env, true>) => [
+        serviceCheck('pistis', config.get('PISTIS_ISSUER', { infer: true })),
+        serviceCheck('polis', config.get('POLIS_URL', { infer: true })),
+        ...checkIf(config.get('OPENBAO_ADDR', { infer: true }), (url) =>
+          openBaoCheck(url, { required: true }),
+        ),
+      ],
+    }),
     // Outbox and relay: events are published to proxenos.events on RabbitMQ.
     EventsModule.forRoot({
       service: 'proxenos',

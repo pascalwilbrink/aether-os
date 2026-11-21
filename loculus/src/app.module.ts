@@ -4,7 +4,9 @@ import { ConfigService } from '@nestjs/config';
 import {
   AuthModule,
   DatabaseModule,
+  HealthModule,
   loculusConfigModule,
+  serviceCheck,
   type Env,
 } from '@loculus/core';
 import { FilesModule } from '@loculus/files';
@@ -15,6 +17,14 @@ import { FilesModule } from '@loculus/files';
   imports: [
     loculusConfigModule(),
     DatabaseModule,
+    // /health and /health/live (Krepis): the database, and what it calls.
+    HealthModule.forRoot({
+      service: 'loculus',
+      inject: [ConfigService],
+      checks: (config: ConfigService<Env, true>) => [
+        serviceCheck('pistis', config.get('PISTIS_ISSUER', { infer: true })),
+      ],
+    }),
     // Pistis tokens on every request, and the permission table (Krepis).
     AuthModule.forRootAsync({
       inject: [ConfigService],

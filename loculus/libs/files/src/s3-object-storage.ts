@@ -146,6 +146,20 @@ export class S3ObjectStorage extends ObjectStorage {
     );
   }
 
+  async ping(signal?: AbortSignal): Promise<{ bucket: string }> {
+    const exists = await this.call(() =>
+      this.client.send(new HeadBucketCommand({ Bucket: this.options.bucket }), {
+        abortSignal: signal,
+      }),
+    );
+    if (!exists) {
+      throw new StorageUnavailableError(
+        `The bucket ${this.options.bucket} doesn't exist`,
+      );
+    }
+    return { bucket: this.options.bucket };
+  }
+
   /** Creates the bucket if it's missing (local development). */
   async ensureBucket(): Promise<void> {
     const exists = await this.call(() =>

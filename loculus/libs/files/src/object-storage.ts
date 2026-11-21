@@ -54,4 +54,10 @@ export abstract class ObjectStorage {
 
   /** Removes it; nothing there is fine. */
   abstract delete(key: string): Promise<void>;
+
+  /**
+   * Whether the store answers and has the bucket, for `/health`; throws
+   * `StorageUnavailableError` saying why not.
+   */
+  abstract ping(signal?: AbortSignal): Promise<{ bucket: string }>;
 }

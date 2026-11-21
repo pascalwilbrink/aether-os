@@ -5,9 +5,11 @@ import {
   AuthModule,
   DatabaseModule,
   EventsModule,
+  HealthModule,
   POLIS_PUBLISHED_EVENTS,
-  PolisEventsModule,
   polisConfigModule,
+  PolisEventsModule,
+  serviceCheck,
   type Env,
 } from '@polis/core';
 import { MembershipsModule } from '@polis/memberships';
@@ -20,6 +22,14 @@ import { ProjectsModule } from '@polis/projects';
   imports: [
     polisConfigModule(),
     DatabaseModule,
+    // /health and /health/live (Krepis): the database and RabbitMQ, and what it calls.
+    HealthModule.forRoot({
+      service: 'polis',
+      inject: [ConfigService],
+      checks: (config: ConfigService<Env, true>) => [
+        serviceCheck('pistis', config.get('PISTIS_ISSUER', { infer: true })),
+      ],
+    }),
     // Outbox and relay: events are published to polis.events on RabbitMQ.
     EventsModule.forRoot({
       service: 'polis',

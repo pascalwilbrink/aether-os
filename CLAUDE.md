@@ -104,6 +104,7 @@ Services communicate asynchronously over **RabbitMQ**: for example Polis announc
 
 - Every service is instrumented with OpenTelemetry (Krepis's `startTelemetry`, `@aether-os/krepis/otel`, started first in each `main.ts`; set `OTEL_EXPORTER_OTLP_ENDPOINT`) and exports over OTLP to an OpenTelemetry Collector, which routes the data onwards: all traces to **Jaeger** (service-level view: HTTP calls, RabbitMQ hops, database queries, latency), LLM spans additionally to Langfuse, and log lines to **Loki**.
 - Every service logs through Krepis's `createLogger` (passed to `NestFactory.create` in each `server.ts`; code logs with Nest's `Logger`): JSON lines on stdout (`LOG_FORMAT=pretty` for a terminal, `LOG_LEVEL`), each with the trace and span, the service, and the tenant, task and principal when known (`runWithLogContext` for work outside a request), secrets redacted. See `docs/engineering.md`, Logging.
+- **Health:** every service serves `/health/live` (it runs) and `/health` (its database, RabbitMQ, the services and servers it calls; `503` when a required one is down), through Krepis's `HealthModule` (`docs/engineering.md`, Health checks); Iris too. Locally, Uptime Kuma watches them all.
 - LLM-specific traces (prompts, completions, tool calls, token usage, cost) go to **Langfuse**, which accepts OTLP. APS policy decisions are recorded there too, through the SDK's OpenTelemetry or Langfuse audit handler.
 - Trace context must cross service boundaries: over HTTP via the standard `traceparent` header, and over RabbitMQ by copying it into message headers when publishing and restoring it when consuming. A task triggered by a GitHub issue then shows up as one trace from Kairos through Hephaestus.
 - Put the task ID, organization ID, agent version ID and policy set version on spans, so traces can be filtered per tenant and per version (which is also what Kriterion needs).
@@ -146,7 +147,7 @@ pnpm format:check          # prettier, as CI runs it (`pnpm format` in a package
 
 ```bash
 pnpm start:dev             # everything: infra, Krepis build, then every service and Iris (on 3010, or IRIS_PORT) in watch mode
-docker compose up -d       # Postgres, RabbitMQ, OpenBao, OPA, OTel Collector, Jaeger, Langfuse, Loki, Grafana, Mailpit, RustFS
+docker compose up -d       # Postgres, RabbitMQ, OpenBao, OPA, OTel Collector, Jaeger, Langfuse, Loki, Grafana, Mailpit, RustFS, Uptime Kuma
 docker compose down -v     # stop and wipe all data
 ```
 
@@ -163,5 +164,6 @@ docker compose down -v     # stop and wipe all data
 | Mailpit | SMTP `localhost:1025` (any credentials), UI `localhost:8025`: catches all local email; production uses Resend or SES |
 | RustFS (Loculus's files, Langfuse's storage) | S3 API `localhost:9100`, console `localhost:9101/rustfs/console/index.html`, `loculus` / `loculus-dev-secret` |
 | Grafana | `localhost:3300` (no login locally): logs from Loki, linked to traces in Jaeger |
+| Uptime Kuma | `localhost:3400`, `admin` / `aether-dev-kuma-1`: every service's `/health` (on the host, through `host.docker.internal`) and the infrastructure, set up by `uptime-kuma-setup` (`infra/uptime-kuma/provision.cjs`; again with `docker compose run --rm uptime-kuma-setup`) |
 
 All credentials are fixed local-only values. RustFS holds Loculus's files and Langfuse's events and media (its `langfuse` bucket); there's no MinIO. Polis, Hephaestus, Pistis, Proxenos, Kairos, Kerykes, Loculus, Agora, Seshat and Pylon run on their own Postgres databases with migrations (the databases are made when the Postgres volume is first created: on an older volume, add a new service's with `docker compose exec postgres createdb -U aether loculus`; `cd polis && cp .env.example .env && pnpm start:dev`, likewise in `hephaestus`); there's no SQLite left.

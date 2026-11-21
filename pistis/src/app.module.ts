@@ -4,7 +4,9 @@ import { ConfigService } from '@nestjs/config';
 import {
   AuthModule,
   DatabaseModule,
+  HealthModule,
   pistisConfigModule,
+  serviceCheck,
   type Env,
 } from '@pistis/core';
 import {
@@ -21,6 +23,14 @@ import { UsersModule } from '@pistis/users';
   imports: [
     pistisConfigModule(),
     DatabaseModule,
+    // /health and /health/live (Krepis): the database, and what it calls.
+    HealthModule.forRoot({
+      service: 'pistis',
+      inject: [ConfigService],
+      checks: (config: ConfigService<Env, true>) => [
+        serviceCheck('polis', config.get('POLIS_URL', { infer: true })),
+      ],
+    }),
     UsersModule,
     ServiceAccountsModule,
     OidcModule,

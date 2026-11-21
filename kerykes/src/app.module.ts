@@ -5,7 +5,9 @@ import {
   AuthModule,
   DatabaseModule,
   EventsModule,
+  HealthModule,
   kerykesConfigModule,
+  serviceCheck,
   type Env,
 } from '@kerykes/core';
 import { MembershipsModule } from '@kerykes/memberships';
@@ -37,6 +39,15 @@ export const PYLON_SUBSCRIPTIONS = ['budget.threshold-reached'] as const;
   imports: [
     kerykesConfigModule(),
     DatabaseModule,
+    // /health and /health/live (Krepis): the database and RabbitMQ, and what it calls.
+    HealthModule.forRoot({
+      service: 'kerykes',
+      inject: [ConfigService],
+      checks: (config: ConfigService<Env, true>) => [
+        serviceCheck('pistis', config.get('PISTIS_ISSUER', { infer: true })),
+        serviceCheck('polis', config.get('POLIS_URL', { infer: true })),
+      ],
+    }),
     // Consumes Polis's, Hephaestus's and Pylon's events
     // (kerykes.polis-events, kerykes.hephaestus-events, kerykes.pylon-events:
     // inbox, retries, dead-lettering). Kerykes publishes nothing yet.

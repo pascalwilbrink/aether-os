@@ -12,3 +12,4 @@ export * from './logging/index.js';
 // `@aether-os/krepis/testing` (Testcontainers helpers) is a separate entry
 // point, so services don't load it at runtime.
 export * from './net/index.js';
+export * from './health/index.js';
