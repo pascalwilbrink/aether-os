@@ -192,6 +192,43 @@ export const getTaskTemplateVersion = (
     token,
   );
 
+/** A template and its first version (organization-wide without `projectId`). */
+export const createTaskTemplate = (
+  token: string,
+  organizationId: string,
+  body: ApiSchema<"CreateTaskTemplateRequest">,
+) =>
+  hephaestus<TaskTemplate>(
+    `/v1/organizations/${organizationId}/task-templates`,
+    token,
+    { method: "POST", body },
+  );
+
+/** Editing a template: its next version (earlier ones never change). */
+export const createTaskTemplateVersion = (
+  token: string,
+  organizationId: string,
+  templateId: string,
+  body: ApiSchema<"TaskTemplateContent">,
+) =>
+  hephaestus<TaskTemplateVersion>(
+    `/v1/organizations/${organizationId}/task-templates/${templateId}/versions`,
+    token,
+    { method: "POST", body },
+  );
+
+/** No new tasks from it; tasks and templates that pinned a version keep it. */
+export const archiveTaskTemplate = (
+  token: string,
+  organizationId: string,
+  templateId: string,
+) =>
+  hephaestus<TaskTemplate>(
+    `/v1/organizations/${organizationId}/task-templates/${templateId}/archive`,
+    token,
+    { method: "POST" },
+  );
+
 export const createTaskFromTemplate = (
   token: string,
   organizationId: string,

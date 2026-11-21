@@ -226,7 +226,12 @@ async function Project({ params, searchParams }: Props) {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-medium">From a template</h2>
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="font-medium">From a template</h2>
+          <Link href={`${path}/templates/new`} className="text-sm underline">
+            New template
+          </Link>
+        </div>
         {templates.items.filter((t) => t.status === "active").length === 0 ? (
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
             No templates for this project yet.
