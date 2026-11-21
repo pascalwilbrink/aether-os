@@ -29,6 +29,12 @@
       "@hephaestus/core/*": [
         "./libs/core/src/*"
       ],
+      "@hephaestus/councils": [
+        "./libs/councils/src/index.ts"
+      ],
+      "@hephaestus/councils/*": [
+        "./libs/councils/src/*"
+      ],
       "@hephaestus/agents": [
         "./libs/agents/src/index.ts"
       ],

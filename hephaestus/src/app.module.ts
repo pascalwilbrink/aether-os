@@ -16,6 +16,7 @@ import {
   type Env,
 } from '@hephaestus/core';
 import { AgentsModule } from '@hephaestus/agents';
+import { CouncilsModule } from '@hephaestus/councils';
 import { TenancyModule } from '@hephaestus/tenancy';
 import { ArtifactsModule } from '@hephaestus/artifacts';
 import { RunnerModule } from '@hephaestus/runner';
@@ -47,6 +48,10 @@ export const AGORA_SUBSCRIPTIONS = [
   'skill.created',
   'skill-version.published',
   'skill.archived',
+  'council.created',
+  'council.archived',
+  'council-version.published',
+  'council-version.deprecated',
 ] as const;
 
 /** Proxenos's events Hephaestus handles (docs/git.md). */
@@ -113,6 +118,7 @@ export const PROXENOS_SUBSCRIPTIONS = ['git.pull-request.updated'] as const;
     HephaestusEventsModule,
     TenancyModule,
     AgentsModule,
+    CouncilsModule,
     WorkspacesModule,
     TasksModule,
     ArtifactsModule,
