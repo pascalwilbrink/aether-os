@@ -149,6 +149,43 @@ export function fieldsOf(event: IssueEvent): Record<string, string> {
   };
 }
 
+/**
+ * Fields written by whoever opened the issue (docs/git.md, Untrusted input):
+ * never pasted into a task's text, but sent to Hephaestus as untrusted
+ * inputs, which the agent sees marked as data.
+ */
+export const UNTRUSTED_FIELDS: ReadonlySet<string> = new Set(['issue.title']);
+
+/**
+ * A task's text from the automation's: the event's fields filled in, but
+ * the untrusted ones left as `{{name}}`, which Hephaestus fills in from the
+ * task's untrusted inputs (`untrustedInputsOf`).
+ */
+export function renderForTask(
+  text: string,
+  fields: Record<string, string>,
+): string {
+  return text.replace(PLACEHOLDER, (whole, name: string) =>
+    UNTRUSTED_FIELDS.has(name)
+      ? `{{${name}}}`
+      : name in fields
+        ? fields[name]
+        : whole,
+  );
+}
+
+/** The untrusted fields as Hephaestus's `untrustedInputs`, saying where they came from. */
+export function untrustedInputsOf(
+  fields: Record<string, string>,
+): { name: string; source: string; value: string }[] {
+  const source = `GitHub issue #${fields['issue.number']} in ${fields.repository}, opened by @${fields.author}`;
+  return [...UNTRUSTED_FIELDS].map((name) => ({
+    name,
+    source,
+    value: fields[name] ?? '',
+  }));
+}
+
 /** Fills in `{{…}}` (unknown names were refused when the automation was saved). */
 export function render(text: string, fields: Record<string, string>): string {
   return text.replace(PLACEHOLDER, (whole, name: string) =>

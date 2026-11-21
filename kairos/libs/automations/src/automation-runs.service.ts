@@ -20,7 +20,13 @@ import { AutomationRunEntity } from './automation-run.entity.js';
 import type { AutomationEntity } from './automation.entity.js';
 import { AutomationMapper } from './automation.mapper.js';
 import { AutomationsService } from './automations.service.js';
-import { concurrencyKey, fieldsOf, match, render } from './triggers.js';
+import {
+  concurrencyKey,
+  fieldsOf,
+  match,
+  renderForTask,
+  untrustedInputsOf,
+} from './triggers.js';
 
 type IssueEvent = ProxenosEvents.GithubIssueOpened;
 type TaskCreate = HephaestusEvents.TaskCreate;
@@ -231,14 +237,17 @@ function taskCreate(
           },
         }
       : {}),
+    // The issue's title is the opener's: data for the agent, never instructions.
+    untrustedInputs: untrustedInputsOf(fields),
+    ...(action.context?.length ? { context: action.context } : {}),
   };
   if (action.task) {
     return {
       automationId: automation.id,
       task: {
         agentId: action.task.agentId,
-        title: render(action.task.title, fields),
-        instructions: render(action.task.instructions, fields),
+        title: renderForTask(action.task.title, fields),
+        description: renderForTask(action.task.instructions, fields),
         ...common,
       },
     };
@@ -252,7 +261,7 @@ function taskCreate(
       inputs: Object.fromEntries(
         Object.entries(template.inputs ?? {}).map(([name, value]) => [
           name,
-          render(value, fields),
+          renderForTask(value, fields),
         ]),
       ),
       ...common,
