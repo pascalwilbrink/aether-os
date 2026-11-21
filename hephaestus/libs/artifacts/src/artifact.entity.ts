@@ -114,6 +114,10 @@ export class ArtifactEntity {
   @Column({ type: 'uuid', nullable: true })
   revisionOf: string | null;
 
+  /** The task's deliverable it was submitted for (docs/tasks.md, deliverables), if any. */
+  @Column({ type: 'text', nullable: true })
+  deliverableKey: string | null;
+
   @Column({ type: 'text' })
   title: string;
 

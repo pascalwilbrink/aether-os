@@ -70,3 +70,10 @@ export class TaskContextInvalidError extends DomainError {
     super(reason, 'TASK_CONTEXT_INVALID');
   }
 }
+
+/** A task's brief doesn't hold together (docs/tasks.md, Task fields). */
+export class TaskFieldsInvalidError extends DomainError {
+  constructor(reason: string) {
+    super(reason, 'TASK_FIELDS_INVALID');
+  }
+}

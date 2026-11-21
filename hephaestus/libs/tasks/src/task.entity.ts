@@ -65,8 +65,25 @@ export class TaskEntity {
   @Column({ type: 'text' })
   title: string;
 
+  /** Its description (docs/tasks.md): what and why; once called instructions. */
   @Column({ type: 'text' })
   instructions: string;
+
+  /** What must be implemented (docs/tasks.md, Task fields). */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  requirements: ApiTypes.TaskItem[];
+
+  /** The end state, in words. */
+  @Column({ type: 'text', nullable: true })
+  expectedOutcome: string | null;
+
+  /** Limits on how it's done. */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  constraints: ApiTypes.TaskItem[];
+
+  /** What it hands over; each implies an acceptance criterion. */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  deliverables: ApiTypes.TaskDeliverable[];
 
   @Column({ type: 'uuid' })
   agentId: string;

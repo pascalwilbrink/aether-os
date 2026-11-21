@@ -13,6 +13,7 @@ export const zDomainErrorCode = z.enum([
     'ORGANIZATION_SUSPENDED',
     'PROJECT_ARCHIVED',
     'TASK_CRITERIA_INVALID',
+    'TASK_FIELDS_INVALID',
     'TASK_DEPENDENCY_INVALID',
     'TASK_INVALID_TRANSITION',
     'TASK_PARENT_FINISHED',
@@ -168,6 +169,24 @@ export const zPinnedTaskContext = z.object({
     title: z.string()
 });
 
+export const zTaskItem = z.object({
+    key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/),
+    description: z.string().min(1).max(4000)
+});
+
+export const zTaskDeliverable = z.object({
+    key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/),
+    kind: z.enum([
+        'text',
+        'json',
+        'file',
+        'pull_request'
+    ]),
+    description: z.string().min(1).max(4000),
+    primary: z.boolean().optional(),
+    path: z.string().min(1).max(200).optional()
+});
+
 export const zTaskInputFile = z.object({
     fileId: z.uuid()
 });
@@ -191,7 +210,8 @@ export const zCommandCheck = z.object({
 export const zArtifactCheck = z.object({
     type: z.literal('artifact'),
     primaryKind: z.string().min(1).optional(),
-    titles: z.array(z.string().min(1)).max(20).optional()
+    titles: z.array(z.string().min(1)).max(20).optional(),
+    deliverable: z.string().min(1).optional()
 });
 
 /**
@@ -213,11 +233,16 @@ export const zCriterionCheck = z.discriminatedUnion('type', [
 export const zAcceptanceCriterionRequest = z.object({
     key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/),
     description: z.string().min(1).max(2000),
+    requirementKey: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/).optional(),
     check: zCriterionCheck
 });
 
 export const zAcceptanceCriterion = zAcceptanceCriterionRequest.and(z.object({
-    source: z.enum(['template', 'task'])
+    source: z.enum([
+        'template',
+        'task',
+        'deliverable'
+    ])
 }));
 
 export const zTemplateInput = z.object({
@@ -276,15 +301,22 @@ export const zTaskReviewSettings = z.object({
 });
 
 /**
- * One version of a template. A project template that `extends` an
- * organization template inherits its agent, title, inputs, criteria
- * and review settings, appends its own instructions to the
- * organization's, and can only add inputs and criteria.
+ * One version of a template, with a task's fields (`{{input}}`
+ * placeholders in the text ones). A project template that `extends`
+ * an organization template inherits its agent, title, inputs,
+ * criteria and review settings, appends its own description and
+ * expected outcome to the organization's, and can only add inputs,
+ * requirements, constraints, deliverables and criteria.
  *
  */
 export const zTaskTemplateContent = z.object({
     title: z.string().min(1).max(200).optional(),
+    description: z.string().min(1).max(100000).optional(),
     instructions: z.string().min(1).max(100000).optional(),
+    requirements: z.array(zTaskItem).max(50).optional(),
+    expectedOutcome: z.string().max(65536).optional(),
+    constraints: z.array(zTaskItem).max(50).optional(),
+    deliverables: z.array(zTaskDeliverable).max(20).optional(),
     agentId: z.uuid().optional(),
     inputs: z.array(zTemplateInput).max(20).optional(),
     acceptanceCriteria: z.array(zAcceptanceCriterionRequest).max(50).optional(),
@@ -303,7 +335,12 @@ export const zCreateTaskTemplateRequest = zTaskTemplateContent.and(z.object({
  */
 export const zEffectiveTaskTemplate = z.object({
     title: z.string(),
+    description: z.string(),
     instructions: z.string(),
+    requirements: z.array(zTaskItem),
+    expectedOutcome: z.string().nullable(),
+    constraints: z.array(zTaskItem),
+    deliverables: z.array(zTaskDeliverable),
     agentId: z.uuid(),
     inputs: z.array(zTemplateInput),
     acceptanceCriteria: z.array(zAcceptanceCriterionRequest),
@@ -383,6 +420,7 @@ export const zArtifactBase = z.object({
     status: zArtifactStatus,
     primary: z.boolean(),
     revisionOf: z.uuid().nullable(),
+    deliverableKey: z.string().nullable(),
     title: z.string(),
     metadata: z.record(z.string(), z.string()),
     review: zArtifactReview.nullable(),
@@ -568,9 +606,24 @@ export const zExecutionRepository = z.object({
  */
 export const zUsd = z.string().regex(/^\d{1,9}(\.\d{1,6})?$/);
 
+/**
+ * A task's brief (docs/tasks.md, Task fields): what and why
+ * (`description`), what must be implemented (`requirements`), the end
+ * state (`expectedOutcome`), limits on how (`constraints`), what it
+ * hands over (`deliverables`) and how it's checked
+ * (`acceptanceCriteria`). `description` or, until the next contract
+ * version, its old name `instructions` is required
+ * (`TASK_FIELDS_INVALID`).
+ *
+ */
 export const zCreateTaskRequest = z.object({
     title: z.string().min(1).max(200),
-    instructions: z.string().min(1).max(100000),
+    description: z.string().min(1).max(100000).optional(),
+    instructions: z.string().min(1).max(100000).optional(),
+    requirements: z.array(zTaskItem).max(50).optional(),
+    expectedOutcome: z.string().max(65536).optional(),
+    constraints: z.array(zTaskItem).max(50).optional(),
+    deliverables: z.array(zTaskDeliverable).max(20).optional(),
     agentId: z.uuid(),
     serviceAccountId: z.uuid(),
     parentTaskId: z.uuid().nullish(),
@@ -636,7 +689,12 @@ export const zTaskResponse = z.object({
     parentTaskId: z.uuid().nullable(),
     topLevelTaskId: z.uuid(),
     title: z.string(),
+    description: z.string(),
     instructions: z.string(),
+    requirements: z.array(zTaskItem),
+    expectedOutcome: z.string().nullable(),
+    constraints: z.array(zTaskItem),
+    deliverables: z.array(zTaskDeliverable),
     agentId: z.uuid(),
     agentVersionId: z.uuid(),
     serviceAccountId: z.uuid(),

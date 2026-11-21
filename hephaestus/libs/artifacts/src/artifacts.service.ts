@@ -14,7 +14,7 @@ import {
   type Page,
   type ProxenosEvents,
 } from '@hephaestus/core';
-import { TasksService } from '@hephaestus/tasks';
+import { matchesPath, TasksService } from '@hephaestus/tasks';
 
 import {
   ArtifactEntity,
@@ -42,6 +42,8 @@ interface NewArtifactBase {
   primary?: boolean;
   /** For a revision: the artifact a reviewer sent back that it replaces. */
   revisionOf?: string;
+  /** The task's deliverable it is (its kind must match, a file its `path`). */
+  deliverableKey?: string;
   metadata?: Record<string, string>;
 }
 
@@ -70,6 +72,7 @@ export interface NewPullRequest {
   title: string;
   primary?: boolean;
   revisionOf?: string;
+  deliverableKey?: string;
   metadata?: Record<string, string>;
   linkId: string;
   repository: string;
@@ -146,6 +149,39 @@ export class ArtifactsService {
         throw new ArtifactRejectedError(
           'revises must name an artifact of this task a reviewer sent back',
         );
+      }
+    }
+    if (input.deliverableKey) {
+      const task = await this.tasks.findById(
+        source.organizationId,
+        source.projectId,
+        source.taskId,
+      );
+      const deliverable = task.deliverables.find(
+        (candidate) => candidate.key === input.deliverableKey,
+      );
+      if (!deliverable) {
+        throw new ArtifactRejectedError(
+          `The task has no deliverable ${input.deliverableKey}${task.deliverables.length ? ` (it has ${task.deliverables.map((d) => d.key).join(', ')})` : ''}`,
+        );
+      }
+      if (deliverable.kind !== input.kind) {
+        throw new ArtifactRejectedError(
+          `The deliverable ${deliverable.key} is a ${deliverable.kind}, not a ${input.kind}`,
+        );
+      }
+      if (
+        input.kind === 'file' &&
+        deliverable.path &&
+        !matchesPath(input.fileName, deliverable.path)
+      ) {
+        throw new ArtifactRejectedError(
+          `The deliverable ${deliverable.key} is a file named ${deliverable.path}, not ${input.fileName}`,
+        );
+      }
+      // The primary deliverable is the task's outcome.
+      if (deliverable.primary) {
+        input = { ...input, primary: true };
       }
     }
     const recorded = await this.artifacts.count({

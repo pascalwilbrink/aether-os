@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.31.0
+  version: 0.32.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -384,7 +384,7 @@ paths:
       x-permission: '`task:create` in the project (the template must be visible to it)'
       description: |
         A task from a template version (its latest unless given), pinned
-        on the task: its title and instructions with the inputs filled in,
+        on the task: its title, description and the other text fields with the inputs filled in,
         its agent, and its acceptance criteria, plus any added here. Like
         creating a task: `Idempotency-Key` required, 201 or 200.
       parameters:
@@ -1086,6 +1086,7 @@ components:
         - ORGANIZATION_SUSPENDED
         - PROJECT_ARCHIVED
         - TASK_CRITERIA_INVALID
+        - TASK_FIELDS_INVALID
         - TASK_DEPENDENCY_INVALID
         - TASK_INVALID_TRANSITION
         - TASK_PARENT_FINISHED
@@ -1299,10 +1300,54 @@ components:
     CreateTaskRequest:
       type: object
       additionalProperties: false
-      required: [title, instructions, agentId, serviceAccountId]
+      required: [title, agentId, serviceAccountId]
+      description: |
+        A task's brief (docs/tasks.md, Task fields): what and why
+        (`description`), what must be implemented (`requirements`), the end
+        state (`expectedOutcome`), limits on how (`constraints`), what it
+        hands over (`deliverables`) and how it's checked
+        (`acceptanceCriteria`). `description` or, until the next contract
+        version, its old name `instructions` is required
+        (`TASK_FIELDS_INVALID`).
       properties:
         title: { type: string, minLength: 1, maxLength: 200 }
-        instructions: { type: string, minLength: 1, maxLength: 100000 }
+        description:
+          type: string
+          minLength: 1
+          maxLength: 100000
+          description: What needs to be done and why (Markdown).
+        instructions:
+          type: string
+          minLength: 1
+          maxLength: 100000
+          deprecated: true
+          description: The old name of `description`; ignored when `description` is given.
+        requirements:
+          type: array
+          maxItems: 50
+          description: 'What must be implemented, e.g. `REQ-1`, "Expose GET /v1/invoices". Keys are unique among requirements and constraints.'
+          items: { $ref: '#/components/schemas/TaskItem' }
+        expectedOutcome:
+          type: string
+          maxLength: 65536
+          description: The end state the completed task should leave, in words (Markdown).
+        constraints:
+          type: array
+          maxItems: 50
+          description: Limits on how it's done, e.g. "No new dependencies".
+          items: { $ref: '#/components/schemas/TaskItem' }
+        deliverables:
+          type: array
+          maxItems: 20
+          description: |
+            What the task hands over. Each is checked: it implies an
+            `artifact` criterion (`source: deliverable`, key
+            `deliverable.<key>`) that the run submitted an artifact for it
+            (the agent names the deliverable's key), or for a
+            `pull_request` deliverable that it committed in the task's
+            repository (which the task then needs). Keys are unique; at
+            most one is `primary`.
+          items: { $ref: '#/components/schemas/TaskDeliverable' }
         agentId:
           type: string
           format: uuid
@@ -1393,6 +1438,32 @@ components:
         version: { type: integer, minimum: 1, description: The item's version the task got. }
         type: { type: string, description: 'The item''s kind in Seshat: decision, convention, fact, architecture, lesson or document.' }
         title: { type: string }
+    TaskItem:
+      type: object
+      additionalProperties: false
+      required: [key, description]
+      properties:
+        key: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$' }
+        description: { type: string, minLength: 1, maxLength: 4000 }
+    TaskDeliverable:
+      type: object
+      additionalProperties: false
+      required: [key, kind, description]
+      properties:
+        key: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$' }
+        kind:
+          type: string
+          enum: [text, json, file, pull_request]
+          description: The artifact kind it is (task plans and documents later).
+        description: { type: string, minLength: 1, maxLength: 4000 }
+        primary:
+          type: boolean
+          description: The task's main outcome; the artifact submitted for it becomes the primary one.
+        path:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: For a `file` deliverable, its file name, or a pattern with `*` (e.g. `report-*.md`).
     TaskInputFile:
       type: object
       additionalProperties: false
@@ -1415,6 +1486,10 @@ components:
       properties:
         key: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$' }
         description: { type: string, minLength: 1, maxLength: 2000 }
+        requirementKey:
+          type: string
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$'
+          description: The requirement or constraint it checks (one of the task's keys, else `TASK_CRITERIA_INVALID`).
         check: { $ref: '#/components/schemas/CriterionCheck' }
     AcceptanceCriterion:
       allOf:
@@ -1424,8 +1499,8 @@ components:
           properties:
             source:
               type: string
-              enum: [template, task]
-              description: Where it came from (spec requirements later).
+              enum: [template, task, deliverable]
+              description: Where it came from; `deliverable` for those a deliverable implies (spec requirements later).
     CriterionCheck:
       description: How a criterion is checked; by Hephaestus, never by the agent's word.
       oneOf:
@@ -1460,6 +1535,10 @@ components:
           maxItems: 20
           items: { type: string, minLength: 1 }
           description: Artifacts with these titles exist.
+        deliverable:
+          type: string
+          minLength: 1
+          description: An artifact was submitted for this deliverable of the task (for a `pull_request` one, the run committed in the repository).
     ManualCheck:
       type: object
       additionalProperties: false
@@ -1475,7 +1554,7 @@ components:
         name:
           type: string
           pattern: '^[A-Za-z][A-Za-z0-9_]{0,49}$'
-          description: Referred to as `{{name}}` in the title and instructions.
+          description: Referred to as `{{name}}` in the title and the text fields (description, expected outcome, and the descriptions of requirements, constraints and deliverables).
         description: { type: string, maxLength: 1000 }
         required: { type: boolean, description: 'true if left out.' }
     TemplateExtends:
@@ -1490,13 +1569,34 @@ components:
       type: object
       additionalProperties: false
       description: |
-        One version of a template. A project template that `extends` an
-        organization template inherits its agent, title, inputs, criteria
-        and review settings, appends its own instructions to the
-        organization's, and can only add inputs and criteria.
+        One version of a template, with a task's fields (`{{input}}`
+        placeholders in the text ones). A project template that `extends`
+        an organization template inherits its agent, title, inputs,
+        criteria and review settings, appends its own description and
+        expected outcome to the organization's, and can only add inputs,
+        requirements, constraints, deliverables and criteria.
       properties:
         title: { type: string, minLength: 1, maxLength: 200 }
-        instructions: { type: string, minLength: 1, maxLength: 100000 }
+        description: { type: string, minLength: 1, maxLength: 100000 }
+        instructions:
+          type: string
+          minLength: 1
+          maxLength: 100000
+          deprecated: true
+          description: The old name of `description`; ignored when `description` is given.
+        requirements:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/TaskItem' }
+        expectedOutcome: { type: string, maxLength: 65536 }
+        constraints:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/TaskItem' }
+        deliverables:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/TaskDeliverable' }
         agentId: { type: string, format: uuid }
         inputs:
           type: array
@@ -1545,11 +1645,22 @@ components:
               items: { $ref: '#/components/schemas/TaskTemplateResponse' }
     EffectiveTaskTemplate:
       type: object
-      required: [title, instructions, agentId, inputs, acceptanceCriteria, review]
+      required: [title, description, instructions, requirements, expectedOutcome, constraints, deliverables, agentId, inputs, acceptanceCriteria, review]
       description: What a task from this version gets, with what it extends merged in.
       properties:
         title: { type: string }
-        instructions: { type: string }
+        description: { type: string }
+        instructions: { type: string, deprecated: true, description: The same as `description`, its old name. }
+        requirements:
+          type: array
+          items: { $ref: '#/components/schemas/TaskItem' }
+        expectedOutcome: { type: [string, 'null'] }
+        constraints:
+          type: array
+          items: { $ref: '#/components/schemas/TaskItem' }
+        deliverables:
+          type: array
+          items: { $ref: '#/components/schemas/TaskDeliverable' }
         agentId: { type: string, format: uuid }
         inputs:
           type: array
@@ -1640,7 +1751,7 @@ components:
           items: { type: string, minLength: 1, maxLength: 50 }
     TaskResponse:
       type: object
-      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, instructions, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, pausedFor, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, concurrency, inputFiles, context, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
+      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, description, instructions, requirements, expectedOutcome, constraints, deliverables, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, pausedFor, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, concurrency, inputFiles, context, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -1651,7 +1762,18 @@ components:
           format: uuid
           description: The tree's root (its own ID for a top-level task).
         title: { type: string }
-        instructions: { type: string }
+        description: { type: string, description: What needs to be done and why. }
+        instructions: { type: string, deprecated: true, description: The same as `description`, its old name. }
+        requirements:
+          type: array
+          items: { $ref: '#/components/schemas/TaskItem' }
+        expectedOutcome: { type: [string, 'null'] }
+        constraints:
+          type: array
+          items: { $ref: '#/components/schemas/TaskItem' }
+        deliverables:
+          type: array
+          items: { $ref: '#/components/schemas/TaskDeliverable' }
         agentId: { type: string, format: uuid }
         agentVersionId:
           type: string
@@ -1732,7 +1854,7 @@ components:
         `rejected` and `changes_requested` come with reviews.
     ArtifactBase:
       type: object
-      required: [id, organizationId, projectId, taskId, executionId, agentVersionId, kind, status, primary, revisionOf, title, metadata, review, createdAt, updatedAt, version]
+      required: [id, organizationId, projectId, taskId, executionId, agentVersionId, kind, status, primary, revisionOf, deliverableKey, title, metadata, review, createdAt, updatedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -1744,6 +1866,9 @@ components:
         status: { $ref: '#/components/schemas/ArtifactStatus' }
         primary: { type: boolean }
         revisionOf: { type: [string, 'null'], format: uuid }
+        deliverableKey:
+          type: [string, 'null']
+          description: The task's deliverable it was submitted for, if any.
         title: { type: string }
         metadata:
           type: object
