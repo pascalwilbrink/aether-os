@@ -1,297 +1,53 @@
-import { Injectable, Optional } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Injectable } from '@nestjs/common';
 import type { MastraModelConfig } from '@mastra/core/llm';
-import { In, type Repository } from 'typeorm';
-import { v7 as uuidv7 } from 'uuid';
 
-import { SecretStore, type ApiTypes, type Env } from '@hephaestus/core';
+import type { AgentVersion } from '@hephaestus/core';
 
-import { LanguageModels } from './language-models.js';
-import { ModelCallEntity, type KeySource } from './model-call.entity.js';
-import {
-  ModelCatalogService,
-  type CatalogEntry,
-} from './model-catalog.service.js';
-import { costOf } from './model-cost.js';
 import { PylonModels } from './pylon-models.js';
-import { modelKeyPath } from './model-keys.service.js';
-import {
-  checkModelKeySettings,
-  isSelfHosted,
-  type ModelKeySettings,
-} from './model-key-settings.js';
-import {
-  ModelEndpointUnavailableError,
-  ModelKeyMissingError,
-  ModelRetiredError,
-} from './model.errors.js';
 
-/** Who a model call is for: every call is attributed (docs/models.md). */
+/** Who a model call is for: Pylon attributes it from the task token. */
 export interface ModelCallContext {
   organizationId: string;
   projectId: string;
   taskId: string;
   /** The task tree it's part of (budgets: docs/models.md). */
   topLevelTaskId: string;
-  /** The agent: its own provider key comes first. */
   agentId: string;
   executionId: string;
   agentVersionId: string;
 }
 
 export interface ResolvedModel {
-  /** What Mastra calls: the provider's model with the key the gateway picked. */
+  /** What Mastra calls: the provider's own API, through Pylon. */
   model: MastraModelConfig;
   provider: string;
   modelId: string;
-  keySource: KeySource;
-  /** The catalogue's price in force when resolved; null: calls aren't priced. */
-  price: CatalogEntry['price'];
-  /**
-   * Tries of a failed call the caller makes itself: none through Pylon,
-   * which retries before answering.
-   */
-  retries: number;
 }
-
-/** The AI SDK's own tries of a call that failed with a 429 or 5xx. */
-const DIRECT_RETRIES = 2;
-
-/** One call's usage, as Mastra reports it (input includes cache reads and writes). */
-export interface ModelCallUsage {
-  inputTokens?: number;
-  outputTokens?: number;
-  cacheReadTokens?: number;
-  cacheWriteTokens?: number;
-  finishReason?: string;
-}
-
-/** A provider name that's safe in a secret path (`anthropic`, `openai`, …). */
-const PROVIDER = /^[a-z0-9][a-z0-9-]{0,62}$/;
 
 /**
- * The model gateway (docs/models.md): the one place that turns an agent
- * version's model into something callable, with a provider key from
- * OpenBao (the organization's own, else the platform's if allowed), and
- * that meters every call. Policy and budgets come later; keys never leave
- * Hephaestus's process (not to the agent's context, not to a sandbox).
+ * Turns an agent version's model into something Mastra can call, through
+ * Pylon (../docs/pylon.md): the provider's own AI SDK client, pointed at
+ * Pylon's pass-through, with the task token as its key. Pylon checks the
+ * catalogue and the budgets, picks the provider key and meters the call;
+ * Hephaestus never sees a key.
  */
 @Injectable()
 export class ModelGateway {
-  constructor(
-    @InjectRepository(ModelCallEntity)
-    private readonly calls: Repository<ModelCallEntity>,
-    private readonly secrets: SecretStore,
-    private readonly languageModels: LanguageModels,
-    private readonly config: ConfigService<Env, true>,
-    private readonly catalog: ModelCatalogService,
-    // With `USE_PYLON`, calls go through Pylon (`PylonModels`); else null.
-    @Optional() private readonly pylon: PylonModels | null = null,
-  ) {}
+  constructor(private readonly pylon: PylonModels) {}
 
-  /**
-   * The model to call for an agent version, with the catalogue's price in
-   * force now (a model outside the catalogue, from a version older than it,
-   * is called unpriced). Throws `ModelRetiredError` for a retired model,
-   * `ModelKeyMissingError` when there's no key, and
-   * `SecretStoreUnavailableError` when OpenBao can't answer.
-   */
-  async resolve(
+  resolve(
     context: ModelCallContext,
-    configuration: ApiTypes.AgentModelConfiguration,
-    /** The task token: Pylon's callers authenticate with it. */
-    taskToken?: string,
-  ): Promise<ResolvedModel> {
+    configuration: AgentVersion['model'],
+    taskToken: string,
+  ): ResolvedModel {
     const { provider, model: modelId } = configuration;
-    if (!PROVIDER.test(provider)) {
-      throw new ModelKeyMissingError(provider);
-    }
-    const entry = await this.catalog.entryFor(provider, modelId, new Date());
-    if (entry?.status === 'retired') {
-      throw new ModelRetiredError(provider, modelId);
-    }
-    if (this.pylon) {
-      if (!taskToken) {
-        throw new Error('A model call through Pylon needs the task token');
-      }
-      // Pylon reads the key, checks its budgets and meters the call too;
-      // Hephaestus keeps its own metering and budgets until step 2.
-      return {
-        model: this.pylon.create(provider, modelId, {
-          token: taskToken,
-          executionId: context.executionId,
-        }),
-        provider,
-        modelId,
-        keySource: 'pylon',
-        price: entry?.price ?? null,
-        retries: 0,
-      };
-    }
-    const key = await this.keyFor(context, provider);
-    // The platform's rules for model endpoints may have changed since the
-    // server was set.
-    if (key.settings.baseUrl) {
-      const checked = checkModelKeySettings(provider, key.settings, {
-        allowPrivate: this.config.get('MODEL_ENDPOINT_ALLOW_PRIVATE', {
-          infer: true,
-        }),
-      });
-      if ('problem' in checked) {
-        throw new ModelEndpointUnavailableError(checked.problem);
-      }
-    }
     return {
-      model: this.languageModels.create(`${provider}/${modelId}`, key.settings),
+      model: this.pylon.create(provider, modelId, {
+        token: taskToken,
+        executionId: context.executionId,
+      }),
       provider,
       modelId,
-      keySource: key.source,
-      price: entry?.price ?? null,
-      retries: DIRECT_RETRIES,
     };
   }
-
-  /**
-   * Records one call (one step of the agent loop), priced at the price
-   * resolved with the model: a run that spans a price change keeps one price.
-   */
-  async record(
-    context: ModelCallContext,
-    resolved: ResolvedModel,
-    usage: ModelCallUsage,
-  ): Promise<void> {
-    const counted = {
-      inputTokens: tokens(usage.inputTokens),
-      outputTokens: tokens(usage.outputTokens),
-      cacheReadTokens: tokens(usage.cacheReadTokens),
-      cacheWriteTokens: tokens(usage.cacheWriteTokens),
-    };
-    await this.calls.insert({
-      id: uuidv7(),
-      ...context,
-      provider: resolved.provider,
-      model: resolved.modelId,
-      keySource: resolved.keySource,
-      ...counted,
-      costUsd: resolved.price ? costOf(resolved.price, counted) : null,
-      priceId: resolved.price?.id ?? null,
-      finishReason: usage.finishReason ?? null,
-      createdAt: new Date(),
-    });
-  }
-
-  /**
-   * What calls cost in total (US dollars, 6 decimals): an organization's, a
-   * project's, an agent's or a task tree's, from `since` (all of them when null).
-   * Unpriced calls count as nothing.
-   */
-  async spent(
-    scope:
-      | { organizationId: string }
-      | { projectId: string }
-      | { agentId: string }
-      | { topLevelTaskId: string },
-    since: Date | null,
-  ): Promise<string> {
-    const query = this.calls
-      .createQueryBuilder('call')
-      .select('coalesce(sum(call.costUsd), 0)::numeric(18, 6)::text', 'spent')
-      .where(scope);
-    if (since) {
-      query.andWhere('call.createdAt >= :since', { since });
-    }
-    const row = (await query.getRawOne()) as { spent: string } | undefined;
-    return row?.spent ?? '0.000000';
-  }
-
-  /** Calls, tokens and cost per execution. */
-  async usageOf(
-    executionIds: string[],
-  ): Promise<Map<string, ApiTypes.ExecutionUsage>> {
-    const usage = new Map<string, ApiTypes.ExecutionUsage>();
-    if (executionIds.length === 0) {
-      return usage;
-    }
-    const rows = (await this.calls
-      .createQueryBuilder('call')
-      .select('call.executionId', 'executionId')
-      .addSelect('count(*)::int', 'modelCalls')
-      .addSelect('coalesce(sum(call.inputTokens), 0)::int', 'inputTokens')
-      .addSelect('coalesce(sum(call.outputTokens), 0)::int', 'outputTokens')
-      .addSelect(
-        'coalesce(sum(call.cacheReadTokens), 0)::int',
-        'cacheReadTokens',
-      )
-      .addSelect(
-        'coalesce(sum(call.cacheWriteTokens), 0)::int',
-        'cacheWriteTokens',
-      )
-      // Null when no call had a price.
-      .addSelect('sum(call.costUsd)::numeric(14, 6)::text', 'costUsd')
-      .where({ executionId: In(executionIds) })
-      .groupBy('call.executionId')
-      .getRawMany()) as ({ executionId: string } & ApiTypes.ExecutionUsage)[];
-    for (const { executionId, ...totals } of rows) {
-      usage.set(executionId, totals);
-    }
-    return usage;
-  }
-
-  /** The agent's own key, else the organization's, else the platform's if allowed. */
-  private async keyFor(
-    { organizationId, agentId }: ModelCallContext,
-    provider: string,
-  ): Promise<{ settings: ModelKeySettings; source: KeySource }> {
-    const agents = settingsOf(
-      provider,
-      await this.secrets.read(modelKeyPath(organizationId, provider, agentId)),
-    );
-    if (agents) {
-      return { settings: agents, source: 'agent' };
-    }
-    const own = settingsOf(
-      provider,
-      await this.secrets.read(modelKeyPath(organizationId, provider)),
-    );
-    if (own) {
-      return { settings: own, source: 'organization' };
-    }
-    if (this.config.get('PLATFORM_MODEL_KEYS', { infer: true })) {
-      const platform = settingsOf(
-        provider,
-        await this.secrets.read(`platform/llm/${provider}`),
-      );
-      if (platform) {
-        return { settings: platform, source: 'platform' };
-      }
-    }
-    throw new ModelKeyMissingError(provider);
-  }
-}
-
-/**
- * A provider's stored settings (`{ apiKey }`; for Ollama `{ baseUrl,
- * apiKey? }`), or null when there are none to use.
- */
-function settingsOf(
-  provider: string,
-  secret: Record<string, unknown> | null,
-): ModelKeySettings | null {
-  const text = (name: string) => {
-    const value = secret?.[name];
-    return typeof value === 'string' && value.length > 0 ? value : undefined;
-  };
-  const apiKey = text('apiKey');
-  if (isSelfHosted(provider)) {
-    const baseUrl = text('baseUrl');
-    return baseUrl ? { baseUrl, ...(apiKey ? { apiKey } : {}) } : null;
-  }
-  return apiKey ? { apiKey } : null;
-}
-
-function tokens(value: number | undefined): number | null {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? Math.round(value)
-    : null;
 }

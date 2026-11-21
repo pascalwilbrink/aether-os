@@ -60,8 +60,15 @@ describe('HttpAgentVersionChecker', () => {
     await new Promise((resolve) => server.close(resolve));
   });
 
+  const modelsChecked: unknown[] = [];
+  const models = {
+    assertAvailable: (model: unknown) => {
+      modelsChecked.push(model);
+      return Promise.resolve();
+    },
+  };
   const checker = (tokens = new FixedTokens()) =>
-    new HttpAgentVersionChecker({ baseUrl, timeoutMs: 2000 }, tokens);
+    new HttpAgentVersionChecker({ baseUrl, timeoutMs: 2000 }, tokens, models);
 
   it('asks Hephaestus with its own token', async () => {
     await checker().assertChoosable(orgId, choices);
@@ -70,9 +77,11 @@ describe('HttpAgentVersionChecker', () => {
       {
         url: `/v1/organizations/${orgId}/agent-version-checks`,
         authorization: 'Bearer token-1',
-        body: choices,
+        // The model is Pylon's to check, before Hephaestus is asked.
+        body: { tools: [], skills: [] },
       },
     ]);
+    expect(modelsChecked.at(-1)).toEqual(choices.model);
   });
 
   it("passes on Hephaestus's refusal with its code", async () => {

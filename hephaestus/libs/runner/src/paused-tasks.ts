@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { BudgetsService } from '@hephaestus/models';
+import { Pylon } from '@hephaestus/models';
 import { InvalidTaskTransitionError, TasksService } from '@hephaestus/tasks';
 
 /** Paused tasks looked at per round, oldest first. */
@@ -19,19 +19,19 @@ export class PausedTasks {
 
   constructor(
     private readonly tasks: TasksService,
-    private readonly budgets: BudgetsService,
+    private readonly pylon: Pylon,
   ) {}
 
   async resume(): Promise<number> {
     let resumed = 0;
     for (const task of await this.tasks.paused(BATCH)) {
-      const scope = await this.budgets.exceeded({
+      const exhausted = await this.pylon.exhausted({
         organizationId: task.organizationId,
         projectId: task.projectId,
         agentId: task.agentId,
         topLevelTaskId: task.topLevelTaskId,
       });
-      if (scope) {
+      if (exhausted) {
         continue;
       }
       try {

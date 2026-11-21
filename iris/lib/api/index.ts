@@ -1,5 +1,6 @@
 import type { components as AgoraComponents } from "./generated/agora-api";
 import type { components, operations, paths } from "./generated/hephaestus-api";
+import type { components as PylonComponents } from "./generated/pylon-api";
 
 /**
  * Hephaestus API types, generated from ../contracts/hephaestus.openapi.yaml.
@@ -14,6 +15,11 @@ export type ApiOperations = operations;
 export type AgoraSchemas = AgoraComponents["schemas"];
 export type AgoraSchema<K extends keyof AgoraSchemas> = AgoraSchemas[K];
 export type Agent = AgoraSchema<"AgentResponse">;
+
+/** Pylon's types (the model catalogue, keys, budgets), from ../contracts/pylon.openapi.yaml. */
+export type PylonSchemas = PylonComponents["schemas"];
+export type PylonSchema<K extends keyof PylonSchemas> = PylonSchemas[K];
+export type Model = PylonSchema<"ModelResponse">;
 export type AgentVersion = AgoraSchema<"AgentVersionResponse">;
 export type Workspace = ApiSchema<"WorkspaceResponse">;
 export type Task = ApiSchema<"TaskResponse">;
@@ -25,7 +31,6 @@ export type Artifact = ApiSchema<"ArtifactResponse">;
 export type AcceptanceCriterion = ApiSchema<"AcceptanceCriterion">;
 export type TaskTemplate = ApiSchema<"TaskTemplateResponse">;
 export type TaskTemplateVersion = ApiSchema<"TaskTemplateVersionResponse">;
-export type Model = ApiSchema<"ModelResponse">;
 export type ToolServer = ApiSchema<"ToolServerResponse">;
 export type ToolSummary = ApiSchema<"ToolDescription">;
 export type Skill = ApiSchema<"SkillResponse">;

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.28.0
+  version: 0.29.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -39,9 +39,7 @@ tags:
   - name: workspaces
   - name: tasks
   - name: task-templates
-  - name: models
   - name: budgets
-  - name: model-keys
   - name: tool-servers
   - name: skills
 
@@ -54,10 +52,9 @@ paths:
       operationId: checkAgentVersion
       x-permission: '`platform:read` (platform services only: Agora)'
       description: |
-        Whether an agent version's model, tools and skills are choosable in
-        the organization, for Agora to check before it creates the version:
-        the model is an `active` model of the catalogue
-        (`MODEL_NOT_AVAILABLE` otherwise); each enabled entry of `tools`
+        Whether an agent version's tools and skills are choosable in the
+        organization, for Agora to check before it creates the version (its
+        model Agora checks with Pylon's catalogue): each enabled entry of `tools`
         names one of the organization's tool servers, each at most once
         (`TOOL_SERVER_INVALID`); each enabled entry of `skills` a version of
         one of its active skills, each skill at most once (`SKILL_INVALID`).
@@ -777,221 +774,6 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /v1/models:
-    get:
-      tags: [models]
-      operationId: listModels
-      x-permission: any valid token (the catalogue is the platform's, the same for every organization)
-      description: |
-        The model catalogue (`../docs/models.md`, Models): the models agent
-        versions can name, by name, each with the price in force now.
-      parameters:
-        - name: status
-          in: query
-          required: false
-          schema: { $ref: '#/components/schemas/ModelStatus' }
-        - name: provider
-          in: query
-          required: false
-          schema: { $ref: '#/components/schemas/ModelProvider' }
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Cursor'
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '200':
-          description: By name
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ModelPage' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-    post:
-      tags: [models]
-      operationId: createModel
-      x-permission: '`platform:manage` (platform services only)'
-      description: Adds a model to the catalogue, with its first price.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/CreateModelRequest' }
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ModelResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '409': { $ref: '#/components/responses/DomainError' }
-  /v1/models/{modelId}:
-    parameters:
-      - $ref: '#/components/parameters/ModelId'
-    get:
-      tags: [models]
-      operationId: getModel
-      x-permission: any valid token
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ModelResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-    put:
-      tags: [models]
-      operationId: updateModel
-      x-permission: '`platform:manage` (platform services only)'
-      description: |
-        Replaces the model's editable fields. `provider` and `model` never
-        change (agent versions name them); prices change with
-        `POST …/prices`. `deprecated`: new agent versions can't choose it;
-        `retired`: the gateway refuses to call it.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/UpdateModelRequest' }
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: Updated
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ModelResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-  /v1/models/{modelId}/prices:
-    parameters:
-      - $ref: '#/components/parameters/ModelId'
-    get:
-      tags: [models]
-      operationId: listModelPrices
-      x-permission: any valid token
-      parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Cursor'
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '200':
-          description: Newest `effectiveFrom` first, including scheduled ones
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ModelPricePage' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-    post:
-      tags: [models]
-      operationId: addModelPrice
-      x-permission: '`platform:manage` (platform services only)'
-      description: |
-        A new price from `effectiveFrom` (now if absent). Prices never
-        change once recorded, so past calls keep the cost they had; a price
-        must start after the model's latest one (`MODEL_PRICE_INVALID`).
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/AddModelPriceRequest' }
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ModelPriceResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-
-  /v1/organizations/{organizationId}/budget:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-    get:
-      tags: [budgets]
-      operationId: getOrganizationBudget
-      x-permission: '`org:read`'
-      description: The organization's monthly budget for model calls, and what this month's calls cost so far.
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/BudgetResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-    put:
-      tags: [budgets]
-      operationId: setOrganizationBudget
-      x-permission: '`org:manage`'
-      description: |
-        Sets (or, with `limitUsd: null`, removes) the organization's monthly
-        limit. Tasks it paused resume within a runner round once it has room.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/SetBudgetRequest' }
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/BudgetResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-        '503': { $ref: '#/components/responses/Unavailable' }
-
-  /v1/organizations/{organizationId}/projects/{projectId}/budget:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-      - $ref: '#/components/parameters/ProjectId'
-    get:
-      tags: [budgets]
-      operationId: getProjectBudget
-      x-permission: '`project:read` in the project'
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/BudgetResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-    put:
-      tags: [budgets]
-      operationId: setProjectBudget
-      x-permission: '`project:manage` in the project'
-      description: Sets (or removes) the project's monthly limit.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/SetBudgetRequest' }
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/BudgetResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-        '503': { $ref: '#/components/responses/Unavailable' }
-
   /v1/organizations/{organizationId}/projects/{projectId}/tasks/{taskId}/budget:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
@@ -1001,7 +783,10 @@ paths:
       tags: [budgets]
       operationId: getTaskTreeBudget
       x-permission: '`task:read` in the project'
-      description: The budget of the task's tree (its top-level task's), for the tree's whole life.
+      description: |
+        The budget of the task's tree (its top-level task's), for the tree's
+        whole life. Budgets are Pylon's (`../docs/pylon.md`): Hephaestus
+        checks the task and reads it there with its own token.
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -1016,7 +801,10 @@ paths:
       tags: [budgets]
       operationId: setTaskTreeBudget
       x-permission: '`task:create` in the project'
-      description: Sets (or removes) the limit of the task's tree; its paused tasks resume once it has room.
+      description: |
+        Sets (or removes) the limit of the task's tree, in Pylon, with the
+        caller's own token; its paused tasks resume once it has room. `503`
+        when Pylon doesn't answer.
       requestBody:
         required: true
         content:
@@ -1030,177 +818,6 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/BudgetResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-
-  /v1/organizations/{organizationId}/model-keys:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-    get:
-      tags: [model-keys]
-      operationId: listOrganizationModelKeys
-      x-permission: '`org:read`'
-      description: |
-        The organization's provider keys (docs/models.md, Keys): which are
-        set, their last characters, who set them and when; never a key.
-        Every agent of the organization uses its key for its model's
-        provider, unless the agent has its own.
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: By provider
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ModelKeyList' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-
-  /v1/organizations/{organizationId}/model-keys/{provider}:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-      - $ref: '#/components/parameters/Provider'
-    put:
-      tags: [model-keys]
-      operationId: setOrganizationModelKey
-      x-permission: '`org:secret:write`'
-      description: |
-        Stores (or replaces) the organization's key for the provider, in
-        OpenBao: `apiKey` for the hosted providers; for `ollama`, its server's
-        `baseUrl` and, when the server wants one, an `apiKey`
-        (`MODEL_KEY_INVALID` otherwise, or for a `baseUrl` Hephaestus won't call).
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/SetModelKeyRequest' }
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: Stored in OpenBao; never returned
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ModelKeyResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-        '503': { $ref: '#/components/responses/Unavailable' }
-    delete:
-      tags: [model-keys]
-      operationId: deleteOrganizationModelKey
-      x-permission: '`org:secret:write`'
-      description: Removes it, with every earlier version; agents without their own key then use the platform's, if allowed, or fail.
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '204': { description: Removed (also when there was none) }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-        '503': { $ref: '#/components/responses/Unavailable' }
-
-  /v1/organizations/{organizationId}/agents/{agentId}/budget:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-      - $ref: '#/components/parameters/AgentId'
-    get:
-      tags: [budgets]
-      operationId: getAgentBudget
-      x-permission: '`agent:read`'
-      description: The agent's monthly budget for model calls (all its versions, in every project), and what this month's calls cost so far.
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/BudgetResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-    put:
-      tags: [budgets]
-      operationId: setAgentBudget
-      x-permission: '`org:manage`'
-      description: |
-        Sets (or, with `limitUsd: null`, removes) the agent's monthly limit.
-        Tasks it paused resume within a runner round once it has room.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/SetBudgetRequest' }
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/BudgetResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-        '503': { $ref: '#/components/responses/Unavailable' }
-
-  /v1/organizations/{organizationId}/agents/{agentId}/model-keys:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-      - $ref: '#/components/parameters/AgentId'
-    get:
-      tags: [model-keys]
-      operationId: listAgentModelKeys
-      x-permission: '`agent:read`'
-      description: The agent's own provider keys, used instead of the organization's (e.g. to bill another provider account).
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: By provider
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ModelKeyList' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-
-  /v1/organizations/{organizationId}/agents/{agentId}/model-keys/{provider}:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-      - $ref: '#/components/parameters/AgentId'
-      - $ref: '#/components/parameters/Provider'
-    put:
-      tags: [model-keys]
-      operationId: setAgentModelKey
-      x-permission: '`org:secret:write`'
-      description: Stores (or replaces) the agent's own key for the provider, in OpenBao.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/SetModelKeyRequest' }
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: Stored in OpenBao; never returned
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ModelKeyResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-        '503': { $ref: '#/components/responses/Unavailable' }
-    delete:
-      tags: [model-keys]
-      operationId: deleteAgentModelKey
-      x-permission: '`org:secret:write`'
-      description: Removes the agent's own key; it uses the organization's again.
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '204': { description: Removed (also when there was none) }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
@@ -1550,30 +1167,6 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
-  /v1/organizations/{organizationId}/ollama/models:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-    get:
-      tags: [model-keys]
-      operationId: listOllamaModels
-      x-permission: '`agent:read`'
-      description: |
-        The models the organization's Ollama server has now (its `/api/tags`),
-        to choose from for an agent version: asked of the server with the
-        organization's settings. `409 MODEL_KEY_INVALID` when the
-        organization has no Ollama server set; `503` when it doesn't answer.
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: By name
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/OllamaModelList' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-        '503': { $ref: '#/components/responses/Unavailable' }
-
 components:
   parameters:
     OrganizationId:
@@ -1613,16 +1206,6 @@ components:
       schema: { type: string, format: uuid }
     ArtifactId:
       name: artifactId
-      in: path
-      required: true
-      schema: { type: string, format: uuid }
-    Provider:
-      name: provider
-      in: path
-      required: true
-      schema: { $ref: '#/components/schemas/ModelProvider' }
-    ModelId:
-      name: modelId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -1674,9 +1257,6 @@ components:
         - TASK_BUDGET_INVALID
         - TASK_CONCURRENCY_INVALID
         - TASK_CONCURRENCY_SKIPPED
-        - MODEL_ALREADY_EXISTS
-        - MODEL_NOT_AVAILABLE
-        - MODEL_PRICE_INVALID
         - ORGANIZATION_SUSPENDED
         - PROJECT_ARCHIVED
         - TASK_CRITERIA_INVALID
@@ -1689,7 +1269,6 @@ components:
         - TASK_TEMPLATE_INVALID
         - TOOL_SERVER_ALREADY_EXISTS
         - TOOL_SERVER_INVALID
-        - MODEL_KEY_INVALID
         - SKILL_ALREADY_EXISTS
         - SKILL_ARCHIVED
         - SKILL_INVALID
@@ -1781,9 +1360,8 @@ components:
     AgentVersionCheckRequest:
       type: object
       additionalProperties: false
-      required: [model, tools, skills]
+      required: [tools, skills]
       properties:
-        model: { $ref: '#/components/schemas/AgentModelConfiguration' }
         tools:
           type: array
           items: { $ref: '#/components/schemas/AgentToolConfiguration' }
@@ -1953,8 +1531,10 @@ components:
         budgetUsd:
           description: |
             A limit for the whole task tree's model calls (docs/models.md,
-            Budgets); only on a top-level task (`TASK_BUDGET_INVALID`).
-            Raise it later with `PUT …/tasks/{taskId}/budget`.
+            Budgets), set in Pylon with the caller's token; only on a
+            top-level task (`TASK_BUDGET_INVALID`), and only through this
+            API (a `task.create` command can't carry it). Raise it later
+            with `PUT …/tasks/{taskId}/budget`.
           oneOf:
             - $ref: '#/components/schemas/Usd'
             - type: 'null'
@@ -2657,170 +2237,11 @@ components:
       properties:
         nextCursor: { $ref: './common.openapi.yaml#/components/schemas/NextCursor' }
 
-    # ---------- models ----------
-    ModelProvider:
-      type: string
-      description: |
-        Providers the model gateway can call: each needs code (Mastra's
-        model router) and a key in OpenBao (`orgs/{organizationId}/llm/{provider}`
-        or `platform/llm/{provider}`), so this list only changes with a release.
-        `ollama` is a server the organization runs: its settings are a
-        `baseUrl` and an optional key, its models aren't in the catalogue
-        (any model the server has can be chosen) and its calls are unpriced.
-      enum: [anthropic, openai, google, mistral, ollama]
-    ModelStatus:
-      type: string
-      description: |
-        `active`: new agent versions can choose it. `deprecated`: versions
-        that already have it keep running, new ones can't choose it.
-        `retired`: the gateway refuses to call it.
-      enum: [active, deprecated, retired]
+    # ---------- usage and budgets (Pylon's; docs/pylon.md) ----------
     Usd:
       type: string
       description: US dollars as a decimal string, at most 6 decimals (`../docs/api.md`).
       pattern: '^\d{1,9}(\.\d{1,6})?$'
-    PricePerMTok:
-      type: string
-      description: US dollars per million tokens, a decimal string with at most 6 decimals.
-      pattern: '^\d{1,6}(\.\d{1,6})?$'
-    ModelRates:
-      type: object
-      description: |
-        Prices per million tokens. Cache reads and writes without a price
-        cost what other input does (e.g. OpenAI doesn't charge for writing
-        its cache).
-      required: [inputPerMTok, outputPerMTok]
-      properties:
-        inputPerMTok: { $ref: '#/components/schemas/PricePerMTok' }
-        outputPerMTok: { $ref: '#/components/schemas/PricePerMTok' }
-        cacheReadPerMTok:
-          oneOf:
-            - $ref: '#/components/schemas/PricePerMTok'
-            - type: 'null'
-        cacheWritePerMTok:
-          description: Writing to the provider's shortest-lived cache (Anthropic's 5 minutes).
-          oneOf:
-            - $ref: '#/components/schemas/PricePerMTok'
-            - type: 'null'
-    LongContextRates:
-      description: |
-        Higher prices for a call whose input (cache reads and writes
-        included) is over `aboveInputTokens`: the whole call is priced at
-        these rates (e.g. Claude Haiku 5.5 above 100,000 tokens).
-      allOf:
-        - $ref: '#/components/schemas/ModelRates'
-        - type: object
-          required: [aboveInputTokens]
-          properties:
-            aboveInputTokens: { type: integer, minimum: 1 }
-    ModelPriceInput:
-      allOf:
-        - $ref: '#/components/schemas/ModelRates'
-        - type: object
-          properties:
-            longContext:
-              oneOf:
-                - $ref: '#/components/schemas/LongContextRates'
-                - type: 'null'
-    AddModelPriceRequest:
-      allOf:
-        - $ref: '#/components/schemas/ModelPriceInput'
-        - type: object
-          properties:
-            effectiveFrom:
-              type: string
-              format: date-time
-              description: When the price starts; now if absent. After the model's latest price.
-    ModelPriceResponse:
-      type: object
-      required: [id, modelId, effectiveFrom, inputPerMTok, outputPerMTok, cacheReadPerMTok, cacheWritePerMTok, longContext, createdBy, createdAt]
-      properties:
-        id: { type: string, format: uuid }
-        modelId: { type: string, format: uuid }
-        effectiveFrom: { type: string, format: date-time }
-        inputPerMTok: { $ref: '#/components/schemas/PricePerMTok' }
-        outputPerMTok: { $ref: '#/components/schemas/PricePerMTok' }
-        cacheReadPerMTok:
-          oneOf:
-            - $ref: '#/components/schemas/PricePerMTok'
-            - type: 'null'
-        cacheWritePerMTok:
-          oneOf:
-            - $ref: '#/components/schemas/PricePerMTok'
-            - type: 'null'
-        longContext:
-          oneOf:
-            - $ref: '#/components/schemas/LongContextRates'
-            - type: 'null'
-        createdBy: { type: string }
-        createdAt: { type: string, format: date-time }
-    ModelPricePage:
-      allOf:
-        - $ref: '#/components/schemas/PageMeta'
-        - type: object
-          required: [items]
-          properties:
-            items:
-              type: array
-              items: { $ref: '#/components/schemas/ModelPriceResponse' }
-    CreateModelRequest:
-      type: object
-      additionalProperties: false
-      required: [provider, model, name, price]
-      properties:
-        provider: { $ref: '#/components/schemas/ModelProvider' }
-        model:
-          type: string
-          description: The provider's API model ID (`claude-sonnet-5-5`), as agent versions name it.
-          pattern: '^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$'
-        name:
-          type: string
-          minLength: 1
-          maxLength: 200
-          description: For people (`Claude Sonnet 5.5`).
-        contextWindow: { type: [integer, 'null'], minimum: 1 }
-        maxOutputTokens: { type: [integer, 'null'], minimum: 1 }
-        price: { $ref: '#/components/schemas/ModelPriceInput' }
-    UpdateModelRequest:
-      type: object
-      additionalProperties: false
-      required: [name, status, contextWindow, maxOutputTokens]
-      properties:
-        name: { type: string, minLength: 1, maxLength: 200 }
-        status: { $ref: '#/components/schemas/ModelStatus' }
-        contextWindow: { type: [integer, 'null'], minimum: 1 }
-        maxOutputTokens: { type: [integer, 'null'], minimum: 1 }
-    ModelResponse:
-      type: object
-      required: [id, provider, model, name, status, contextWindow, maxOutputTokens, price, version, createdAt, updatedAt]
-      properties:
-        id: { type: string, format: uuid }
-        provider:
-          type: string
-          description: A `ModelProvider` (a string here, so a provider removed from the list still reads).
-        model: { type: string }
-        name: { type: string }
-        status: { $ref: '#/components/schemas/ModelStatus' }
-        contextWindow: { type: [integer, 'null'] }
-        maxOutputTokens: { type: [integer, 'null'] }
-        price:
-          description: The price in force now; null before its first one starts.
-          oneOf:
-            - $ref: '#/components/schemas/ModelPriceResponse'
-            - type: 'null'
-        version: { type: integer, minimum: 1 }
-        createdAt: { type: string, format: date-time }
-        updatedAt: { type: string, format: date-time }
-    ModelPage:
-      allOf:
-        - $ref: '#/components/schemas/PageMeta'
-        - type: object
-          required: [items]
-          properties:
-            items:
-              type: array
-              items: { $ref: '#/components/schemas/ModelResponse' }
-
     # ---------- budgets ----------
     BudgetScope:
       type: string
@@ -2866,65 +2287,6 @@ components:
           type: [string, 'null']
           format: date-time
           description: When the limit was last set; null if it never was.
-
-    # ---------- model keys ----------
-    SetModelKeyRequest:
-      type: object
-      additionalProperties: false
-      properties:
-        apiKey:
-          type: string
-          minLength: 8
-          maxLength: 1000
-          description: The provider's API key; write-only (stored in OpenBao, never returned). Required except for `ollama`, where it's optional.
-        baseUrl:
-          type: string
-          format: uri
-          maxLength: 2000
-          pattern: '^https?://'
-          description: |
-            For `ollama` only (and required there): where its server is, e.g.
-            `https://ollama.example.com` (Hephaestus calls its OpenAI-compatible
-            API at `<baseUrl>/v1`). `https://`; `http://` and private addresses
-            only where `MODEL_ENDPOINT_ALLOW_PRIVATE` allows them.
-    ModelKeyResponse:
-      type: object
-      required: [provider, scope, agentId, hint, baseUrl, updatedBy, updatedAt]
-      properties:
-        provider: { $ref: '#/components/schemas/ModelProvider' }
-        scope:
-          type: string
-          enum: [organization, agent]
-        agentId: { type: [string, 'null'], format: uuid }
-        hint:
-          type: [string, 'null']
-          description: The key's last four characters (`…a1b2`), to tell keys apart; null for an `ollama` server without one.
-        baseUrl:
-          type: [string, 'null']
-          description: For `ollama`, its server; null otherwise.
-        updatedBy: { type: string }
-        updatedAt: { type: string, format: date-time }
-    OllamaModelList:
-      type: object
-      additionalProperties: false
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            type: object
-            additionalProperties: false
-            required: [name, sizeBytes]
-            properties:
-              name: { type: string, description: 'As an agent version names it, e.g. `qwen3:8b`.' }
-              sizeBytes: { type: [integer, 'null'], minimum: 0 }
-    ModelKeyList:
-      type: object
-      required: [items]
-      properties:
-        items:
-          type: array
-          items: { $ref: '#/components/schemas/ModelKeyResponse' }
 
     # ---------- tool servers ----------
     ToolServerName:

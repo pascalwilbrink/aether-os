@@ -101,7 +101,7 @@ describe('task.create commands (e2e)', () => {
     ).body.items as Record<string, unknown>[];
 
   it('creates a task once per command, announcing it again when resent', async () => {
-    const sent = command(task({ budgetUsd: '2' }));
+    const sent = command(task());
     await deliver(sent);
 
     const [created] = await tasks();
@@ -119,13 +119,6 @@ describe('task.create commands (e2e)', () => {
         actor: { sub: 'kairos', sub_type: 'service' },
       }),
     ]);
-    // Its tree's budget came with it.
-    await expect(
-      owner.get(
-        `/v1/organizations/${orgId}/projects/${projectId}/tasks/${String(created.id)}/budget`,
-      ),
-    ).resolves.toMatchObject({ body: { limitUsd: '2.000000' } });
-
     // Sent again (Kairos never heard back): the same task, announced again.
     await expect(deliver(sent)).resolves.toBe(false);
     await deliver(command(task(), { eventId: sent.eventId }));
@@ -177,6 +170,8 @@ describe('task.create commands (e2e)', () => {
       command({ ...task(), template: { templateId: uuidv7() } }),
       command(task(), { actor: { sub: 'user-1', sub_type: 'user' } }),
       command(task(), { projectId: polis.project(polis.organization()) }),
+      // A budget is set with the caller's token in Pylon: commands have none.
+      command(task({ budgetUsd: '2' })),
     ];
     for (const event of sent) {
       await deliver(event);
@@ -198,6 +193,7 @@ describe('task.create commands (e2e)', () => {
         'VALIDATION_FAILED',
         'FORBIDDEN',
         'NOT_FOUND',
+        'TASK_BUDGET_INVALID',
       ].map((code, index) => ({
         idempotencyKey: sent[index].eventId,
         automationId: AUTOMATION,

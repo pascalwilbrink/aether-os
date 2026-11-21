@@ -6,7 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import type { Env } from '@hephaestus/core';
 import { AgentsModule } from '@hephaestus/agents';
 import { ArtifactsModule } from '@hephaestus/artifacts';
-import { BudgetsService, ModelGateway, ModelsModule } from '@hephaestus/models';
+import { ModelGateway, ModelsModule } from '@hephaestus/models';
 import { SkillsModule, SkillsService } from '@hephaestus/skills';
 import { ToolServersService, ToolsModule } from '@hephaestus/tools';
 import { WorkspacesModule, WorkspacesService } from '@hephaestus/workspaces';
@@ -84,7 +84,6 @@ import {
       inject: [
         ConfigService,
         ModelGateway,
-        BudgetsService,
         ToolServersService,
         SkillsService,
         FileStore,
@@ -92,7 +91,6 @@ import {
       useFactory: (
         config: ConfigService<Env, true>,
         gateway: ModelGateway,
-        budgets: BudgetsService,
         toolServers: ToolServersService,
         skills: SkillsService,
         files: FileStore,
@@ -101,7 +99,6 @@ import {
           case 'mastra':
             return new MastraAgentRuntime(
               gateway,
-              budgets,
               toolServers,
               skills,
               // Mastra's spans, when Hephaestus traces (main.ts started an SDK).

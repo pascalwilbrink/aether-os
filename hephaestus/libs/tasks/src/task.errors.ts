@@ -34,11 +34,10 @@ export class InvalidTaskCriteriaError extends DomainError {
 
 /** A budget for a task tree is set on its top-level task. */
 export class TaskBudgetInvalidError extends DomainError {
-  constructor() {
-    super(
-      "A task tree's budget is set on its top-level task, not on a subtask.",
-      'TASK_BUDGET_INVALID',
-    );
+  constructor(
+    reason = "A task tree's budget is set on its top-level task, not on a subtask.",
+  ) {
+    super(reason, 'TASK_BUDGET_INVALID');
   }
 }
 

@@ -13,6 +13,7 @@ import {
   EventsModule,
   hephaestusConfigModule,
 } from '@hephaestus/core';
+import { Pylon, PylonModels } from '@hephaestus/models';
 import { PolisClient } from '@hephaestus/tenancy';
 
 import {
@@ -22,16 +23,24 @@ import {
 } from '../src/app.module.js';
 import { resetDatabase } from './database.js';
 import { tokens } from './tokens.js';
+import { FakePylon, ScriptedPylonModels } from './fake-models.js';
 import { FakePolis } from './fake-polis.js';
+
+export interface TestContext {
+  moduleRef: TestingModule;
+  polis: FakePolis;
+  pylon: FakePylon;
+  models: ScriptedPylonModels;
+}
 
 /**
  * A Nest context with Hephaestus's configuration and database (emptied), the
- * event inbox (no RabbitMQ: deliver events with `deliverPolisEvent`, or Agora's with `test/agora.ts`), and a
- * fake Polis.
+ * event inbox (no RabbitMQ: deliver events with `deliverPolisEvent`, or Agora's with `test/agora.ts`), a
+ * fake Polis, and a fake Pylon with scripted models (`test/fake-models.ts`).
  */
 export function createTestingModule(
   ...modules: (Type | DynamicModule)[]
-): Promise<{ moduleRef: TestingModule; polis: FakePolis }> {
+): Promise<TestContext> {
   return createTestingModuleWith((builder) => builder, ...modules);
 }
 
@@ -39,8 +48,10 @@ export function createTestingModule(
 export async function createTestingModuleWith(
   override: (builder: TestingModuleBuilder) => TestingModuleBuilder,
   ...modules: (Type | DynamicModule)[]
-): Promise<{ moduleRef: TestingModule; polis: FakePolis }> {
+): Promise<TestContext> {
   const polis = new FakePolis();
+  const models = new ScriptedPylonModels();
+  const pylon = new FakePylon(models);
   const builder = Test.createTestingModule({
     imports: [
       hephaestusConfigModule(),
@@ -61,10 +72,14 @@ export async function createTestingModuleWith(
     ],
   })
     .overrideProvider(PolisClient)
-    .useValue(polis);
+    .useValue(polis)
+    .overrideProvider(Pylon)
+    .useValue(pylon)
+    .overrideProvider(PylonModels)
+    .useValue(models);
   const moduleRef = await override(builder).compile();
   await moduleRef.init();
   await resetDatabase(moduleRef);
 
-  return { moduleRef, polis };
+  return { moduleRef, polis, pylon, models };
 }

@@ -1,7 +1,13 @@
 import type { MastraModelConfig } from '@mastra/core/llm';
 
-import { SecretStore } from '@hephaestus/core';
-import { LanguageModels, type ModelKeySettings } from '@hephaestus/models';
+import { SecretStore, type ApiTypes } from '@hephaestus/core';
+import {
+  Pylon,
+  PylonModels,
+  type BudgetScope,
+  type PylonCall,
+  type TaskBudgets,
+} from '@hephaestus/models';
 
 /** Secrets in memory, by path. */
 export class FakeSecretStore extends SecretStore {
@@ -46,30 +52,62 @@ interface CallOptions {
 }
 
 /**
- * Language models that answer from a script instead of a provider (an AI
- * SDK v2 model, as Mastra's router would build): records which model and
- * key the gateway asked for, and what each call was given.
+ * Models that answer from a script instead of through Pylon (an AI SDK v2
+ * model, as the provider's own client would be): records which model was
+ * asked for, with which token and execution, what each call was given, and
+ * the usage Pylon would have metered per execution.
  */
-export class ScriptedLanguageModels extends LanguageModels {
-  readonly created: { id: string; apiKey?: string; baseUrl?: string }[] = [];
+export class ScriptedPylonModels extends PylonModels {
+  readonly created: ({ id: string } & PylonCall)[] = [];
   readonly calls: CallOptions[] = [];
+  /** Calls, tokens per execution, as Pylon's usage would total them. */
+  readonly usage = new Map<string, ApiTypes.ExecutionUsage>();
   replies: ScriptedReply[] = [];
 
   create(
-    id: `${string}/${string}`,
-    settings: ModelKeySettings,
+    provider: string,
+    modelId: string,
+    call: PylonCall,
   ): MastraModelConfig {
-    this.created.push({ id, ...settings });
-    const [provider, modelId] = id.split('/');
+    this.created.push({ id: `${provider}/${modelId}`, ...call });
     const model = {
       specificationVersion: 'v2',
       provider,
       modelId,
       supportedUrls: {},
-      doGenerate: (options: CallOptions) => this.reply(options),
+      doGenerate: async (options: CallOptions) => {
+        const reply = await this.reply(options);
+        this.meter(call.executionId, reply.usage);
+        return reply;
+      },
       doStream: () => Promise.reject(new Error('not scripted')),
     };
     return model as unknown as MastraModelConfig;
+  }
+
+  private meter(
+    executionId: string,
+    usage: {
+      inputTokens?: number;
+      outputTokens?: number;
+      cachedInputTokens?: number;
+    },
+  ): void {
+    const totals = this.usage.get(executionId) ?? {
+      modelCalls: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      costUsd: null,
+    };
+    this.usage.set(executionId, {
+      ...totals,
+      modelCalls: totals.modelCalls + 1,
+      inputTokens: totals.inputTokens + (usage.inputTokens ?? 0),
+      outputTokens: totals.outputTokens + (usage.outputTokens ?? 0),
+      cacheReadTokens: totals.cacheReadTokens + (usage.cachedInputTokens ?? 0),
+    });
   }
 
   private reply(options: CallOptions) {
@@ -140,5 +178,94 @@ export class ScriptedLanguageModels extends LanguageModels {
         timestamp: new Date(),
       },
     });
+  }
+}
+
+/** A budget Pylon would answer with `402 BUDGET_EXHAUSTED`. */
+export function budgetExhausted(
+  scope: BudgetScope,
+  scopeId: string,
+): ScriptedReply {
+  return {
+    error: {
+      message: 'Payment Required',
+      statusCode: 402,
+      responseBody: JSON.stringify({
+        type: 'about:blank',
+        status: 402,
+        code: 'BUDGET_EXHAUSTED',
+        title: 'Payment Required',
+        detail: `The ${scope} budget ran out.`,
+        budget: { scope, scopeId },
+      }),
+    },
+  };
+}
+
+/**
+ * Pylon's budget checks, task trees' budgets and usage, in memory:
+ * `exhaustedScope` is what the budget check answers (null: room), tree
+ * budgets are kept as set, and usage comes from the scripted models'
+ * calls.
+ */
+export class FakePylon extends Pylon {
+  exhaustedScope: { scope: BudgetScope; scopeId: string } | null = null;
+  readonly checks: TaskBudgets[] = [];
+  readonly treeBudgets = new Map<
+    string,
+    { limitUsd: string | null; token: string }
+  >();
+
+  constructor(private readonly models?: ScriptedPylonModels) {
+    super();
+  }
+
+  exhausted(task: TaskBudgets) {
+    this.checks.push(task);
+    return Promise.resolve(this.exhaustedScope);
+  }
+
+  taskTreeBudget(
+    _organizationId: string,
+    _projectId: string,
+    taskTreeId: string,
+  ): Promise<ApiTypes.BudgetResponse> {
+    return Promise.resolve(this.response(taskTreeId));
+  }
+
+  setTaskTreeBudget(
+    _organizationId: string,
+    _projectId: string,
+    taskTreeId: string,
+    limitUsd: string | null,
+    callerToken: string,
+  ): Promise<ApiTypes.BudgetResponse> {
+    this.treeBudgets.set(taskTreeId, { limitUsd, token: callerToken });
+    return Promise.resolve(this.response(taskTreeId));
+  }
+
+  usageOf(
+    _organizationId: string,
+    executionIds: string[],
+  ): Promise<Map<string, ApiTypes.ExecutionUsage>> {
+    const usage = new Map<string, ApiTypes.ExecutionUsage>();
+    for (const id of executionIds) {
+      const totals = this.models?.usage.get(id);
+      if (totals) usage.set(id, totals);
+    }
+    return Promise.resolve(usage);
+  }
+
+  private response(taskTreeId: string): ApiTypes.BudgetResponse {
+    const limitUsd = this.treeBudgets.get(taskTreeId)?.limitUsd ?? null;
+    return {
+      scope: 'task_tree',
+      scopeId: taskTreeId,
+      limitUsd: limitUsd === null ? null : Number(limitUsd).toFixed(6),
+      spentUsd: '0.000000',
+      windowStart: null,
+      thresholdPercent: 80,
+      updatedAt: limitUsd === null ? null : new Date().toISOString(),
+    };
   }
 }

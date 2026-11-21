@@ -179,6 +179,7 @@ const model = (
   id: `${provider}-${id}`,
   provider,
   model: id,
+  kind: "chat",
   name,
   status: "active",
   contextWindow: null,

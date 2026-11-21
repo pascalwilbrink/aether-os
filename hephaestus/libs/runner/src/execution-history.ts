@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 
 import { findPage, mapPage, type Page } from '@hephaestus/core';
-import { ModelGateway } from '@hephaestus/models';
+import { Pylon } from '@hephaestus/models';
 import { TasksService } from '@hephaestus/tasks';
 import { WorkspacesService } from '@hephaestus/workspaces';
 
@@ -24,7 +24,7 @@ export class ExecutionHistory {
     private readonly executions: Repository<ExecutionEntity>,
     private readonly mapper: ExecutionMapper,
     private readonly tasks: TasksService,
-    private readonly gateway: ModelGateway,
+    private readonly pylon: Pylon,
     private readonly workspaces: WorkspacesService,
   ) {}
 
@@ -61,7 +61,7 @@ export class ExecutionHistory {
     );
     const ids = entities.items.map((entity) => entity.id);
     const [usage, sandboxes] = await Promise.all([
-      this.gateway.usageOf(ids),
+      this.pylon.usageOf(organizationId, ids),
       this.workspaces.sandboxesOf(organizationId, ids),
     ]);
     return mapPage(entities, (entity) =>

@@ -9,9 +9,6 @@ export const zDomainErrorCode = z.enum([
     'TASK_BUDGET_INVALID',
     'TASK_CONCURRENCY_INVALID',
     'TASK_CONCURRENCY_SKIPPED',
-    'MODEL_ALREADY_EXISTS',
-    'MODEL_NOT_AVAILABLE',
-    'MODEL_PRICE_INVALID',
     'ORGANIZATION_SUSPENDED',
     'PROJECT_ARCHIVED',
     'TASK_CRITERIA_INVALID',
@@ -24,7 +21,6 @@ export const zDomainErrorCode = z.enum([
     'TASK_TEMPLATE_INVALID',
     'TOOL_SERVER_ALREADY_EXISTS',
     'TOOL_SERVER_INVALID',
-    'MODEL_KEY_INVALID',
     'SKILL_ALREADY_EXISTS',
     'SKILL_ARCHIVED',
     'SKILL_INVALID',
@@ -570,35 +566,6 @@ export const zExecutionRepository = z.object({
 });
 
 /**
- * Providers the model gateway can call: each needs code (Mastra's
- * model router) and a key in OpenBao (`orgs/{organizationId}/llm/{provider}`
- * or `platform/llm/{provider}`), so this list only changes with a release.
- * `ollama` is a server the organization runs: its settings are a
- * `baseUrl` and an optional key, its models aren't in the catalogue
- * (any model the server has can be chosen) and its calls are unpriced.
- *
- */
-export const zModelProvider = z.enum([
-    'anthropic',
-    'openai',
-    'google',
-    'mistral',
-    'ollama'
-]);
-
-/**
- * `active`: new agent versions can choose it. `deprecated`: versions
- * that already have it keep running, new ones can't choose it.
- * `retired`: the gateway refuses to call it.
- *
- */
-export const zModelStatus = z.enum([
-    'active',
-    'deprecated',
-    'retired'
-]);
-
-/**
  * US dollars as a decimal string, at most 6 decimals (`../docs/api.md`).
  */
 export const zUsd = z.string().regex(/^\d{1,9}(\.\d{1,6})?$/);
@@ -648,85 +615,6 @@ export const zExecutionResponse = z.object({
     traceId: z.string().regex(/^[0-9a-f]{32}$/).nullable(),
     startedAt: z.iso.datetime(),
     endedAt: z.iso.datetime().nullable()
-});
-
-/**
- * US dollars per million tokens, a decimal string with at most 6 decimals.
- */
-export const zPricePerMTok = z.string().regex(/^\d{1,6}(\.\d{1,6})?$/);
-
-/**
- * Prices per million tokens. Cache reads and writes without a price
- * cost what other input does (e.g. OpenAI doesn't charge for writing
- * its cache).
- *
- */
-export const zModelRates = z.object({
-    inputPerMTok: zPricePerMTok,
-    outputPerMTok: zPricePerMTok,
-    cacheReadPerMTok: zPricePerMTok.nullish(),
-    cacheWritePerMTok: zPricePerMTok.nullish()
-});
-
-/**
- * Higher prices for a call whose input (cache reads and writes
- * included) is over `aboveInputTokens`: the whole call is priced at
- * these rates (e.g. Claude Haiku 5.5 above 100,000 tokens).
- *
- */
-export const zLongContextRates = zModelRates.and(z.object({
-    aboveInputTokens: z.int().gte(1)
-}));
-
-export const zModelPriceInput = zModelRates.and(z.object({
-    longContext: zLongContextRates.nullish()
-}));
-
-export const zAddModelPriceRequest = zModelPriceInput.and(z.object({
-    effectiveFrom: z.iso.datetime().optional()
-}));
-
-export const zModelPriceResponse = z.object({
-    id: z.uuid(),
-    modelId: z.uuid(),
-    effectiveFrom: z.iso.datetime(),
-    inputPerMTok: zPricePerMTok,
-    outputPerMTok: zPricePerMTok,
-    cacheReadPerMTok: zPricePerMTok.nullable(),
-    cacheWritePerMTok: zPricePerMTok.nullable(),
-    longContext: zLongContextRates.nullable(),
-    createdBy: z.string(),
-    createdAt: z.iso.datetime()
-});
-
-export const zCreateModelRequest = z.object({
-    provider: zModelProvider,
-    model: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/),
-    name: z.string().min(1).max(200),
-    contextWindow: z.int().gte(1).nullish(),
-    maxOutputTokens: z.int().gte(1).nullish(),
-    price: zModelPriceInput
-});
-
-export const zUpdateModelRequest = z.object({
-    name: z.string().min(1).max(200),
-    status: zModelStatus,
-    contextWindow: z.int().gte(1).nullable(),
-    maxOutputTokens: z.int().gte(1).nullable()
-});
-
-export const zModelResponse = z.object({
-    id: z.uuid(),
-    provider: z.string(),
-    model: z.string(),
-    name: z.string(),
-    status: zModelStatus,
-    contextWindow: z.int().nullable(),
-    maxOutputTokens: z.int().nullable(),
-    price: zModelPriceResponse.nullable(),
-    version: z.int().gte(1),
-    createdAt: z.iso.datetime(),
-    updatedAt: z.iso.datetime()
 });
 
 /**
@@ -788,32 +676,6 @@ export const zBudgetResponse = z.object({
     updatedAt: z.iso.datetime().nullable()
 });
 
-export const zSetModelKeyRequest = z.object({
-    apiKey: z.string().min(8).max(1000).optional(),
-    baseUrl: z.url().max(2000).regex(/^https?:\/\//).optional()
-});
-
-export const zModelKeyResponse = z.object({
-    provider: zModelProvider,
-    scope: z.enum(['organization', 'agent']),
-    agentId: z.uuid().nullable(),
-    hint: z.string().nullable(),
-    baseUrl: z.string().nullable(),
-    updatedBy: z.string(),
-    updatedAt: z.iso.datetime()
-});
-
-export const zOllamaModelList = z.object({
-    items: z.array(z.object({
-        name: z.string(),
-        sizeBytes: z.int().gte(0).nullable()
-    }))
-});
-
-export const zModelKeyList = z.object({
-    items: z.array(zModelKeyResponse)
-});
-
 /**
  * Lowercase letters, digits and hyphens, starting with a letter; unique in the organization.
  */
@@ -834,7 +696,6 @@ export const zAgentToolConfiguration = z.object({
 });
 
 export const zAgentVersionCheckRequest = z.object({
-    model: zAgentModelConfiguration,
     tools: z.array(zAgentToolConfiguration),
     skills: z.array(zAgentSkillConfiguration)
 });
@@ -1000,14 +861,6 @@ export const zExecutionPage = zPageMeta.and(z.object({
     items: z.array(zExecutionResponse)
 }));
 
-export const zModelPricePage = zPageMeta.and(z.object({
-    items: z.array(zModelPriceResponse)
-}));
-
-export const zModelPage = zPageMeta.and(z.object({
-    items: z.array(zModelResponse)
-}));
-
 export const zSkillPage = zPageMeta.and(z.object({
     items: z.array(zSkillResponse)
 }));
@@ -1071,10 +924,6 @@ export const zTaskId = z.uuid();
 export const zTemplateId = z.uuid();
 
 export const zArtifactId = z.uuid();
-
-export const zProvider = zModelProvider;
-
-export const zModelId = z.uuid();
 
 export const zSkillId = z.uuid();
 
@@ -1473,112 +1322,6 @@ export const zListExecutionEventsQuery = z.object({
  */
 export const zListExecutionEventsResponse = zExecutionEventPage;
 
-export const zListModelsQuery = z.object({
-    status: zModelStatus.optional(),
-    provider: zModelProvider.optional(),
-    limit: z.int().gte(1).lte(100).optional().default(50),
-    cursor: z.string().min(1).max(1024).optional()
-});
-
-/**
- * By name
- */
-export const zListModelsResponse = zModelPage;
-
-export const zCreateModelBody = zCreateModelRequest;
-
-/**
- * Created
- */
-export const zCreateModelResponse = zModelResponse;
-
-export const zGetModelPath = z.object({
-    modelId: z.uuid()
-});
-
-/**
- * OK
- */
-export const zGetModelResponse = zModelResponse;
-
-export const zUpdateModelBody = zUpdateModelRequest;
-
-export const zUpdateModelPath = z.object({
-    modelId: z.uuid()
-});
-
-/**
- * Updated
- */
-export const zUpdateModelResponse = zModelResponse;
-
-export const zListModelPricesPath = z.object({
-    modelId: z.uuid()
-});
-
-export const zListModelPricesQuery = z.object({
-    limit: z.int().gte(1).lte(100).optional().default(50),
-    cursor: z.string().min(1).max(1024).optional()
-});
-
-/**
- * Newest `effectiveFrom` first, including scheduled ones
- */
-export const zListModelPricesResponse = zModelPricePage;
-
-export const zAddModelPriceBody = zAddModelPriceRequest;
-
-export const zAddModelPricePath = z.object({
-    modelId: z.uuid()
-});
-
-/**
- * Created
- */
-export const zAddModelPriceResponse = zModelPriceResponse;
-
-export const zGetOrganizationBudgetPath = z.object({
-    organizationId: z.uuid()
-});
-
-/**
- * OK
- */
-export const zGetOrganizationBudgetResponse = zBudgetResponse;
-
-export const zSetOrganizationBudgetBody = zSetBudgetRequest;
-
-export const zSetOrganizationBudgetPath = z.object({
-    organizationId: z.uuid()
-});
-
-/**
- * OK
- */
-export const zSetOrganizationBudgetResponse = zBudgetResponse;
-
-export const zGetProjectBudgetPath = z.object({
-    organizationId: z.uuid(),
-    projectId: z.uuid()
-});
-
-/**
- * OK
- */
-export const zGetProjectBudgetResponse = zBudgetResponse;
-
-export const zSetProjectBudgetBody = zSetBudgetRequest;
-
-export const zSetProjectBudgetPath = z.object({
-    organizationId: z.uuid(),
-    projectId: z.uuid()
-});
-
-/**
- * OK
- */
-export const zSetProjectBudgetResponse = zBudgetResponse;
-
 export const zGetTaskTreeBudgetPath = z.object({
     organizationId: z.uuid(),
     projectId: z.uuid(),
@@ -1602,93 +1345,6 @@ export const zSetTaskTreeBudgetPath = z.object({
  * OK
  */
 export const zSetTaskTreeBudgetResponse = zBudgetResponse;
-
-export const zListOrganizationModelKeysPath = z.object({
-    organizationId: z.uuid()
-});
-
-/**
- * By provider
- */
-export const zListOrganizationModelKeysResponse = zModelKeyList;
-
-export const zDeleteOrganizationModelKeyPath = z.object({
-    organizationId: z.uuid(),
-    provider: zModelProvider
-});
-
-/**
- * Removed (also when there was none)
- */
-export const zDeleteOrganizationModelKeyResponse = z.void();
-
-export const zSetOrganizationModelKeyBody = zSetModelKeyRequest;
-
-export const zSetOrganizationModelKeyPath = z.object({
-    organizationId: z.uuid(),
-    provider: zModelProvider
-});
-
-/**
- * Stored in OpenBao; never returned
- */
-export const zSetOrganizationModelKeyResponse = zModelKeyResponse;
-
-export const zGetAgentBudgetPath = z.object({
-    organizationId: z.uuid(),
-    agentId: z.uuid()
-});
-
-/**
- * OK
- */
-export const zGetAgentBudgetResponse = zBudgetResponse;
-
-export const zSetAgentBudgetBody = zSetBudgetRequest;
-
-export const zSetAgentBudgetPath = z.object({
-    organizationId: z.uuid(),
-    agentId: z.uuid()
-});
-
-/**
- * OK
- */
-export const zSetAgentBudgetResponse = zBudgetResponse;
-
-export const zListAgentModelKeysPath = z.object({
-    organizationId: z.uuid(),
-    agentId: z.uuid()
-});
-
-/**
- * By provider
- */
-export const zListAgentModelKeysResponse = zModelKeyList;
-
-export const zDeleteAgentModelKeyPath = z.object({
-    organizationId: z.uuid(),
-    agentId: z.uuid(),
-    provider: zModelProvider
-});
-
-/**
- * Removed (also when there was none)
- */
-export const zDeleteAgentModelKeyResponse = z.void();
-
-export const zSetAgentModelKeyBody = zSetModelKeyRequest;
-
-export const zSetAgentModelKeyPath = z.object({
-    organizationId: z.uuid(),
-    agentId: z.uuid(),
-    provider: zModelProvider
-});
-
-/**
- * Stored in OpenBao; never returned
- */
-export const zSetAgentModelKeyResponse = zModelKeyResponse;
 
 export const zListToolServersPath = z.object({
     organizationId: z.uuid()
@@ -1857,12 +1513,3 @@ export const zGetSkillVersionPath = z.object({
  * OK
  */
 export const zGetSkillVersionResponse = zSkillVersionResponse;
-
-export const zListOllamaModelsPath = z.object({
-    organizationId: z.uuid()
-});
-
-/**
- * By name
- */
-export const zListOllamaModelsResponse = zOllamaModelList;

@@ -3,7 +3,10 @@
 import { refresh } from "next/cache";
 
 import type { KeyFormState } from "@/app/components/model-key-form";
-import { deleteModelKey, setModelKey } from "@/lib/api/hephaestus";
+import {
+  deleteModelKey,
+  setModelKey,
+} from "@/lib/api/pylon";
 import { ApiError } from "@/lib/api/http";
 import { messageOf } from "@/lib/api/messages";
 import { requireOrganization } from "@/lib/auth/current";
@@ -23,10 +26,10 @@ const pathOf = ({ organizationId, agentId }: KeyRef) =>
 
 function keyMessageOf(error: unknown): string {
   if (!(error instanceof ApiError)) {
-    return "Hephaestus can't be reached right now. Try again in a moment.";
+    return "Pylon can't be reached right now. Try again in a moment.";
   }
   if (error.status === 503) {
-    // Hephaestus says why: OpenBao not configured, refusing its token, or not answering.
+    // Pylon says why: OpenBao not configured, refusing its token, or not answering.
     return (
       error.message || "Keys can't be stored right now. Try again in a moment."
     );

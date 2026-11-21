@@ -1,23 +1,22 @@
 import { Injectable } from '@nestjs/common';
 
 import type { ApiTypes } from '@hephaestus/core';
-import { ModelCatalogService } from '@hephaestus/models';
 import { SkillsService } from '@hephaestus/skills';
 import { ToolServerInvalidError, ToolServersService } from '@hephaestus/tools';
 
-/** What an agent version chooses from Hephaestus: its model, tools and skills. */
+/** What an agent version chooses from Hephaestus: its tools and skills. */
 export type AgentVersionChoices = ApiTypes.AgentVersionCheckRequest;
 
 /**
- * Whether an agent version's model, tools and skills can be chosen in an
- * organization: Hephaestus owns the model catalogue, the tool servers and
- * the skills, so Agora asks here (`POST …/agent-version-checks`) before it
- * creates a version. Throws the same 409s as creating one.
+ * Whether an agent version's tools and skills can be chosen in an
+ * organization: Hephaestus owns the tool servers and the skills, so Agora
+ * asks here (`POST …/agent-version-checks`) before it creates a version
+ * (its model it checks with Pylon's catalogue). Throws the same 409s as
+ * creating one.
  */
 @Injectable()
 export class AgentVersionChecks {
   constructor(
-    private readonly models: ModelCatalogService,
     private readonly toolServers: ToolServersService,
     private readonly skills: SkillsService,
   ) {}
@@ -26,10 +25,6 @@ export class AgentVersionChecks {
     organizationId: string,
     choices: AgentVersionChoices,
   ): Promise<void> {
-    await this.models.assertAvailable(
-      choices.model.provider,
-      choices.model.model,
-    );
     await this.assertTools(organizationId, choices.tools);
     await this.skills.assertChoosable(organizationId, choices.skills);
   }

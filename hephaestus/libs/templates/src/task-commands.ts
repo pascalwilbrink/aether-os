@@ -168,6 +168,7 @@ export class TaskCommands {
           projectId,
           payload.task,
           command.eventId,
+          null,
         );
       }
       const { templateId, ...request } = payload.template;

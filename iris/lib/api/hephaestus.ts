@@ -6,7 +6,6 @@ import type {
   Artifact,
   Execution,
   ExecutionEventPage,
-  Model,
   Task,
   TaskStatus,
   TaskTemplate,
@@ -24,16 +23,6 @@ const hephaestus = <T>(
 
 const tasksOf = (organizationId: string, projectId: string) =>
   `/v1/organizations/${organizationId}/projects/${projectId}/tasks`;
-
-/** Per-agent model keys and budgets stay in Hephaestus; agents are Agora's. */
-const agentsOf = (organizationId: string) =>
-  `/v1/organizations/${organizationId}/agents`;
-
-// --- The model catalogue (the platform's, the same for every organization) ---
-
-/** Active models, by name, each with its current price (the first 100). */
-export const listActiveModels = (token: string) =>
-  hephaestus<Page<Model>>("/v1/models?status=active&limit=100", token);
 
 // --- Tasks ---
 
@@ -217,60 +206,9 @@ export const createTaskFromTemplate = (
     { method: "POST", body, headers: { "idempotency-key": idempotencyKey } },
   );
 
-// --- Budgets for model calls (docs/models.md: the organization's, a project's and an agent's per month, a task tree's) ---
+// --- A task tree's budget: Pylon's, through any task of the tree (Hephaestus checks the task) ---
 
 type Budget = ApiSchema<"BudgetResponse">;
-const budgetOf = (organizationId: string, projectId?: string) =>
-  projectId
-    ? `/v1/organizations/${organizationId}/projects/${projectId}/budget`
-    : `/v1/organizations/${organizationId}/budget`;
-
-export const getOrganizationBudget = (token: string, organizationId: string) =>
-  hephaestus<Budget>(budgetOf(organizationId), token);
-
-export const setOrganizationBudget = (
-  token: string,
-  organizationId: string,
-  limitUsd: string | null,
-) =>
-  hephaestus<Budget>(budgetOf(organizationId), token, {
-    method: "PUT",
-    body: { limitUsd },
-  });
-
-export const getAgentBudget = (
-  token: string,
-  organizationId: string,
-  agentId: string,
-) => hephaestus<Budget>(`${agentsOf(organizationId)}/${agentId}/budget`, token);
-
-export const setAgentBudget = (
-  token: string,
-  organizationId: string,
-  agentId: string,
-  limitUsd: string | null,
-) =>
-  hephaestus<Budget>(`${agentsOf(organizationId)}/${agentId}/budget`, token, {
-    method: "PUT",
-    body: { limitUsd },
-  });
-
-export const getProjectBudget = (
-  token: string,
-  organizationId: string,
-  projectId: string,
-) => hephaestus<Budget>(budgetOf(organizationId, projectId), token);
-
-export const setProjectBudget = (
-  token: string,
-  organizationId: string,
-  projectId: string,
-  limitUsd: string | null,
-) =>
-  hephaestus<Budget>(budgetOf(organizationId, projectId), token, {
-    method: "PUT",
-    body: { limitUsd },
-  });
 
 /** The budget of the task's tree (its top-level task's). */
 export const getTaskTreeBudget = (
@@ -299,52 +237,6 @@ export const setTaskTreeBudget = (
       body: { limitUsd },
     },
   );
-
-// --- Provider keys (docs/models.md, Keys): the organization's, and an agent's own; write-only ---
-
-type ModelKeyList = ApiSchema<"ModelKeyList">;
-type ModelKey = ApiSchema<"ModelKeyResponse">;
-const keysOf = (organizationId: string, agentId?: string) =>
-  agentId
-    ? `${agentsOf(organizationId)}/${agentId}/model-keys`
-    : `/v1/organizations/${organizationId}/model-keys`;
-
-/** Which keys are set (last characters, who, when); never a key. */
-export const listModelKeys = (
-  token: string,
-  organizationId: string,
-  agentId?: string,
-) => hephaestus<ModelKeyList>(keysOf(organizationId, agentId), token);
-
-export const setModelKey = (
-  token: string,
-  organizationId: string,
-  provider: string,
-  body: ApiSchema<"SetModelKeyRequest">,
-  agentId?: string,
-) =>
-  hephaestus<ModelKey>(
-    `${keysOf(organizationId, agentId)}/${provider}`,
-    token,
-    { method: "PUT", body },
-  );
-
-/** The models the organization's Ollama server has now. */
-export const listOllamaModels = (token: string, organizationId: string) =>
-  hephaestus<ApiSchema<"OllamaModelList">>(
-    `/v1/organizations/${organizationId}/ollama/models`,
-    token,
-  );
-
-export const deleteModelKey = (
-  token: string,
-  organizationId: string,
-  provider: string,
-  agentId?: string,
-) =>
-  hephaestus<void>(`${keysOf(organizationId, agentId)}/${provider}`, token, {
-    method: "DELETE",
-  });
 
 // --- Tool servers (MCP) the organization's agent versions take tools from ---
 

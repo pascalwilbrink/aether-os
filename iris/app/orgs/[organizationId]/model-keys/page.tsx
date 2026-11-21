@@ -3,7 +3,9 @@ import { Suspense } from "react";
 
 import { ActionButton } from "@/app/components/action-forms";
 import { ModelKeyForm } from "@/app/components/model-key-form";
-import { listModelKeys } from "@/lib/api/hephaestus";
+import {
+  listModelKeys,
+} from "@/lib/api/pylon";
 import { getOrganization } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
 import { isSelfHosted, PROVIDERS } from "@/lib/model-keys";

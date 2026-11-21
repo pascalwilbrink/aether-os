@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 
 import { AgentVersionsService } from '@hephaestus/agents';
 import type { AgentVersion } from '@hephaestus/core';
-import { BudgetExceededError, BudgetsService } from '@hephaestus/models';
+import { BudgetExceededError, Pylon } from '@hephaestus/models';
 import type { TaskResponse } from '@hephaestus/tasks';
 
 import {
@@ -38,7 +38,7 @@ export class ExecutionPreparer {
     private readonly tokens: TaskTokens,
     private readonly provisioner: SandboxProvisioner,
     private readonly repositories: RepositoryCheckouts,
-    private readonly budgets: BudgetsService,
+    private readonly pylon: Pylon,
     private readonly inputs: TaskInputs,
   ) {}
 
@@ -47,14 +47,14 @@ export class ExecutionPreparer {
    * of the task's budgets ran out, so it pauses before using a sandbox.
    */
   async assertBudget(task: TaskResponse): Promise<void> {
-    const scope = await this.budgets.exceeded({
+    const exhausted = await this.pylon.exhausted({
       organizationId: task.organizationId,
       projectId: task.projectId,
       agentId: task.agentId,
       topLevelTaskId: task.topLevelTaskId,
     });
-    if (scope) {
-      throw new BudgetExceededError(scope);
+    if (exhausted) {
+      throw new BudgetExceededError(exhausted.scope, exhausted.scopeId);
     }
   }
 

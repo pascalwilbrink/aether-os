@@ -20,8 +20,8 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 | `kerykes.openapi.yaml` | Kerykes (each user's inbox) | Iris |
 | `loculus.openapi.yaml` | Loculus (each project's files) | Hephaestus, Iris, Seshat (documents' files, generated HTTP client) |
 | `seshat.openapi.yaml` | Seshat (each project's knowledge) | later Hephaestus (agents' knowledge tools) and Iris |
-| `pylon.openapi.yaml` | Pylon (the model gateway: provider pass-through, embeddings, catalogue, keys, budgets, usage) | later Hephaestus, Agora, Seshat and Iris |
-| `pylon.asyncapi.yaml` | Pylon (budget events on `pylon.events`) | later Hephaestus, Kerykes, Iris |
+| `pylon.openapi.yaml` | Pylon (the model gateway: provider pass-through, embeddings, catalogue, keys, budgets, usage) | Hephaestus (budget checks, task trees' budgets, usage) and Agora (`listModels`), generated HTTP clients; Iris; later Seshat |
+| `pylon.asyncapi.yaml` | Pylon (budget events on `pylon.events`) | Kerykes (`budget.threshold-reached`); later Hephaestus, Iris |
 | `seshat.asyncapi.yaml` | Seshat (knowledge item events on `seshat.events`) | later Hephaestus (embeddings), Kerykes, Iris |
 | `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Hephaestus (organization and project events), Kerykes (membership events); later Pistis and others |
 | `hephaestus.asyncapi.yaml` | Hephaestus (task events on `hephaestus.events`; the `task.create` command it receives on `hephaestus.commands`) | Kairos (`task.created`, `task.create-rejected`), Kerykes (tasks that need people, budgets); later Kriterion, Iris |

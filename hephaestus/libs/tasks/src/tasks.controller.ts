@@ -19,9 +19,9 @@ import {
   ZodSerializerDto,
 } from '@hephaestus/core';
 
-import { BudgetResponse, SetBudgetRequest } from '@hephaestus/models';
-
+import { BudgetResponse } from './dto/budget.response.js';
 import { CreateTaskRequest } from './dto/create-task.request.js';
+import { SetBudgetRequest } from './dto/set-budget.request.js';
 import { TaskBudgetParams } from './dto/task-budget.params.js';
 import { ListTasksQuery } from './dto/list-tasks.query.js';
 import { TaskPage } from './dto/task-page.response.js';
@@ -48,6 +48,7 @@ export class TasksController {
     @Param() { organizationId, projectId }: TasksParams,
     @Body() body: CreateTaskRequest,
     @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Headers('authorization') authorization: string,
     @Res({ passthrough: true }) response: Response,
   ) {
     if (!idempotencyKey || idempotencyKey.length > 200) {
@@ -66,6 +67,7 @@ export class TasksController {
       projectId,
       body,
       idempotencyKey,
+      bearerToken(authorization),
     );
     response.status(created ? HttpStatus.CREATED : HttpStatus.OK);
     return task;
@@ -110,8 +112,15 @@ export class TasksController {
   setBudget(
     @Param() { organizationId, projectId, taskId }: TaskBudgetParams,
     @Body() { limitUsd }: SetBudgetRequest,
+    @Headers('authorization') authorization: string,
   ) {
-    return this.taskBudgets.set(organizationId, projectId, taskId, limitUsd);
+    return this.taskBudgets.set(
+      organizationId,
+      projectId,
+      taskId,
+      limitUsd,
+      bearerToken(authorization),
+    );
   }
 
   @Post(':taskId/retry')
@@ -121,4 +130,9 @@ export class TasksController {
   retry(@Param() { organizationId, projectId, taskId }: TaskParams) {
     return this.tasks.retry(organizationId, projectId, taskId);
   }
+}
+
+/** The request's token (Krepis has verified it), passed on to Pylon. */
+function bearerToken(authorization: string): string {
+  return authorization.replace(/^Bearer\s+/i, '');
 }

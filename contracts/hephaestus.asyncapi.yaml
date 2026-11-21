@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Hephaestus events and commands
-  version: 0.9.0
+  version: 0.10.0
   description: |
     Events Hephaestus publishes to the `hephaestus.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -13,9 +13,8 @@ info:
     artifact's `version`) is not newer than the one already applied for it.
 
     Every task and artifact event has the task's `projectId` in the envelope;
-    artifact events have the artifact as their aggregate;
-    `budget.threshold-reached` has the budget as its aggregate (its
-    `projectId` is the budget's project, if any).
+    artifact events have the artifact as their aggregate. Budget events are
+    Pylon's (`pylon.asyncapi.yaml`).
 
     Hephaestus also **receives commands** on its own direct exchange,
     `hephaestus.commands` (routing key = the command name), from other
@@ -55,7 +54,6 @@ channels:
       taskVerified: { $ref: '#/components/messages/taskVerified' }
       taskPaused: { $ref: '#/components/messages/taskPaused' }
       taskResumed: { $ref: '#/components/messages/taskResumed' }
-      budgetThresholdReached: { $ref: '#/components/messages/budgetThresholdReached' }
       artifactCreated: { $ref: '#/components/messages/artifactCreated' }
       artifactStatusChanged: { $ref: '#/components/messages/artifactStatusChanged' }
 
@@ -93,7 +91,6 @@ operations:
       - $ref: '#/channels/hephaestusEvents/messages/taskVerified'
       - $ref: '#/channels/hephaestusEvents/messages/taskPaused'
       - $ref: '#/channels/hephaestusEvents/messages/taskResumed'
-      - $ref: '#/channels/hephaestusEvents/messages/budgetThresholdReached'
       - $ref: '#/channels/hephaestusEvents/messages/artifactCreated'
       - $ref: '#/channels/hephaestusEvents/messages/artifactStatusChanged'
 
@@ -150,16 +147,6 @@ components:
             properties:
               eventType: { const: task.resumed }
               payload: { $ref: '#/components/schemas/TaskResumed' }
-    budgetThresholdReached:
-      name: budget.threshold-reached
-      summary: A budget is 80% spent (once per window; Kerykes tells its admins).
-      payload:
-        allOf:
-          - $ref: '#/components/schemas/Envelope'
-          - type: object
-            properties:
-              eventType: { const: budget.threshold-reached }
-              payload: { $ref: '#/components/schemas/BudgetThresholdReached' }
     taskVerified:
       name: task.verified
       summary: Hephaestus checked a run against the task's acceptance criteria (Kriterion tracks pass rates).
@@ -466,22 +453,6 @@ components:
       properties:
         taskId: { $ref: '#/components/schemas/Uuid' }
         topLevelTaskId: { $ref: '#/components/schemas/Uuid' }
-    BudgetThresholdReached:
-      type: object
-      additionalProperties: false
-      required: [budgetId, scope, scopeId, limitUsd, spentUsd, windowStart]
-      properties:
-        budgetId: { $ref: '#/components/schemas/Uuid' }
-        scope: { $ref: '#/components/schemas/BudgetScope' }
-        scopeId:
-          description: The organization, project or top-level task.
-          $ref: '#/components/schemas/Uuid'
-        limitUsd: { type: string, description: US dollars, 6 decimals. }
-        spentUsd: { type: string, description: US dollars, 6 decimals. }
-        windowStart:
-          type: [string, 'null']
-          format: date-time
-          description: The month it's for; null for a task tree's (its lifetime).
     TaskStatus:
       enum: [blocked, queued, provisioning, running, verifying, awaiting_review, waiting, paused, delivering, succeeded, failed, cancelled]
     TaskFailureReason:

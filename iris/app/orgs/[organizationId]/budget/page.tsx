@@ -7,7 +7,7 @@ import {
   getAgentBudget,
   getOrganizationBudget,
   getProjectBudget,
-} from "@/lib/api/hephaestus";
+} from "@/lib/api/pylon";
 import { getOrganization, listProjects } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
 import { budgetSummary, type Budget } from "@/lib/budgets";

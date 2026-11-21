@@ -6,6 +6,7 @@ const valid = {
   RABBITMQ_URL: 'amqp://aether:aether@localhost:5672',
   PISTIS_ISSUER: 'http://localhost:3003/oidc',
   PISTIS_CLIENT_SECRET: 'hephaestus-dev-secret',
+  PYLON_URL: 'http://localhost:3011',
 };
 
 describe('zEnv', () => {
@@ -32,7 +33,6 @@ describe('zEnv', () => {
       REVIEW_MAX_ROUNDS: 3,
       VERIFICATION_MAX_ROUNDS: 3,
       OPENBAO_KV_MOUNT: 'secret',
-      PLATFORM_MODEL_KEYS: false,
       SANDBOX_DRIVER: 'none',
       SANDBOX_IMAGE: 'node:22-slim',
       SANDBOX_USER: '1000:1000',
@@ -45,8 +45,6 @@ describe('zEnv', () => {
         'pypi.org',
       ]),
       TOOL_SERVER_ALLOW_PRIVATE: false,
-      MODEL_ENDPOINT_ALLOW_PRIVATE: false,
-      USE_PYLON: false,
       TOOL_SERVER_TRUSTED_ORIGINS: [],
       TOOL_CALL_TIMEOUT_MS: 60_000,
       TASK_FILE_MAX_BYTES: 25 * 1024 * 1024,
@@ -72,19 +70,10 @@ describe('zEnv', () => {
     );
   });
 
-  it('requires OpenBao for the Mastra runtime (model keys)', () => {
-    expect(zEnv.safeParse({ ...valid, AGENT_RUNTIME: 'mastra' }).success).toBe(
-      false,
-    );
+  it('runs the Mastra runtime without OpenBao (keys are Pylon’s)', () => {
     expect(
-      zEnv.parse({
-        ...valid,
-        AGENT_RUNTIME: 'mastra',
-        OPENBAO_ADDR: 'http://localhost:8200',
-        OPENBAO_TOKEN: 'dev-root-token',
-        PLATFORM_MODEL_KEYS: 'true',
-      }),
-    ).toMatchObject({ AGENT_RUNTIME: 'mastra', PLATFORM_MODEL_KEYS: true });
+      zEnv.parse({ ...valid, AGENT_RUNTIME: 'mastra' }).AGENT_RUNTIME,
+    ).toBe('mastra');
   });
 
   it('never runs sandboxes as root', () => {
@@ -117,17 +106,9 @@ describe('zEnv', () => {
     );
   });
 
-  it('needs PYLON_URL with USE_PYLON', () => {
-    const result = zEnv.safeParse({ ...valid, USE_PYLON: 'true' });
-    expect(result.error?.issues.map((issue) => issue.path[0])).toEqual([
-      'PYLON_URL',
-    ]);
-    expect(
-      zEnv.parse({
-        ...valid,
-        USE_PYLON: 'true',
-        PYLON_URL: 'http://localhost:3011',
-      }).USE_PYLON,
-    ).toBe(true);
+  it('requires Pylon', () => {
+    expect(zEnv.safeParse({ ...valid, PYLON_URL: undefined }).success).toBe(
+      false,
+    );
   });
 });

@@ -16,7 +16,8 @@ import pg from 'pg';
  *
  * Rows Pylon already has are left alone, so running it again is harmless;
  * nothing is published. Run Pylon's migrations first, and import before
- * Hephaestus calls models through Pylon.
+ * Hephaestus runs with Pylon only (docs/pylon.md, step 2): budgets set in
+ * Hephaestus apply from then on.
  *
  *   HEPHAESTUS_DATABASE_URL=postgres://aether:aether@localhost:5432/hephaestus \
  *     pnpm import:hephaestus
@@ -187,7 +188,8 @@ try {
     )} of ${budgets.rowCount} budgets`,
   );
 
-  // Calls, in batches; Hephaestus made every one for an agent.
+  // Calls, in batches; Hephaestus made every one for an agent. Those it made
+  // through Pylon (USE_PYLON, key_source 'pylon') Pylon recorded itself.
   let calls = 0;
   let total = 0;
   // Paged by ID: timestamps come back as Dates, which drop microseconds.
@@ -201,7 +203,7 @@ try {
               output_tokens, cache_read_tokens, cache_write_tokens, cost_usd,
               price_id, finish_reason, created_at
          FROM model_calls
-        WHERE $1::uuid IS NULL OR id > $1::uuid
+        WHERE key_source <> 'pylon' AND ($1::uuid IS NULL OR id > $1::uuid)
         ORDER BY id LIMIT ${BATCH}`,
       [after],
     );

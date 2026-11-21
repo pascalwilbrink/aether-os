@@ -7,6 +7,7 @@ const base = {
   PISTIS_CLIENT_SECRET: 'agora-dev-secret',
   POLIS_URL: 'http://localhost:3001',
   HEPHAESTUS_URL: 'http://localhost:3002',
+  PYLON_URL: 'http://localhost:3011',
 };
 
 describe('Agora env', () => {
@@ -18,7 +19,7 @@ describe('Agora env', () => {
     });
   });
 
-  it('needs its database, RabbitMQ, Pistis, Polis and Hephaestus', () => {
+  it('needs its database, RabbitMQ, Pistis, Polis, Hephaestus and Pylon', () => {
     const result = zEnv.safeParse({});
     expect(result.error?.issues.map((issue) => issue.path[0]).sort()).toEqual([
       'DATABASE_URL',
@@ -26,6 +27,7 @@ describe('Agora env', () => {
       'PISTIS_CLIENT_SECRET',
       'PISTIS_ISSUER',
       'POLIS_URL',
+      'PYLON_URL',
       'RABBITMQ_URL',
     ]);
   });
