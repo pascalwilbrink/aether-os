@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 
 import { Transactional, type ApiTypes } from '@hephaestus/core';
-import { TasksService, type TaskResponse } from '@hephaestus/tasks';
+import {
+  TaskContextSource,
+  TasksService,
+  type TaskResponse,
+} from '@hephaestus/tasks';
 
 import {
   render,
@@ -24,6 +28,7 @@ export class TemplatedTasksService {
   constructor(
     private readonly templates: TaskTemplatesService,
     private readonly tasks: TasksService,
+    private readonly contextSource: TaskContextSource,
   ) {}
 
   @Transactional()
@@ -50,11 +55,35 @@ export class TemplatedTasksService {
       }
       throw error;
     }
+    // The template's knowledge and the request's, pinned now (docs/tasks.md,
+    // `context`), unless this idempotency key already made the task.
+    const itemIds = [...effective.context, ...(request.context ?? [])].map(
+      (entry) => entry.itemId,
+    );
+    const pinned =
+      itemIds.length > 0 &&
+      !(await this.tasks.findByIdempotencyKey(organizationId, idempotencyKey))
+        ? await this.contextSource.pin(organizationId, projectId, itemIds)
+        : [];
     return this.tasks.create(
       organizationId,
       projectId,
       {
         ...rendered,
+        // The request adds to the template's brief, never replacing it.
+        requirements: [
+          ...(rendered.requirements ?? []),
+          ...(request.requirements ?? []),
+        ],
+        constraints: [
+          ...(rendered.constraints ?? []),
+          ...(request.constraints ?? []),
+        ],
+        deliverables: [
+          ...(rendered.deliverables ?? []),
+          ...(request.deliverables ?? []),
+        ],
+        untrustedInputs: request.untrustedInputs,
         agentId: effective.agentId,
         serviceAccountId: request.serviceAccountId,
         parentTaskId: request.parentTaskId,
@@ -77,6 +106,7 @@ export class TemplatedTasksService {
         version: resolved.version,
         acceptanceCriteria: effective.acceptanceCriteria,
       },
+      pinned,
     );
   }
 }

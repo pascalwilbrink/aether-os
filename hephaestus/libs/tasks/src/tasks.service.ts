@@ -22,6 +22,18 @@ import type { ListTasksQuery } from './dto/list-tasks.query.js';
 import type { TaskResponse } from './dto/task.response.js';
 import type { PinnedKnowledge } from './task-context.js';
 import { taskBriefOf } from './task-fields.js';
+
+/** A task's brief as given (`TasksService.briefForPrompt`). */
+export type TaskBriefForPrompt = Pick<
+  TaskResponse,
+  | 'title'
+  | 'description'
+  | 'expectedOutcome'
+  | 'requirements'
+  | 'constraints'
+  | 'deliverables'
+  | 'untrustedInputs'
+>;
 import { TaskEntity } from './task.entity.js';
 import {
   InvalidTaskCriteriaError,
@@ -76,6 +88,38 @@ export class TasksService {
       idempotencyKey,
     });
     return existing ? this.mapper.toResponse(existing) : null;
+  }
+
+  /**
+   * The task's brief as it was given, outside text still named `{{name}}`,
+   * with that text: the agent's prompt marks it as data (`briefOf`).
+   */
+  async briefForPrompt(
+    organizationId: string,
+    taskId: string,
+  ): Promise<TaskBriefForPrompt> {
+    const row = await this.tasks.findOneOrFail({
+      where: { organizationId, id: taskId },
+      select: {
+        id: true,
+        title: true,
+        instructions: true,
+        expectedOutcome: true,
+        requirements: true,
+        constraints: true,
+        deliverables: true,
+        untrustedInputs: true,
+      },
+    });
+    return {
+      title: row.title,
+      description: row.instructions,
+      expectedOutcome: row.expectedOutcome,
+      requirements: row.requirements,
+      constraints: row.constraints,
+      deliverables: row.deliverables,
+      untrustedInputs: row.untrustedInputs,
+    };
   }
 
   /** The text of the knowledge pinned on a task, for the runner's prompt. */

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.32.0
+  version: 0.33.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -1416,6 +1416,24 @@ components:
             of the project is `TASK_CONTEXT_INVALID`; Seshat not answering
             is `503`.
           items: { $ref: '#/components/schemas/TaskContextReference' }
+        untrustedInputs:
+          type: array
+          maxItems: 20
+          description: |
+            Text from outside the organization (an issue's title through an
+            automation, docs/git.md Untrusted input): the task's text fields
+            name each as `{{name}}`. Where people read the task, the value is
+            filled in; in the agent's prompt it is filled in marked as data,
+            never as instructions. Names are unique (`TASK_FIELDS_INVALID`).
+          items: { $ref: '#/components/schemas/UntrustedInput' }
+    UntrustedInput:
+      type: object
+      additionalProperties: false
+      required: [name, source, value]
+      properties:
+        name: { type: string, pattern: '^[a-z][a-z0-9._-]{0,63}$', description: 'Named as `{{name}}` in the text fields, e.g. `issue.title`.' }
+        source: { type: string, minLength: 1, maxLength: 300, description: 'Where it came from, e.g. "GitHub issue #12 in acme/api, opened by @octocat".' }
+        value: { type: string, maxLength: 65536 }
     TaskContextReference:
       type: object
       additionalProperties: false
@@ -1596,6 +1614,11 @@ components:
           type: array
           maxItems: 20
           items: { $ref: '#/components/schemas/TaskDeliverable' }
+        context:
+          type: array
+          maxItems: 50
+          description: Knowledge pinned on every task from it (e.g. the project's conventions); a project template adds to what it extends.
+          items: { $ref: '#/components/schemas/TaskContextReference' }
         agentId: { type: string, format: uuid }
         inputs:
           type: array
@@ -1644,7 +1667,7 @@ components:
               items: { $ref: '#/components/schemas/TaskTemplateResponse' }
     EffectiveTaskTemplate:
       type: object
-      required: [title, description, instructions, requirements, expectedOutcome, constraints, deliverables, agentId, inputs, acceptanceCriteria, review]
+      required: [title, description, instructions, requirements, expectedOutcome, constraints, deliverables, context, agentId, inputs, acceptanceCriteria, review]
       description: What a task from this version gets, with what it extends merged in.
       properties:
         title: { type: string }
@@ -1660,6 +1683,9 @@ components:
         deliverables:
           type: array
           items: { $ref: '#/components/schemas/TaskDeliverable' }
+        context:
+          type: array
+          items: { $ref: '#/components/schemas/TaskContextReference' }
         agentId: { type: string, format: uuid }
         inputs:
           type: array
@@ -1719,6 +1745,31 @@ components:
           oneOf:
             - $ref: '#/components/schemas/TaskConcurrency'
             - type: 'null'
+        requirements:
+          type: array
+          maxItems: 50
+          description: Added to the template's.
+          items: { $ref: '#/components/schemas/TaskItem' }
+        constraints:
+          type: array
+          maxItems: 50
+          description: Added to the template's.
+          items: { $ref: '#/components/schemas/TaskItem' }
+        deliverables:
+          type: array
+          maxItems: 20
+          description: Added to the template's.
+          items: { $ref: '#/components/schemas/TaskDeliverable' }
+        context:
+          type: array
+          maxItems: 50
+          description: Knowledge pinned on the task, added to the template's (as on a task written by hand).
+          items: { $ref: '#/components/schemas/TaskContextReference' }
+        untrustedInputs:
+          type: array
+          maxItems: 20
+          description: As on a task written by hand; `inputs` values can name them as `{{name}}`.
+          items: { $ref: '#/components/schemas/UntrustedInput' }
     TaskConcurrency:
       type: object
       additionalProperties: false
@@ -1750,7 +1801,7 @@ components:
           items: { type: string, minLength: 1, maxLength: 50 }
     TaskResponse:
       type: object
-      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, description, instructions, requirements, expectedOutcome, constraints, deliverables, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, pausedFor, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, concurrency, inputFiles, context, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
+      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, description, instructions, requirements, expectedOutcome, constraints, deliverables, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, pausedFor, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, concurrency, inputFiles, context, untrustedInputs, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -1823,6 +1874,10 @@ components:
           type: array
           description: The project knowledge pinned on it, at the versions it got.
           items: { $ref: '#/components/schemas/PinnedTaskContext' }
+        untrustedInputs:
+          type: array
+          description: The text from outside it carries; its text fields here have the values filled in.
+          items: { $ref: '#/components/schemas/UntrustedInput' }
         taskTemplateId:
           type: [string, 'null']
           format: uuid

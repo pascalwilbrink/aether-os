@@ -35,6 +35,7 @@ describe('effectiveTemplate', () => {
       expectedOutcome: null,
       constraints: [],
       deliverables: [],
+      context: [],
       agentId: AGENT,
       inputs: [
         { name: 'issue', description: 'The issue', required: true },
@@ -152,6 +153,26 @@ describe('render', () => {
       requirements: [{ key: 'REQ-1', description: 'Fix #7' }],
       deliverables: [{ description: 'Notes on #7' }, { key: 'report' }],
     });
+    // Knowledge: the organization's, then the project's, each once.
+    const a = '0195f2a0-0000-7000-8000-0000000000c1';
+    const b = '0195f2a0-0000-7000-8000-0000000000c2';
+    expect(
+      effectiveTemplate(
+        {
+          context: [
+            { kind: 'knowledge', itemId: a },
+            { kind: 'knowledge', itemId: b },
+          ],
+        },
+        effectiveTemplate({
+          ...fixBug,
+          context: [{ kind: 'knowledge', itemId: a }],
+        }),
+      ).context,
+    ).toEqual([
+      { kind: 'knowledge', itemId: a },
+      { kind: 'knowledge', itemId: b },
+    ]);
     // A project can't redefine what it extends, nor name two primaries.
     expect(() =>
       effectiveTemplate(

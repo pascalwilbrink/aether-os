@@ -85,6 +85,14 @@ export class TaskEntity {
   @Column({ type: 'jsonb', default: () => "'[]'" })
   deliverables: ApiTypes.TaskDeliverable[];
 
+  /**
+   * Text from outside (docs/git.md, Untrusted input), named `{{name}}` in
+   * the text fields above, which are stored as given: filled in for people,
+   * marked as data for the agent.
+   */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  untrustedInputs: ApiTypes.UntrustedInput[];
+
   @Column({ type: 'uuid' })
   agentId: string;
 

@@ -104,10 +104,16 @@ export function effectiveTemplate(
     );
   }
 
+  // Knowledge every task from it pins: the organization's, then the project's.
+  const context = [...(base?.context ?? []), ...(content.context ?? [])].filter(
+    (entry, i, all) => all.findIndex((e) => e.itemId === entry.itemId) === i,
+  );
+
   return {
     title,
     description,
     instructions: description,
+    context,
     requirements,
     expectedOutcome,
     constraints,

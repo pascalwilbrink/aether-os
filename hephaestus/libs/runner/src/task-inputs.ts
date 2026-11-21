@@ -45,8 +45,23 @@ export class TaskInputs {
   constructor(
     private readonly files: FileStore,
     private readonly maxBytes: number,
-    private readonly tasks: Pick<TasksService, 'pinnedContext'>,
+    private readonly tasks: Pick<
+      TasksService,
+      'pinnedContext' | 'briefForPrompt'
+    >,
   ) {}
+
+  /**
+   * The task as the agent's prompt needs it: its brief as given, outside
+   * text still named `{{name}}`, which `briefOf` marks as data.
+   */
+  async forPrompt(task: TaskResponse): Promise<TaskResponse> {
+    if (task.untrustedInputs.length === 0) return task;
+    return {
+      ...task,
+      ...(await this.tasks.briefForPrompt(task.organizationId, task.id)),
+    };
+  }
 
   /** The knowledge pinned on the task, at the versions it got (docs/tasks.md, `context`). */
   context(task: TaskResponse): Promise<PinnedKnowledge[]> {

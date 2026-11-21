@@ -86,6 +86,35 @@ describe('Running tasks (e2e)', () => {
     ).body.id;
   }
 
+  it('gives the agent the brief as given, with the text from outside apart', async () => {
+    const published = await publishedAgent(app, orgId, versionBody);
+    const input = {
+      name: 'issue.title',
+      source: 'GitHub issue #12',
+      value: 'Login fails',
+    };
+    await owner
+      .post(base)
+      .set('idempotency-key', 'with-untrusted')
+      .send({
+        title: 'Fix {{issue.title}}',
+        description: 'The issue: {{issue.title}}',
+        agentId: published.agentId,
+        serviceAccountId: SERVICE_ACCOUNT,
+        untrustedInputs: [input],
+      })
+      .expect(201);
+    const runner = app.get(TaskRunner);
+    await runner.tick();
+    await runner.drain();
+    // The runtime marks it as data (briefOf); people see it filled in.
+    expect(runtime.runs.at(-1)?.task).toMatchObject({
+      title: 'Fix {{issue.title}}',
+      description: 'The issue: {{issue.title}}',
+      untrustedInputs: [input],
+    });
+  });
+
   it('gives the agent the knowledge pinned on its task', async () => {
     const itemId = knowledge.add({
       id: '0195f2a0-0000-7000-8000-0000000000d1',

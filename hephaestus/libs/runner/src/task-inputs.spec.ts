@@ -56,7 +56,10 @@ function recordingSandbox() {
   return { sandbox, written };
 }
 
-const noTasks = { pinnedContext: () => Promise.resolve([]) };
+const noTasks = {
+  pinnedContext: () => Promise.resolve([]),
+  briefForPrompt: () => Promise.reject(new Error('not used')),
+};
 
 describe('TaskInputs', () => {
   it('names files apart in one directory', () => {
