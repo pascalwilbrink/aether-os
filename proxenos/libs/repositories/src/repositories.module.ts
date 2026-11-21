@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { InstallationsModule } from '@proxenos/installations';
 
+import { RepositoryFilesService } from './repository-files.service.js';
 import { RepositoryLinkEntity } from './repository-link.entity.js';
 import { RepositoryLinkMapper } from './repository-link.mapper.js';
 import { RepositoryLinksController } from './repository-links.controller.js';
@@ -20,6 +21,7 @@ import { RepositoryTokensService } from './repository-tokens.service.js';
     RepositoryLinksService,
     RepositoryLinkMapper,
     RepositoryTokensService,
+    RepositoryFilesService,
   ],
   exports: [RepositoryLinksService],
 })

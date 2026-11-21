@@ -21,6 +21,10 @@ import {
   IssueEventsService,
   type GitHubIssuePayload,
 } from './issue-events.service.js';
+import {
+  PushEventsService,
+  type GitHubPushPayload,
+} from './push-events.service.js';
 import { WebhookDeliveryEntity } from './webhook-delivery.entity.js';
 
 export interface GitHubDelivery {
@@ -53,6 +57,7 @@ export class WebhooksService {
     private readonly installations: InstallationsService,
     private readonly pullRequests: PullRequestsService,
     private readonly issueEvents: IssueEventsService,
+    private readonly pushEvents: PushEventsService,
     private readonly github: GitHubApp,
   ) {}
 
@@ -162,6 +167,9 @@ export class WebhooksService {
     }
     if (event === 'pull_request') {
       await this.pullRequests.received(payload as GitHubPullRequestPayload);
+    }
+    if (event === 'push') {
+      await this.pushEvents.received(delivery, payload as GitHubPushPayload);
     }
     if (this.issueEvents.eventTypeOf(event, action)) {
       await this.issueEvents.received(delivery, payload as GitHubIssuePayload);

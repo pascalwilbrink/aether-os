@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Proxenos API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Connections to external systems (see `../docs/git.md`). For now: the
     GitHub App. An organization **connects** the app (installs it on a GitHub
@@ -309,6 +309,75 @@ paths:
         '409': { $ref: '#/components/responses/DomainError' }
         '503': { $ref: '#/components/responses/Unavailable' }
 
+  /v1/organizations/{organizationId}/projects/{projectId}/repositories/{linkId}/files:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/LinkId'
+    get:
+      tags: [repositories]
+      operationId: listRepositoryFiles
+      x-permission: '`project:read` in that project; platform services with `platform:read` (Seshat)'
+      description: |
+        The files of the linked repository at the head of its default
+        branch, under the given paths: a path ending in `/` is a folder
+        (everything below it), any other one file. Each file has its blob
+        SHA (Git's, so an unchanged file keeps it) and size, read with
+        `GET …/blobs/{sha}`. GitHub lists at most about 100,000 entries:
+        a larger repository is listed in part (`truncated`).
+      parameters:
+        - name: path
+          in: query
+          required: true
+          style: form
+          explode: true
+          description: A folder (`docs/`) or a file (`README.md`), relative to the repository's root; at most 20.
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 20
+            items: { $ref: '#/components/schemas/RepositoryPath' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RepositoryFilesResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/repositories/{linkId}/blobs/{sha}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/LinkId'
+      - name: sha
+        in: path
+        required: true
+        description: A blob's SHA, from `GET …/files`.
+        schema: { type: string, pattern: '^[0-9a-f]{40}$' }
+    get:
+      tags: [repositories]
+      operationId: getRepositoryBlob
+      x-permission: '`project:read` in that project; platform services with `platform:read` (Seshat)'
+      description: A file's bytes in the linked repository, by its blob SHA (at most 10 MiB).
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: The blob's bytes.
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
   /v1/organizations/{organizationId}/webhook-deliveries/{deliveryId}:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
@@ -391,6 +460,7 @@ components:
         - INSTALLATION_NOT_ACTIVE
         - REPOSITORY_UNAVAILABLE
         - REPOSITORY_ALREADY_LINKED
+        - REPOSITORY_BLOB_TOO_LARGE
     DomainProblem:
       description: Problem details for a business-rule violation.
       allOf:
@@ -567,6 +637,35 @@ components:
           properties:
             name: { type: string }
             email: { type: string }
+
+    RepositoryPath:
+      type: string
+      minLength: 1
+      maxLength: 500
+      pattern: '^(?!/)(?!(.*/)?\.\.(/|$)).+$'
+      description: Relative to the repository's root, without `..`; a folder ends in `/`.
+    RepositoryFilesResponse:
+      type: object
+      required: [fullName, defaultBranch, commit, files, truncated]
+      properties:
+        fullName: { type: string }
+        defaultBranch: { type: string }
+        commit: { type: string, description: The default branch's head commit, which the files are at. }
+        files:
+          type: array
+          description: By path.
+          items: { $ref: '#/components/schemas/RepositoryFile' }
+        truncated:
+          type: boolean
+          description: 'GitHub listed the repository in part (too many entries), so files may be missing.'
+    RepositoryFile:
+      type: object
+      required: [path, sha, sizeBytes, url]
+      properties:
+        path: { type: string }
+        sha: { type: string, description: The blob's SHA. }
+        sizeBytes: { type: integer, minimum: 0 }
+        url: { type: string, format: uri, description: The file at that commit on GitHub. }
 
     # ---------- webhook deliveries ----------
     WebhookDeliveryResponse:

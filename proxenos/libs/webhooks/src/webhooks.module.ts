@@ -5,6 +5,7 @@ import { InstallationsModule } from '@proxenos/installations';
 import { RepositoriesModule } from '@proxenos/repositories';
 
 import { IssueEventsService } from './issue-events.service.js';
+import { PushEventsService } from './push-events.service.js';
 import { WebhookDeliveryEntity } from './webhook-delivery.entity.js';
 import {
   WebhookDeliveriesController,
@@ -25,6 +26,6 @@ import { WebhooksService } from './webhooks.service.js';
     RepositoriesModule,
   ],
   controllers: [WebhooksController, WebhookDeliveriesController],
-  providers: [WebhooksService, IssueEventsService],
+  providers: [WebhooksService, IssueEventsService, PushEventsService],
 })
 export class WebhooksModule {}
