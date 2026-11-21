@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Agora events
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Events Agora publishes to the `agora.events` topic exchange on RabbitMQ;
     the routing key is the event type. Every message is the Krepis
@@ -10,14 +10,16 @@ info:
 
     Delivery is at least once (transactional outbox and relay): deduplicate
     on `eventId`. Agents' events have the agent as their aggregate, skills'
-    the skill, and its `aggregateVersion` grows by one with each change (its
+    the skill, councils' the council, and its `aggregateVersion` grows by one with each change (its
     creation is 1), so a consumer can tell an old event from a newer one.
 
     Hephaestus keeps a copy of agents and their published versions, and of
     skills and their versions, from these events, to create and run tasks
     with. Versions are immutable, so `agent-version.published` and
     `skill-version.published` carry the whole version (a skill version's
-    files too: at most 1 MiB).
+    files too: at most 1 MiB). It keeps councils and their published versions
+    too (`../docs/councils.md`), for the sessions it will run with them;
+    `council-version.published` carries the whole version.
 
 defaultContentType: application/json
 
@@ -47,6 +49,10 @@ channels:
       skillCreated: { $ref: '#/components/messages/skillCreated' }
       skillArchived: { $ref: '#/components/messages/skillArchived' }
       skillVersionPublished: { $ref: '#/components/messages/skillVersionPublished' }
+      councilCreated: { $ref: '#/components/messages/councilCreated' }
+      councilArchived: { $ref: '#/components/messages/councilArchived' }
+      councilVersionPublished: { $ref: '#/components/messages/councilVersionPublished' }
+      councilVersionDeprecated: { $ref: '#/components/messages/councilVersionDeprecated' }
 
 operations:
   publishAgoraEvents:
@@ -60,6 +66,10 @@ operations:
       - $ref: '#/channels/agoraEvents/messages/skillCreated'
       - $ref: '#/channels/agoraEvents/messages/skillArchived'
       - $ref: '#/channels/agoraEvents/messages/skillVersionPublished'
+      - $ref: '#/channels/agoraEvents/messages/councilCreated'
+      - $ref: '#/channels/agoraEvents/messages/councilArchived'
+      - $ref: '#/channels/agoraEvents/messages/councilVersionPublished'
+      - $ref: '#/channels/agoraEvents/messages/councilVersionDeprecated'
 
 components:
   messages:
@@ -123,6 +133,46 @@ components:
             properties:
               eventType: { const: skill.archived }
               payload: { $ref: '#/components/schemas/SkillArchived' }
+    councilCreated:
+      name: council.created
+      summary: A council was created, without a version yet (Hephaestus's copy).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: council.created }
+              payload: { $ref: '#/components/schemas/CouncilCreated' }
+    councilArchived:
+      name: council.archived
+      summary: A council was archived; no new sessions start with it.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: council.archived }
+              payload: { $ref: '#/components/schemas/CouncilArchived' }
+    councilVersionPublished:
+      name: council-version.published
+      summary: A version became the council's published one; new sessions use it (Hephaestus's copy).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: council-version.published }
+              payload: { $ref: '#/components/schemas/CouncilVersionPublished' }
+    councilVersionDeprecated:
+      name: council-version.deprecated
+      summary: A published council version was replaced by a newer one.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: council-version.deprecated }
+              payload: { $ref: '#/components/schemas/CouncilVersionDeprecated' }
     skillVersionPublished:
       name: skill-version.published
       summary: A skill got a new version, with its files; agent versions can pin it (Hephaestus's copy, Kriterion).
@@ -162,6 +212,89 @@ components:
                 sub: { type: string }
                 sub_type: { enum: [user, service_account, service] }
         payload: { type: object }
+    CouncilCreated:
+      type: object
+      additionalProperties: false
+      required: [councilId, key, name, description, createdBy, createdAt]
+      properties:
+        councilId: { $ref: '#/components/schemas/Uuid' }
+        key: { type: string }
+        name: { type: string }
+        description: { type: string }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+    CouncilArchived:
+      type: object
+      additionalProperties: false
+      required: [councilId]
+      properties:
+        councilId: { $ref: '#/components/schemas/Uuid' }
+    CouncilVersionPublished:
+      type: object
+      additionalProperties: false
+      required: [councilId, councilVersionId, previousVersionId, version]
+      properties:
+        councilId: { $ref: '#/components/schemas/Uuid' }
+        councilVersionId: { $ref: '#/components/schemas/Uuid' }
+        previousVersionId:
+          description: The version it replaced, now deprecated (`council-version.deprecated` follows); null for the first.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        version: { $ref: '#/components/schemas/CouncilVersion' }
+    CouncilVersionDeprecated:
+      type: object
+      additionalProperties: false
+      required: [councilId, councilVersionId]
+      properties:
+        councilId: { $ref: '#/components/schemas/Uuid' }
+        councilVersionId: { $ref: '#/components/schemas/Uuid' }
+    CouncilVersion:
+      type: object
+      description: The whole version, as `CouncilVersionResponse` in `agora.openapi.yaml` (immutable once created).
+      additionalProperties: false
+      required: [id, councilId, organizationId, version, status, facilitator, members, settings, discussion, createdBy, createdAt, publishedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        councilId: { $ref: '#/components/schemas/Uuid' }
+        organizationId: { $ref: '#/components/schemas/Uuid' }
+        version: { type: integer, minimum: 1 }
+        status: { enum: [draft, published, deprecated] }
+        facilitator:
+          type: object
+          required: [agentId]
+          properties:
+            agentId: { $ref: '#/components/schemas/Uuid' }
+        members:
+          type: array
+          items:
+            type: object
+            required: [agentId, participation]
+            properties:
+              agentId: { $ref: '#/components/schemas/Uuid' }
+              participation: { enum: [required, conditional, optional] }
+              when: { type: string }
+              role: { type: string }
+        settings:
+          type: object
+          required: [defaultMode, allowDirectInteraction, allowDiscussion, allowPlanning, allowDelegation, requireSynthesis]
+          properties:
+            defaultMode: { enum: [direct, facilitated, discussion, planning, delegation] }
+            allowDirectInteraction: { type: boolean }
+            allowDiscussion: { type: boolean }
+            allowPlanning: { type: boolean }
+            allowDelegation: { type: boolean }
+            requireSynthesis: { type: boolean }
+        discussion:
+          type: object
+          required: [maxRounds, allowAgentResponses, requireFacilitatorConclusion]
+          properties:
+            maxRounds: { type: integer, minimum: 1 }
+            allowAgentResponses: { type: boolean }
+            requireFacilitatorConclusion: { type: boolean }
+        createdBy: { type: string }
+        createdAt: { type: string, format: date-time }
+        publishedAt: { type: [string, 'null'], format: date-time }
     AgentCreated:
       type: object
       additionalProperties: false

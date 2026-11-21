@@ -32,6 +32,10 @@ const ORGANIZATION_PERMISSIONS = {
   'agent:read': ['owner', 'admin', 'member', 'viewer'],
   'agent:write': ['owner', 'admin', 'member'],
   'agent:publish': ['owner', 'admin'],
+  // Councils in Agora (docs/councils.md): the same roles as agents.
+  'council:read': ['owner', 'admin', 'member', 'viewer'],
+  'council:write': ['owner', 'admin', 'member'],
+  'council:publish': ['owner', 'admin'],
   'org:task-template:manage': ['owner', 'admin'],
   'org:policy:write': ['owner', 'admin'],
   'org:secret:write': ['owner', 'admin'],

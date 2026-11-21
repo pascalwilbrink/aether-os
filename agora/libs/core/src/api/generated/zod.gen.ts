@@ -6,6 +6,11 @@ export const zDomainErrorCode = z.enum([
   'AGENT_ARCHIVED',
   'AGENT_VERSION_CONFLICT',
   'AGENT_VERSION_INVALID_TRANSITION',
+  'COUNCIL_ALREADY_EXISTS',
+  'COUNCIL_ARCHIVED',
+  'COUNCIL_VERSION_CONFLICT',
+  'COUNCIL_VERSION_INVALID',
+  'COUNCIL_VERSION_INVALID_TRANSITION',
   'MODEL_NOT_AVAILABLE',
   'ORGANIZATION_SUSPENDED',
   'SKILL_ALREADY_EXISTS',
@@ -181,6 +186,131 @@ export const zSkillVersionResponse = z.object({
   createdAt: zTimestamp,
 });
 
+export const zCouncilStatus = z.enum(['active', 'archived']);
+
+/**
+ * Lowercase letters, digits and hyphens, starting with a letter; unique in the organization.
+ */
+export const zCouncilKey = z.string().regex(/^[a-z][a-z0-9-]{0,62}$/);
+
+export const zCreateCouncilRequest = z.object({
+  key: zCouncilKey,
+  name: z.string().min(1).max(200),
+  description: z.string().max(2000),
+});
+
+export const zCouncilResponse = z.object({
+  id: z.uuid(),
+  organizationId: z.uuid(),
+  key: zCouncilKey,
+  name: z.string(),
+  description: z.string(),
+  status: zCouncilStatus,
+  latestVersionId: z.uuid().nullable(),
+  createdBy: z.string(),
+  createdAt: zTimestamp,
+  updatedAt: zTimestamp,
+});
+
+export const zCouncilVersionStatus = z.enum([
+  'draft',
+  'published',
+  'deprecated',
+]);
+
+/**
+ * How a session works together (`../docs/councils.md`, Collaboration
+ * modes): `direct` (a person addresses one member), `facilitated`
+ * (always allowed), `discussion` (deliberation rounds), `planning`,
+ * `delegation`.
+ *
+ */
+export const zCouncilMode = z.enum([
+  'direct',
+  'facilitated',
+  'discussion',
+  'planning',
+  'delegation',
+]);
+
+/**
+ * `required`: always takes part; `conditional`: when the facilitator judges `when` applies; `optional`: only when invited.
+ */
+export const zCouncilParticipation = z.enum([
+  'required',
+  'conditional',
+  'optional',
+]);
+
+export const zCouncilFacilitator = z.object({
+  agentId: z.uuid(),
+});
+
+export const zCouncilMember = z.object({
+  agentId: z.uuid(),
+  participation: zCouncilParticipation,
+  when: z.string().min(1).max(1000).optional(),
+  role: z.string().min(1).max(1000).optional(),
+});
+
+/**
+ * Every field optional; a missing one takes its default.
+ */
+export const zCouncilSettingsRequest = z.object({
+  defaultMode: zCouncilMode.optional(),
+  allowDirectInteraction: z.boolean().optional(),
+  allowDiscussion: z.boolean().optional(),
+  allowPlanning: z.boolean().optional(),
+  allowDelegation: z.boolean().optional(),
+  requireSynthesis: z.boolean().optional(),
+});
+
+export const zCouncilSettings = z.object({
+  defaultMode: zCouncilMode,
+  allowDirectInteraction: z.boolean(),
+  allowDiscussion: z.boolean(),
+  allowPlanning: z.boolean(),
+  allowDelegation: z.boolean(),
+  requireSynthesis: z.boolean(),
+});
+
+/**
+ * Every field optional; a missing one takes its default.
+ */
+export const zCouncilDiscussionRequest = z.object({
+  maxRounds: z.int().gte(1).lte(10).optional(),
+  allowAgentResponses: z.boolean().optional(),
+  requireFacilitatorConclusion: z.boolean().optional(),
+});
+
+export const zCouncilDiscussion = z.object({
+  maxRounds: z.int().gte(1).lte(10),
+  allowAgentResponses: z.boolean(),
+  requireFacilitatorConclusion: z.boolean(),
+});
+
+export const zCreateCouncilVersionRequest = z.object({
+  facilitator: zCouncilFacilitator,
+  members: z.array(zCouncilMember).min(1).max(12),
+  settings: zCouncilSettingsRequest.optional(),
+  discussion: zCouncilDiscussionRequest.optional(),
+});
+
+export const zCouncilVersionResponse = z.object({
+  id: z.uuid(),
+  councilId: z.uuid(),
+  organizationId: z.uuid(),
+  version: z.int().gte(1),
+  status: zCouncilVersionStatus,
+  facilitator: zCouncilFacilitator,
+  members: z.array(zCouncilMember),
+  settings: zCouncilSettings,
+  discussion: zCouncilDiscussion,
+  createdBy: z.string(),
+  createdAt: zTimestamp,
+  publishedAt: z.iso.datetime().nullable(),
+});
+
 /**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
@@ -211,6 +341,18 @@ export const zSkillPage = zPageMeta.and(
 export const zSkillVersionPage = zPageMeta.and(
   z.object({
     items: z.array(zSkillVersionResponse),
+  }),
+);
+
+export const zCouncilPage = zPageMeta.and(
+  z.object({
+    items: z.array(zCouncilResponse),
+  }),
+);
+
+export const zCouncilVersionPage = zPageMeta.and(
+  z.object({
+    items: z.array(zCouncilVersionResponse),
   }),
 );
 
@@ -257,6 +399,8 @@ export const zOrganizationId = z.uuid();
 export const zAgentId = z.uuid();
 
 export const zVersionId = z.uuid();
+
+export const zCouncilId = z.uuid();
 
 export const zSkillId = z.uuid();
 
@@ -463,3 +607,97 @@ export const zGetSkillVersionPath = z.object({
  * OK
  */
 export const zGetSkillVersionResponse = zSkillVersionResponse;
+
+export const zListCouncilsPath = z.object({
+  organizationId: z.uuid(),
+});
+
+export const zListCouncilsQuery = z.object({
+  limit: z.int().gte(1).lte(100).optional().default(50),
+  cursor: z.string().min(1).max(1024).optional(),
+});
+
+/**
+ * Newest first
+ */
+export const zListCouncilsResponse = zCouncilPage;
+
+export const zCreateCouncilBody = zCreateCouncilRequest;
+
+export const zCreateCouncilPath = z.object({
+  organizationId: z.uuid(),
+});
+
+/**
+ * Created
+ */
+export const zCreateCouncilResponse = zCouncilResponse;
+
+export const zGetCouncilPath = z.object({
+  organizationId: z.uuid(),
+  councilId: z.uuid(),
+});
+
+/**
+ * OK
+ */
+export const zGetCouncilResponse = zCouncilResponse;
+
+export const zArchiveCouncilPath = z.object({
+  organizationId: z.uuid(),
+  councilId: z.uuid(),
+});
+
+/**
+ * Archived (or already archived)
+ */
+export const zArchiveCouncilResponse = zCouncilResponse;
+
+export const zListCouncilVersionsPath = z.object({
+  organizationId: z.uuid(),
+  councilId: z.uuid(),
+});
+
+export const zListCouncilVersionsQuery = z.object({
+  limit: z.int().gte(1).lte(100).optional().default(50),
+  cursor: z.string().min(1).max(1024).optional(),
+});
+
+/**
+ * Highest version first
+ */
+export const zListCouncilVersionsResponse = zCouncilVersionPage;
+
+export const zCreateCouncilVersionBody = zCreateCouncilVersionRequest;
+
+export const zCreateCouncilVersionPath = z.object({
+  organizationId: z.uuid(),
+  councilId: z.uuid(),
+});
+
+/**
+ * Created
+ */
+export const zCreateCouncilVersionResponse = zCouncilVersionResponse;
+
+export const zGetCouncilVersionPath = z.object({
+  organizationId: z.uuid(),
+  councilId: z.uuid(),
+  versionId: z.uuid(),
+});
+
+/**
+ * OK
+ */
+export const zGetCouncilVersionResponse = zCouncilVersionResponse;
+
+export const zPublishCouncilVersionPath = z.object({
+  organizationId: z.uuid(),
+  councilId: z.uuid(),
+  versionId: z.uuid(),
+});
+
+/**
+ * Published
+ */
+export const zPublishCouncilVersionResponse = zCouncilVersionResponse;

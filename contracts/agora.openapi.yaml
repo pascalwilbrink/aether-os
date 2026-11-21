@@ -1,11 +1,13 @@
 openapi: 3.1.0
 info:
   title: Agora API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Agent management for Aether-os: agents and their immutable versions
-    (instructions, model, tools, skills, capabilities, runtime), and the
-    organization's skills (Agent Skills folders) that versions pin. A version
+    (instructions, model, tools, skills, capabilities, runtime), the
+    organization's skills (Agent Skills folders) that versions pin, and
+    councils (`../docs/councils.md`): virtual teams of the organization's
+    agents, a facilitator and members, with immutable versions too. A version
     moves draft → published → deprecated, and only one version of an agent
     is published at a time. Source of truth for Agora's HTTP contract; Agora
     and Iris generate their types from this file.
@@ -35,6 +37,7 @@ tags:
   - name: agents
   - name: agent-versions
   - name: skills
+  - name: councils
 
 paths:
   /v1/organizations/{organizationId}/agents:
@@ -389,6 +392,190 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1/organizations/{organizationId}/councils:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [councils]
+      operationId: createCouncil
+      x-permission: '`council:write`'
+      description: |
+        Creates a council, without a version yet. Its `key` is unique in the
+        organization (`COUNCIL_ALREADY_EXISTS`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCouncilRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouncilResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    get:
+      tags: [councils]
+      operationId: listCouncils
+      x-permission: '`council:read`'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouncilPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/councils/{councilId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/CouncilId'
+    get:
+      tags: [councils]
+      operationId: getCouncil
+      x-permission: '`council:read`'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouncilResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/councils/{councilId}/archive:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/CouncilId'
+    post:
+      tags: [councils]
+      operationId: archiveCouncil
+      x-permission: '`council:write`'
+      description: No new versions or sessions; archiving an archived council returns it unchanged.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Archived (or already archived)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouncilResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/councils/{councilId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/CouncilId'
+    post:
+      tags: [councils]
+      operationId: createCouncilVersion
+      x-permission: '`council:write`'
+      description: |
+        Creates a draft version (numbered by the server). Its facilitator and
+        members are agents of the organization, referenced by ID: each must
+        exist, be active and have a published version; the facilitator isn't
+        also a member, and each agent is a member once; a `conditional`
+        member says `when` it takes part; `settings.defaultMode` is a mode
+        the settings allow (`COUNCIL_VERSION_INVALID` otherwise).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCouncilVersionRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouncilVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    get:
+      tags: [councils]
+      operationId: listCouncilVersions
+      x-permission: '`council:read`'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Highest version first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouncilVersionPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/councils/{councilId}/versions/{versionId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/CouncilId'
+      - $ref: '#/components/parameters/VersionId'
+    get:
+      tags: [councils]
+      operationId: getCouncilVersion
+      x-permission: '`council:read`'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouncilVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/councils/{councilId}/versions/{versionId}/publish:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/CouncilId'
+      - $ref: '#/components/parameters/VersionId'
+    post:
+      tags: [councils]
+      operationId: publishCouncilVersion
+      x-permission: '`council:publish`'
+      description: |
+        Publishes a draft and deprecates the previously published version.
+        Its agents are checked again (one may have been archived since the
+        draft was made: `COUNCIL_VERSION_INVALID`). Publishing the published
+        version returns it unchanged; a deprecated version can't be published
+        again (409).
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Published
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouncilVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
 components:
   parameters:
     OrganizationId:
@@ -403,6 +590,11 @@ components:
       schema: { type: string, format: uuid }
     VersionId:
       name: versionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CouncilId:
+      name: councilId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -441,6 +633,11 @@ components:
         - AGENT_ARCHIVED
         - AGENT_VERSION_CONFLICT
         - AGENT_VERSION_INVALID_TRANSITION
+        - COUNCIL_ALREADY_EXISTS
+        - COUNCIL_ARCHIVED
+        - COUNCIL_VERSION_CONFLICT
+        - COUNCIL_VERSION_INVALID
+        - COUNCIL_VERSION_INVALID_TRANSITION
         - MODEL_NOT_AVAILABLE
         - ORGANIZATION_SUSPENDED
         - SKILL_ALREADY_EXISTS
@@ -731,3 +928,162 @@ components:
             items:
               type: array
               items: { $ref: '#/components/schemas/SkillVersionResponse' }
+
+    # ---------- councils (../docs/councils.md) ----------
+    CouncilStatus:
+      type: string
+      enum: [active, archived]
+    CouncilKey:
+      type: string
+      description: Lowercase letters, digits and hyphens, starting with a letter; unique in the organization.
+      pattern: '^[a-z][a-z0-9-]{0,62}$'
+    CreateCouncilRequest:
+      type: object
+      additionalProperties: false
+      required: [key, name, description]
+      properties:
+        key: { $ref: '#/components/schemas/CouncilKey' }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+    CouncilResponse:
+      type: object
+      required: [id, organizationId, key, name, description, status, latestVersionId, createdBy, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        key: { $ref: '#/components/schemas/CouncilKey' }
+        name: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/CouncilStatus' }
+        latestVersionId:
+          type: [string, 'null']
+          format: uuid
+          description: The currently published version, if any.
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    CouncilPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/CouncilResponse' }
+    CouncilVersionStatus:
+      type: string
+      enum: [draft, published, deprecated]
+    CouncilMode:
+      type: string
+      enum: [direct, facilitated, discussion, planning, delegation]
+      description: |
+        How a session works together (`../docs/councils.md`, Collaboration
+        modes): `direct` (a person addresses one member), `facilitated`
+        (always allowed), `discussion` (deliberation rounds), `planning`,
+        `delegation`.
+    CouncilParticipation:
+      type: string
+      enum: [required, conditional, optional]
+      description: '`required`: always takes part; `conditional`: when the facilitator judges `when` applies; `optional`: only when invited.'
+    CouncilFacilitator:
+      type: object
+      additionalProperties: false
+      required: [agentId]
+      properties:
+        agentId: { type: string, format: uuid, description: An agent of the organization. }
+    CouncilMember:
+      type: object
+      additionalProperties: false
+      required: [agentId, participation]
+      properties:
+        agentId: { type: string, format: uuid, description: An agent of the organization. }
+        participation: { $ref: '#/components/schemas/CouncilParticipation' }
+        when:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: When a `conditional` member takes part (required for one).
+        role:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: What the member is there for in this council; adds to the agent's own instructions in a session.
+    CouncilSettingsRequest:
+      type: object
+      additionalProperties: false
+      description: Every field optional; a missing one takes its default.
+      properties:
+        defaultMode: { $ref: '#/components/schemas/CouncilMode', description: 'Default `facilitated`.' }
+        allowDirectInteraction: { type: boolean, description: Default true. }
+        allowDiscussion: { type: boolean, description: Default true. }
+        allowPlanning: { type: boolean, description: Default true. }
+        allowDelegation: { type: boolean, description: Default false. }
+        requireSynthesis: { type: boolean, description: Default true. }
+    CouncilSettings:
+      type: object
+      required: [defaultMode, allowDirectInteraction, allowDiscussion, allowPlanning, allowDelegation, requireSynthesis]
+      properties:
+        defaultMode: { $ref: '#/components/schemas/CouncilMode' }
+        allowDirectInteraction: { type: boolean }
+        allowDiscussion: { type: boolean }
+        allowPlanning: { type: boolean }
+        allowDelegation: { type: boolean }
+        requireSynthesis: { type: boolean }
+    CouncilDiscussionRequest:
+      type: object
+      additionalProperties: false
+      description: Every field optional; a missing one takes its default.
+      properties:
+        maxRounds: { type: integer, minimum: 1, maximum: 10, description: Default 3. }
+        allowAgentResponses: { type: boolean, description: 'Default true: later participants in a round see earlier answers.' }
+        requireFacilitatorConclusion: { type: boolean, description: Default true. }
+    CouncilDiscussion:
+      type: object
+      required: [maxRounds, allowAgentResponses, requireFacilitatorConclusion]
+      properties:
+        maxRounds: { type: integer, minimum: 1, maximum: 10 }
+        allowAgentResponses: { type: boolean }
+        requireFacilitatorConclusion: { type: boolean }
+    CreateCouncilVersionRequest:
+      type: object
+      additionalProperties: false
+      required: [facilitator, members]
+      properties:
+        facilitator: { $ref: '#/components/schemas/CouncilFacilitator' }
+        members:
+          type: array
+          minItems: 1
+          maxItems: 12
+          items: { $ref: '#/components/schemas/CouncilMember' }
+        settings: { $ref: '#/components/schemas/CouncilSettingsRequest' }
+        discussion: { $ref: '#/components/schemas/CouncilDiscussionRequest' }
+    CouncilVersionResponse:
+      type: object
+      required: [id, councilId, organizationId, version, status, facilitator, members, settings, discussion, createdBy, createdAt, publishedAt]
+      properties:
+        id: { type: string, format: uuid }
+        councilId: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        version: { type: integer, minimum: 1 }
+        status: { $ref: '#/components/schemas/CouncilVersionStatus' }
+        facilitator: { $ref: '#/components/schemas/CouncilFacilitator' }
+        members:
+          type: array
+          items: { $ref: '#/components/schemas/CouncilMember' }
+        settings: { $ref: '#/components/schemas/CouncilSettings' }
+        discussion: { $ref: '#/components/schemas/CouncilDiscussion' }
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        publishedAt:
+          type: [string, 'null']
+          format: date-time
+    CouncilVersionPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/CouncilVersionResponse' }

@@ -10,6 +10,11 @@ export type DomainErrorCode =
   | 'AGENT_ARCHIVED'
   | 'AGENT_VERSION_CONFLICT'
   | 'AGENT_VERSION_INVALID_TRANSITION'
+  | 'COUNCIL_ALREADY_EXISTS'
+  | 'COUNCIL_ARCHIVED'
+  | 'COUNCIL_VERSION_CONFLICT'
+  | 'COUNCIL_VERSION_INVALID'
+  | 'COUNCIL_VERSION_INVALID_TRANSITION'
   | 'MODEL_NOT_AVAILABLE'
   | 'ORGANIZATION_SUSPENDED'
   | 'SKILL_ALREADY_EXISTS'
@@ -224,6 +229,168 @@ export type SkillVersionPage = PageMeta & {
   items: Array<SkillVersionResponse>;
 };
 
+export type CouncilStatus = 'active' | 'archived';
+
+/**
+ * Lowercase letters, digits and hyphens, starting with a letter; unique in the organization.
+ */
+export type CouncilKey = string;
+
+export type CreateCouncilRequest = {
+  key: CouncilKey;
+  name: string;
+  description: string;
+};
+
+export type CouncilResponse = {
+  id: string;
+  organizationId: string;
+  key: CouncilKey;
+  name: string;
+  description: string;
+  status: CouncilStatus;
+  /**
+   * The currently published version, if any.
+   */
+  latestVersionId: string | null;
+  createdBy: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+};
+
+export type CouncilPage = PageMeta & {
+  items: Array<CouncilResponse>;
+};
+
+export type CouncilVersionStatus = 'draft' | 'published' | 'deprecated';
+
+/**
+ * How a session works together (`../docs/councils.md`, Collaboration
+ * modes): `direct` (a person addresses one member), `facilitated`
+ * (always allowed), `discussion` (deliberation rounds), `planning`,
+ * `delegation`.
+ *
+ */
+export type CouncilMode =
+  'direct' | 'facilitated' | 'discussion' | 'planning' | 'delegation';
+
+/**
+ * `required`: always takes part; `conditional`: when the facilitator judges `when` applies; `optional`: only when invited.
+ */
+export type CouncilParticipation = 'required' | 'conditional' | 'optional';
+
+export type CouncilFacilitator = {
+  /**
+   * An agent of the organization.
+   */
+  agentId: string;
+};
+
+export type CouncilMember = {
+  /**
+   * An agent of the organization.
+   */
+  agentId: string;
+  participation: CouncilParticipation;
+  /**
+   * When a `conditional` member takes part (required for one).
+   */
+  when?: string;
+  /**
+   * What the member is there for in this council; adds to the agent's own instructions in a session.
+   */
+  role?: string;
+};
+
+/**
+ * Every field optional; a missing one takes its default.
+ */
+export type CouncilSettingsRequest = {
+  /**
+   * Default `facilitated`.
+   */
+  defaultMode?: CouncilMode;
+  /**
+   * Default true.
+   */
+  allowDirectInteraction?: boolean;
+  /**
+   * Default true.
+   */
+  allowDiscussion?: boolean;
+  /**
+   * Default true.
+   */
+  allowPlanning?: boolean;
+  /**
+   * Default false.
+   */
+  allowDelegation?: boolean;
+  /**
+   * Default true.
+   */
+  requireSynthesis?: boolean;
+};
+
+export type CouncilSettings = {
+  defaultMode: CouncilMode;
+  allowDirectInteraction: boolean;
+  allowDiscussion: boolean;
+  allowPlanning: boolean;
+  allowDelegation: boolean;
+  requireSynthesis: boolean;
+};
+
+/**
+ * Every field optional; a missing one takes its default.
+ */
+export type CouncilDiscussionRequest = {
+  /**
+   * Default 3.
+   */
+  maxRounds?: number;
+  /**
+   * Default true: later participants in a round see earlier answers.
+   */
+  allowAgentResponses?: boolean;
+  /**
+   * Default true.
+   */
+  requireFacilitatorConclusion?: boolean;
+};
+
+export type CouncilDiscussion = {
+  maxRounds: number;
+  allowAgentResponses: boolean;
+  requireFacilitatorConclusion: boolean;
+};
+
+export type CreateCouncilVersionRequest = {
+  facilitator: CouncilFacilitator;
+  members: Array<CouncilMember>;
+  settings?: CouncilSettingsRequest;
+  discussion?: CouncilDiscussionRequest;
+};
+
+export type CouncilVersionResponse = {
+  id: string;
+  councilId: string;
+  organizationId: string;
+  version: number;
+  status: CouncilVersionStatus;
+  facilitator: CouncilFacilitator;
+  members: Array<CouncilMember>;
+  settings: CouncilSettings;
+  discussion: CouncilDiscussion;
+  createdBy: string;
+  createdAt: Timestamp;
+  publishedAt: string | null;
+};
+
+export type CouncilVersionPage = PageMeta & {
+  items: Array<CouncilVersionResponse>;
+};
+
 /**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
@@ -295,6 +462,8 @@ export type OrganizationId = string;
 export type AgentId = string;
 
 export type VersionId = string;
+
+export type CouncilId = string;
 
 export type SkillId = string;
 
@@ -1194,3 +1363,455 @@ export type GetSkillVersionResponses = {
 
 export type GetSkillVersionResponse =
   GetSkillVersionResponses[keyof GetSkillVersionResponses];
+
+export type ListCouncilsData = {
+  body?: never;
+  path: {
+    organizationId: string;
+  };
+  query?: {
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+  };
+  url: '/v1/organizations/{organizationId}/councils';
+};
+
+export type ListCouncilsErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type ListCouncilsError = ListCouncilsErrors[keyof ListCouncilsErrors];
+
+export type ListCouncilsResponses = {
+  /**
+   * Newest first
+   */
+  200: CouncilPage;
+};
+
+export type ListCouncilsResponse =
+  ListCouncilsResponses[keyof ListCouncilsResponses];
+
+export type CreateCouncilData = {
+  body: CreateCouncilRequest;
+  path: {
+    organizationId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/councils';
+};
+
+export type CreateCouncilErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type CreateCouncilError = CreateCouncilErrors[keyof CreateCouncilErrors];
+
+export type CreateCouncilResponses = {
+  /**
+   * Created
+   */
+  201: CouncilResponse;
+};
+
+export type CreateCouncilResponse =
+  CreateCouncilResponses[keyof CreateCouncilResponses];
+
+export type GetCouncilData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    councilId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/councils/{councilId}';
+};
+
+export type GetCouncilErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type GetCouncilError = GetCouncilErrors[keyof GetCouncilErrors];
+
+export type GetCouncilResponses = {
+  /**
+   * OK
+   */
+  200: CouncilResponse;
+};
+
+export type GetCouncilResponse = GetCouncilResponses[keyof GetCouncilResponses];
+
+export type ArchiveCouncilData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    councilId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/councils/{councilId}/archive';
+};
+
+export type ArchiveCouncilErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type ArchiveCouncilError =
+  ArchiveCouncilErrors[keyof ArchiveCouncilErrors];
+
+export type ArchiveCouncilResponses = {
+  /**
+   * Archived (or already archived)
+   */
+  200: CouncilResponse;
+};
+
+export type ArchiveCouncilResponse =
+  ArchiveCouncilResponses[keyof ArchiveCouncilResponses];
+
+export type ListCouncilVersionsData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    councilId: string;
+  };
+  query?: {
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+  };
+  url: '/v1/organizations/{organizationId}/councils/{councilId}/versions';
+};
+
+export type ListCouncilVersionsErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type ListCouncilVersionsError =
+  ListCouncilVersionsErrors[keyof ListCouncilVersionsErrors];
+
+export type ListCouncilVersionsResponses = {
+  /**
+   * Highest version first
+   */
+  200: CouncilVersionPage;
+};
+
+export type ListCouncilVersionsResponse =
+  ListCouncilVersionsResponses[keyof ListCouncilVersionsResponses];
+
+export type CreateCouncilVersionData = {
+  body: CreateCouncilVersionRequest;
+  path: {
+    organizationId: string;
+    councilId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/councils/{councilId}/versions';
+};
+
+export type CreateCouncilVersionErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type CreateCouncilVersionError =
+  CreateCouncilVersionErrors[keyof CreateCouncilVersionErrors];
+
+export type CreateCouncilVersionResponses = {
+  /**
+   * Created
+   */
+  201: CouncilVersionResponse;
+};
+
+export type CreateCouncilVersionResponse =
+  CreateCouncilVersionResponses[keyof CreateCouncilVersionResponses];
+
+export type GetCouncilVersionData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    councilId: string;
+    versionId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/councils/{councilId}/versions/{versionId}';
+};
+
+export type GetCouncilVersionErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type GetCouncilVersionError =
+  GetCouncilVersionErrors[keyof GetCouncilVersionErrors];
+
+export type GetCouncilVersionResponses = {
+  /**
+   * OK
+   */
+  200: CouncilVersionResponse;
+};
+
+export type GetCouncilVersionResponse =
+  GetCouncilVersionResponses[keyof GetCouncilVersionResponses];
+
+export type PublishCouncilVersionData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    councilId: string;
+    versionId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/councils/{councilId}/versions/{versionId}/publish';
+};
+
+export type PublishCouncilVersionErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type PublishCouncilVersionError =
+  PublishCouncilVersionErrors[keyof PublishCouncilVersionErrors];
+
+export type PublishCouncilVersionResponses = {
+  /**
+   * Published
+   */
+  200: CouncilVersionResponse;
+};
+
+export type PublishCouncilVersionResponse =
+  PublishCouncilVersionResponses[keyof PublishCouncilVersionResponses];
