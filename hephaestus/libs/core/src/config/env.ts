@@ -161,6 +161,12 @@ export const zEnv = z.object({
    * sandboxes are kept. Without it agents have no `submit_file`.
    */
   LOCULUS_URL: z.url({ protocol: /^https?$/ }).optional(),
+  /**
+   * Seshat's API (docs/knowledge.md): the agents' knowledge tools (search,
+   * read and propose the project's knowledge, with the task token). Without
+   * it agents have none.
+   */
+  SESHAT_URL: z.url({ protocol: /^https?$/ }).optional(),
   /** The largest file a task starts from, or an agent submits from its sandbox. */
   TASK_FILE_MAX_BYTES: z.coerce
     .number()
