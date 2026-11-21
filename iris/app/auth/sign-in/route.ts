@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { config } from "@/lib/config";
 import { startSignIn } from "@/lib/auth/oidc";
+import { isRunning } from "@/lib/services";
 import {
   cookieOptions,
   safeReturnTo,
@@ -26,7 +27,18 @@ export async function GET(request: NextRequest) {
       (organizationId ? `/orgs/${organizationId}` : "/"),
   );
 
-  const { url, pending } = await startSignIn(organizationId, returnTo);
+  let started: Awaited<ReturnType<typeof startSignIn>>;
+  try {
+    started = await startSignIn(organizationId, returnTo);
+  } catch (error) {
+    // Pistis's metadata couldn't be read: usually Pistis isn't up yet.
+    console.error("Starting a sign-in failed", error);
+    const reason = (await isRunning(config.pistisUrl))
+      ? "sign-in-failed"
+      : "pistis-unavailable";
+    return NextResponse.redirect(new URL(`/?error=${reason}`, config.url));
+  }
+  const { url, pending } = started;
   const response = NextResponse.redirect(url);
   response.cookies.set(
     SIGN_IN_COOKIE,
