@@ -13,6 +13,7 @@ import {
   type Env,
 } from '@agora/core';
 import { AgentsModule } from '@agora/agents';
+import { CouncilsModule } from '@agora/councils';
 import { SkillsModule } from '@agora/skills';
 
 // Validation, the /v1 prefix and problem details: configureHttpApp (server.ts).
@@ -59,6 +60,7 @@ import { SkillsModule } from '@agora/skills';
     }),
     AgoraEventsModule,
     AgentsModule,
+    CouncilsModule,
     SkillsModule,
   ],
 })

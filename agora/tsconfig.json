@@ -46,6 +46,12 @@
       ],
       "@agora/agents/*": [
         "./libs/agents/src/*"
+      ],
+      "@agora/councils": [
+        "./libs/councils/src/index.ts"
+      ],
+      "@agora/councils/*": [
+        "./libs/councils/src/*"
       ]
     },
     "rewriteRelativeImportExtensions": true

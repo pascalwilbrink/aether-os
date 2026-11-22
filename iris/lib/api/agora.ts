@@ -1,7 +1,15 @@
 import "server-only";
 
 import { config } from "../config";
-import type { Agent, AgentVersion, AgoraSchema, Skill, SkillVersion } from "./index";
+import type {
+  Agent,
+  AgentVersion,
+  AgoraSchema,
+  Council,
+  CouncilVersion,
+  Skill,
+  SkillVersion,
+} from "./index";
 import { call, type Page } from "./http";
 
 const agora = <T>(
@@ -146,4 +154,69 @@ export const createSkillVersion = (
     `${skillsOf(organizationId)}/${skillId}/versions`,
     token,
     { method: "POST", body },
+  );
+
+// --- Councils and their versions (docs/councils.md) ---
+
+const councilsOf = (organizationId: string) =>
+  `/v1/organizations/${organizationId}/councils`;
+
+export const listCouncils = (token: string, organizationId: string) =>
+  agora<Page<Council>>(`${councilsOf(organizationId)}?limit=100`, token);
+
+export const getCouncil = (
+  token: string,
+  organizationId: string,
+  councilId: string,
+) => agora<Council>(`${councilsOf(organizationId)}/${councilId}`, token);
+
+export const createCouncil = (
+  token: string,
+  organizationId: string,
+  body: AgoraSchema<"CreateCouncilRequest">,
+) =>
+  agora<Council>(councilsOf(organizationId), token, { method: "POST", body });
+
+export const archiveCouncil = (
+  token: string,
+  organizationId: string,
+  councilId: string,
+) =>
+  agora<Council>(`${councilsOf(organizationId)}/${councilId}/archive`, token, {
+    method: "POST",
+  });
+
+/** Highest version first. */
+export const listCouncilVersions = (
+  token: string,
+  organizationId: string,
+  councilId: string,
+) =>
+  agora<Page<CouncilVersion>>(
+    `${councilsOf(organizationId)}/${councilId}/versions?limit=100`,
+    token,
+  );
+
+export const createCouncilVersion = (
+  token: string,
+  organizationId: string,
+  councilId: string,
+  body: AgoraSchema<"CreateCouncilVersionRequest">,
+) =>
+  agora<CouncilVersion>(
+    `${councilsOf(organizationId)}/${councilId}/versions`,
+    token,
+    { method: "POST", body },
+  );
+
+export const publishCouncilVersion = (
+  token: string,
+  organizationId: string,
+  councilId: string,
+  versionId: string,
+) =>
+  agora<CouncilVersion>(
+    `${councilsOf(organizationId)}/${councilId}/versions/${versionId}/publish`,
+    token,
+    { method: "POST" },
   );

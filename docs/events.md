@@ -74,6 +74,10 @@ Agents' events have the agent as their aggregate, skills' the skill; its version
 | `skill.created` | `skillId`, `name`, `createdBy`, `createdAt` (its first version follows) | Hephaestus (its copy of skills) |
 | `skill.archived` | `skillId` | Hephaestus (new versions can't choose it) |
 | `skill-version.published` | `skillId`, `skillVersionId`, `version` (the whole version, its files included: at most 1 MiB) | Hephaestus (its copy: runs read it), Kriterion |
+| `council.created` | `councilId`, `key`, `name`, `description`, `createdBy`, `createdAt` | Hephaestus (its copy) |
+| `council.archived` | `councilId` | Hephaestus (no new sessions) |
+| `council-version.published` | `councilId`, `councilVersionId`, `previousVersionId`, `version` (the whole version) | Hephaestus (its copy: new sessions use it) |
+| `council-version.deprecated` | `councilId`, `councilVersionId` | Hephaestus |
 
 ### Themis (`themis.events`)
 
@@ -148,7 +152,7 @@ Every event has the knowledge item as its aggregate; the item's `revision` grows
 
 ### Learning, sessions and meetings (Proposal)
 
-Councils (`councils.md`) add Agora's `council.created`, `council.archived`, `council-version.published` and `council-version.deprecated`, and Hephaestus's `council-session.started` / `.ended`, `deliberation-round.concluded` and `council-plan.proposed`.
+Councils (`councils.md`) add Hephaestus's `council-session.started` / `.ended`, `deliberation-round.concluded` and `council-plan.proposed`.
 
 From `learning.md`, `knowledge.md`, `skills.md` and `interaction.md`; none are published yet.
 

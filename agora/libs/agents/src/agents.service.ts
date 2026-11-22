@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { Repository } from 'typeorm';
+import { In, type Repository } from 'typeorm';
 
 import {
   AccessControl,
@@ -111,6 +111,35 @@ export class AgentsService {
     }
 
     return this.mapper.toResponse(entity);
+  }
+
+  /**
+   * The organization's agents among `agentIds`, with their status and
+   * published version (for councils' checks); unknown IDs are left out.
+   */
+  async statesOf(
+    organizationId: string,
+    agentIds: readonly string[],
+  ): Promise<
+    {
+      id: string;
+      name: string;
+      status: string;
+      latestVersionId: string | null;
+    }[]
+  > {
+    if (agentIds.length === 0) {
+      return [];
+    }
+    const entities = await this.agents.find({
+      where: { organizationId, id: In([...agentIds]) },
+    });
+    return entities.map((entity) => ({
+      id: entity.id,
+      name: entity.name,
+      status: entity.status,
+      latestVersionId: entity.latestVersionId,
+    }));
   }
 
   /** For reads of an agent's versions: 404 unless the agent exists. */

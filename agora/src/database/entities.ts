@@ -2,6 +2,8 @@ import { OutboxMessageEntity } from '@aether-os/krepis';
 
 import { AgentVersionEntity } from '../../libs/agents/src/agent-version.entity.js';
 import { AgentEntity } from '../../libs/agents/src/agent.entity.js';
+import { CouncilVersionEntity } from '../../libs/councils/src/council-version.entity.js';
+import { CouncilEntity } from '../../libs/councils/src/council.entity.js';
 import { SkillVersionEntity } from '../../libs/skills/src/skill-version.entity.js';
 import { SkillEntity } from '../../libs/skills/src/skill.entity.js';
 
@@ -11,5 +13,7 @@ export const entities = [
   AgentVersionEntity,
   SkillEntity,
   SkillVersionEntity,
+  CouncilEntity,
+  CouncilVersionEntity,
   OutboxMessageEntity,
 ];

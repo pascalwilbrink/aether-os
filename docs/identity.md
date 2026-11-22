@@ -118,7 +118,7 @@ Named `resource:action`. Organization-scoped permissions are checked against `or
 | `agent:read` | org | ✓ | ✓ | ✓ | ✓ |
 | `agent:write` | org | ✓ | ✓ | ✓ | |
 | `agent:publish` | org | ✓ | ✓ | | |
-| `council:read` / `council:write` / `council:publish` (councils in Agora, `councils.md`; Proposal) | org | ✓ / ✓ / ✓ | ✓ / ✓ / ✓ | ✓ / ✓ / | ✓ / / |
+| `council:read` / `council:write` / `council:publish` (councils in Agora, `councils.md`) | org | ✓ / ✓ / ✓ | ✓ / ✓ / ✓ | ✓ / ✓ / | ✓ / / |
 | `org:task-template:manage` (organization-wide task templates) | org | ✓ | ✓ | | |
 | `org:policy:write` (organization-wide policies) | org | ✓ | ✓ | | |
 | `org:secret:write` (organization-wide secrets) | org | ✓ | ✓ | | |

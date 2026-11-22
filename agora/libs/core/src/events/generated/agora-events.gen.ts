@@ -82,6 +82,81 @@ export interface AgentCreated {
 }
 
 /**
+ * Payload of `council-version.deprecated`.
+ */
+export interface CouncilVersionDeprecated {
+  councilId: string;
+  councilVersionId: string;
+}
+
+/**
+ * Payload of `council-version.published`.
+ */
+export interface CouncilVersionPublished {
+  councilId: string;
+  councilVersionId: string;
+  /**
+   * The version it replaced, now deprecated (`council-version.deprecated` follows); null for the first.
+   */
+  previousVersionId: string | null;
+  /**
+   * The whole version, as `CouncilVersionResponse` in `agora.openapi.yaml` (immutable once created).
+   */
+  version: {
+    id: string;
+    councilId: string;
+    organizationId: string;
+    version: number;
+    status: 'draft' | 'published' | 'deprecated';
+    facilitator: {
+      agentId: string;
+    };
+    members: {
+      agentId: string;
+      participation: 'required' | 'conditional' | 'optional';
+      when?: string;
+      role?: string;
+    }[];
+    settings: {
+      defaultMode:
+        'direct' | 'facilitated' | 'discussion' | 'planning' | 'delegation';
+      allowDirectInteraction: boolean;
+      allowDiscussion: boolean;
+      allowPlanning: boolean;
+      allowDelegation: boolean;
+      requireSynthesis: boolean;
+    };
+    discussion: {
+      maxRounds: number;
+      allowAgentResponses: boolean;
+      requireFacilitatorConclusion: boolean;
+    };
+    createdBy: string;
+    createdAt: string;
+    publishedAt: string | null;
+  };
+}
+
+/**
+ * Payload of `council.archived`.
+ */
+export interface CouncilArchived {
+  councilId: string;
+}
+
+/**
+ * Payload of `council.created`.
+ */
+export interface CouncilCreated {
+  councilId: string;
+  key: string;
+  name: string;
+  description: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+/**
  * Payload of `skill-version.published`.
  */
 export interface SkillVersionPublished {
@@ -131,6 +206,10 @@ export interface AgoraEventPayloads {
   'agent-version.published': AgentVersionPublished;
   'agent.archived': AgentArchived;
   'agent.created': AgentCreated;
+  'council-version.deprecated': CouncilVersionDeprecated;
+  'council-version.published': CouncilVersionPublished;
+  'council.archived': CouncilArchived;
+  'council.created': CouncilCreated;
   'skill-version.published': SkillVersionPublished;
   'skill.archived': SkillArchived;
   'skill.created': SkillCreated;
@@ -144,6 +223,10 @@ export const AGORA_EVENT_TYPES = [
   'agent-version.published',
   'agent.archived',
   'agent.created',
+  'council-version.deprecated',
+  'council-version.published',
+  'council.archived',
+  'council.created',
   'skill-version.published',
   'skill.archived',
   'skill.created',

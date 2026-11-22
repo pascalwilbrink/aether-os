@@ -10,6 +10,8 @@ import {
 
 import { AgentVersionEntity } from '../../libs/agents/src/agent-version.entity.js';
 import { AgentEntity } from '../../libs/agents/src/agent.entity.js';
+import { CouncilVersionEntity } from '../../libs/councils/src/council-version.entity.js';
+import { CouncilEntity } from '../../libs/councils/src/council.entity.js';
 import { OrganizationStateEntity } from '../../libs/tenancy/src/organization-state.entity.js';
 import { ProjectStateEntity } from '../../libs/tenancy/src/project-state.entity.js';
 import { ArtifactEntity } from '../../libs/artifacts/src/artifact.entity.js';
@@ -51,6 +53,8 @@ export default new DataSource(
       OutboxMessageEntity,
       AgentEntity,
       AgentVersionEntity,
+      CouncilEntity,
+      CouncilVersionEntity,
       WorkspaceEntity,
       TaskEntity,
       ExecutionEntity,

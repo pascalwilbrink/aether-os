@@ -4,7 +4,7 @@ A **council** is a persistent, configurable virtual team: a facilitator, special
 
 Councils are one of Agora's central concepts, next to agents. They aren't a kind of agent, and they aren't a wrapper around a Mastra workflow.
 
-Status: **proposal**. Nothing is built.
+Status: **proposal**, step 1 built (Building it, below): councils and their versions in Agora, Hephaestus's copy and Iris's Councils page. Sessions, discussion, planning and decisions are still to come.
 
 ## Principles
 
@@ -210,7 +210,7 @@ Kerykes tells people when a session waits for them: a plan to review, a question
 
 ## Building it
 
-1. **Definitions:** councils and versions in Agora (API, checks, events), Hephaestus's copy, Iris's Councils page.
+1. **Definitions (built):** councils and versions in Agora (`/v1/organizations/{id}/councils`, `…/versions`, `…/publish`, `…/archive`; `council:read`, `council:write`, `council:publish`; the checks above, at creation and again at publishing; `COUNCIL_ALREADY_EXISTS`, `COUNCIL_ARCHIVED`, `COUNCIL_VERSION_INVALID`), its events, Hephaestus's copy (`CouncilsService.publishedVersion` for the sessions to come), and Iris's Councils page (linked from Agents). Settings a request leaves out take defaults (`facilitated`; direct interaction, discussion, planning and synthesis on; delegation off until step 4; three rounds, members responding to each other, the facilitator's conclusion required); `maxRounds` is at most 10 and a version has at most 12 members.
 2. **Sessions:** Hephaestus council sessions with `direct` and `facilitated` modes, the facilitator's `ask_member` and `invite_members`, messages with authors, session tokens, Iris's session page.
 3. **Discussion:** deliberation rounds and conclusions, synthesis.
 4. **Planning and delegation:** milestones in `task_plan`, `propose_plan`, review and approval creating tasks, assignment provenance, following tasks in the session.
