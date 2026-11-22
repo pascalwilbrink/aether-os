@@ -112,7 +112,7 @@ Kairos sends `task.create` commands to Hephaestus when an automation fires (belo
 
 ### Hephaestus (`hephaestus.events`)
 
-Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created` (with `taskTemplateId` and `taskTemplateVersion`), `task.status-changed`, `task.succeeded` (with `primaryArtifactId` and `artifactIds`), `task.failed`, `task.cancelled`, `task.awaiting-review`, `task.verified`, `artifact.created` and `artifact.status-changed`, with the payloads in that spec (without costs, partial artifact IDs or automations, which don't exist yet). The rest come with the parts of the lifecycle that produce them. **Consumed by Kerykes** (`kerykes.hephaestus-events`): `task.awaiting-review`, `task.failed`, `task.succeeded`, `task.paused` and `budget.threshold-reached`; and Polis's `membership.*` and `project-membership.*` (`kerykes.polis-events`).
+Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created` (with `taskTemplateId` and `taskTemplateVersion`), `task.status-changed`, `task.succeeded` (with `primaryArtifactId` and `artifactIds`), `task.failed`, `task.cancelled`, `task.awaiting-review`, `task.verified`, `artifact.created`, `artifact.status-changed`, `session.started` and `session.ended`, with the payloads in that spec (without costs, partial artifact IDs or automations, which don't exist yet). The rest come with the parts of the lifecycle that produce them. **Consumed by Kerykes** (`kerykes.hephaestus-events`): `task.awaiting-review`, `task.failed`, `task.succeeded`, `task.paused` and `budget.threshold-reached`; and Polis's `membership.*` and `project-membership.*` (`kerykes.polis-events`).
 
 | Event | Payload | Consumers |
 |---|---|---|
@@ -128,6 +128,8 @@ Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created` (with
 | `artifact.created` | `artifactId`, `taskId`, `kind`, `status`, `primary` | Iris, Kriterion |
 | `artifact.status-changed` | `artifactId`, `from`, `to`, `revisionOf` | Iris, Kriterion |
 | `artifact.deleted` | `artifactId` | Iris, Kriterion |
+| `session.started` | `sessionId`, `agentId`, `agentVersionId`, `startedBy` (`interaction.md`) | later Iris |
+| `session.ended` | the same, and `reason` (`closed`, `idle`); usage is Pylon's, per session | later Iris |
 | `document.version-published` | document reference (`documentId`, `version`, `objectKey`, `sha256`) | Seshat (index), Iris |
 | `document.deleted` | `documentId` | Seshat, Loculus cleanup |
 
@@ -150,7 +152,7 @@ Every event has the knowledge item as its aggregate; the item's `revision` grows
 | `knowledge-item.proposed` / `.accepted` / `.rejected` / `.updated` / `.superseded` / `.retired` | `itemId`, `projectId`, `type`, `status`, `version`, `sourceKind`, `supersededBy` | later Kerykes (proposals to review), Iris |
 | `knowledge-item.indexed` | `itemId`, `projectId`, `version`, `chunkCount` | later Iris |
 
-### Learning, sessions and meetings (Proposal)
+### Learning, council sessions and meetings (Proposal)
 
 Councils (`councils.md`) add Hephaestus's `council-session.started` / `.ended`, `deliberation-round.concluded` and `council-plan.proposed`.
 
@@ -160,7 +162,6 @@ From `learning.md`, `knowledge.md`, `skills.md` and `interaction.md`; none are p
 |---|---|---|---|
 | Hephaestus | `task.feedback-recorded` | `taskId`, `artifactId`, `rating`, `givenBy` | Kriterion, Iris |
 | Hephaestus | `task.outcome-recorded` | `taskId`, `agentVersionId`, `taskTemplateVersion`, skill versions and knowledge items used, verification rounds, review and delivery outcome, `costUsd` (IDs and numbers, no content) | Kriterion, Kairos (skill extraction triggers) |
-| Hephaestus | `session.started` / `session.ended` | `sessionId`, `projectId`, `agentVersionId`, `userId`; usage when ended | Iris |
 | Agora | provenance on `skill-version.published` (built without it, above) | where a version came from (a person, a candidate) | Kriterion |
 | Agora | `skill-candidate.created` / `.evaluated` / `.rejected` | `candidateId`, `skillId`, evaluation reference | Kriterion, Kerykes, Iris |
 | Proxenos | `meeting.scheduled` / `.started` / `.failed` | `meetingId`, `projectId` | Iris |

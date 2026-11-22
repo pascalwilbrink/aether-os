@@ -71,6 +71,9 @@ const PROJECT_PERMISSIONS = {
   'model:invoke': ['admin', 'approver', 'editor'],
   // A short-lived token for a linked repository (Proxenos); only task tokens.
   'repository:token': ['admin', 'approver', 'editor'],
+  // Starting and using sessions with agents (copilot, voice, councils:
+  // docs/interaction.md); a session token's model calls rest on it.
+  'session:use': ['admin', 'approver', 'editor', 'viewer'],
 } as const satisfies Record<string, readonly ProjectRole[]>;
 
 /**

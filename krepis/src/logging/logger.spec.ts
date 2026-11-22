@@ -50,6 +50,7 @@ const principal: Principal = {
   taskTreeId: null,
   agentId: null,
   agentVersionId: null,
+  sessionId: null,
   actor: null,
   scopes: [],
 };

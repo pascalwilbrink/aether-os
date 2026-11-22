@@ -43,6 +43,23 @@ export abstract class PermissionEvaluator {
   ): ProjectRole | null;
 }
 
+/**
+ * What a session token may do (docs/interaction.md, Session tokens): read
+ * what the person can read in the session's project, and call models for
+ * the session when the person may use sessions. Nothing else, whatever the
+ * person's roles: the agent sees what they see and changes nothing.
+ */
+export const SESSION_ORGANIZATION_PERMISSIONS: readonly OrganizationPermission[] =
+  ['org:read', 'agent:read', 'council:read'];
+export const SESSION_PROJECT_PERMISSIONS: readonly ProjectPermission[] = [
+  'project:read',
+  'task:read',
+  'knowledge:read',
+  'file:read',
+  'automation:read',
+  'workspace:read',
+];
+
 /** The fixed role → permission table. */
 @Injectable()
 export class FixedPermissionEvaluator extends PermissionEvaluator {
@@ -50,6 +67,12 @@ export class FixedPermissionEvaluator extends PermissionEvaluator {
     principal: Principal,
     permission: OrganizationPermission,
   ): boolean {
+    if (
+      principal.sessionId !== null &&
+      !SESSION_ORGANIZATION_PERMISSIONS.includes(permission)
+    ) {
+      return false;
+    }
     return (
       principal.organizationId !== null &&
       organizationRolesGrant(principal.organizationRoles, permission)
@@ -69,10 +92,17 @@ export class FixedPermissionEvaluator extends PermissionEvaluator {
     ) {
       return false;
     }
-    return projectRoleGrants(
-      this.projectRole(principal, projectId),
-      permission,
-    );
+    const role = this.projectRole(principal, projectId);
+    if (principal.sessionId !== null) {
+      // A session's model calls rest on the person's use of sessions.
+      if (permission === 'model:invoke') {
+        return projectRoleGrants(role, 'session:use');
+      }
+      if (!SESSION_PROJECT_PERMISSIONS.includes(permission)) {
+        return false;
+      }
+    }
+    return projectRoleGrants(role, permission);
   }
 
   hasPlatformPermission(
@@ -88,7 +118,7 @@ export class FixedPermissionEvaluator extends PermissionEvaluator {
     if (principal.organizationId === null) {
       return null;
     }
-    // A task token is limited to its own project.
+    // A task or session token is limited to its own project.
     if (principal.projectId !== null && principal.projectId !== projectId) {
       return null;
     }

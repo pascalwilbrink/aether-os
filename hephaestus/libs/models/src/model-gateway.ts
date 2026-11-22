@@ -50,4 +50,21 @@ export class ModelGateway {
       modelId,
     };
   }
+
+  /**
+   * A session's model (../docs/interaction.md): the same, with the session
+   * token Pistis issued for the person, so Pylon meters the calls to the
+   * session and checks its organization's, project's and agent's budgets.
+   */
+  resolveForSession(
+    configuration: AgentVersion['model'],
+    sessionToken: string,
+  ): ResolvedModel {
+    const { provider, model: modelId } = configuration;
+    return {
+      model: this.pylon.create(provider, modelId, { token: sessionToken }),
+      provider,
+      modelId,
+    };
+  }
 }

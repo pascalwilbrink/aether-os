@@ -14,6 +14,7 @@ export function testPrincipal(overrides: Partial<Principal> = {}): Principal {
     taskTreeId: null,
     agentId: null,
     agentVersionId: null,
+    sessionId: null,
     actor: null,
     scopes: ['platform:read', 'platform:manage'],
     ...overrides,

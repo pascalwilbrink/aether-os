@@ -239,6 +239,7 @@ export const zUsageGroup = z.enum([
   'agent',
   'task_tree',
   'execution',
+  'session',
   'model',
 ]);
 
@@ -576,6 +577,7 @@ export const zGetUsageQuery = z.object({
   projectId: z.uuid().optional(),
   agentId: z.uuid().optional(),
   taskTreeId: z.uuid().optional(),
+  sessionId: z.uuid().optional(),
   executionId: z.array(z.uuid()).max(100).optional(),
   from: z.iso.datetime().optional(),
   to: z.iso.datetime().optional(),

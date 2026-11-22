@@ -34,6 +34,7 @@ export interface UsageFilters {
   agentId?: string;
   taskTreeId?: string;
   executionIds?: string[];
+  sessionId?: string;
   from?: Date;
   to?: Date;
   groupBy?: ApiTypes.UsageGroup;
@@ -45,6 +46,7 @@ const GROUPS: Record<ApiTypes.UsageGroup, string> = {
   agent: 'call.agent_id::text',
   task_tree: 'call.task_tree_id::text',
   execution: 'call.execution_id::text',
+  session: 'call.session_id::text',
   model: `call.provider || '/' || call.model`,
 };
 
@@ -137,6 +139,11 @@ export class ModelCallsService {
     if (filters.taskTreeId) {
       query.andWhere('call.taskTreeId = :taskTreeId', {
         taskTreeId: filters.taskTreeId,
+      });
+    }
+    if (filters.sessionId) {
+      query.andWhere('call.sessionId = :sessionId', {
+        sessionId: filters.sessionId,
       });
     }
     if (filters.executionIds?.length) {

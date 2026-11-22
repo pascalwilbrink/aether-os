@@ -303,7 +303,7 @@ export type BudgetCheckResponse = {
 };
 
 export type UsageGroup =
-  'project' | 'agent' | 'task_tree' | 'execution' | 'model';
+  'project' | 'agent' | 'task_tree' | 'execution' | 'session' | 'model';
 
 export type UsageTotals = {
   modelCalls: number;
@@ -322,7 +322,7 @@ export type UsageTotals = {
 
 export type UsageItem = UsageTotals & {
   /**
-   * The group's key: a project, agent, task tree or execution ID, or `provider/model`; null without `groupBy`.
+   * The group's key: a project, agent, task tree, execution or session ID, or `provider/model`; null without `groupBy`.
    */
   group: string | null;
 };
@@ -1151,6 +1151,10 @@ export type GetUsageData = {
     projectId?: string;
     agentId?: string;
     taskTreeId?: string;
+    /**
+     * A session's calls (Hephaestus's sessions, `../docs/interaction.md`).
+     */
+    sessionId?: string;
     /**
      * Up to 100, repeated (`?executionId=…&executionId=…`).
      */

@@ -8,12 +8,15 @@ import {
   asPlatform,
   asTask,
   createApp,
+  SESSION_ID,
+  sessionToken,
   taskToken,
   TASK_ID,
   TREE_ID,
   type Client,
 } from './app.js';
 import { providers } from './fake-providers.js';
+import { tokens } from './tokens.js';
 import type { FakePolis } from './fake-polis.js';
 import type { FakeSecretStore } from './fake-secrets.js';
 import { outboxEvents } from './outbox.js';
@@ -224,6 +227,40 @@ describe('Model calls (e2e)', () => {
     const platform = await asPlatform(app, ['platform:read']);
     await platform.post(path).send(body).expect(403);
     expect(providers.received).toEqual([]);
+  });
+
+  it('lets a session token call for its session, metered per session', async () => {
+    const path = '/v1/providers/anthropic/v1/messages';
+    const body = { model: 'claude-sonnet-5-5', messages: [] };
+    // A viewer may use sessions, so the session's calls go through.
+    const token = await sessionToken(orgId, projectId);
+    await http().post(path).set('x-api-key', token).send(body).expect(200);
+    expect(await usage(`?sessionId=${SESSION_ID}&groupBy=session`)).toEqual([
+      expect.objectContaining({ group: SESSION_ID, modelCalls: 1 }),
+    ]);
+    expect(await usage('?groupBy=task_tree')).toEqual([
+      expect.objectContaining({ group: null, modelCalls: 1 }),
+    ]);
+    // A person with no role in the session's project; a person's own token never calls.
+    await http()
+      .post(path)
+      .set(
+        'x-api-key',
+        await tokens.sign({
+          sub: 'user-2',
+          sub_type: 'user',
+          org_id: orgId,
+          org_roles: ['member'],
+          project_roles: {},
+          project_id: projectId,
+          session_id: SESSION_ID,
+          scope: 'api',
+        }),
+      )
+      .send(body)
+      .expect(404);
+    const person = await asMember(app, orgId, ['owner']);
+    await person.post(path).send(body).expect(403);
   });
 
   it("refuses what it won't pass on, and models it won't call", async () => {

@@ -4,13 +4,16 @@ import type { App } from 'supertest/types.js';
 
 import { configureHttpApp, EventConsumer } from '@hephaestus/core';
 import { Pylon, PylonModels } from '@hephaestus/models';
+import { KnowledgeBase } from '@hephaestus/runner';
+import { SessionTokens } from '@hephaestus/sessions';
 import { TaskContextSource } from '@hephaestus/tasks';
 import { PolisClient } from '@hephaestus/tenancy';
 
 import { AppModule } from '../src/app.module.js';
 import { resetDatabase } from './database.js';
 import { FakePylon, ScriptedPylonModels } from './fake-models.js';
-import { FakeTaskContextSource } from './fake-knowledge.js';
+import { FakeKnowledgeBase, FakeTaskContextSource } from './fake-knowledge.js';
+import { FakeSessionTokens } from './fake-session-tokens.js';
 import { FakePolis } from './fake-polis.js';
 
 /**
@@ -28,11 +31,16 @@ export async function createApp(
   polis: FakePolis;
   pylon: FakePylon;
   knowledge: FakeTaskContextSource;
+  models: ScriptedPylonModels;
+  sessionTokens: FakeSessionTokens;
+  knowledgeBase: FakeKnowledgeBase;
 }> {
   const polis = new FakePolis();
   const knowledge = new FakeTaskContextSource();
   const models = new ScriptedPylonModels();
   const pylon = new FakePylon(models);
+  const sessionTokens = new FakeSessionTokens();
+  const knowledgeBase = new FakeKnowledgeBase();
   const moduleRef = await override(
     Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PolisClient)
@@ -42,7 +50,11 @@ export async function createApp(
       .overrideProvider(PylonModels)
       .useValue(models)
       .overrideProvider(TaskContextSource)
-      .useValue(knowledge),
+      .useValue(knowledge)
+      .overrideProvider(SessionTokens)
+      .useValue(sessionTokens)
+      .overrideProvider(KnowledgeBase)
+      .useValue(knowledgeBase),
   ).compile();
   const app = configureHttpApp(
     moduleRef.createNestApplication({ logger: false }),
@@ -52,7 +64,15 @@ export async function createApp(
   await app.get(EventConsumer).ready();
   await resetDatabase(app);
 
-  return { app: app as INestApplication<App>, polis, pylon, knowledge };
+  return {
+    app: app as INestApplication<App>,
+    polis,
+    pylon,
+    knowledge,
+    models,
+    sessionTokens,
+    knowledgeBase,
+  };
 }
 
 /** A valid UUID that no resource has. */

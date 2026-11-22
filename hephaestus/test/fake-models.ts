@@ -77,10 +77,16 @@ export class ScriptedPylonModels extends PylonModels {
       supportedUrls: {},
       doGenerate: async (options: CallOptions) => {
         const reply = await this.reply(options);
-        this.meter(call.executionId, reply.usage);
+        this.meter(call.executionId ?? `session:${call.token}`, reply.usage);
         return reply;
       },
-      doStream: () => Promise.reject(new Error('not scripted')),
+      // The same script as a stream (sessions): the reply's parts, the text
+      // in two deltas.
+      doStream: async (options: CallOptions) => {
+        const reply = await this.reply(options);
+        this.meter(call.executionId ?? `session:${call.token}`, reply.usage);
+        return { stream: ReadableStream.from(streamParts(reply)) };
+      },
     };
     return model as unknown as MastraModelConfig;
   }
@@ -179,6 +185,38 @@ export class ScriptedPylonModels extends PylonModels {
       },
     });
   }
+}
+
+/** A generated reply as the parts of an AI SDK v2 stream. */
+function streamParts(reply: {
+  content: (
+    | { type: 'text'; text: string }
+    | { type: 'tool-call'; toolCallId: string; toolName: string; input: string }
+  )[];
+  finishReason: string;
+  usage: unknown;
+}): unknown[] {
+  const parts: unknown[] = [{ type: 'stream-start', warnings: [] }];
+  reply.content.forEach((part, index) => {
+    if (part.type === 'text') {
+      const id = `text-${index}`;
+      const half = Math.ceil(part.text.length / 2);
+      parts.push(
+        { type: 'text-start', id },
+        { type: 'text-delta', id, delta: part.text.slice(0, half) },
+        { type: 'text-delta', id, delta: part.text.slice(half) },
+        { type: 'text-end', id },
+      );
+    } else {
+      parts.push(part);
+    }
+  });
+  parts.push({
+    type: 'finish',
+    finishReason: reply.finishReason,
+    usage: reply.usage,
+  });
+  return parts;
 }
 
 /** A budget Pylon would answer with `402 BUDGET_EXHAUSTED`. */

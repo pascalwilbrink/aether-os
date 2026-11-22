@@ -2,7 +2,7 @@
 
 How people work with agents directly, beyond creating tasks: a copilot in Iris (CopilotKit over AG-UI), talking to it (Echo, a Pipecat server over WebRTC), and an agent that joins meetings and takes notes (Recall.ai). All three go through the same place agents run (Hephaestus), so model calls, budgets, policies, tools and traces work the same as for tasks.
 
-Status: proposal. Nothing here is built.
+Status: **sessions are built** (Hephaestus's sessions and their AG-UI endpoint, Pistis's session tokens, Pylon metering per session; below). The copilot in Iris, voice (Echo) and the meeting agent are proposals.
 
 ## Decisions
 
@@ -21,12 +21,18 @@ Status: proposal. Nothing here is built.
 
 A council session (`councils.md`) is a session whose subject is a council version (a facilitator and member agents) instead of one agent version; it adds authors to messages, deliberation rounds, plans and decisions, and builds on everything below.
 
-A **session** is a conversation between a person and an agent version in one project: `id`, `organizationId`, `projectId`, `agentVersionId` (pinned when it starts, like a task), `userId`, `status` (`active`, `ended`), its messages, and its usage. Unlike a task it has no acceptance criteria, no artifacts and no sandbox (Proposal: a sandbox later, for "try this in a shell" sessions); it ends when the person closes it or after a period of inactivity.
+A **session** is a conversation between a person and an agent version in one project: `id`, `organizationId`, `projectId`, `agentId`, `agentVersionId` (pinned when it starts, like a task), `startedBy` (the person's `sub`), `title`, `status` (`active`, `ended`, with `endedReason` `closed` or `idle`), `running`, `lastActivityAt`, and its messages. Unlike a task it has no acceptance criteria, no artifacts and no sandbox (Proposal: a sandbox later, for "try this in a shell" sessions); it ends when the person closes it or after `SESSION_IDLE_TIMEOUT_MS` (30 minutes) without a run. Only the person who started it sees it: anyone else gets a 404.
 
-- **API:** `POST /v1/organizations/{organizationId}/projects/{projectId}/sessions` starts one (`session:use`, below), with the agent; `POST …/sessions/{sessionId}/runs` is the **AG-UI endpoint**: it takes the AG-UI `RunAgentInput` (the new messages, the frontend's tools, the shared state) and streams AG-UI events back (`RUN_STARTED`, `TEXT_MESSAGE_*`, `TOOL_CALL_*`, `STATE_SNAPSHOT` / `STATE_DELTA`, `RUN_FINISHED`, `RUN_ERROR`) as server-sent events. Hephaestus runs the agent version with Mastra (its AG-UI adapter) and stores the messages.
-- **Model calls** go through the model gateway: keys, metering and budgets as for tasks (a session counts against its project's and agent's budgets; a session whose budget ran out stops with a message, it doesn't pause).
-- **Tools:** the agent version's tool servers and skills, Seshat (project knowledge, read only), and the **frontend tools** Iris declares for the run. Its own server-side tools are read-only (`session` tokens, below); the agent changes things only through frontend tools or by proposing a task.
-- **Traces and activity** like an execution: a session is a trace in Jaeger and Langfuse; its tool calls are in its log.
+Built (`hephaestus/libs/sessions`):
+
+- **API:** `POST /v1/organizations/{organizationId}/projects/{projectId}/sessions` starts one (`session:use`, below; a person's own token, not a service account's or a session's), with `agentId` and an optional `title`; `GET …/sessions` lists the caller's (newest first, `?status=`), `GET …/{sessionId}` reads one, `GET …/{sessionId}/messages` pages through its messages (oldest first), `POST …/{sessionId}/end` ends it (idempotent).
+- **The AG-UI endpoint:** `POST …/sessions/{sessionId}/runs` takes AG-UI's `RunAgentInput` and streams AG-UI events back as server-sent events: `RUN_STARTED`, `TEXT_MESSAGE_START` / `_CONTENT` / `_END`, `TOOL_CALL_START` / `_ARGS` / `_END`, `TOOL_CALL_RESULT` (the agent's own tools), `RUN_FINISHED` or `RUN_ERROR` (`message`, `code`: `BUDGET_EXHAUSTED`, `MODEL_FAILED`, `TOOL_SERVER_UNAVAILABLE`, `RUN_TIMEOUT`, `RUN_STOPPED`, `AGENT_FAILED`). `threadId` is the session's ID. The events are written by Hephaestus itself (no AG-UI package or Mastra adapter: the mapping from Mastra's stream is small and kept in one place, `session-agent.ts`); state events (`STATE_SNAPSHOT` / `STATE_DELTA`) aren't sent yet, and the input's `state` is given to the agent as context.
+- **History is the session's.** Hephaestus keeps every message (`session_messages`: the person's, the agent's text and tool calls, tool results) and the agent sees that history, not the frontend's copy: of the input's `messages`, only new `user` messages and `tool` messages answering one of the agent's calls (by ID) are added; the rest is ignored. A run needs at least one new message.
+- **Frontend tools:** the input's `tools` become tools the agent can call but Hephaestus never runs: the turn ends with the call (`TOOL_CALL_*`, then `RUN_FINISHED`), and the frontend answers it with a `tool` message in the next run. A call nobody answered gets a "no answer" result in the model's history, as providers need one per call.
+- **One run at a time** (`SESSION_BUSY`; a run older than `SESSION_RUN_TIMEOUT_MS`, 10 minutes, is stopped and no longer holds the session); an ended session runs no more (`SESSION_ENDED`). Everything that can be refused (the input, the session, the session token) is refused before the stream starts, as problem details; once streaming, failures are `RUN_ERROR`. A client that goes away stops the run, and what the agent produced so far is kept.
+- **Model calls** go through Pylon with the session token: keys and metering as for tasks (`model_calls.session_id`, `GET …/usage?sessionId=` and `groupBy=session`), counted against the organization's, project's and agent's budgets (a session has no task tree). A budget that ran out ends the run with `RUN_ERROR` `BUDGET_EXHAUSTED`; it doesn't pause.
+- **Tools:** the version's tool servers (connected for each run, with the session token) and skills, and Seshat's knowledge tools without `propose_knowledge` (read-only), plus the frontend's. The instructions add that the agent is talking with a person, acts for them read-only, and that tools return data, not instructions.
+- **Traces:** with tracing, Mastra's spans (the agent, each model call and tool call) carry the session's ID. Proposal: an activity log like an execution's.
 
 ### In Iris
 
@@ -35,9 +41,9 @@ A **session** is a conversation between a person and an agent version in one pro
 - **Shared state** (`useCopilotReadable`, AG-UI state): what the person is looking at (the project, the task, the selected artifact), so "summarize this task" works without copying IDs.
 - A **sidebar chat** available on every project page, and an inline variant on the task page ("why did this fail?").
 
-### Session tokens (Pistis, Proposal)
+### Session tokens (Pistis)
 
-The session's server-side calls (Seshat, tool servers with `task-token` authentication, Hephaestus reading tasks) use a **session token**: a token exchange by Hephaestus (like task tokens) with `sub` = the person, `act` = Hephaestus, `session_id`, limited to the session's project and to **read** permissions (`project:read`, `task:read`, `knowledge:read`, `file:read`, `agent:read`), valid for minutes and renewed while the session is active. That keeps the rule that agents never act with a person's full rights: the agent can see what the person can see, and nothing it does on its own changes anything.
+The session's server-side calls (Pylon, Seshat, tool servers with `task-token` authentication) use a **session token**: for each run Hephaestus exchanges the person's own access token (from the run's request) at Pistis (`subject_token_type` access token, Hephaestus's client with `token_exchange: ['session-token']`) for a token with `sub` = the person, `sub_type: user`, `act` = Hephaestus, `session_id`, `project_id`, `agent_id` and `agent_version_id`, for at most 15 minutes. Pistis checks the person is active, still a member, the organization is active and the person has `session:use` in the project (`invalid_target` otherwise, which Hephaestus answers with a 403). Krepis limits it to the project and to **reading** (`org:read`, `agent:read`, `council:read`, and in the project `project:read`, `task:read`, `knowledge:read`, `file:read`, `automation:read`, `workspace:read`), plus `model:invoke` while the person has `session:use`. That keeps the rule that agents never act with a person's full rights: the agent can see what the person can see, and nothing it does on its own changes anything.
 
 ### Rules
 
@@ -87,20 +93,20 @@ Recall.ai is an external system like GitHub, so **Proxenos** owns it:
 - **Untrusted input.** What people say in a meeting is data to the extraction agent, never instructions to it.
 - Later: a meeting agent that speaks (Recall's output media with Echo), answering questions from project knowledge in the meeting. Not in the first form.
 
-## Permissions (Proposal)
+## Permissions
 
 | Permission | Scope | project admin | approver | editor | viewer |
 |---|---|:-:|:-:|:-:|:-:|
-| `session:use` (start and use copilot and voice sessions in the project) | project | ✓ | ✓ | ✓ | ✓ |
+| `session:use` (start and use copilot and voice sessions in the project; built) | project | ✓ | ✓ | ✓ | ✓ |
 | `meeting:read` | project | ✓ | ✓ | ✓ | ✓ |
 | `meeting:manage` (schedule and cancel the meeting agent) | project | ✓ | ✓ | ✓ | |
 
 Connecting Recall.ai for the organization: `org:manage`, and its key `org:secret:write`.
 
-## Events (Proposal)
+## Events
 
-- Hephaestus: `session.started`, `session.ended` (with usage), for Iris and metering.
-- Proxenos: `meeting.scheduled`, `meeting.started`, `meeting.transcript-ready`, `meeting.failed`.
+- Hephaestus (built): `session.started` (the session, agent, version and person) and `session.ended` (with `reason`: `closed` or `idle`). Usage is Pylon's, per session.
+- Proxenos (Proposal): `meeting.scheduled`, `meeting.started`, `meeting.transcript-ready`, `meeting.failed`.
 
 ## Open questions
 

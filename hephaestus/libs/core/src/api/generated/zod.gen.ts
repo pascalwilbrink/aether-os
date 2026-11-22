@@ -23,6 +23,8 @@ export const zDomainErrorCode = z.enum([
     'TASK_TEMPLATE_INVALID',
     'TOOL_SERVER_ALREADY_EXISTS',
     'TOOL_SERVER_INVALID',
+    'SESSION_BUSY',
+    'SESSION_ENDED',
     'WORKSPACE_INVALID_EXPIRY',
     'WORKSPACE_INVALID_TRANSITION'
 ]);
@@ -848,6 +850,92 @@ export const zToolList = z.object({
     items: z.array(zToolDescription)
 });
 
+export const zSessionStatus = z.enum(['active', 'ended']);
+
+export const zCreateSessionRequest = z.object({
+    agentId: z.uuid(),
+    title: z.string().min(1).max(200).optional()
+});
+
+export const zSessionResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    agentId: z.uuid(),
+    agentVersionId: z.uuid(),
+    startedBy: z.string(),
+    title: z.string().nullable(),
+    status: zSessionStatus,
+    endedReason: z.enum(['closed', 'idle']).nullable(),
+    running: z.boolean(),
+    lastActivityAt: zTimestamp,
+    createdAt: zTimestamp,
+    endedAt: z.iso.datetime().nullable()
+});
+
+export const zSessionToolCall = z.object({
+    id: z.string(),
+    name: z.string(),
+    arguments: z.string()
+});
+
+export const zSessionMessage = z.object({
+    id: z.string(),
+    role: z.enum([
+        'user',
+        'assistant',
+        'tool'
+    ]),
+    content: z.string(),
+    toolCalls: z.array(zSessionToolCall),
+    toolCallId: z.string().nullable(),
+    createdAt: zTimestamp
+});
+
+export const zAguiMessage = z.object({
+    id: z.string().min(1).max(200),
+    role: z.enum([
+        'user',
+        'assistant',
+        'system',
+        'developer',
+        'tool'
+    ]),
+    content: z.string().max(100000).optional(),
+    name: z.string().optional(),
+    toolCallId: z.string().max(200).optional(),
+    toolCalls: z.array(z.object({
+        id: z.string(),
+        type: z.enum(['function']),
+        function: z.object({
+            name: z.string(),
+            arguments: z.string()
+        })
+    })).optional()
+});
+
+export const zAguiTool = z.object({
+    name: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
+    description: z.string().max(2000),
+    parameters: z.record(z.string(), z.unknown())
+});
+
+/**
+ * AG-UI's `RunAgentInput`.
+ */
+export const zRunAgentInput = z.object({
+    threadId: z.string(),
+    runId: z.string().min(1).max(200),
+    messages: z.array(zAguiMessage).max(1000),
+    tools: z.array(zAguiTool).max(50).optional(),
+    context: z.array(z.object({
+        description: z.string().max(1000),
+        value: z.string().max(20000)
+    })).max(50).optional(),
+    state: z.unknown().optional(),
+    forwardedProps: z.unknown().optional()
+});
+
 /**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
@@ -879,6 +967,14 @@ export const zArtifactPage = zPageMeta.and(z.object({
 
 export const zExecutionPage = zPageMeta.and(z.object({
     items: z.array(zExecutionResponse)
+}));
+
+export const zSessionPage = zPageMeta.and(z.object({
+    items: z.array(zSessionResponse)
+}));
+
+export const zSessionMessagePage = zPageMeta.and(z.object({
+    items: z.array(zSessionMessage)
 }));
 
 /**
@@ -936,6 +1032,8 @@ export const zTaskId = z.uuid();
 export const zTemplateId = z.uuid();
 
 export const zArtifactId = z.uuid();
+
+export const zSessionId = z.uuid();
 
 export const zToolServerId = z.uuid();
 
@@ -1439,3 +1537,82 @@ export const zListToolServerToolsPath = z.object({
  * By name
  */
 export const zListToolServerToolsResponse = zToolList;
+
+export const zListSessionsPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid()
+});
+
+export const zListSessionsQuery = z.object({
+    status: zSessionStatus.optional(),
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListSessionsResponse = zSessionPage;
+
+export const zCreateSessionBody = zCreateSessionRequest;
+
+export const zCreateSessionPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid()
+});
+
+/**
+ * Started
+ */
+export const zCreateSessionResponse = zSessionResponse;
+
+export const zGetSessionPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    sessionId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetSessionResponse = zSessionResponse;
+
+export const zListSessionMessagesPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    sessionId: z.uuid()
+});
+
+export const zListSessionMessagesQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Oldest first
+ */
+export const zListSessionMessagesResponse = zSessionMessagePage;
+
+export const zEndSessionPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    sessionId: z.uuid()
+});
+
+/**
+ * Ended
+ */
+export const zEndSessionResponse = zSessionResponse;
+
+export const zRunSessionBody = zRunAgentInput;
+
+export const zRunSessionPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    sessionId: z.uuid()
+});
+
+/**
+ * The run's AG-UI events, as server-sent events.
+ */
+export const zRunSessionResponse = z.string();

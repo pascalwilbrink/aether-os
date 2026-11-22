@@ -40,28 +40,32 @@ function executionOf(headers: Headers): string | null {
 }
 
 /**
- * A pass-through call's context: only a task token may call (docs/pylon.md,
- * Identity); everything that decides keys and budgets comes from it.
+ * A pass-through call's context: only a task token, or a session token
+ * (Hephaestus's sessions for a person, docs/interaction.md), may call
+ * (docs/pylon.md, Identity); everything that decides keys and budgets comes
+ * from it. A session's calls count against its organization's, project's
+ * and agent's budgets (a session has no task tree).
  */
-export function taskCallContext(
+export function modelCallContext(
   principal: Principal,
   headers: Headers,
 ): CallContext {
-  if (
-    principal.subType !== 'service_account' ||
-    !principal.organizationId ||
-    !principal.projectId ||
-    !principal.taskId
-  ) {
-    throw new ForbiddenException('Model calls need a task token.');
+  const task =
+    principal.subType === 'service_account' && Boolean(principal.taskId);
+  const session = principal.subType === 'user' && Boolean(principal.sessionId);
+  if (!principal.organizationId || !principal.projectId || !(task || session)) {
+    throw new ForbiddenException(
+      'Model calls need a task token or a session token.',
+    );
   }
   return {
     organizationId: principal.organizationId,
     projectId: principal.projectId,
-    taskId: principal.taskId,
-    taskTreeId: principal.taskTreeId,
+    taskId: task ? principal.taskId : null,
+    taskTreeId: task ? principal.taskTreeId : null,
     agentId: principal.agentId,
     agentVersionId: principal.agentVersionId,
+    sessionId: session ? principal.sessionId : null,
     executionId: executionOf(headers),
     caller: principal.sub,
     purpose: purposeOf(headers, 'agent'),
@@ -91,6 +95,7 @@ export function projectCallContext(
     taskTreeId: principal.taskTreeId,
     agentId: principal.agentId,
     agentVersionId: principal.agentVersionId,
+    sessionId: principal.sessionId,
     executionId: executionOf(headers),
     caller: principal.sub,
     purpose: purposeOf(headers, 'knowledge'),

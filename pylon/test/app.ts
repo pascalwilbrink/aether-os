@@ -101,6 +101,29 @@ export const asTask = async (
   options: { role?: ProjectRole; agentId?: string | null } = {},
 ) => client(app, await taskToken(organizationId, projectId, options));
 
+export const SESSION_ID = '0193a1b2-c3d4-7e5f-8a9b-00000000eeee';
+
+/** A session token's claims, as Pistis exchanges it for Hephaestus (docs/interaction.md). */
+export const sessionToken = (
+  organizationId: string,
+  projectId: string,
+  options: { role?: ProjectRole; agentId?: string } = {},
+) =>
+  tokens.sign({
+    sub: 'user-1',
+    sub_type: 'user',
+    org_id: organizationId,
+    org_roles: ['member'],
+    project_roles: { [projectId]: options.role ?? 'viewer' },
+    project_id: projectId,
+    session_id: SESSION_ID,
+    ...(options.agentId
+      ? { agent_id: options.agentId, agent_version_id: AGENT_VERSION_ID }
+      : {}),
+    act: { sub: 'hephaestus', sub_type: 'service' },
+    scope: 'api',
+  });
+
 /** A platform service's own token (Seshat: `model:invoke`; Hephaestus: `platform:read`). */
 export const asPlatform = async (
   app: INestApplication<App>,

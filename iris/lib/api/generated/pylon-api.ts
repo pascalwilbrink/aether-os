@@ -224,7 +224,7 @@ export interface paths {
         };
         /**
          * @description What model calls cost and used, in total or per group, filtered by
-         *     project, agent, task tree, executions and time. Calls a provider
+         *     project, agent, task tree, session, executions and time. Calls a provider
          *     didn't report tokens for count as 0 tokens; unpriced calls as no cost.
          */
         get: operations["getUsage"];
@@ -763,7 +763,7 @@ export interface components {
             } | null;
         };
         /** @enum {string} */
-        UsageGroup: "project" | "agent" | "task_tree" | "execution" | "model";
+        UsageGroup: "project" | "agent" | "task_tree" | "execution" | "session" | "model";
         UsageTotals: {
             modelCalls: number;
             /** @description Every input token, cache reads and writes included. */
@@ -775,7 +775,7 @@ export interface components {
             costUsd: components["schemas"]["Usd"] | null;
         };
         UsageItem: components["schemas"]["UsageTotals"] & {
-            /** @description The group's key: a project, agent, task tree or execution ID, or `provider/model`; null without `groupBy`. */
+            /** @description The group's key: a project, agent, task tree, execution or session ID, or `provider/model`; null without `groupBy`. */
             group: string | null;
         };
         UsageResponse: {
@@ -1219,6 +1219,8 @@ export interface operations {
                 projectId?: string;
                 agentId?: string;
                 taskTreeId?: string;
+                /** @description A session's calls (Hephaestus's sessions, `../docs/interaction.md`). */
+                sessionId?: string;
                 /** @description Up to 100, repeated (`?executionId=…&executionId=…`). */
                 executionId?: string[];
                 from?: string;

@@ -5,10 +5,13 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { MastraModelConfig } from '@mastra/core/llm';
 
-/** Who a call through Pylon is for: the task token, and the execution as a label. */
+/**
+ * Who a call through Pylon is for: the task token and the execution as a
+ * label, or a session token (a session's calls have no execution).
+ */
 export interface PylonCall {
   token: string;
-  executionId: string;
+  executionId?: string;
 }
 
 /**
@@ -40,7 +43,9 @@ export class HttpPylonModels extends PylonModels {
     const base = `${this.url.replace(/\/+$/, '')}/v1/providers/${provider}`;
     const settings = {
       apiKey: call.token,
-      headers: { 'x-aether-execution-id': call.executionId },
+      headers: call.executionId
+        ? { 'x-aether-execution-id': call.executionId }
+        : undefined,
     };
     switch (provider) {
       case 'anthropic':

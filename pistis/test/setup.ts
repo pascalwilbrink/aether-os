@@ -45,7 +45,7 @@ process.env.PISTIS_CLIENTS = JSON.stringify([
     response_types: [],
     token_endpoint_auth_method: 'client_secret_basic',
     platform_permissions: ['platform:read'],
-    token_exchange: ['task-token'],
+    token_exchange: ['task-token', 'session-token'],
   },
 ]);
 initializeTransactions();

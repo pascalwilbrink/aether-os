@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'ARTIFACT_NOT_DRAFT' | 'TASK_BUDGET_INVALID' | 'TASK_CONCURRENCY_INVALID' | 'TASK_CONCURRENCY_SKIPPED' | 'TASK_CONTEXT_INVALID' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_FIELDS_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'TASK_TEMPLATE_ARCHIVED' | 'TASK_TEMPLATE_INPUTS_INVALID' | 'TASK_TEMPLATE_INVALID' | 'TOOL_SERVER_ALREADY_EXISTS' | 'TOOL_SERVER_INVALID' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
+export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'ARTIFACT_NOT_DRAFT' | 'TASK_BUDGET_INVALID' | 'TASK_CONCURRENCY_INVALID' | 'TASK_CONCURRENCY_SKIPPED' | 'TASK_CONTEXT_INVALID' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_FIELDS_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'TASK_TEMPLATE_ARCHIVED' | 'TASK_TEMPLATE_INPUTS_INVALID' | 'TASK_TEMPLATE_INVALID' | 'TOOL_SERVER_ALREADY_EXISTS' | 'TOOL_SERVER_INVALID' | 'SESSION_BUSY' | 'SESSION_ENDED' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
 
 /**
  * Problem details for a business-rule violation.
@@ -1175,6 +1175,125 @@ export type ToolList = {
     items: Array<ToolDescription>;
 };
 
+export type SessionStatus = 'active' | 'ended';
+
+export type CreateSessionRequest = {
+    agentId: string;
+    title?: string;
+};
+
+export type SessionResponse = {
+    id: string;
+    organizationId: string;
+    projectId: string;
+    agentId: string;
+    /**
+     * Pinned when it started.
+     */
+    agentVersionId: string;
+    /**
+     * The person's `sub`.
+     */
+    startedBy: string;
+    title: string | null;
+    status: SessionStatus;
+    /**
+     * `closed`: the person ended it; `idle`: no run for `SESSION_IDLE_TIMEOUT_MS`.
+     */
+    endedReason: 'closed' | 'idle' | null;
+    /**
+     * A run is under way.
+     */
+    running: boolean;
+    lastActivityAt: Timestamp;
+    createdAt: Timestamp;
+    endedAt: string | null;
+};
+
+export type SessionPage = PageMeta & {
+    items: Array<SessionResponse>;
+};
+
+export type SessionToolCall = {
+    id: string;
+    name: string;
+    /**
+     * The arguments as JSON text.
+     */
+    arguments: string;
+};
+
+export type SessionMessage = {
+    /**
+     * The message's AG-UI ID.
+     */
+    id: string;
+    role: 'user' | 'assistant' | 'tool';
+    content: string;
+    toolCalls: Array<SessionToolCall>;
+    /**
+     * A tool message's call.
+     */
+    toolCallId: string | null;
+    createdAt: Timestamp;
+};
+
+export type SessionMessagePage = PageMeta & {
+    items: Array<SessionMessage>;
+};
+
+/**
+ * AG-UI's `RunAgentInput`.
+ */
+export type RunAgentInput = {
+    /**
+     * The session's ID.
+     */
+    threadId: string;
+    runId: string;
+    messages: Array<AguiMessage>;
+    tools?: Array<AguiTool>;
+    context?: Array<{
+        description: string;
+        value: string;
+    }>;
+    /**
+     * The frontend's shared state (AG-UI): given to the agent as context for this run.
+     */
+    state?: unknown;
+    /**
+     * Ignored.
+     */
+    forwardedProps?: unknown;
+};
+
+export type AguiMessage = {
+    id: string;
+    role: 'user' | 'assistant' | 'system' | 'developer' | 'tool';
+    content?: string;
+    name?: string;
+    toolCallId?: string;
+    toolCalls?: Array<{
+        id: string;
+        type: 'function';
+        function: {
+            name: string;
+            arguments: string;
+        };
+    }>;
+};
+
+export type AguiTool = {
+    name: string;
+    description: string;
+    /**
+     * The tool's input as JSON Schema.
+     */
+    parameters: {
+        [key: string]: unknown;
+    };
+};
+
 /**
  * Pass as `cursor` to get the next page; `null` on the last page.
  */
@@ -1256,6 +1375,8 @@ export type TaskId = string;
 export type TemplateId = string;
 
 export type ArtifactId = string;
+
+export type SessionId = string;
 
 export type ToolServerId = string;
 
@@ -3425,3 +3546,328 @@ export type ListToolServerToolsResponses = {
 };
 
 export type ListToolServerToolsResponse = ListToolServerToolsResponses[keyof ListToolServerToolsResponses];
+
+export type ListSessionsData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+    };
+    query?: {
+        status?: SessionStatus;
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions';
+};
+
+export type ListSessionsErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListSessionsError = ListSessionsErrors[keyof ListSessionsErrors];
+
+export type ListSessionsResponses = {
+    /**
+     * Newest first
+     */
+    200: SessionPage;
+};
+
+export type ListSessionsResponse = ListSessionsResponses[keyof ListSessionsResponses];
+
+export type CreateSessionData = {
+    body: CreateSessionRequest;
+    path: {
+        organizationId: string;
+        projectId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions';
+};
+
+export type CreateSessionErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type CreateSessionError = CreateSessionErrors[keyof CreateSessionErrors];
+
+export type CreateSessionResponses = {
+    /**
+     * Started
+     */
+    201: SessionResponse;
+};
+
+export type CreateSessionResponse = CreateSessionResponses[keyof CreateSessionResponses];
+
+export type GetSessionData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+        sessionId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}';
+};
+
+export type GetSessionErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type GetSessionError = GetSessionErrors[keyof GetSessionErrors];
+
+export type GetSessionResponses = {
+    /**
+     * OK
+     */
+    200: SessionResponse;
+};
+
+export type GetSessionResponse = GetSessionResponses[keyof GetSessionResponses];
+
+export type ListSessionMessagesData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+        sessionId: string;
+    };
+    query?: {
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/messages';
+};
+
+export type ListSessionMessagesErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListSessionMessagesError = ListSessionMessagesErrors[keyof ListSessionMessagesErrors];
+
+export type ListSessionMessagesResponses = {
+    /**
+     * Oldest first
+     */
+    200: SessionMessagePage;
+};
+
+export type ListSessionMessagesResponse = ListSessionMessagesResponses[keyof ListSessionMessagesResponses];
+
+export type EndSessionData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        projectId: string;
+        sessionId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/end';
+};
+
+export type EndSessionErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type EndSessionError = EndSessionErrors[keyof EndSessionErrors];
+
+export type EndSessionResponses = {
+    /**
+     * Ended
+     */
+    200: SessionResponse;
+};
+
+export type EndSessionResponse = EndSessionResponses[keyof EndSessionResponses];
+
+export type RunSessionData = {
+    body: RunAgentInput;
+    path: {
+        organizationId: string;
+        projectId: string;
+        sessionId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/runs';
+};
+
+export type RunSessionErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+    /**
+     * `UNAVAILABLE`: a service this request depends on can't be reached
+     * right now. Safe to retry.
+     *
+     */
+    503: CommonOpenapiProblem;
+};
+
+export type RunSessionError = RunSessionErrors[keyof RunSessionErrors];
+
+export type RunSessionResponses = {
+    /**
+     * The run's AG-UI events, as server-sent events.
+     */
+    200: string;
+};
+
+export type RunSessionResponse = RunSessionResponses[keyof RunSessionResponses];

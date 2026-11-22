@@ -22,6 +22,7 @@ const principal = (overrides: Partial<Principal> = {}): Principal => ({
   taskTreeId: null,
   agentId: null,
   agentVersionId: null,
+  sessionId: null,
   actor: null,
   scopes: [],
   ...overrides,
@@ -159,5 +160,57 @@ describe('FixedPermissionEvaluator', () => {
     expect(evaluator.hasOrganizationPermission(service, 'org:read')).toBe(
       false,
     );
+  });
+
+  it('limits session tokens to reading their project, and model calls for sessions', () => {
+    const session = (
+      role: ProjectRole,
+      orgRoles: OrganizationRole[] = ['member'],
+    ) =>
+      principal({
+        organizationRoles: orgRoles,
+        projectRoles: { [PROJECT]: role },
+        projectId: PROJECT,
+        sessionId: '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5e',
+        actor: { sub: 'hephaestus' },
+      });
+    const editor = session('editor');
+    expect(evaluator.hasProjectPermission(editor, PROJECT, 'task:read')).toBe(
+      true,
+    );
+    expect(
+      evaluator.hasProjectPermission(editor, PROJECT, 'knowledge:read'),
+    ).toBe(true);
+    // Nothing that changes anything, whatever the person may do themselves.
+    expect(evaluator.hasProjectPermission(editor, PROJECT, 'task:create')).toBe(
+      false,
+    );
+    expect(
+      evaluator.hasProjectPermission(editor, PROJECT, 'knowledge:write'),
+    ).toBe(false);
+    const admin = session('editor', ['owner']);
+    expect(evaluator.hasProjectPermission(admin, PROJECT, 'task:approve')).toBe(
+      false,
+    );
+    expect(evaluator.hasOrganizationPermission(admin, 'agent:write')).toBe(
+      false,
+    );
+    expect(evaluator.hasOrganizationPermission(admin, 'agent:read')).toBe(true);
+    // Model calls rest on session:use, which viewers have too.
+    const viewer = session('viewer');
+    expect(
+      evaluator.hasProjectPermission(viewer, PROJECT, 'model:invoke'),
+    ).toBe(true);
+    expect(
+      evaluator.hasProjectPermission(
+        principal({ projectRoles: { [PROJECT]: 'viewer' } }),
+        PROJECT,
+        'model:invoke',
+      ),
+    ).toBe(false);
+    // Only its own project.
+    expect(
+      evaluator.hasProjectPermission(editor, OTHER_PROJECT, 'task:read'),
+    ).toBe(false);
   });
 });

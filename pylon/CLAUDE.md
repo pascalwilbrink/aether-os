@@ -102,7 +102,7 @@ Same layout as Seshat (`../seshat/CLAUDE.md`): `src/` is the app shell, and code
     
     `finish` records the call and checks thresholds; it never throws.
   - **`PassThroughService` and `ProvidersController`** (`POST /v1/providers/:provider/*path`, `@Authenticated`):
-    - Only a task token with `model:invoke` in its project may call (`taskCallContext`). `X-Aether-Execution-Id` and `X-Aether-Purpose` are labels only.
+    - Only a task token, or a session token (a person's session in Hephaestus, `session_id`), with `model:invoke` in its project may call (`modelCallContext`). A session's calls record its `sessionId` (`model_calls.session_id`; `GET …/usage?sessionId=`, `groupBy=session`) and count against the organization's, project's and agent's budgets, a session having no task tree. `X-Aether-Execution-Id` and `X-Aether-Purpose` are labels only.
     - `ProviderKeyHeaders`, a middleware on these routes, moves the token from `x-api-key` / `x-goog-api-key` to `Authorization`.
     - `providerCall` (`provider-apis.ts`) recognises the allowed routes and reads the model and `stream`. For OpenAI and Ollama streams it adds `stream_options.include_usage`.
     - `upstreamRequest` puts the key where the provider wants it and forwards only the provider's own headers.
@@ -127,7 +127,7 @@ Same layout as Seshat (`../seshat/CLAUDE.md`): `src/` is the app shell, and code
 `test/setup.ts` starts `test/fake-providers.ts`: Anthropic, OpenAI (Chat Completions, Responses, embeddings), Mistral, Google and an Ollama server on one local port. Each answers with fixed usage, streams when asked, can be scripted (`script`) and records what it received. All `*_API_URL` point at it.
 
 Tokens and helpers:
-- `asMember`, `asTask` / `taskToken`: a task token with `task_tree_id` and optionally an agent;
+- `asMember`, `asTask` / `taskToken`: a task token with `task_tree_id` and optionally an agent; `sessionToken`: a person's session token;
 - `asPlatform`: a platform service's own token;
 - `agoraAgent`: delivers `agent.created` through the inbox.
 

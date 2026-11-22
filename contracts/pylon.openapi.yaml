@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Pylon API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     The model gateway (`../docs/pylon.md`, `../docs/models.md`): every model
     call and embedding in Aether-os goes through Pylon, which picks the
@@ -36,7 +36,7 @@ paths:
     post:
       tags: [providers]
       operationId: callAnthropicMessages
-      x-permission: '`model:invoke` in the task token''s project (task tokens only)'
+      x-permission: '`model:invoke` in the token''s project (task tokens, and session tokens: `../docs/interaction.md`)'
       x-pass-through: true
       description: |
         Anthropic's Messages API (`POST /v1/messages`), passed through: point
@@ -69,7 +69,7 @@ paths:
     post:
       tags: [providers]
       operationId: callOpenAiChatCompletions
-      x-permission: '`model:invoke` in the task token''s project (task tokens only)'
+      x-permission: '`model:invoke` in the token''s project (task tokens, and session tokens: `../docs/interaction.md`)'
       x-pass-through: true
       description: |
         OpenAI's Chat Completions API, passed through (`baseURL`
@@ -94,7 +94,7 @@ paths:
     post:
       tags: [providers]
       operationId: callOpenAiResponses
-      x-permission: '`model:invoke` in the task token''s project (task tokens only)'
+      x-permission: '`model:invoke` in the token''s project (task tokens, and session tokens: `../docs/interaction.md`)'
       x-pass-through: true
       description: OpenAI's Responses API, passed through. Otherwise as `callAnthropicMessages`.
       parameters:
@@ -115,7 +115,7 @@ paths:
     post:
       tags: [providers]
       operationId: callMistralChatCompletions
-      x-permission: '`model:invoke` in the task token''s project (task tokens only)'
+      x-permission: '`model:invoke` in the token''s project (task tokens, and session tokens: `../docs/interaction.md`)'
       x-pass-through: true
       description: Mistral's Chat Completions API, passed through (`baseURL` `<pylon>/v1/providers/mistral/v1`). Otherwise as `callAnthropicMessages`.
       parameters:
@@ -136,7 +136,7 @@ paths:
     post:
       tags: [providers]
       operationId: callOllamaChatCompletions
-      x-permission: '`model:invoke` in the task token''s project (task tokens only)'
+      x-permission: '`model:invoke` in the token''s project (task tokens, and session tokens: `../docs/interaction.md`)'
       x-pass-through: true
       description: |
         The organization's Ollama server's OpenAI-compatible API (its
@@ -168,7 +168,7 @@ paths:
     post:
       tags: [providers]
       operationId: callGoogleGenerateContent
-      x-permission: '`model:invoke` in the task token''s project (task tokens only)'
+      x-permission: '`model:invoke` in the token''s project (task tokens, and session tokens: `../docs/interaction.md`)'
       x-pass-through: true
       description: |
         Google's Gemini API, passed through (`baseURL`
@@ -306,7 +306,7 @@ paths:
       x-permission: '`org:read`, or `platform:read`'
       description: |
         What model calls cost and used, in total or per group, filtered by
-        project, agent, task tree, executions and time. Calls a provider
+        project, agent, task tree, session, executions and time. Calls a provider
         didn't report tokens for count as 0 tokens; unpriced calls as no cost.
       parameters:
         - name: projectId
@@ -320,6 +320,11 @@ paths:
         - name: taskTreeId
           in: query
           required: false
+          schema: { type: string, format: uuid }
+        - name: sessionId
+          in: query
+          required: false
+          description: A session's calls (Hephaestus's sessions, `../docs/interaction.md`).
           schema: { type: string, format: uuid }
         - name: executionId
           in: query
@@ -1270,7 +1275,7 @@ components:
             - type: 'null'
     UsageGroup:
       type: string
-      enum: [project, agent, task_tree, execution, model]
+      enum: [project, agent, task_tree, execution, session, model]
     UsageTotals:
       type: object
       required: [modelCalls, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, costUsd]
@@ -1295,7 +1300,7 @@ components:
           required: [group]
           properties:
             group:
-              description: 'The group''s key: a project, agent, task tree or execution ID, or `provider/model`; null without `groupBy`.'
+              description: 'The group''s key: a project, agent, task tree, execution or session ID, or `provider/model`; null without `groupBy`.'
               type: [string, 'null']
     UsageResponse:
       type: object

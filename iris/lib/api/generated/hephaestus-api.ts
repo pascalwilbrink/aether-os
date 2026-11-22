@@ -700,6 +700,143 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/projects/{projectId}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        /** @description The caller's own sessions in the project, newest first. */
+        get: operations["listSessions"];
+        put?: never;
+        /**
+         * @description Starts a session (`../docs/interaction.md`): a conversation between
+         *     the caller and an agent in the project. The agent's published version
+         *     is pinned now, like a task's (`AGENT_NOT_PUBLISHED`, `AGENT_ARCHIVED`);
+         *     the session acts for the caller, read-only. Only the person who
+         *     started it can see and use it.
+         */
+        post: operations["createSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        /** @description The conversation, oldest first. */
+        get: operations["listSessionMessages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Ends the session (its messages stay); ending an ended session returns it unchanged. */
+        post: operations["endSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description The session's AG-UI endpoint (`../docs/interaction.md`; the AG-UI
+         *     protocol, docs.ag-ui.com): takes a `RunAgentInput` and streams AG-UI
+         *     events back as server-sent events (`data: <event JSON>`), the run
+         *     being one turn of the agent. `threadId` is the session's ID.
+         *
+         *     The session's own history is what the agent sees: of the input's
+         *     `messages`, those it doesn't have yet (by `id`) are added: `user`
+         *     messages, and `tool` messages answering the frontend's tools; the
+         *     others are ignored. A run needs at least one new message. `tools` are
+         *     the frontend's tools: when the agent calls one, the run ends with
+         *     that call (`TOOL_CALL_START`, `TOOL_CALL_ARGS`, `TOOL_CALL_END`) and
+         *     the frontend answers it with a `tool` message in the next run.
+         *     `context` entries are given to the agent for this run.
+         *
+         *     The agent runs with a session token Hephaestus obtains from Pistis
+         *     for the caller (read-only: the agent sees what the caller can see,
+         *     and changes nothing itself), its version's tool servers and skills,
+         *     the project's knowledge (read-only), and its model through Pylon
+         *     (metered and budgeted for the session; a budget that ran out ends the
+         *     run with `RUN_ERROR`, code `BUDGET_EXHAUSTED`).
+         *
+         *     Events: `RUN_STARTED`, `TEXT_MESSAGE_START` / `_CONTENT` / `_END`,
+         *     `TOOL_CALL_START` / `_ARGS` / `_END`, `TOOL_CALL_RESULT` (the agent's
+         *     own tools), and `RUN_FINISHED` or `RUN_ERROR` (`message`, `code`).
+         *     One run at a time per session (`SESSION_BUSY`); an ended session
+         *     runs no more (`SESSION_ENDED`).
+         */
+        post: operations["runSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -736,7 +873,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "TASK_CONTEXT_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_FIELDS_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "TASK_CONTEXT_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_FIELDS_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "SESSION_BUSY" | "SESSION_ENDED" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -1714,6 +1851,105 @@ export interface components {
         ToolList: {
             items: components["schemas"]["ToolDescription"][];
         };
+        /** @enum {string} */
+        SessionStatus: "active" | "ended";
+        CreateSessionRequest: {
+            /** Format: uuid */
+            agentId: string;
+            title?: string;
+        };
+        SessionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            projectId: string;
+            /** Format: uuid */
+            agentId: string;
+            /**
+             * Format: uuid
+             * @description Pinned when it started.
+             */
+            agentVersionId: string;
+            /** @description The person's `sub`. */
+            startedBy: string;
+            title: string | null;
+            status: components["schemas"]["SessionStatus"];
+            /**
+             * @description `closed`: the person ended it; `idle`: no run for `SESSION_IDLE_TIMEOUT_MS`.
+             * @enum {string|null}
+             */
+            endedReason: "closed" | "idle" | null;
+            /** @description A run is under way. */
+            running: boolean;
+            lastActivityAt: components["schemas"]["Timestamp"];
+            createdAt: components["schemas"]["Timestamp"];
+            /** Format: date-time */
+            endedAt: string | null;
+        };
+        SessionPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["SessionResponse"][];
+        };
+        SessionToolCall: {
+            id: string;
+            name: string;
+            /** @description The arguments as JSON text. */
+            arguments: string;
+        };
+        SessionMessage: {
+            /** @description The message's AG-UI ID. */
+            id: string;
+            /** @enum {string} */
+            role: "user" | "assistant" | "tool";
+            content: string;
+            toolCalls: components["schemas"]["SessionToolCall"][];
+            /** @description A tool message's call. */
+            toolCallId: string | null;
+            createdAt: components["schemas"]["Timestamp"];
+        };
+        SessionMessagePage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["SessionMessage"][];
+        };
+        /** @description AG-UI's `RunAgentInput`. */
+        RunAgentInput: {
+            /** @description The session's ID. */
+            threadId: string;
+            runId: string;
+            messages: components["schemas"]["AguiMessage"][];
+            tools?: components["schemas"]["AguiTool"][];
+            context?: {
+                description: string;
+                value: string;
+            }[];
+            /** @description The frontend's shared state (AG-UI): given to the agent as context for this run. */
+            state?: unknown;
+            /** @description Ignored. */
+            forwardedProps?: unknown;
+        };
+        AguiMessage: {
+            id: string;
+            /** @enum {string} */
+            role: "user" | "assistant" | "system" | "developer" | "tool";
+            content?: string;
+            name?: string;
+            toolCallId?: string;
+            toolCalls?: {
+                id: string;
+                /** @enum {string} */
+                type: "function";
+                function: {
+                    name: string;
+                    arguments: string;
+                };
+            }[];
+        };
+        AguiTool: {
+            name: string;
+            description: string;
+            /** @description The tool's input as JSON Schema. */
+            parameters: Record<string, never>;
+        };
         /** @description One invalid input. Exactly one of `pointer` and `parameter` is set. */
         ProblemFieldError: {
             /** @description JSON Pointer (RFC 6901) into the request body, e.g. `/name`. */
@@ -1820,6 +2056,7 @@ export interface components {
         TaskId: string;
         TemplateId: string;
         ArtifactId: string;
+        SessionId: string;
         ToolServerId: string;
         /** @description Page size. */
         Limit: number;
@@ -3039,6 +3276,202 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    listSessions: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["SessionStatus"];
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Started */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    getSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listSessionMessages: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Oldest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionMessagePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    endSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ended */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    runSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunAgentInput"];
+            };
+        };
+        responses: {
+            /** @description The run's AG-UI events, as server-sent events. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
         };
     };
 }

@@ -131,6 +131,7 @@ export class ConnectService {
           taskTreeId: null,
           agentId: null,
           agentVersionId: null,
+          sessionId: null,
           actor: null,
           scopes: [],
         },
