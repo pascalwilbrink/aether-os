@@ -3,13 +3,14 @@ import type { Request, Response } from 'express';
 
 import { AccessControl, Authenticated } from '@pylon/core';
 
-import { taskCallContext } from './call-context.js';
+import { modelCallContext } from './call-context.js';
 import { PassThroughService } from './pass-through.service.js';
 
 /**
  * Model calls in each provider's own API, passed through
- * (`/v1/providers/<provider>/<path>`, docs/pylon.md). Only task tokens, with
- * `model:invoke` in their project; the token may come where the provider's
+ * (`/v1/providers/<provider>/<path>`, docs/pylon.md). Only task and session
+ * tokens, with `model:invoke` in their project (a session token's rests on
+ * the person's `session:use`, Krepis); the token may come where the provider's
  * SDK puts its key (`ProviderKeyHeaders`).
  */
 @Controller('providers')
@@ -26,7 +27,7 @@ export class ProvidersController {
     @Req() request: Request,
     @Res() response: Response,
   ): Promise<void> {
-    const context = taskCallContext(this.access.principal(), request.headers);
+    const context = modelCallContext(this.access.principal(), request.headers);
     this.access.assertProjectPermission(context.projectId, 'model:invoke');
     const segments = (request.params as { path?: string | string[] }).path;
     const path = Array.isArray(segments)

@@ -9,6 +9,8 @@ export interface CallContext {
   taskTreeId: string | null;
   agentId: string | null;
   agentVersionId: string | null;
+  /** The session, for a session token's call (Hephaestus's sessions, docs/interaction.md). */
+  sessionId: string | null;
   /** `X-Aether-Execution-Id`: a label, nothing more. */
   executionId: string | null;
   /** The token's `sub`. */

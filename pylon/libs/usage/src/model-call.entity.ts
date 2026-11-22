@@ -24,6 +24,7 @@ import type { KeySource } from '@pylon/keys';
 @Index('ix_model_calls_project_id_created_at', ['projectId', 'createdAt'])
 @Index('ix_model_calls_agent_id_created_at', ['agentId', 'createdAt'])
 @Index('ix_model_calls_task_tree_id', ['taskTreeId'])
+@Index('ix_model_calls_session_id', ['sessionId'])
 export class ModelCallEntity {
   @PrimaryColumn({ type: 'uuid' })
   id: string;
@@ -47,6 +48,10 @@ export class ModelCallEntity {
 
   @Column({ type: 'uuid', nullable: true })
   agentVersionId: string | null;
+
+  /** The session, for a session token's call. */
+  @Column({ type: 'uuid', nullable: true })
+  sessionId: string | null;
 
   /** As the caller labelled the call (`X-Aether-Execution-Id`). */
   @Column({ type: 'uuid', nullable: true })
