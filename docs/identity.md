@@ -62,7 +62,7 @@ Short-lived JWTs (5–15 minutes) signed by Pistis with asymmetric keys. Service
 - `project_roles` carries only explicit project grants, which are never `admin`. Organization `owner`s and `admin`s are project `admin` everywhere, which Krepis derives from `org_roles`, so their tokens need no project list.
 - **Delegation** uses OAuth 2.0 token exchange (RFC 8693). When Kairos fires an automation, it exchanges its own service token for one with `sub` = the automation's service account and `act` = Kairos. Audit logs record both.
 - **Task tokens:** when a task starts, Hephaestus exchanges for a token for the automation's service account, limited by `project_id` to the task's project, carrying `task_id`, and valid only for the task's lifetime. The task uses it for everything: OpenBao, Seshat, Loculus and other Aether-os APIs. Pistis's exchange rules decide which services may obtain tokens for which principals; for example, only Hephaestus may obtain task tokens.
-- **Session tokens** (Proposal, `interaction.md`): for a copilot or voice session, Hephaestus exchanges for a token with `sub` = the person, `act` = Hephaestus and `session_id`, limited to the session's project and to read permissions, valid for minutes and renewed while the session is active. The agent sees what the person can see and changes nothing itself; side effects are frontend actions the person confirms with their own token, or tasks.
+- **Session tokens** (`interaction.md`, Session tokens): for each run of a session, Hephaestus exchanges the person's own access token at Pistis (its client has `token_exchange: ['session-token']`) for a token with `sub` = the person, `act` = Hephaestus, `session_id`, `project_id`, `agent_id` and `agent_version_id`, for at most 15 minutes. Pistis requires `session:use` in the project. Krepis limits it to the session's project and to reading (`org:read`, `agent:read`, `council:read`; `project:read`, `task:read`, `knowledge:read`, `file:read`, `automation:read`, `workspace:read` in the project), plus `model:invoke` while the person has `session:use`. The agent sees what the person can see and changes nothing itself; side effects are frontend actions the person confirms with their own token, or tasks.
 - **Chat action tokens:** when a linked user answers a review from Slack or Teams, Proxenos exchanges for a token with `sub` = that user and `act` = Proxenos, valid for about a minute and for that one action. Only Proxenos may obtain these, and only for users whose chat account is linked in Pistis (see `notifications.md`).
 
 ## Roles
@@ -149,7 +149,7 @@ The organization-wide variants carry an `org:` prefix in code, so every permissi
 | `knowledge:write` (creating and editing items, uploading documents) | project | ✓ | ✓ | ✓ | |
 | `knowledge:approve` (accepting or rejecting proposals; only people) | project | ✓ | ✓ | | |
 | `model:invoke` (model calls and embeddings through Pylon, `pylon.md`; used by task tokens) | project | ✓ | ✓ | ✓ | |
-| `session:use` (copilot, voice and council sessions, `interaction.md`, `councils.md`; Proposal) | project | ✓ | ✓ | ✓ | ✓ |
+| `session:use` (copilot, voice and council sessions, `interaction.md`, `councils.md`) | project | ✓ | ✓ | ✓ | ✓ |
 | `meeting:read` / `meeting:manage` (the meeting agent, `interaction.md`; Proposal) | project | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / |
 
 Approval is gated only by `task:approve`: every principal holding it in the task's project can approve that task, with two rules:

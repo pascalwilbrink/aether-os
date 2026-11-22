@@ -102,7 +102,7 @@ Task tokens carry new claims, which Pistis adds when Hephaestus exchanges for th
 | `task_tree_id` | The task tree's budget |
 | `agent_id`, `agent_version_id` | The agent's budget, its own keys, and attribution |
 
-Model calls need a task token (`task_id` and `project_id`); until Hephaestus sends the new claims, a task's tree and agent budgets and its agent's own keys simply don't apply to its calls. People's tokens and service accounts' API key tokens make no model calls (embeddings with a project, as above).
+Model calls need a task token (`task_id` and `project_id`) or a session token (`session_id` and `project_id`, a person's session in Hephaestus, `interaction.md`: metered per session, `model_calls.session_id`, and counted against the organization's, project's and agent's budgets, a session having no tree); until Hephaestus sends the new claims, a task's tree and agent budgets and its agent's own keys simply don't apply to its calls. People's tokens and service accounts' API key tokens make no model calls (embeddings with a project, as above).
 
 A new permission, `model:invoke` (project), is held by task tokens, through their service account's project role (`editor` and above). Platform services get it as a scope on their own tokens (`identity.md`).
 
