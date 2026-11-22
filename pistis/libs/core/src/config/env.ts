@@ -29,7 +29,7 @@ const zClient = z
       ]),
     ),
     /** Platform services only: what they may exchange for (`task-token`: Hephaestus). */
-    token_exchange: z.array(z.enum(['task-token'])).optional(),
+    token_exchange: z.array(z.enum(['task-token', 'session-token'])).optional(),
     /** Platform services only: the platform permissions they may ask for. */
     platform_permissions: z
       .array(z.enum(['platform:read', 'platform:manage']))
@@ -94,7 +94,7 @@ const DEV_CLIENTS = [
     token_endpoint_auth_method: 'client_secret_basic',
     platform_permissions: ['platform:read'],
     // Task tokens for the service accounts tasks run as.
-    token_exchange: ['task-token'],
+    token_exchange: ['task-token', 'session-token'],
   },
   // Proxenos's own token (client credentials), to read from Polis.
   {
