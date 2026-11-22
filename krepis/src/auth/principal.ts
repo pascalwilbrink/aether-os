@@ -25,6 +25,12 @@ export interface Principal {
   /** Task tokens: the agent and version the task runs, for budgets, keys and attribution. */
   readonly agentId: string | null;
   readonly agentVersionId: string | null;
+  /**
+   * Session tokens (docs/interaction.md): the session Hephaestus runs for
+   * the person (`sub`), limited to its project and to reading, plus model
+   * calls (`FixedPermissionEvaluator`).
+   */
+  readonly sessionId: string | null;
   /** Who acts on the principal's behalf (token exchange). */
   readonly actor: { readonly sub: string } | null;
   /** The token's scopes (`scope`). */
@@ -52,6 +58,7 @@ export const zAccessTokenClaims = z
     task_tree_id: zUuid.optional(),
     agent_id: zUuid.optional(),
     agent_version_id: zUuid.optional(),
+    session_id: zUuid.optional(),
     act: z.object({ sub: z.string() }).loose().optional(),
     scope: z.string().optional(),
   })
@@ -63,6 +70,10 @@ export const zAccessTokenClaims = z
   .refine(
     (claims) => !claims.project_id || claims.org_id,
     'project_id needs org_id',
+  )
+  .refine(
+    (claims) => !claims.session_id || claims.project_id,
+    'session_id needs project_id',
   );
 
 export function principalFromClaims(
@@ -81,6 +92,7 @@ export function principalFromClaims(
     taskTreeId: claims.task_tree_id ?? null,
     agentId: claims.agent_id ?? null,
     agentVersionId: claims.agent_version_id ?? null,
+    sessionId: claims.session_id ?? null,
     actor: claims.act ? { sub: claims.act.sub } : null,
     scopes: claims.scope?.split(' ').filter(Boolean) ?? [],
   };
