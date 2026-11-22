@@ -105,6 +105,24 @@
       "compilerOptions": {
         "tsConfigPath": "libs/skills/tsconfig.lib.json"
       }
+    },
+    "councils": {
+      "type": "library",
+      "root": "libs/councils",
+      "entryFile": "index",
+      "sourceRoot": "libs/councils/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/councils/tsconfig.lib.json"
+      }
+    },
+    "sessions": {
+      "type": "library",
+      "root": "libs/sessions",
+      "entryFile": "index",
+      "sourceRoot": "libs/sessions/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/sessions/tsconfig.lib.json"
+      }
     }
   }
 }

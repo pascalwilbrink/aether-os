@@ -23,3 +23,6 @@ export * from './git-client.js';
 export * from './pull-requests.js';
 export * from './deliveries.js';
 export * from './knowledge-base.js';
+export * from './knowledge-tools.js';
+export * from './skill-files-source.js';
+export * from './agent-tracing.js';

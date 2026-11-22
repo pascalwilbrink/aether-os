@@ -91,6 +91,21 @@ export const zEnv = z.object({
   REVIEW_MAX_ROUNDS: z.coerce.number().int().min(1).max(20).default(3),
   /** Runs of the agent per execution while acceptance criteria fail. */
   VERIFICATION_MAX_ROUNDS: z.coerce.number().int().min(1).max(10).default(3),
+  /** Sessions (../docs/interaction.md): one with no run for this long ends. */
+  SESSION_IDLE_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(30 * 60_000),
+  /** A session's run (one turn) is stopped after this long; under the session token's 15 minutes. */
+  SESSION_RUN_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(14 * 60_000)
+    .default(10 * 60_000),
+  /** How often idle sessions are ended; 0 turns it off (tests). */
+  SESSION_REAPER_INTERVAL_MS: z.coerce.number().int().min(0).default(60_000),
   /**
    * Sandboxes for agent versions that need one (`runtime.sandboxRequired`):
    * `none` (the default) fails such tasks; `docker` runs hardened containers

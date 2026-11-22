@@ -6,6 +6,7 @@ import type {
   ClientMeta,
   Options as Options2,
   RequestResult,
+  ServerSentEventsResult,
   TDataShape,
 } from './client/index.js';
 import type {
@@ -24,6 +25,9 @@ import type {
   CheckAgentVersionData,
   CheckAgentVersionErrors,
   CheckAgentVersionResponses,
+  CreateSessionData,
+  CreateSessionErrors,
+  CreateSessionResponses,
   CreateTaskData,
   CreateTaskErrors,
   CreateTaskFromTemplateData,
@@ -51,6 +55,12 @@ import type {
   DestroyWorkspaceData,
   DestroyWorkspaceErrors,
   DestroyWorkspaceResponses,
+  EndSessionData,
+  EndSessionErrors,
+  EndSessionResponses,
+  GetSessionData,
+  GetSessionErrors,
+  GetSessionResponses,
   GetTaskArtifactData,
   GetTaskArtifactErrors,
   GetTaskArtifactResponses,
@@ -75,6 +85,12 @@ import type {
   ListExecutionEventsData,
   ListExecutionEventsErrors,
   ListExecutionEventsResponses,
+  ListSessionMessagesData,
+  ListSessionMessagesErrors,
+  ListSessionMessagesResponses,
+  ListSessionsData,
+  ListSessionsErrors,
+  ListSessionsResponses,
   ListTaskArtifactsData,
   ListTaskArtifactsErrors,
   ListTaskArtifactsResponses,
@@ -114,6 +130,10 @@ import type {
   RetryTaskData,
   RetryTaskErrors,
   RetryTaskResponses,
+  RunSessionData,
+  RunSessionErrors,
+  RunSessionResponse,
+  RunSessionResponses,
   SetTaskTreeBudgetData,
   SetTaskTreeBudgetErrors,
   SetTaskTreeBudgetResponses,
@@ -962,4 +982,140 @@ export const listToolServerTools = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/tool-servers/{toolServerId}/tools',
     ...options,
+  });
+
+/**
+ * The caller's own sessions in the project, newest first.
+ */
+export const listSessions = <ThrowOnError extends boolean = false>(
+  options: Options<ListSessionsData, ThrowOnError>,
+): RequestResult<ListSessionsResponses, ListSessionsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListSessionsResponses,
+    ListSessionsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions',
+    ...options,
+  });
+
+/**
+ * Starts a session (`../docs/interaction.md`): a conversation between
+ * the caller and an agent in the project. The agent's published version
+ * is pinned now, like a task's (`AGENT_NOT_PUBLISHED`, `AGENT_ARCHIVED`);
+ * the session acts for the caller, read-only. Only the person who
+ * started it can see and use it.
+ *
+ */
+export const createSession = <ThrowOnError extends boolean = false>(
+  options: Options<CreateSessionData, ThrowOnError>,
+): RequestResult<CreateSessionResponses, CreateSessionErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateSessionResponses,
+    CreateSessionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+export const getSession = <ThrowOnError extends boolean = false>(
+  options: Options<GetSessionData, ThrowOnError>,
+): RequestResult<GetSessionResponses, GetSessionErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetSessionResponses,
+    GetSessionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}',
+    ...options,
+  });
+
+/**
+ * The conversation, oldest first.
+ */
+export const listSessionMessages = <ThrowOnError extends boolean = false>(
+  options: Options<ListSessionMessagesData, ThrowOnError>,
+): RequestResult<
+  ListSessionMessagesResponses,
+  ListSessionMessagesErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListSessionMessagesResponses,
+    ListSessionMessagesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/messages',
+    ...options,
+  });
+
+/**
+ * Ends the session (its messages stay); ending an ended session returns it unchanged.
+ */
+export const endSession = <ThrowOnError extends boolean = false>(
+  options: Options<EndSessionData, ThrowOnError>,
+): RequestResult<EndSessionResponses, EndSessionErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    EndSessionResponses,
+    EndSessionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/end',
+    ...options,
+  });
+
+/**
+ * The session's AG-UI endpoint (`../docs/interaction.md`; the AG-UI
+ * protocol, docs.ag-ui.com): takes a `RunAgentInput` and streams AG-UI
+ * events back as server-sent events (`data: <event JSON>`), the run
+ * being one turn of the agent. `threadId` is the session's ID.
+ *
+ * The session's own history is what the agent sees: of the input's
+ * `messages`, those it doesn't have yet (by `id`) are added: `user`
+ * messages, and `tool` messages answering the frontend's tools; the
+ * others are ignored. A run needs at least one new message. `tools` are
+ * the frontend's tools: when the agent calls one, the run ends with
+ * that call (`TOOL_CALL_START`, `TOOL_CALL_ARGS`, `TOOL_CALL_END`) and
+ * the frontend answers it with a `tool` message in the next run.
+ * `context` entries are given to the agent for this run.
+ *
+ * The agent runs with a session token Hephaestus obtains from Pistis
+ * for the caller (read-only: the agent sees what the caller can see,
+ * and changes nothing itself), its version's tool servers and skills,
+ * the project's knowledge (read-only), and its model through Pylon
+ * (metered and budgeted for the session; a budget that ran out ends the
+ * run with `RUN_ERROR`, code `BUDGET_EXHAUSTED`).
+ *
+ * Events: `RUN_STARTED`, `TEXT_MESSAGE_START` / `_CONTENT` / `_END`,
+ * `TOOL_CALL_START` / `_ARGS` / `_END`, `TOOL_CALL_RESULT` (the agent's
+ * own tools), and `RUN_FINISHED` or `RUN_ERROR` (`message`, `code`).
+ * One run at a time per session (`SESSION_BUSY`); an ended session
+ * runs no more (`SESSION_ENDED`).
+ *
+ */
+export const runSession = <ThrowOnError extends boolean = false>(
+  options: Options<RunSessionData, ThrowOnError, RunSessionResponse>,
+): Promise<ServerSentEventsResult<RunSessionResponses>> =>
+  (options.client ?? client).sse.post<
+    RunSessionResponses,
+    RunSessionErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/runs',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   });

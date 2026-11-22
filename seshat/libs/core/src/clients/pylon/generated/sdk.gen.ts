@@ -390,7 +390,7 @@ export const setTaskTreeBudget = <ThrowOnError extends boolean = false>(
 
 /**
  * What model calls cost and used, in total or per group, filtered by
- * project, agent, task tree, executions and time. Calls a provider
+ * project, agent, task tree, session, executions and time. Calls a provider
  * didn't report tokens for count as 0 tokens; unpriced calls as no cost.
  *
  */

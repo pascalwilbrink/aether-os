@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.33.0
+  version: 0.34.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -41,6 +41,7 @@ tags:
   - name: task-templates
   - name: budgets
   - name: tool-servers
+  - name: sessions
 
 paths:
   /v1/organizations/{organizationId}/agent-version-checks:
@@ -997,6 +998,178 @@ paths:
               schema: { $ref: '#/components/schemas/Problem' }
 
 
+  /v1/organizations/{organizationId}/projects/{projectId}/sessions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    post:
+      tags: [sessions]
+      operationId: createSession
+      x-permission: '`session:use` in the project'
+      description: |
+        Starts a session (`../docs/interaction.md`): a conversation between
+        the caller and an agent in the project. The agent's published version
+        is pinned now, like a task's (`AGENT_NOT_PUBLISHED`, `AGENT_ARCHIVED`);
+        the session acts for the caller, read-only. Only the person who
+        started it can see and use it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSessionRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [sessions]
+      operationId: listSessions
+      x-permission: '`session:use` in the project'
+      description: The caller's own sessions in the project, newest first.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/SessionStatus' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/SessionId'
+    get:
+      tags: [sessions]
+      operationId: getSession
+      x-permission: '`session:use` in the project; only the person who started it'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/messages:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/SessionId'
+    get:
+      tags: [sessions]
+      operationId: listSessionMessages
+      x-permission: '`session:use` in the project; only the person who started it'
+      description: The conversation, oldest first.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionMessagePage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/end:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/SessionId'
+    post:
+      tags: [sessions]
+      operationId: endSession
+      x-permission: '`session:use` in the project; only the person who started it'
+      description: Ends the session (its messages stay); ending an ended session returns it unchanged.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Ended
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/runs:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/SessionId'
+    post:
+      tags: [sessions]
+      operationId: runSession
+      x-permission: '`session:use` in the project; only the person who started it'
+      description: |
+        The session's AG-UI endpoint (`../docs/interaction.md`; the AG-UI
+        protocol, docs.ag-ui.com): takes a `RunAgentInput` and streams AG-UI
+        events back as server-sent events (`data: <event JSON>`), the run
+        being one turn of the agent. `threadId` is the session's ID.
+
+        The session's own history is what the agent sees: of the input's
+        `messages`, those it doesn't have yet (by `id`) are added: `user`
+        messages, and `tool` messages answering the frontend's tools; the
+        others are ignored. A run needs at least one new message. `tools` are
+        the frontend's tools: when the agent calls one, the run ends with
+        that call (`TOOL_CALL_START`, `TOOL_CALL_ARGS`, `TOOL_CALL_END`) and
+        the frontend answers it with a `tool` message in the next run.
+        `context` entries are given to the agent for this run.
+
+        The agent runs with a session token Hephaestus obtains from Pistis
+        for the caller (read-only: the agent sees what the caller can see,
+        and changes nothing itself), its version's tool servers and skills,
+        the project's knowledge (read-only), and its model through Pylon
+        (metered and budgeted for the session; a budget that ran out ends the
+        run with `RUN_ERROR`, code `BUDGET_EXHAUSTED`).
+
+        Events: `RUN_STARTED`, `TEXT_MESSAGE_START` / `_CONTENT` / `_END`,
+        `TOOL_CALL_START` / `_ARGS` / `_END`, `TOOL_CALL_RESULT` (the agent's
+        own tools), and `RUN_FINISHED` or `RUN_ERROR` (`message`, `code`).
+        One run at a time per session (`SESSION_BUSY`); an ended session
+        runs no more (`SESSION_ENDED`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RunAgentInput' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: The run's AG-UI events, as server-sent events.
+          content:
+            text/event-stream:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
 components:
   parameters:
     OrganizationId:
@@ -1036,6 +1209,11 @@ components:
       schema: { type: string, format: uuid }
     ArtifactId:
       name: artifactId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    SessionId:
+      name: sessionId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -1096,6 +1274,8 @@ components:
         - TASK_TEMPLATE_INVALID
         - TOOL_SERVER_ALREADY_EXISTS
         - TOOL_SERVER_INVALID
+        - SESSION_BUSY
+        - SESSION_ENDED
         - WORKSPACE_INVALID_EXPIRY
         - WORKSPACE_INVALID_TRANSITION
     DomainProblem:
@@ -2428,3 +2608,132 @@ components:
         items:
           type: array
           items: { $ref: '#/components/schemas/ToolDescription' }
+
+    # ---------- sessions (../docs/interaction.md) ----------
+    SessionStatus:
+      type: string
+      enum: [active, ended]
+    CreateSessionRequest:
+      type: object
+      additionalProperties: false
+      required: [agentId]
+      properties:
+        agentId: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 200 }
+    SessionResponse:
+      type: object
+      required: [id, organizationId, projectId, agentId, agentVersionId, startedBy, title, status, endedReason, running, lastActivityAt, createdAt, endedAt]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        projectId: { type: string, format: uuid }
+        agentId: { type: string, format: uuid }
+        agentVersionId: { type: string, format: uuid, description: Pinned when it started. }
+        startedBy: { type: string, description: 'The person''s `sub`.' }
+        title: { type: [string, 'null'] }
+        status: { $ref: '#/components/schemas/SessionStatus' }
+        endedReason:
+          type: [string, 'null']
+          enum: [closed, idle, null]
+          description: '`closed`: the person ended it; `idle`: no run for `SESSION_IDLE_TIMEOUT_MS`.'
+        running: { type: boolean, description: A run is under way. }
+        lastActivityAt: { $ref: '#/components/schemas/Timestamp' }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        endedAt:
+          type: [string, 'null']
+          format: date-time
+    SessionPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/SessionResponse' }
+    SessionToolCall:
+      type: object
+      required: [id, name, arguments]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        arguments: { type: string, description: The arguments as JSON text. }
+    SessionMessage:
+      type: object
+      required: [id, role, content, toolCalls, toolCallId, createdAt]
+      properties:
+        id: { type: string, description: The message's AG-UI ID. }
+        role: { type: string, enum: [user, assistant, tool] }
+        content: { type: string }
+        toolCalls:
+          type: array
+          items: { $ref: '#/components/schemas/SessionToolCall' }
+        toolCallId:
+          type: [string, 'null']
+          description: A tool message's call.
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+    SessionMessagePage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/SessionMessage' }
+    RunAgentInput:
+      type: object
+      description: AG-UI's `RunAgentInput`.
+      required: [threadId, runId, messages]
+      properties:
+        threadId: { type: string, description: The session's ID. }
+        runId: { type: string, minLength: 1, maxLength: 200 }
+        messages:
+          type: array
+          maxItems: 1000
+          items: { $ref: '#/components/schemas/AguiMessage' }
+        tools:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/AguiTool' }
+        context:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            required: [description, value]
+            properties:
+              description: { type: string, maxLength: 1000 }
+              value: { type: string, maxLength: 20000 }
+        state: { description: "The frontend's shared state (AG-UI): given to the agent as context for this run." }
+        forwardedProps: { description: Ignored. }
+    AguiMessage:
+      type: object
+      required: [id, role]
+      properties:
+        id: { type: string, minLength: 1, maxLength: 200 }
+        role: { type: string, enum: [user, assistant, system, developer, tool] }
+        content: { type: string, maxLength: 100000 }
+        name: { type: string }
+        toolCallId: { type: string, maxLength: 200 }
+        toolCalls:
+          type: array
+          items:
+            type: object
+            required: [id, type, function]
+            properties:
+              id: { type: string }
+              type: { type: string, enum: [function] }
+              function:
+                type: object
+                required: [name, arguments]
+                properties:
+                  name: { type: string }
+                  arguments: { type: string }
+    AguiTool:
+      type: object
+      required: [name, description, parameters]
+      properties:
+        name: { type: string, pattern: '^[A-Za-z0-9_-]{1,64}$' }
+        description: { type: string, maxLength: 2000 }
+        parameters: { type: object, description: The tool's input as JSON Schema. }

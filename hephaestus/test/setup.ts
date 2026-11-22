@@ -13,6 +13,7 @@ process.env.POLIS_URL = 'http://polis.invalid';
 process.env.PYLON_URL = 'http://pylon.invalid';
 // Tests run the relay themselves.
 process.env.OUTBOX_RELAY_INTERVAL_MS = '0';
+process.env.SESSION_REAPER_INTERVAL_MS = '0';
 process.env.NODE_ENV = 'test';
 // Sandbox proxies come from Docker Hub's mirror (no rate limit on CI).
 // Test tool servers (test/fake-tool-server.ts) listen on 127.0.0.1.

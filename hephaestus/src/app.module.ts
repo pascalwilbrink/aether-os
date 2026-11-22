@@ -20,6 +20,7 @@ import { CouncilsModule } from '@hephaestus/councils';
 import { TenancyModule } from '@hephaestus/tenancy';
 import { ArtifactsModule } from '@hephaestus/artifacts';
 import { RunnerModule } from '@hephaestus/runner';
+import { SessionsModule } from '@hephaestus/sessions';
 import { TasksModule } from '@hephaestus/tasks';
 import { TemplatesModule } from '@hephaestus/templates';
 import { SkillsModule } from '@hephaestus/skills';
@@ -126,6 +127,7 @@ export const PROXENOS_SUBSCRIPTIONS = ['git.pull-request.updated'] as const;
     ToolsModule,
     SkillsModule,
     RunnerModule,
+    SessionsModule,
   ],
 })
 export class AppModule {}

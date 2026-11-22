@@ -46,6 +46,27 @@ export interface ArtifactStatusChanged {
 }
 
 /**
+ * Payload of `session.ended`.
+ */
+export interface SessionEnded {
+  sessionId: string;
+  agentId: string;
+  agentVersionId: string;
+  startedBy: string;
+  reason: 'closed' | 'idle';
+}
+
+/**
+ * Payload of `session.started`.
+ */
+export interface SessionStarted {
+  sessionId: string;
+  agentId: string;
+  agentVersionId: string;
+  startedBy: string;
+}
+
+/**
  * Payload of `task.awaiting-review`.
  */
 export interface TaskAwaitingReview {
@@ -251,6 +272,8 @@ export interface TaskVerified {
 export interface HephaestusEventPayloads {
   'artifact.created': ArtifactCreated;
   'artifact.status-changed': ArtifactStatusChanged;
+  'session.ended': SessionEnded;
+  'session.started': SessionStarted;
   'task.awaiting-review': TaskAwaitingReview;
   'task.cancelled': TaskCancelled;
   'task.create-rejected': TaskCreateRejected;
@@ -269,6 +292,8 @@ export type HephaestusEventType = keyof HephaestusEventPayloads;
 export const HEPHAESTUS_EVENT_TYPES = [
   'artifact.created',
   'artifact.status-changed',
+  'session.ended',
+  'session.started',
   'task.awaiting-review',
   'task.cancelled',
   'task.create-rejected',

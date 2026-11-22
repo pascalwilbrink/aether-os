@@ -33,6 +33,7 @@ import { TaskContext1795420000000 } from './1795420000000-TaskContext.js';
 import { TaskFields1795430000000 } from './1795430000000-TaskFields.js';
 import { UntrustedInputs1795440000000 } from './1795440000000-UntrustedInputs.js';
 import { Councils1795450000000 } from './1795450000000-Councils.js';
+import { Sessions1795460000000 } from './1795460000000-Sessions.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -76,4 +77,5 @@ export const migrations = [
   TaskFields1795430000000,
   UntrustedInputs1795440000000,
   Councils1795450000000,
+  Sessions1795460000000,
 ];
