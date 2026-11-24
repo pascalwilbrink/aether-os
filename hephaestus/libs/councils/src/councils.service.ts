@@ -68,6 +68,11 @@ export class CouncilsService {
     return this.versions.findById(organizationId, council.latestVersionId);
   }
 
+  /** A version of the organization's council (pinned by a session); 404 otherwise. */
+  version(organizationId: string, versionId: string): Promise<CouncilVersion> {
+    return this.versions.findById(organizationId, versionId);
+  }
+
   @OnDomainEvent('agora.council.created')
   @Transactional()
   async onCreated(

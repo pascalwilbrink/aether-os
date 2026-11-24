@@ -4,7 +4,11 @@ import { v7 as uuidv7 } from 'uuid';
 import type { ApiTypes } from '@hephaestus/core';
 
 import type { SessionHistoryMessage } from './session-agent.js';
-import { SessionMessageEntity } from './session-message.entity.js';
+import {
+  SessionMessageEntity,
+  type SessionAuthor,
+} from './session-message.entity.js';
+import type { SessionSubject } from './session-subjects.js';
 import { SessionEntity } from './session.entity.js';
 import { SESSION_OPTIONS, type SessionOptions } from './session.options.js';
 
@@ -15,21 +19,24 @@ export class SessionMapper {
   ) {}
 
   /** A new session; its ID (UUIDv7) here. */
-  toEntity(fields: {
-    organizationId: string;
-    projectId: string;
-    agentId: string;
-    agentVersionId: string;
-    startedBy: string;
-    title: string | null;
-    now: Date;
-  }): SessionEntity {
+  toEntity(
+    fields: SessionSubject & {
+      organizationId: string;
+      projectId: string;
+      startedBy: string;
+      title: string | null;
+      now: Date;
+    },
+  ): SessionEntity {
     return Object.assign(new SessionEntity(), {
       id: uuidv7(),
       organizationId: fields.organizationId,
       projectId: fields.projectId,
       agentId: fields.agentId,
       agentVersionId: fields.agentVersionId,
+      councilId: fields.councilId,
+      councilVersionId: fields.councilVersionId,
+      members: fields.members,
       startedBy: fields.startedBy,
       title: fields.title,
       status: 'active',
@@ -56,6 +63,9 @@ export class SessionMapper {
       projectId: entity.projectId,
       agentId: entity.agentId,
       agentVersionId: entity.agentVersionId,
+      councilId: entity.councilId,
+      councilVersionId: entity.councilVersionId,
+      members: entity.members,
       startedBy: entity.startedBy,
       title: entity.title,
       status: entity.status,
@@ -79,6 +89,9 @@ export class SessionMapper {
       ordinal,
       messageId: message.messageId,
       role: message.role,
+      authorKind: message.author.kind,
+      authorAgentId: message.author.agentId,
+      authorAgentVersionId: message.author.agentVersionId,
       content: message.content,
       toolCalls: message.toolCalls,
       toolCallId: message.toolCallId,
@@ -95,6 +108,7 @@ export class SessionMapper {
       toolCalls: entity.toolCalls,
       toolCallId: entity.toolCallId,
       toolName: entity.toolName,
+      author: authorOf(entity),
     };
   }
 
@@ -102,12 +116,21 @@ export class SessionMapper {
     return {
       id: entity.messageId,
       role: entity.role,
+      author: authorOf(entity),
       content: entity.content,
       toolCalls: entity.toolCalls,
       toolCallId: entity.toolCallId,
       createdAt: entity.createdAt.toISOString(),
     };
   }
+}
+
+function authorOf(entity: SessionMessageEntity): SessionAuthor {
+  return {
+    kind: entity.authorKind,
+    agentId: entity.authorAgentId,
+    agentVersionId: entity.authorAgentVersionId,
+  };
 }
 
 export function isRunning(

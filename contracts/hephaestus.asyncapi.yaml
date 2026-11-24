@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Hephaestus events and commands
-  version: 0.11.0
+  version: 0.12.0
   description: |
     Events Hephaestus publishes to the `hephaestus.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -480,11 +480,21 @@ components:
     SessionStarted:
       type: object
       additionalProperties: false
-      required: [sessionId, agentId, agentVersionId, startedBy]
+      required: [sessionId, agentId, agentVersionId, councilId, councilVersionId, startedBy]
       properties:
         sessionId: { $ref: '#/components/schemas/Uuid' }
-        agentId: { $ref: '#/components/schemas/Uuid' }
+        agentId:
+          description: The agent; in a council session the facilitator.
+          $ref: '#/components/schemas/Uuid'
         agentVersionId: { $ref: '#/components/schemas/Uuid' }
+        councilId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        councilVersionId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
         startedBy: { type: string }
     SessionEnded:
       type: object

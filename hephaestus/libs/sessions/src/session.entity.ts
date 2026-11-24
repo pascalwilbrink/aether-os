@@ -10,6 +10,18 @@ import {
 export type SessionStatus = 'active' | 'ended';
 export type SessionEndedReason = 'closed' | 'idle';
 
+/** A council session's member, pinned when it started (../../../../docs/councils.md). */
+export interface SessionMemberState {
+  agentId: string;
+  agentVersionId: string;
+  name: string;
+  participation: 'required' | 'conditional' | 'optional';
+  role: string | null;
+  when: string | null;
+  /** Taking part: required members always; others once invited or addressed. */
+  invited: boolean;
+}
+
 /**
  * A conversation between a person and an agent in a project
  * (../../../../docs/interaction.md): the agent version is pinned when it
@@ -45,6 +57,16 @@ export class SessionEntity {
 
   @Column({ type: 'uuid' })
   agentVersionId: string;
+
+  /** A council session's council and version (the agent is its facilitator). */
+  @Column({ type: 'uuid', nullable: true })
+  councilId: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  councilVersionId: string | null;
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  members: SessionMemberState[];
 
   /** The person's `sub`. */
   @Column({ type: 'text' })

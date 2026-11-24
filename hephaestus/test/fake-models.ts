@@ -85,7 +85,13 @@ export class ScriptedPylonModels extends PylonModels {
       doStream: async (options: CallOptions) => {
         const reply = await this.reply(options);
         this.meter(call.executionId ?? `session:${call.token}`, reply.usage);
-        return { stream: ReadableStream.from(streamParts(reply)) };
+        return {
+          stream: (
+            ReadableStream as unknown as {
+              from(parts: unknown[]): ReadableStream;
+            }
+          ).from(streamParts(reply as Parameters<typeof streamParts>[0])),
+        };
       },
     };
     return model as unknown as MastraModelConfig;

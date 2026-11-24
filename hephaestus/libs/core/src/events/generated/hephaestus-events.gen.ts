@@ -63,6 +63,8 @@ export interface SessionStarted {
   sessionId: string;
   agentId: string;
   agentVersionId: string;
+  councilId: string | null;
+  councilVersionId: string | null;
   startedBy: string;
 }
 

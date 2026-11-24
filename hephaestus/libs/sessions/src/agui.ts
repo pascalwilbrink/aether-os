@@ -18,6 +18,7 @@ export type AguiEvent =
     }
   | { type: 'TOOL_CALL_ARGS'; toolCallId: string; delta: string }
   | { type: 'TOOL_CALL_END'; toolCallId: string }
+  | { type: 'CUSTOM'; name: string; value: unknown }
   | {
       type: 'TOOL_CALL_RESULT';
       messageId: string;

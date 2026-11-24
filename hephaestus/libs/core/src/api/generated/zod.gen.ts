@@ -25,6 +25,8 @@ export const zDomainErrorCode = z.enum([
     'TOOL_SERVER_INVALID',
     'SESSION_BUSY',
     'SESSION_ENDED',
+    'SESSION_MEMBER_INVALID',
+    'COUNCIL_UNAVAILABLE',
     'WORKSPACE_INVALID_EXPIRY',
     'WORKSPACE_INVALID_TRANSITION'
 ]);
@@ -852,9 +854,38 @@ export const zToolList = z.object({
 
 export const zSessionStatus = z.enum(['active', 'ended']);
 
+/**
+ * Exactly one of `agentId` and `councilId`.
+ */
 export const zCreateSessionRequest = z.object({
-    agentId: z.uuid(),
+    agentId: z.uuid().optional(),
+    councilId: z.uuid().optional(),
     title: z.string().min(1).max(200).optional()
+});
+
+export const zSessionMember = z.object({
+    agentId: z.uuid(),
+    agentVersionId: z.uuid(),
+    name: z.string(),
+    participation: z.enum([
+        'required',
+        'conditional',
+        'optional'
+    ]),
+    role: z.string().nullable(),
+    when: z.string().nullable(),
+    invited: z.boolean()
+});
+
+export const zSessionMessageAuthor = z.object({
+    kind: z.enum([
+        'user',
+        'agent',
+        'facilitator',
+        'member'
+    ]),
+    agentId: z.uuid().nullable(),
+    agentVersionId: z.uuid().nullable()
 });
 
 export const zSessionResponse = z.object({
@@ -863,6 +894,9 @@ export const zSessionResponse = z.object({
     projectId: z.uuid(),
     agentId: z.uuid(),
     agentVersionId: z.uuid(),
+    councilId: z.uuid().nullable(),
+    councilVersionId: z.uuid().nullable(),
+    members: z.array(zSessionMember),
     startedBy: z.string(),
     title: z.string().nullable(),
     status: zSessionStatus,
@@ -886,6 +920,7 @@ export const zSessionMessage = z.object({
         'assistant',
         'tool'
     ]),
+    author: zSessionMessageAuthor,
     content: z.string(),
     toolCalls: z.array(zSessionToolCall),
     toolCallId: z.string().nullable(),
@@ -933,7 +968,9 @@ export const zRunAgentInput = z.object({
         value: z.string().max(20000)
     })).max(50).optional(),
     state: z.unknown().optional(),
-    forwardedProps: z.unknown().optional()
+    forwardedProps: z.object({
+        memberAgentId: z.uuid().optional()
+    }).optional()
 });
 
 /**
