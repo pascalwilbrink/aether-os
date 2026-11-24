@@ -4,7 +4,7 @@ A **council** is a persistent, configurable virtual team: a facilitator, special
 
 Councils are one of Agora's central concepts, next to agents. They aren't a kind of agent, and they aren't a wrapper around a Mastra workflow.
 
-Status: **proposal**, step 1 built (Building it, below): councils and their versions in Agora, Hephaestus's copy and Iris's Councils page. Sessions, discussion, planning and decisions are still to come.
+Status: **proposal**, steps 1 and 2 built (Building it, below): councils and their versions in Agora, Hephaestus's copy and Iris's Councils page; council sessions in Hephaestus (the facilitator, `ask_member`, `invite_members`, members addressed directly, messages with authors). Iris's session page, discussion, planning and decisions are still to come.
 
 ## Principles
 
@@ -211,7 +211,11 @@ Kerykes tells people when a session waits for them: a plan to review, a question
 ## Building it
 
 1. **Definitions (built):** councils and versions in Agora (`/v1/organizations/{id}/councils`, `…/versions`, `…/publish`, `…/archive`; `council:read`, `council:write`, `council:publish`; the checks above, at creation and again at publishing; `COUNCIL_ALREADY_EXISTS`, `COUNCIL_ARCHIVED`, `COUNCIL_VERSION_INVALID`), its events, Hephaestus's copy (`CouncilsService.publishedVersion` for the sessions to come), and Iris's Councils page (linked from Agents). Settings a request leaves out take defaults (`facilitated`; direct interaction, discussion, planning and synthesis on; delegation off until step 4; three rounds, members responding to each other, the facilitator's conclusion required); `maxRounds` is at most 10 and a version has at most 12 members.
-2. **Sessions:** Hephaestus council sessions with `direct` and `facilitated` modes, the facilitator's `ask_member` and `invite_members`, messages with authors, session tokens, Iris's session page.
+2. **Sessions (built in Hephaestus; Iris's session page to come):** a session (`interaction.md`) started with `councilId` instead of `agentId` pins the council's published version, its facilitator's published agent version (the session's `agentId` / `agentVersionId`) and each member's (`members`: agent, version, name, participation, role, condition, `invited`; a member without a published version refuses the session). Messages have an `author` (`user`, `agent`, `facilitator`, `member` with its agent and version), and each assistant message of a run is announced with an AG-UI `CUSTOM` event `message-author`.
+   - **Facilitated:** the facilitator answers, with the council's tools: `ask_member(agentId, question)` runs that member's turn in the session (its own instructions, model, tool servers, skills and read-only knowledge, with its own session token, so Pylon meters each member's calls to it), streamed into the conversation between the facilitator's call and its result, which is the member's answer; only required members and the ones invited can be asked (otherwise the facilitator is told to invite first). `invite_members(agentIds, reason)` brings conditional and optional members in (`invited`, kept when the run ends). Calls run one at a time, so members answer in turn. The facilitator's instructions list the members (name, `agentId`, role, participation, condition, whether taking part) and how to work with them.
+   - **Direct:** with `allowDirectInteraction`, a run with `forwardedProps.memberAgentId` is answered by that member (who is then taking part); otherwise, or for an agent that isn't a member, `SESSION_MEMBER_INVALID` before anything is kept.
+   - **What members see:** the conversation as a transcript (who said what, without tool calls; the most recent 40,000 characters, earlier parts left out with a note), then the question. A summary by the facilitator for long sessions is still to come. The facilitator's history keeps members' answers to its calls in the calls' results, and shows answers to the person's direct questions as what the member said.
+   - Frontend tools are offered to the facilitator, not to members. Modes beyond these two, and a session's current `mode`, come with discussion (step 3); automations don't start council sessions yet.
 3. **Discussion:** deliberation rounds and conclusions, synthesis.
 4. **Planning and delegation:** milestones in `task_plan`, `propose_plan`, review and approval creating tasks, assignment provenance, following tasks in the session.
 5. **Decisions:** `record_decision`, Seshat's `rationale`, `alternatives` and `council` source.
@@ -221,7 +225,7 @@ Each step is usable on its own; sessions (step 2) depend on Hephaestus's session
 ## Open questions
 
 - Should members answer in parallel when `allowAgentResponses` is off (faster and cheaper), or always in turn so the transcript reads naturally?
-- How much of the session's history does each member see: everything, the current round, or a summary written by the facilitator once it gets long?
+- How much of the session's history does each member see? Built: everything, as a transcript, cut to the most recent part when long; a summary by the facilitator once it gets long is still to come.
 - Can a council be scoped to projects (only usable in some), or is organization-wide enough?
-- Should a session be startable by an automation (Kairos), e.g. "convene the architecture council on issues labelled `rfc`", with a person reviewing its plan?
+- Should a session be startable by an automation (Kairos), e.g. "convene the architecture council on issues labelled `rfc`", with a person reviewing its plan? Not before planning and delegation (step 4).
 - Do members ever act in a session (beyond reading), or is acting always a task? This proposal says always a task.

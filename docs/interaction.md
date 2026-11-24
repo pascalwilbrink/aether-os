@@ -19,7 +19,7 @@ Status: **sessions are built** (Hephaestus's sessions and their AG-UI endpoint, 
 
 ### Sessions (Hephaestus)
 
-A council session (`councils.md`) is a session whose subject is a council version (a facilitator and member agents) instead of one agent version; it adds authors to messages, deliberation rounds, plans and decisions, and builds on everything below.
+A council session (`councils.md`) is a session whose subject is a council version (a facilitator and member agents) instead of one agent version; it adds authors to messages (built: every message has one, announced in a run with a `CUSTOM` `message-author` event), deliberation rounds, plans and decisions, and builds on everything below. Each agent that speaks in a run gets its own session token (`agent_id` and `agent_version_id` its own), so Pylon meters each member's calls to it.
 
 A **session** is a conversation between a person and an agent version in one project: `id`, `organizationId`, `projectId`, `agentId`, `agentVersionId` (pinned when it starts, like a task), `startedBy` (the person's `sub`), `title`, `status` (`active`, `ended`, with `endedReason` `closed` or `idle`), `running`, `lastActivityAt`, and its messages. Unlike a task it has no acceptance criteria, no artifacts and no sandbox (Proposal: a sandbox later, for "try this in a shell" sessions); it ends when the person closes it or after `SESSION_IDLE_TIMEOUT_MS` (30 minutes) without a run. Only the person who started it sees it: anyone else gets a 404.
 
