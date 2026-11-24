@@ -46,35 +46,33 @@ flowchart LR
     Pistis["Pistis<br/>identity, tokens"]
     Agora["Agora<br/>agents, councils"]
     Heph["Hephaestus<br/>agent runtime"]
-    Daed["Daedalus<br/>workflow orchestration"]
-    Integ["External integrations<br/>(GitHub, GitLab, ...)"]
-    Know["Governed knowledge<br/>and retrieval"]
+    Kairos["Kairos<br/>automations, workflows"]
+    Proxenos["Proxenos<br/>external systems<br/>(GitHub, GitLab, ...)"]
+    Seshat["Seshat<br/>project knowledge<br/>and retrieval"]
     Loculus["Loculus<br/>files"]
-    Policy["Policy enforcement<br/>(APS)"]
-    Notify["Notifications"]
+    Themis["Themis<br/>policies (APS)"]
+    Kerykes["Kerykes<br/>notifications"]
     Bus[("RabbitMQ")]
 
     Iris -->|HTTP| Ergon
-    Daed -->|create, assign, update work| Ergon
+    Kairos -->|create, assign, update work| Ergon
     Heph -->|execution results| Ergon
     Ergon -->|references| Polis
     Ergon -->|verifies tokens| Pistis
     Ergon -->|references| Agora
     Ergon -->|references executions| Heph
-    Ergon -->|references workflow runs| Daed
-    Ergon -->|external resources via| Integ
-    Ergon -->|links documents| Know
+    Ergon -->|references automation runs| Kairos
+    Ergon -->|external resources via| Proxenos
+    Ergon -->|links knowledge| Seshat
     Ergon -->|file metadata, signed URLs| Loculus
-    Ergon -->|asks| Policy
+    Ergon -->|asks| Themis
     Ergon -->|work events| Bus
-    Bus --> Notify
+    Bus --> Kerykes
 ```
 
-Ergon is a first-class service of its own, not a module of Polis, Agora, Hephaestus or Daedalus.
+Ergon is a first-class service of its own, not a module of Polis, Agora, Hephaestus or Kairos.
 
 ## Service ownership boundaries
-
-The table gives each service's ownership as decided for Aether OS. The services in this repository don't all match it yet: **read the next section before relying on a service name.**
 
 | Service | Owns | Ergon's relationship to it |
 |---|---|---|
@@ -82,30 +80,26 @@ The table gives each service's ownership as decided for Aether OS. The services 
 | **Pistis** | Human identity, authentication, OIDC and OAuth, JWT and JWKS (and service accounts and tokens for agents) | Ergon verifies Pistis tokens (through Krepis) and references users by their Pistis `sub`. It has no identity system of its own. |
 | **Agora** | Agent definitions, configuration, capabilities, versions, templates, and agent councils | Ergon references agents and councils, and their versions where that matters. It holds no agent configuration. |
 | **Hephaestus** | The agent runtime: executing agents, runtime state, the execution lifecycle | Ergon coordinates work given to agents. It holds a **reference and projection** of an execution. Hephaestus stays the source of truth for execution state. |
-| **Daedalus** | Workflow orchestration: automation and workflow definitions and versions, event-driven and scheduled automations, workflow execution, branching, retries, waits, long-running processes, approval steps inside workflows, integrations between steps | Daedalus creates, assigns and updates work through Ergon's API and can start agents through Hephaestus. Ergon holds a **reference** to a workflow run. |
-| **Kerykes** (as named in the Ergon brief) | External integrations: OAuth connections, third-party APIs, provider adapters, integration credentials | Ergon reaches GitHub, GitLab and others only through it, and keeps the link between an external resource and the work. |
-| **Episteme** | Governed organizational and personal knowledge: documents, pages, policies, procedures, the knowledge lifecycle, approval, versioning, terminology and ontology | Ergon links work to its documents. A document produced during work does **not** automatically become governed knowledge. |
-| **Seshat** | Knowledge retrieval and memory (search, including vector search) | Ergon can make work content available to it for indexing. It doesn't run retrieval. |
+| **Kairos** | Automations and workflow orchestration: automation and workflow definitions and versions, event-driven and scheduled automations, workflow execution, branching, retries, waits, long-running processes, approval steps inside workflows | Kairos creates, assigns and updates work through Ergon's API and can start agents through Hephaestus. Ergon holds a **reference** to an automation or workflow run. |
+| **Proxenos** | Connections to external systems: the GitHub App and other providers' connections, OAuth, third-party APIs and adapters, integration credentials, verified webhooks turned into events | Ergon reaches GitHub, GitLab and others only through it, and keeps the link between an external resource and the work. |
+| **Seshat** | Project knowledge: documents, decisions, facts, conventions and lessons, with their lifecycle (proposed → accepted → superseded), versions, and their retrieval (hybrid search, including vectors) | Ergon links work to knowledge items and can make work content available for indexing. A document produced during work does **not** automatically become accepted knowledge. |
 | **Loculus** | File and object storage | Loculus stores the bytes. Ergon owns the metadata of work artifacts and their relationships to work. |
-| **Aegis Control** | Policy enforcement with the Agent Policy Specification (APS) | Ergon respects its decisions. An assignment never grants access to anything. |
-| **Angelia** | Notifications and inboxes | Ergon emits work events (and notification requests); Angelia delivers. |
+| **Themis** | Policies: versioned Rego policy sets per organization and project, served to OPA and enforced with the Agent Policy Specification (APS) | Ergon respects its decisions. An assignment never grants access to anything. |
+| **Kerykes** | Notifications and inboxes (in Iris, email, later Slack and Teams) | Ergon emits work events; Kerykes decides whom to tell and delivers. |
 | **Iris** | The unified UI and control plane | Iris presents Ergon through Ergon's API. Ergon has no end-user application. |
-| **Forge** | Shared contracts, schemas, tool definitions and integration helpers | Ergon publishes its API and tool contracts there, so agents use supported tools. |
+| **Krepis** and **contracts** | `@aether-os/krepis`: the shared NestJS foundation (tokens and permissions, events and the outbox, transactions, pagination, HTTP conventions, telemetry). `@aether-os/contracts`: every service's OpenAPI and AsyncAPI specs | Ergon is built on Krepis and publishes its specs in contracts. Agents reach Ergon through tools on MCP tool servers (`../hephaestus/CLAUDE.md`, Tool servers), as they reach Seshat's knowledge. |
 
-### Names in this repository today
+### Current state of the platform
 
-Several names and boundaries in the Ergon brief differ from what this monorepo has built so far. Until each one is reconciled, **don't rename an existing service or move its code as part of Ergon work.** Treat the mapping below as current fact and the differences as open decisions.
+What Ergon's design relies on that isn't built yet. **Don't build these inside Ergon:** they belong to the owners above.
 
-| Capability | In the Ergon brief | In this repository now | Status |
-|---|---|---|---|
-| External integrations (GitHub App, webhooks, repository tokens) | Kerykes | **Proxenos** (`../proxenos`) | Open: Ergon talks to whichever service owns integrations. Today that is Proxenos. |
-| Notifications and inbox | Angelia | **Kerykes** (`../kerykes`) | Open: today Ergon's work events would be consumed by Kerykes. |
-| Workflow orchestration and automations | Daedalus | **Kairos** (`../kairos`) runs automations: a trigger such as a GitHub issue fires a `task.create` command at Hephaestus. Daedalus doesn't exist yet. | Open: whether Kairos grows into Daedalus or Daedalus replaces it. |
-| Governed knowledge (lifecycle, approval, versions) | Episteme | **Seshat** (`../seshat`) holds project knowledge items with a lifecycle (proposed → accepted → superseded), documents and search. Episteme doesn't exist yet. | Open: how Seshat's items split between Episteme (governance) and Seshat (retrieval). |
-| Policy enforcement (APS) | Aegis Control | **Themis** (planned, not built: versioned Rego policy sets served to OPA), enforced in Hephaestus with the APS SDK | Open: naming. |
-| Shared SDK and contracts | Forge | **Krepis** (`@aether-os/krepis`, the NestJS foundation) and **contracts** (`@aether-os/contracts`, OpenAPI and AsyncAPI specs) | Open: Forge's place next to these. Agent tools are MCP tool servers today (Hephaestus tool servers, `../hephaestus/CLAUDE.md`). |
-| Departments and teams | Polis | Polis has organizations, projects and memberships; **no departments or teams yet** | Polis must add them before Ergon can assign work to a team. |
-| **Work units for agents** | Ergon's work items, with Hephaestus as runtime only | **Hephaestus owns tasks** (`../docs/tasks.md`): tasks and subtasks, `dependsOn`, the task lifecycle, artifacts (including `pull_request`), reviews, task templates, acceptance criteria and verification, executions | **The most important open decision**, below. |
+| Capability | Owner | Today |
+|---|---|---|
+| Departments and teams | Polis | Polis has organizations, projects and memberships, **but no departments or teams yet**. Polis must add them before Ergon can assign work to a team. |
+| Workflow orchestration | Kairos | Kairos runs **automations**: a trigger (a GitHub issue event, with filters) fires a `task.create` command at Hephaestus and follows its run (`../docs/automations.md`). Workflows with branching, waits, schedules and approval steps are still to come there. |
+| Policy enforcement | Themis | **Planned, not built.** APS enforcement is to live in Hephaestus, with OPA pulling Themis's bundles. |
+| Other providers (GitLab, Slack, Jira, …) | Proxenos | Only the GitHub App so far. |
+| **Work units for agents** | Ergon's work items, with Hephaestus as runtime only | **Hephaestus owns tasks** (`../docs/tasks.md`): tasks and subtasks, `dependsOn`, the task lifecycle, artifacts (including `pull_request`), reviews, task templates, acceptance criteria and verification, executions. **This is the most important open decision**, below. |
 
 **Ergon and Hephaestus's tasks (open).** Hephaestus today models agent work as *tasks*: they run as service accounts with a pinned agent version, have acceptance criteria and verification, and produce artifacts and reviews. That overlaps with Ergon's work items, artifacts, templates and reviews. Until it is decided, take this as the working assumption **(Proposal)**:
 
@@ -147,10 +141,10 @@ erDiagram
     WORK_ITEM }o--o| PROJECT : "optionally in (Polis)"
     WORK_ASSIGNMENT }o--|| ASSIGNEE : "user, team, agent or council"
     WORK_EXECUTION }o--o| AGENT_EXECUTION : "references (Hephaestus)"
-    WORK_EXECUTION }o--o| WORKFLOW_RUN : "references (Daedalus)"
+    WORK_EXECUTION }o--o| WORKFLOW_RUN : "references (Kairos)"
     WORK_ARTIFACT }o--o| FILE : "bytes in (Loculus)"
-    WORK_ARTIFACT }o--o| EXTERNAL_RESOURCE : "e.g. pull request (via integrations)"
-    WORK_ARTIFACT }o--o| DOCUMENT : "governed doc (Episteme)"
+    WORK_ARTIFACT }o--o| EXTERNAL_RESOURCE : "e.g. pull request (via Proxenos)"
+    WORK_ARTIFACT }o--o| KNOWLEDGE_ITEM : "knowledge (Seshat)"
 ```
 
 Every entity carries `organizationId`, and every query is scoped to it (Security and multi-tenancy).
@@ -207,7 +201,7 @@ Discussion on a work item, by people and agents alike. The author is a principal
 A record that something attempted the work.
 
 - **Who executes:** `human`, `agent` or `workflow`.
-- **For an agent:** the Hephaestus task or execution ID. **For a workflow:** the Daedalus run ID. **For a person:** no external reference.
+- **For an agent:** the Hephaestus task or execution ID. **For an automation or workflow:** the Kairos run ID. **For a person:** no external reference.
 - **Projected state:** `status`, timestamps and a summary, updated from the owner's events. **The owner stays authoritative**; Ergon never drives an execution.
 - **Many per work item:** retries, handoffs, several agents in turn.
 - **Success doesn't complete the work.** A successful execution means the attempt finished. Whether the work item is `done` depends on its outcome: review, validation or more work may still be needed. Completing a work item is a separate, explicit transition.
@@ -228,8 +222,8 @@ It has `from`, `to` (an assignee, or "any reviewer in team X"), `kind` (`review`
 
 An input, output or reference belonging to work: documents, reports, designs, architecture diagrams, source changes, **pull requests**, commits, branches, releases, issues, test results, builds, deployments, datasets, meeting summaries, screenshots, recordings.
 
-- **Artifact and link are separate entities.** A `WorkArtifact` describes the thing: `kind`, `title`, and where it lives (a Loculus file ID; an external resource through the integrations service, such as provider, repository and number; an Episteme document ID; a Hephaestus artifact ID). A `WorkArtifactLink` ties it to a work item with a role: `input`, `output`, `reference`, `evidence` or `deliverable`. One artifact can belong to several work items. The work item has no single artifact field.
-- **Content stays with its owner.** Loculus stores the bytes, and Ergon stores the file ID, never a signed URL (`../CLAUDE.md`, Design rule). GitHub or GitLab is the source of truth for a pull request; Ergon keeps the link and a synchronized projection (state, title, URL), updated from the integrations service's events. Episteme owns a governed document's lifecycle; linking one to work, or producing one during work, doesn't make it governed knowledge.
+- **Artifact and link are separate entities.** A `WorkArtifact` describes the thing: `kind`, `title`, and where it lives (a Loculus file ID; an external resource through Proxenos, such as provider, repository and number; a Seshat knowledge item ID; a Hephaestus artifact ID). A `WorkArtifactLink` ties it to a work item with a role: `input`, `output`, `reference`, `evidence` or `deliverable`. One artifact can belong to several work items. The work item has no single artifact field.
+- **Content stays with its owner.** Loculus stores the bytes, and Ergon stores the file ID, never a signed URL (`../CLAUDE.md`, Design rule). GitHub or GitLab is the source of truth for a pull request; Ergon keeps the link and a synchronized projection (state, title, URL), updated from Proxenos's events. Seshat owns the lifecycle of project knowledge; linking a document to work, or producing one during work, doesn't make it accepted knowledge (an agent's proposal still waits for a person, `../docs/knowledge.md`).
 
 ### WorkQueue and WorkTemplate (later)
 
@@ -240,7 +234,7 @@ An input, output or reference belonging to work: documents, reports, designs, ar
 
 Statuses: `backlog`, `todo`, `in_progress`, `in_review`, `done`, `cancelled`.
 
-**Blocked is derived, not set (Proposal).** A work item is *blocked* while any item that `blocks` it is not `done`. Ergon computes that from the dependencies and shows it next to the status, rather than as a status people must keep in step. The brief lists `Blocked` as a status. If it stays one, a person or agent sets it with a reason (for blockers that aren't other work items), and dependencies don't set it automatically. Decide this before building the lifecycle; it decides whether there is a `work-item.blocked` event.
+**Blocked is derived, not set (Proposal).** A work item is *blocked* while any item that `blocks` it is not `done`. Ergon computes that from the dependencies and shows it next to the status, rather than as a status people must keep in step. The first draft of Ergon listed `Blocked` as a status. If it stays one, a person or agent sets it with a reason (for blockers that aren't other work items), and dependencies don't set it automatically. Decide this before building the lifecycle; it decides whether there is a `work-item.blocked` event.
 
 ```mermaid
 stateDiagram-v2
@@ -265,37 +259,37 @@ stateDiagram-v2
 - **Explicit transitions:** the allowed (status, action) pairs are a pure table in the domain, tested exhaustively. Anything else is refused with a domain error, as Hephaestus does with `task-transitions.ts`. Every transition writes WorkActivity and publishes its event.
 - **Review before done:** whether a work item needs review before `done` is a property of the item (set from its type, its template or the person creating it). A work item that needs review can only reach `done` through `in_review`.
 - **Children (Proposal):** a parent can't be `done` while a child is open, unless the children are cancelled; this isn't derived automatically.
-- **No workflow engine in Ergon.** The lifecycle is fixed and small. Configurable processes (approval chains, branching, waits, schedules) are Daedalus workflows, which drive Ergon's transitions through its API.
+- **No workflow engine in Ergon.** The lifecycle is fixed and small. Configurable processes (approval chains, branching, waits, schedules) are Kairos's (its workflows, still to come), which drive Ergon's transitions through its API.
 
 ## Humans and agents working together
 
-People and agents act on the same work items through the same API, under the same rules. Agents never touch Ergon's database; they use Ergon's API, or the tools that wrap it (Forge tool contracts, or MCP tool servers in this repository today).
+People and agents act on the same work items through the same API, under the same rules. Agents never touch Ergon's database; they use Ergon's API, or the tools that wrap it (an MCP tool server).
 
 ```mermaid
 sequenceDiagram
     actor User
     participant Iris
     participant Ergon
-    participant Daedalus
+    participant Kairos
     participant Hephaestus
     participant Agent as Agent (running in Hephaestus)
 
     User->>Iris: create work item, assign to an agent
     Iris->>Ergon: POST work item, POST assignment (agent from Agora)
-    Ergon-->>Daedalus: work-item.assigned (event)
-    Daedalus->>Hephaestus: start the agent on the work (or Ergon's own trigger, see below)
+    Ergon-->>Kairos: work-item.assigned (event)
+    Kairos->>Hephaestus: start the agent on the work (or Ergon's own trigger, see below)
     Hephaestus-->>Ergon: execution started (event)
     Ergon->>Ergon: WorkExecution (agent, Hephaestus reference), status in_progress
     Agent->>Ergon: child items, comments, artifacts (API / tools)
     Hephaestus-->>Ergon: execution completed (event, with its artifacts)
     Ergon->>Ergon: execution projected; outcome linked as artifacts
     Agent->>Ergon: request handoff (review)
-    Ergon-->>User: work-handoff.requested (delivered by notifications)
+    Ergon-->>User: work-handoff.requested (delivered by Kerykes)
     User->>Iris: approve, request changes, or take over
     Iris->>Ergon: resolve handoff / transition
 ```
 
-- **Who starts the agent (open).** Assigning work to an agent records responsibility; it doesn't run the agent by itself. In this sketch Daedalus (or, today, Kairos) reacts to the assignment and starts it. Whether Ergon may instead send Hephaestus a command directly, for the simple case of "assign and run", is to be decided. Ergon must not become an orchestrator either way.
+- **Who starts the agent (open).** Assigning work to an agent records responsibility; it doesn't run the agent by itself. In this sketch an automation in Kairos reacts to the assignment and starts it, as Kairos already starts tasks from GitHub issues. Whether Ergon may instead send Hephaestus a command directly, for the simple case of "assign and run", is to be decided. Ergon must not become an orchestrator either way.
 - **The agent's identity.** In Hephaestus, agents run as **service accounts** with task tokens (`../docs/identity.md`). When an agent calls Ergon, the token says which service account, task, agent and version it is. Ergon records that as the actor, and checks the call against the work item and policy, not against the assignment alone.
 - **Councils.** A council is assigned like an agent. In Hephaestus a council works through a council session (`../docs/councils.md`), and its delegated work becomes work items (and tasks) for its members. A child item's assignment records it was assigned by the council's facilitator.
 - **Taking over.** A person can take over an agent's work item at any time (a `takeover` handoff). The agent's running execution is cancelled through Hephaestus, not by Ergon changing execution state.
@@ -310,7 +304,7 @@ Ergon follows the platform's messaging conventions (`../docs/events.md`), throug
 - **Envelope:** Krepis's `DomainEvent`, with `eventId`, `eventType`, `aggregateId`, `aggregateVersion`, `occurredAt`, `organizationId`, `projectId` and `actor`. Correlation and causation identifiers come from trace context (`traceparent` in the AMQP headers); add explicit `correlationId` / `causationId` to the envelope only if traces prove insufficient, in Krepis for every service.
 - **Contract:** the AsyncAPI spec `../contracts/ergon.asyncapi.yaml`, with types generated from it.
 
-**Event names.** The brief suggests `work.item.created`-style names. The platform convention is `<aggregate>.<past-tense or state>` with hyphens inside words, such as `task.status-changed` and `skill-version.published`. **(Proposal)** use that form here:
+**Event names.** The first draft of Ergon used `work.item.created`-style names. The platform convention is `<aggregate>.<past-tense or state>` with hyphens inside words, such as `task.status-changed` and `skill-version.published`. **(Proposal)** use that form here:
 
 - `work-item.created`, `.updated`, `.assigned`, `.status-changed`, `.completed`, `.cancelled`;
 - `work-assignment.changed`;
@@ -321,7 +315,7 @@ Ergon follows the platform's messaging conventions (`../docs/events.md`), throug
 
 Add `work-item.blocked` and `.unblocked` too, if Blocked is derived. Settle the names in the AsyncAPI spec before the first event is published, since consumers bind to them.
 
-**Commands Ergon may accept (Proposal):** for example `work-item.create`, so Daedalus and Kairos can create work while Ergon is down, with an idempotency key, like Hephaestus's `task.create` (`../docs/events.md`, Commands).
+**Commands Ergon may accept (Proposal):** for example `work-item.create`, so Kairos can create work while Ergon is down, with an idempotency key, like Hephaestus's `task.create` (`../docs/events.md`, Commands).
 
 **Not everything needs an event.** Reads and operations that need an immediate answer (creating a work item from Iris, checking a dependency) are synchronous HTTP calls. Events announce what changed, for whoever cares.
 
@@ -331,9 +325,9 @@ Add `work-item.blocked` and `.unblocked` too, if Blocked is derived. Settle the 
 | Pistis | in | Tokens verified with Krepis's `AuthModule` (JWKS); users referenced by `sub` |
 | Agora | in | Its events (`agent.*`, `council.*`), so assignments refer to existing agents and councils |
 | Hephaestus | in and out | Out: references to tasks and executions. In: its `task.*` / execution events update `WorkExecution` projections and link its artifacts |
-| Daedalus (Kairos today) | in | Calls Ergon's API, or sends commands, to create and update work. Ergon references its runs |
-| Integrations (Proxenos today) | in | Events about pull requests, issues and pushes, to update external artifact projections and the work they're linked to |
-| Notifications (Kerykes today) | out | Consumes Ergon's events (handoffs, assignments, reviews waiting) |
+| Kairos | in | Calls Ergon's API, or sends commands, to create and update work. Ergon references its runs |
+| Proxenos | in | Events about pull requests, issues and pushes, to update external artifact projections and the work they're linked to |
+| Kerykes | out | Consumes Ergon's events (handoffs, assignments, reviews waiting) |
 | Seshat | out (Proposal) | Work content offered for indexing, by event |
 | Loculus | out | Signed URLs for artifact files; Ergon keeps file IDs |
 | Iris | in | Ergon's HTTP API (the OpenAPI spec `../contracts/ergon.openapi.yaml`) |
@@ -343,7 +337,7 @@ Add `work-item.blocked` and `.unblocked` too, if Blocked is derived. Settle the 
 - **Everything is organization-scoped.** Every entity has `organizationId`. Every lookup filters on the token's organization, and another organization's resource is a 404, never a 403 (`../docs/identity.md`).
 - **Tokens, permissions and tenancy through Krepis.** That covers `AuthGuard`, `@RequirePermission`, `AccessControl` and the one role → permission table. Ergon adds its permissions to that table (for example `work:read`, `work:write`, `work:assign`, `work:review`) rather than inventing its own role model.
 - **Who may see and change a work item (Proposal):** project permissions for work in a project; organization (later team and department) permissions for work outside one; and assignment-based rights only where that is explicitly decided (an assignee may comment on and transition the work assigned to them, nothing wider).
-- **Agents** act with their task tokens (service accounts, limited to one project) or session tokens (a person's, read-only); Ergon checks them like any principal. Policy decisions on agent actions come from the policy service (APS) and fail closed.
+- **Agents** act with their task tokens (service accounts, limited to one project) or session tokens (a person's, read-only); Ergon checks them like any principal. Policy decisions on agent actions come from Themis (APS) and fail closed.
 - **An assignment is not an access grant.** Being assigned a work item doesn't give access to its repository, documents, applications, files or external systems. Each of those is decided by the service that owns it, with the caller's own token. Ergon never hands out credentials and never proxies content it doesn't own.
 - **Artifacts:** Ergon shows what an artifact is (its metadata) only to those who may see the work item. Reading the content (a Loculus file, a pull request, a document) is checked by its owner.
 - **Auditability:** every change records its actor in WorkActivity and in its event, and no secret or token is ever stored in a work item, comment or artifact.
@@ -355,7 +349,7 @@ Add `work-item.blocked` and `.unblocked` too, if Blocked is derived. Settle the 
 - **An independent service, `@aether-os/ergon`**, in this monorepo next to the others (`../pnpm-workspace.yaml` lists it once it is created), deployable on its own, with its own Postgres database and migrations.
 - **Same stack and conventions as the other services** (`../docs/engineering.md`, `../docs/api.md`). That means NestJS (ESM, TypeScript), TypeORM on Postgres with migrations, `typeorm-transactional`, Zod DTOs and HTTP clients generated from the OpenAPI spec with `@hey-api/openapi-ts`, RabbitMQ through Krepis's messaging module, OpenTelemetry and Winston logging through Krepis, health checks, and tests against Postgres and RabbitMQ in containers (Testcontainers).
 - **API rules:** only `GET`, `POST`, `PUT` and `DELETE` (state changes such as `start` or `complete` are `POST` actions), `/v1` paths, UUIDs (v7), RFC 9457 problem details, cursor pagination.
-- **Spec-first:** the OpenAPI and AsyncAPI specs in `../contracts` are written before the code and are the contract that Iris, Daedalus, tools and agents use.
+- **Spec-first:** the OpenAPI and AsyncAPI specs in `../contracts` are written before the code and are the contract that Iris, Kairos, tools and agents use.
 - **Layers kept apart: domain, application, infrastructure, transport.** The domain (work items, the transition table, dependency rules, cycle detection) is plain TypeScript, with no Nest, TypeORM or broker in it, and is unit-tested on its own. Other services and external systems sit behind injected interfaces (ports), with their HTTP clients generated from those services' specs.
 - **Within the platform's structure.** The platform's `controller → service → repository` rule with mappers applies at the application and infrastructure layers (at most 7 injected dependencies per class, services injecting services, never another module's repository). The pure domain sits beneath it.
 - **References, not copies.** Entities owned elsewhere are referenced by stable ID. A local copy exists only where Ergon needs it for its own rules (organization and project status, agent existence), is kept from the owner's events, and is version-guarded, like Hephaestus's copies.
@@ -368,7 +362,7 @@ Add `work-item.blocked` and `.unblocked` too, if Blocked is derived. Settle the 
 
 - Libraries under `libs/` (`core`, `work-items`, `assignments`, …), as in the other services, with the pure domain in each library's `domain/` folder.
 - A `work-item.create` command for internal callers, beside the HTTP API.
-- Ergon's own MCP tool server (work items, comments, artifacts, handoffs) that agent versions can choose, as Seshat's knowledge tools are offered today. Forge's tool contracts take its place once Forge exists.
+- Ergon's own MCP tool server (work items, comments, artifacts, handoffs) that agent versions can choose, as Seshat's knowledge tools are offered today.
 
 ## Roadmap
 
@@ -379,15 +373,15 @@ The first implementation lays the foundation of work management, in this order:
 3. **WorkDependency:** `blocks` and `relates_to`, cycle detection.
 4. **WorkComment and WorkActivity.**
 5. **WorkArtifact and links:** Loculus files and external resources first.
-6. **WorkExecution references:** Hephaestus and Daedalus (Kairos today) projections from their events.
+6. **WorkExecution references:** Hephaestus and Kairos projections from their events.
 7. **WorkHandoff:** after the Ergon ↔ Hephaestus decision on reviews.
-8. **Integration contracts:** Polis, Pistis, Agora, Hephaestus, Daedalus.
+8. **Integration contracts:** Polis, Pistis, Agora, Hephaestus, Kairos, Proxenos.
 9. **Event contracts and the outbox:** the AsyncAPI spec comes with step 1. Every later step adds its events there.
 10. **Tool contracts for agents.**
 
 Later: queues, templates, scheduling and planning (estimates, cycles, roadmaps).
 
-Before step 1: settle the open decisions in this file (Hephaestus tasks, derived Blocked, event names, and which existing services stand in for Daedalus, the integrations service and the notifications service), create the package, and add it to `../pnpm-workspace.yaml` and `../CLAUDE.md`'s component table.
+Before step 1: settle the open decisions in this file (Hephaestus tasks, derived Blocked, event names, who starts an agent on assigned work), create the package, and add it to `../pnpm-workspace.yaml` and `../CLAUDE.md`'s component table.
 
 ## What Ergon must not own
 
@@ -395,12 +389,12 @@ Before step 1: settle the open decisions in this file (Hephaestus tasks, derived
 - **Identity:** users, authentication, tokens, service accounts (Pistis).
 - **Agent and council definitions:** configuration, capabilities, versions, templates (Agora).
 - **Running agents:** the runtime, execution state, sandboxes, model calls (Hephaestus, through Pylon).
-- **Workflows:** definitions, executions, schedules, retries, waits, approval steps inside workflows (Daedalus). Ergon has no workflow engine.
-- **External integrations:** OAuth connections, provider APIs, credentials, webhooks (the integrations service, Proxenos today).
-- **Governed knowledge:** document lifecycle, approval, versioning, terminology (Episteme), and **retrieval** (Seshat).
+- **Workflows:** definitions, executions, schedules, retries, waits, approval steps inside workflows (Kairos). Ergon has no workflow engine.
+- **External integrations:** OAuth connections, provider APIs, credentials, webhooks (Proxenos).
+- **Project knowledge:** its lifecycle, approval, versions and retrieval (Seshat).
 - **File storage** (Loculus).
-- **Policy decisions** (Aegis Control / Themis).
-- **Notification delivery** and inboxes (Angelia; Kerykes today).
+- **Policy decisions** (Themis).
+- **Notification delivery** and inboxes (Kerykes).
 - **A user interface** (Iris).
-- **Shared SDKs** (Forge, Krepis, contracts).
+- **Shared libraries and contracts** (Krepis, contracts).
 - **Secrets** of any kind (OpenBao).
