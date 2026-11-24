@@ -268,6 +268,21 @@ async function Project({ params, searchParams }: Props) {
         )}
       </section>
 
+      <section id="sessions" className="space-y-1">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <h2 className="font-medium">Sessions</h2>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Talk to an agent or a council about this project: they answer
+              as you write, reading what you can and changing nothing.
+            </p>
+          </div>
+          <Link href={`${path}/sessions`} className="text-sm underline">
+            Open sessions
+          </Link>
+        </div>
+      </section>
+
       <section id="knowledge" className="space-y-1">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>

@@ -36,6 +36,10 @@ Built (`hephaestus/libs/sessions`):
 
 ### In Iris
 
+**Built: the session page.** A project's **Sessions** (`/orgs/{organizationId}/projects/{projectId}/sessions`) lists the person's sessions and starts one with an agent or a council. A session's page shows the conversation, with each message's author (the person, the agent, the facilitator, a member, members' answers marked) and tool calls folded under their message; a council's members with their role and participation; a **To** picker to address a member directly; and **End session**. Sending a message posts to Iris's route `…/sessions/{sessionId}/runs`, which calls the session's AG-UI endpoint with the person's own token and streams its events back unchanged; the page reads them with a small client of its own (`lib/sessions.ts`: an SSE parser and a reducer over AG-UI events, with the `message-author` events naming who speaks) rather than CopilotKit, which has no place for authors. Refusals (busy, ended, a member that can't be addressed) come back as messages before anything is kept; a run's `RUN_ERROR` is shown under the conversation; **Stop** aborts the run.
+
+**Still proposed** for the copilot (below): CopilotKit or the same client in a sidebar on every page, frontend actions and shared state.
+
 - **CopilotKit runtime** in an Iris route handler (`/api/copilotkit`), configured with an `HttpAgent` pointing at the session's AG-UI endpoint; the route adds the person's access token (as Iris's other routes do), so the browser never talks to Hephaestus directly.
 - **Frontend actions** (`useCopilotAction`): what the copilot may do, run in Iris with the person's own token, each with a confirmation the person clicks (generative UI: the card shows exactly what will happen). Examples: fill in a new task form (the person submits it), create a knowledge item, open a page, approve a draft (only for people with `task:approve`, and always with the person's click).
 - **Shared state** (`useCopilotReadable`, AG-UI state): what the person is looking at (the project, the task, the selected artifact), so "summarize this task" works without copying IDs.
