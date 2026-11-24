@@ -27,6 +27,11 @@ export type Workspace = ApiSchema<"WorkspaceResponse">;
 export type Task = ApiSchema<"TaskResponse">;
 export type TaskStatus = ApiSchema<"TaskStatus">;
 export type Execution = ApiSchema<"ExecutionResponse">;
+/** A person's session with an agent or a council (docs/interaction.md, docs/councils.md). */
+export type AgentSession = ApiSchema<"SessionResponse">;
+export type AgentSessionMessage = ApiSchema<"SessionMessage">;
+export type SessionAuthor = ApiSchema<"SessionMessageAuthor">;
+export type SessionMember = ApiSchema<"SessionMember">;
 export type ExecutionEvent = ApiSchema<"ExecutionEvent">;
 export type ExecutionEventPage = ApiSchema<"ExecutionEventPage">;
 export type Artifact = ApiSchema<"ArtifactResponse">;

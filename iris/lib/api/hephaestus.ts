@@ -2,6 +2,8 @@ import "server-only";
 
 import { config } from "../config";
 import type {
+  AgentSession,
+  AgentSessionMessage,
   ApiSchema,
   Artifact,
   Execution,
@@ -362,4 +364,89 @@ export const listToolServerTools = (
   hephaestus<ApiSchema<"ToolList">>(
     `${toolServersOf(organizationId)}/${toolServerId}/tools`,
     token,
+  );
+
+// --- Sessions (docs/interaction.md, docs/councils.md) ---
+
+const sessionsOf = (organizationId: string, projectId: string) =>
+  `/v1/organizations/${organizationId}/projects/${projectId}/sessions`;
+
+/** The person's own sessions in the project, newest first. */
+export const listSessions = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+) =>
+  hephaestus<Page<AgentSession>>(
+    `${sessionsOf(organizationId, projectId)}?limit=50`,
+    token,
+  );
+
+/** Starts a session with an agent or a council (exactly one of them). */
+export const createSession = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+  body: ApiSchema<"CreateSessionRequest">,
+) =>
+  hephaestus<AgentSession>(sessionsOf(organizationId, projectId), token, {
+    method: "POST",
+    body,
+  });
+
+export const getSession = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+  sessionId: string,
+) =>
+  hephaestus<AgentSession>(
+    `${sessionsOf(organizationId, projectId)}/${sessionId}`,
+    token,
+  );
+
+/** The conversation, oldest first: up to `max` messages, page by page. */
+export async function listSessionMessages(
+  token: string,
+  organizationId: string,
+  projectId: string,
+  sessionId: string,
+  max = 500,
+): Promise<AgentSessionMessage[]> {
+  const messages: AgentSessionMessage[] = [];
+  let cursor: string | null = null;
+  do {
+    const query = new URLSearchParams({ limit: "100" });
+    if (cursor) query.set("cursor", cursor);
+    const page: Page<AgentSessionMessage> = await hephaestus(
+      `${sessionsOf(organizationId, projectId)}/${sessionId}/messages?${query}`,
+      token,
+    );
+    messages.push(...page.items);
+    cursor = page.nextCursor;
+  } while (cursor && messages.length < max);
+  return messages;
+}
+
+export const endSession = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+  sessionId: string,
+) =>
+  hephaestus<AgentSession>(
+    `${sessionsOf(organizationId, projectId)}/${sessionId}/end`,
+    token,
+    { method: "POST" },
+  );
+
+/** Where a session's AG-UI endpoint is (the run route streams from it). */
+export const sessionRunsUrl = (
+  organizationId: string,
+  projectId: string,
+  sessionId: string,
+) =>
+  new URL(
+    `${sessionsOf(organizationId, projectId)}/${sessionId}/runs`,
+    config.hephaestusUrl,
   );
