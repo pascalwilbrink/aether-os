@@ -29,6 +29,8 @@ export type DomainErrorCode =
   | 'TOOL_SERVER_INVALID'
   | 'SESSION_BUSY'
   | 'SESSION_ENDED'
+  | 'SESSION_MEMBER_INVALID'
+  | 'COUNCIL_UNAVAILABLE'
   | 'WORKSPACE_INVALID_EXPIRY'
   | 'WORKSPACE_INVALID_TRANSITION';
 
@@ -1246,20 +1248,64 @@ export type ToolList = {
 
 export type SessionStatus = 'active' | 'ended';
 
+/**
+ * Exactly one of `agentId` and `councilId`.
+ */
 export type CreateSessionRequest = {
-  agentId: string;
+  agentId?: string;
+  councilId?: string;
   title?: string;
+};
+
+export type SessionMember = {
+  agentId: string;
+  /**
+   * Pinned when the session started.
+   */
+  agentVersionId: string;
+  name: string;
+  participation: 'required' | 'conditional' | 'optional';
+  role: string | null;
+  /**
+   * A conditional member's condition.
+   */
+  when: string | null;
+  /**
+   * Taking part in the conversation (required members always are; others once invited or addressed).
+   */
+  invited: boolean;
+};
+
+export type SessionMessageAuthor = {
+  /**
+   * `user`: the person; `agent`: an agent session's agent; `facilitator` and `member`: a council's.
+   */
+  kind: 'user' | 'agent' | 'facilitator' | 'member';
+  agentId: string | null;
+  agentVersionId: string | null;
 };
 
 export type SessionResponse = {
   id: string;
   organizationId: string;
   projectId: string;
+  /**
+   * The agent; in a council session the facilitator.
+   */
   agentId: string;
   /**
    * Pinned when it started.
    */
   agentVersionId: string;
+  councilId: string | null;
+  /**
+   * Pinned when it started.
+   */
+  councilVersionId: string | null;
+  /**
+   * A council session's members; empty otherwise.
+   */
+  members: Array<SessionMember>;
   /**
    * The person's `sub`.
    */
@@ -1298,10 +1344,11 @@ export type SessionMessage = {
    */
   id: string;
   role: 'user' | 'assistant' | 'tool';
+  author: SessionMessageAuthor;
   content: string;
   toolCalls: Array<SessionToolCall>;
   /**
-   * A tool message's call.
+   * A tool message's call; a member's answer, the facilitator's `ask_member` call it answers.
    */
   toolCallId: string | null;
   createdAt: Timestamp;
@@ -1331,9 +1378,11 @@ export type RunAgentInput = {
    */
   state?: unknown;
   /**
-   * Ignored.
+   * In a council session, `memberAgentId` addresses that member directly; anything else is ignored.
    */
-  forwardedProps?: unknown;
+  forwardedProps?: {
+    memberAgentId?: string;
+  };
 };
 
 export type AguiMessage = {
