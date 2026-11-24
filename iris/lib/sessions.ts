@@ -6,240 +6,118 @@ import type {
 } from "./api";
 
 /**
- * Sessions in Iris (docs/interaction.md, docs/councils.md): reading the
- * AG-UI events a run streams, and keeping the conversation they and the
- * stored messages make. Pure, so it can be tested and used in the browser.
+ * Sessions in Iris (docs/interaction.md, docs/councils.md): the stored
+ * conversation as CopilotKit's agent starts from it, who wrote each
+ * message, and what the page says. Pure, so it can be tested and used in
+ * the browser.
  */
 
-/** An AG-UI event as Hephaestus sends it. */
-export interface AguiEvent {
-  type: string;
-  messageId?: string;
-  delta?: string;
-  toolCallId?: string;
-  toolCallName?: string;
-  parentMessageId?: string;
-  content?: string;
+/** An AG-UI message, as CopilotKit's agent keeps the conversation. */
+export type AguiMessage =
+  | { id: string; role: "user"; content: string }
+  | {
+      id: string;
+      role: "assistant";
+      content: string;
+      toolCalls?: {
+        id: string;
+        type: "function";
+        function: { name: string; arguments: string };
+      }[];
+    }
+  | { id: string; role: "tool"; content: string; toolCallId: string };
+
+/**
+ * The stored messages as the agent's starting conversation (AG-UI
+ * messages, with Hephaestus's IDs, so a run sends none of them again as
+ * new).
+ */
+export function aguiMessagesOf(
+  stored: readonly AgentSessionMessage[],
+): AguiMessage[] {
+  return stored.flatMap((message): AguiMessage[] => {
+    if (message.role === "user") {
+      return [{ id: message.id, role: "user", content: message.content }];
+    }
+    if (message.role === "tool") {
+      return message.toolCallId
+        ? [
+            {
+              id: message.id,
+              role: "tool",
+              content: message.content,
+              toolCallId: message.toolCallId,
+            },
+          ]
+        : [];
+    }
+    return [
+      {
+        id: message.id,
+        role: "assistant",
+        content: message.content,
+        ...(message.toolCalls.length > 0
+          ? {
+              toolCalls: message.toolCalls.map((call) => ({
+                id: call.id,
+                type: "function" as const,
+                function: { name: call.name, arguments: call.arguments },
+              })),
+            }
+          : {}),
+      },
+    ];
+  });
+}
+
+/** Who wrote each stored message, by its ID. */
+export function authorsOf(
+  stored: readonly AgentSessionMessage[],
+): Map<string, SessionAuthor> {
+  return new Map(stored.map((message) => [message.id, message.author]));
+}
+
+/**
+ * A `message-author` event (Hephaestus announces each assistant message
+ * of a run with one): the message and who wrote it, or null for any other
+ * custom event.
+ */
+export function authorEvent(event: {
   name?: string;
   value?: unknown;
-  message?: string;
-  code?: string;
+}): { messageId: string; author: SessionAuthor } | null {
+  const value = event.value as
+    | { messageId?: unknown; author?: SessionAuthor }
+    | undefined;
+  return event.name === "message-author" &&
+    typeof value?.messageId === "string" &&
+    value.author
+    ? { messageId: value.messageId, author: value.author }
+    : null;
 }
 
 /**
- * Splits a server-sent event stream into its events (`data: <json>`
- * frames separated by a blank line), whatever chunks it arrives in.
+ * What went wrong with a run, for the person: a refusal before it started
+ * (Iris's route passes Hephaestus's problem details on, which CopilotKit's
+ * agent reports as an HTTP error with the body) or a `RUN_ERROR`.
  */
-export class SseParser {
-  private buffer = "";
-
-  push(chunk: string): AguiEvent[] {
-    this.buffer += chunk.replace(/\r\n/g, "\n");
-    const events: AguiEvent[] = [];
-    let end = this.buffer.indexOf("\n\n");
-    while (end !== -1) {
-      const frame = this.buffer.slice(0, end);
-      this.buffer = this.buffer.slice(end + 2);
-      const data = frame
-        .split("\n")
-        .filter((line) => line.startsWith("data:"))
-        .map((line) => line.slice(5).replace(/^ /, ""))
-        .join("\n");
-      if (data) {
-        try {
-          events.push(JSON.parse(data) as AguiEvent);
-        } catch {
-          // Not an event: skipped.
-        }
-      }
-      end = this.buffer.indexOf("\n\n");
-    }
-    return events;
-  }
-}
-
-/** A tool call in the conversation, with its result once it came. */
-export interface ChatToolCall {
-  id: string;
-  name: string;
-  arguments: string;
-  result: string | null;
-}
-
-/** A message as the conversation shows it; tool results sit with their calls. */
-export interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  author: SessionAuthor;
-  content: string;
-  toolCalls: ChatToolCall[];
-}
-
-export interface Conversation {
-  messages: ChatMessage[];
-  /** A run's `RUN_ERROR`, until the next run. */
-  error: { message: string; code: string } | null;
-}
-
-const PERSON: SessionAuthor = { kind: "user", agentId: null, agentVersionId: null };
-
-/** The stored messages as a conversation: tool results go to their calls. */
-export function conversationOf(stored: readonly AgentSessionMessage[]): Conversation {
-  const messages: ChatMessage[] = [];
-  const calls = new Map<string, ChatToolCall>();
-  for (const message of stored) {
-    if (message.role === "tool") {
-      const call = message.toolCallId ? calls.get(message.toolCallId) : undefined;
-      if (call) {
-        call.result = message.content;
-      }
-      continue;
-    }
-    const toolCalls = message.toolCalls.map((call) => ({
-      id: call.id,
-      name: call.name,
-      arguments: call.arguments,
-      result: null,
-    }));
-    for (const call of toolCalls) {
-      calls.set(call.id, call);
-    }
-    messages.push({
-      id: message.id,
-      role: message.role,
-      author: message.author,
-      content: message.content,
-      toolCalls,
-    });
-  }
-  return { messages, error: null };
-}
-
-/** The person's message, before the run answers it. */
-export function withUserMessage(
-  conversation: Conversation,
-  id: string,
-  content: string,
-): Conversation {
-  return {
-    messages: [
-      ...conversation.messages,
-      { id, role: "user", author: PERSON, content, toolCalls: [] },
-    ],
-    error: null,
-  };
-}
-
-/**
- * The conversation after one AG-UI event. Each assistant message is
- * announced by a `message-author` event (who wrote it); text and tool
- * calls go into it, tool results onto their calls.
- */
-export function applyEvent(
-  conversation: Conversation,
-  event: AguiEvent,
-): Conversation {
-  const messages = conversation.messages;
-  const update = (
-    id: string,
-    change: (message: ChatMessage) => ChatMessage,
-  ): ChatMessage[] => {
-    const index = messages.findIndex((message) => message.id === id);
-    if (index === -1) {
-      return [
-        ...messages,
-        change({
-          id,
-          role: "assistant",
-          author: { kind: "agent", agentId: null, agentVersionId: null },
-          content: "",
-          toolCalls: [],
-        }),
-      ];
-    }
-    return messages.map((message, at) => (at === index ? change(message) : message));
-  };
-  switch (event.type) {
-    case "CUSTOM": {
-      const value = event.value as
-        | { messageId?: string; author?: SessionAuthor }
-        | undefined;
-      if (event.name !== "message-author" || !value?.messageId || !value.author) {
-        return conversation;
-      }
-      const author = value.author;
-      return {
-        ...conversation,
-        messages: update(value.messageId, (message) => ({ ...message, author })),
+export function runFailureMessage(error: { message?: string; code?: string }): string {
+  const text = error.message ?? "";
+  const body = text.indexOf("{");
+  if (body !== -1) {
+    try {
+      const problem = JSON.parse(text.slice(body)) as {
+        code?: string;
+        detail?: string;
       };
-    }
-    case "TEXT_MESSAGE_START":
-      return event.messageId
-        ? { ...conversation, messages: update(event.messageId, (message) => message) }
-        : conversation;
-    case "TEXT_MESSAGE_CONTENT":
-      return event.messageId
-        ? {
-            ...conversation,
-            messages: update(event.messageId, (message) => ({
-              ...message,
-              content: message.content + (event.delta ?? ""),
-            })),
-          }
-        : conversation;
-    case "TOOL_CALL_START":
-      return event.parentMessageId && event.toolCallId
-        ? {
-            ...conversation,
-            messages: update(event.parentMessageId, (message) => ({
-              ...message,
-              toolCalls: [
-                ...message.toolCalls,
-                {
-                  id: event.toolCallId as string,
-                  name: event.toolCallName ?? "tool",
-                  arguments: "",
-                  result: null,
-                },
-              ],
-            })),
-          }
-        : conversation;
-    case "TOOL_CALL_ARGS":
-    case "TOOL_CALL_RESULT": {
-      const callId = event.toolCallId;
-      if (!callId) {
-        return conversation;
+      if (problem.code || problem.detail) {
+        return refusalMessage(problem.code, problem.detail ?? "");
       }
-      return {
-        ...conversation,
-        messages: messages.map((message) =>
-          message.toolCalls.some((call) => call.id === callId)
-            ? {
-                ...message,
-                toolCalls: message.toolCalls.map((call) =>
-                  call.id !== callId
-                    ? call
-                    : event.type === "TOOL_CALL_ARGS"
-                      ? { ...call, arguments: call.arguments + (event.delta ?? "") }
-                      : { ...call, result: event.content ?? "" },
-                ),
-              }
-            : message,
-        ),
-      };
+    } catch {
+      // Not problem details.
     }
-    case "RUN_ERROR":
-      return {
-        ...conversation,
-        error: {
-          message: event.message ?? "The run failed.",
-          code: event.code ?? "AGENT_FAILED",
-        },
-      };
-    default:
-      return conversation;
   }
+  return runErrorMessage({ message: text || "The run failed.", code: error.code ?? "" });
 }
 
 /** Who wrote a message, as the conversation names them. */

@@ -1,28 +1,88 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import "@copilotkit/react-core/v2/styles.css";
 
-import { buttonClass, FormError, inputClass } from "@/app/components/form";
-import type { AgentSessionMessage, SessionMember } from "@/lib/api";
 import {
-  applyEvent,
+  CopilotChat,
+  CopilotChatAssistantMessage,
+  CopilotKitProvider,
+  defineToolCallRenderer,
+  EventType,
+  HttpAgent,
+  type BaseEvent,
+  type CopilotChatAssistantMessageProps,
+  type HttpAgentConfig,
+  type Message,
+  type RunAgentInput,
+} from "@copilotkit/react-core/v2";
+import { useRouter } from "next/navigation";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { Observable } from "rxjs";
+
+import type { AgentSessionMessage, SessionAuthor, SessionMember } from "@/lib/api";
+import {
+  aguiMessagesOf,
+  authorEvent,
   authorLabel,
-  conversationOf,
-  refusalMessage,
-  runErrorMessage,
-  SseParser,
-  withUserMessage,
-  type ChatMessage,
-  type Conversation,
+  authorsOf,
+  runFailureMessage,
 } from "@/lib/sessions";
 
 import type { ProjectRef } from "../../actions";
 
+/** The one agent CopilotKit talks to on this page: the session. */
+const AGENT_ID = "session";
+
 /**
- * The conversation, and sending a message: the run's AG-UI events stream
- * through Iris's route (`runs/route.ts`) and update the conversation as they
- * come. In a council session the person can address one member directly.
+ * The session's agent. CopilotKit empties an agent's conversation when it
+ * first connects to a thread and asks the agent to restore it (`connect`),
+ * which `HttpAgent` can't: this one replays the stored messages as a
+ * snapshot. Every run then carries them with Hephaestus's IDs, so it
+ * stores only what's new.
+ */
+class SessionAgent extends HttpAgent {
+  constructor(
+    config: HttpAgentConfig,
+    private readonly stored: Message[],
+  ) {
+    super(config);
+  }
+
+  protected override connect(input: RunAgentInput): Observable<BaseEvent> {
+    const { threadId, runId } = input;
+    return new Observable<BaseEvent>((subscriber) => {
+      subscriber.next({ type: EventType.RUN_STARTED, threadId, runId } as BaseEvent);
+      subscriber.next({
+        type: EventType.MESSAGES_SNAPSHOT,
+        messages: this.stored,
+      } as BaseEvent);
+      subscriber.next({ type: EventType.RUN_FINISHED, threadId, runId } as BaseEvent);
+      subscriber.complete();
+    });
+  }
+
+  override clone(): SessionAgent {
+    const copy = super.clone() as SessionAgent;
+    Object.assign(copy, { stored: this.stored });
+    return copy;
+  }
+}
+
+/** Who wrote each message, and how to name them. */
+const Authors = createContext<{
+  authors: ReadonlyMap<string, SessionAuthor>;
+  label: (author: SessionAuthor) => string;
+}>({ authors: new Map(), label: () => "" });
+
+/**
+ * The conversation, on CopilotKit (`docs/interaction.md`): its agent is an
+ * AG-UI `HttpAgent` on Iris's route (`runs/route.ts`), which calls the
+ * session's endpoint in Hephaestus with the person's token, so the browser
+ * never sees a token or Hephaestus. It starts from the stored messages
+ * (Hephaestus's IDs, so they're never sent as new), and each message shows
+ * who wrote it: Hephaestus announces them with `message-author` events. In
+ * a council session the person can address a member directly
+ * (`forwardedProps.memberAgentId`, through the provider's `properties`).
  */
 export function SessionChat({
   project,
@@ -40,196 +100,169 @@ export function SessionChat({
   ended: boolean;
 }) {
   const router = useRouter();
-  const [conversation, setConversation] = useState<Conversation>(() =>
-    conversationOf(initial),
-  );
-  const [text, setText] = useState("");
+  const [agent] = useState(() => {
+    const stored = aguiMessagesOf(initial) as Message[];
+    return new SessionAgent(
+      {
+        agentId: AGENT_ID,
+        url: `/orgs/${project.organizationId}/projects/${project.projectId}/sessions/${sessionId}/runs`,
+        threadId: sessionId,
+        initialMessages: stored,
+      },
+      stored,
+    );
+  });
+  const [authors, setAuthors] = useState(() => authorsOf(initial));
   const [addressed, setAddressed] = useState("");
-  const [running, setRunning] = useState(false);
-  const [refused, setRefused] = useState<string | undefined>();
-  const stop = useRef<AbortController | null>(null);
-  const names = { agent: agentName, members };
-  const council = members.length > 0;
+  const [failure, setFailure] = useState<string | null>(null);
 
-  async function send(event: React.FormEvent) {
-    event.preventDefault();
-    const content = text.trim();
-    if (!content || running) return;
-    const messageId = crypto.randomUUID();
-    setRefused(undefined);
-    setText("");
-    setRunning(true);
-    setConversation((current) => withUserMessage(current, messageId, content));
-    const controller = new AbortController();
-    stop.current = controller;
-    try {
-      const response = await fetch(
-        `/orgs/${project.organizationId}/projects/${project.projectId}/sessions/${sessionId}/runs`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            messageId,
-            content,
-            ...(addressed ? { memberAgentId: addressed } : {}),
-          }),
-          signal: controller.signal,
-        },
-      );
-      if (!response.ok || !response.body) {
-        const problem = (await response.json().catch(() => ({}))) as {
-          code?: string;
-          detail?: string;
-        };
-        // Nothing was kept: take the message back.
-        setConversation((current) => ({
-          ...current,
-          messages: current.messages.filter((message) => message.id !== messageId),
-        }));
-        setText(content);
-        setRefused(refusalMessage(problem.code, problem.detail ?? ""));
-        return;
-      }
-      const parser = new SseParser();
-      const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        const events = parser.push(value);
-        if (events.length > 0) {
-          setConversation((current) => events.reduce(applyEvent, current));
+  useEffect(() => {
+    const { unsubscribe } = agent.subscribe({
+      onRunInitialized: () => setFailure(null),
+      onCustomEvent: ({ event }) => {
+        const announced = authorEvent(event);
+        if (announced) {
+          setAuthors((current) =>
+            new Map(current).set(announced.messageId, announced.author),
+          );
         }
-      }
-    } catch (error) {
-      if (!(error instanceof DOMException && error.name === "AbortError")) {
-        setRefused("The connection was lost. What the agent said so far is kept.");
-      }
-    } finally {
-      stop.current = null;
-      setRunning(false);
+      },
+      onRunErrorEvent: ({ event }) =>
+        setFailure(runFailureMessage({ message: event.message, code: event.code })),
+      onRunFailed: ({ error }) => {
+        setFailure(runFailureMessage(error));
+        // Refused before it started: Hephaestus kept nothing, so neither do we.
+        const last = agent.messages.at(-1);
+        if ("status" in error && last?.role === "user") {
+          agent.setMessages(agent.messages.slice(0, -1));
+        }
+      },
       // The stored conversation and the session's state (members invited).
-      router.refresh();
-    }
-  }
+      onRunFinalized: () => router.refresh(),
+    });
+    return unsubscribe;
+  }, [agent, router]);
+
+  const context = useMemo(
+    () => ({
+      authors,
+      label: (author: SessionAuthor) => authorLabel(author, { agent: agentName, members }),
+    }),
+    [authors, agentName, members],
+  );
+  const properties = useMemo(
+    () => (addressed ? { memberAgentId: addressed } : {}),
+    [addressed],
+  );
 
   return (
-    <section className="space-y-4">
-      <ol className="space-y-3" aria-live="polite">
-        {conversation.messages.length === 0 && (
-          <li className="text-sm text-zinc-600 dark:text-zinc-400">
-            {ended ? "Nothing was said." : "Say what you'd like to talk about."}
-          </li>
-        )}
-        {conversation.messages.map((message) => (
-          <Message key={message.id} message={message} label={authorLabel(message.author, names)} />
-        ))}
-        {running && (
-          <li className="text-sm text-zinc-500" role="status">
-            Answering…
-          </li>
-        )}
-      </ol>
-      {conversation.error && !running && (
+    <section className="space-y-3">
+      <CopilotKitProvider
+        selfManagedAgents={{ [AGENT_ID]: agent }}
+        agentId={AGENT_ID}
+        properties={properties}
+        renderToolCalls={TOOL_RENDERERS}
+        showDevConsole={false}
+        enableInspector={false}
+      >
+        <Authors.Provider value={context}>
+          <div className="h-[60vh] min-h-96 overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800">
+            <CopilotChat
+              agentId={AGENT_ID}
+              threadId={sessionId}
+              messageView={{ assistantMessage: AuthoredAssistant }}
+              labels={{
+                chatInputPlaceholder: ended
+                  ? "This session has ended."
+                  : "Write a message",
+              }}
+              {...(ended ? { input: Ended } : {})}
+            />
+          </div>
+        </Authors.Provider>
+      </CopilotKitProvider>
+      {failure && (
         <p role="alert" className="text-sm text-red-700 dark:text-red-300">
-          {runErrorMessage(conversation.error)}
+          {failure}
         </p>
       )}
-
-      {ended ? (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          This session has ended. Start a new one to carry on.
-        </p>
-      ) : (
-        <form onSubmit={send} className="space-y-2">
-          <FormError error={refused} />
-          <label className="block text-sm">
-            Message
-            <textarea
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  event.currentTarget.form?.requestSubmit();
-                }
-              }}
-              rows={3}
-              maxLength={100_000}
-              className={inputClass}
-              placeholder="Enter to send, Shift+Enter for a new line"
-            />
-          </label>
-          <div className="flex flex-wrap items-center gap-3">
-            {council && (
-              <label className="text-sm">
-                To{" "}
-                <select
-                  value={addressed}
-                  onChange={(event) => setAddressed(event.target.value)}
-                  className="rounded-md border border-zinc-300 bg-transparent px-2 py-1 dark:border-zinc-700"
-                >
-                  <option value="">The facilitator</option>
-                  {members.map((member) => (
-                    <option key={member.agentId} value={member.agentId}>
-                      {member.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <button type="submit" disabled={running || !text.trim()} className={buttonClass}>
-              {running ? "Answering…" : "Send"}
-            </button>
-            {running && (
-              <button
-                type="button"
-                onClick={() => stop.current?.abort()}
-                className="text-sm underline"
-              >
-                Stop
-              </button>
-            )}
-          </div>
-        </form>
+      {members.length > 0 && !ended && (
+        <label className="block text-sm">
+          To{" "}
+          <select
+            value={addressed}
+            onChange={(event) => setAddressed(event.target.value)}
+            className="rounded-md border border-zinc-300 bg-transparent px-2 py-1 dark:border-zinc-700"
+          >
+            <option value="">The facilitator</option>
+            {members.map((member) => (
+              <option key={member.agentId} value={member.agentId}>
+                {member.name}
+              </option>
+            ))}
+          </select>
+        </label>
       )}
     </section>
   );
 }
 
-function Message({ message, label }: { message: ChatMessage; label: string }) {
-  const mine = message.role === "user";
+/** An assistant message, with who wrote it above it; members' stand out. */
+function AuthoredAssistantMessage(props: CopilotChatAssistantMessageProps) {
+  const { authors, label } = useContext(Authors);
+  const author = authors.get(props.message.id);
   return (
-    <li className={mine ? "flex justify-end" : "flex"}>
-      <div
-        className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-          mine
-            ? "bg-indigo-600 text-white"
-            : message.author.kind === "member"
-              ? "border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950"
-              : "border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
-        }`}
-      >
-        <p className={`mb-1 text-xs font-medium ${mine ? "text-indigo-100" : "text-zinc-500"}`}>
-          {label}
-        </p>
-        {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
-        {message.toolCalls.map((call) => (
-          <details key={call.id} className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
-            <summary className="cursor-pointer">
-              {call.name === "ask_member"
-                ? "Asked a member"
-                : call.name === "invite_members"
-                  ? "Invited members"
-                  : `Used ${call.name}`}
-              {call.result === null ? "…" : ""}
-            </summary>
-            <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all">{call.arguments}</pre>
-            {call.result !== null && (
-              <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all">{call.result}</pre>
-            )}
-          </details>
-        ))}
-      </div>
-    </li>
+    <div
+      className={
+        author?.kind === "member"
+          ? "rounded-md border-l-4 border-amber-400 pl-2"
+          : undefined
+      }
+    >
+      {author && (
+        <p className="mb-1 text-xs font-medium text-zinc-500">{label(author)}</p>
+      )}
+      <CopilotChatAssistantMessage {...props} />
+    </div>
   );
 }
+
+/** The slot's type wants the default's sub-components too; it only renders it. */
+const AuthoredAssistant =
+  AuthoredAssistantMessage as unknown as typeof CopilotChatAssistantMessage;
+
+/** In place of the message box, once the session has ended. */
+function Ended() {
+  return (
+    <p className="p-3 text-sm text-zinc-600 dark:text-zinc-400">
+      This session has ended. Start a new one to carry on.
+    </p>
+  );
+}
+
+/** Tool calls, folded: the council's own in words, any other by name. */
+const TOOL_RENDERERS = [
+  defineToolCallRenderer({
+    name: "*",
+    render: ({ name, args, status, result }) => (
+      <details className="my-1 text-xs text-zinc-600 dark:text-zinc-400">
+        <summary className="cursor-pointer">
+          {name === "ask_member"
+            ? "Asked a member"
+            : name === "invite_members"
+              ? "Invited members"
+              : `Used ${name}`}
+          {status === "complete" ? "" : "…"}
+        </summary>
+        <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all">
+          {JSON.stringify(args, null, 2)}
+        </pre>
+        {result !== undefined && (
+          <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all">
+            {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
+          </pre>
+        )}
+      </details>
+    ),
+  }),
+];

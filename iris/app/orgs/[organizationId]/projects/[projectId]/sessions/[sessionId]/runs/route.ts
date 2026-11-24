@@ -5,10 +5,14 @@ import { currentSession } from "@/lib/auth/current";
 const RUN_LIMIT_MS = 15 * 60_000;
 
 /**
- * Sends the person's message to the session's AG-UI endpoint in Hephaestus
- * (docs/interaction.md) with their own token, and streams the run's events
- * back as they come. Refusals before the stream (busy, ended, an
- * addressed member that isn't one) come back as problem details.
+ * The session's AG-UI endpoint as the page's CopilotKit agent (an
+ * `HttpAgent`) sees it: the `RunAgentInput` it sends goes to Hephaestus's
+ * (docs/interaction.md) with the person's own token, the session as
+ * `threadId`, and only what Hephaestus reads (`messages`, `tools`,
+ * `context`, `state`, and `memberAgentId` of `forwardedProps`; CopilotKit's
+ * own properties stay here); the run's events stream back as they come.
+ * Refusals before the stream (busy, ended, an addressed member that isn't
+ * one) come back as problem details.
  */
 export async function POST(
   request: Request,
@@ -30,23 +34,18 @@ export async function POST(
       { status: 401 },
     );
   }
-  const body = (await request.json().catch(() => null)) as {
-    messageId?: unknown;
-    content?: unknown;
-    memberAgentId?: unknown;
+  const input = (await request.json().catch(() => null)) as {
+    runId?: unknown;
+    messages?: unknown;
+    tools?: unknown;
+    context?: unknown;
+    state?: unknown;
+    forwardedProps?: { memberAgentId?: unknown } | null;
   } | null;
-  if (
-    !body ||
-    typeof body.messageId !== "string" ||
-    typeof body.content !== "string" ||
-    !body.content.trim()
-  ) {
+  if (!input || !Array.isArray(input.messages)) {
     return Response.json({ detail: "Write a message." }, { status: 400 });
   }
-  const memberAgentId =
-    typeof body.memberAgentId === "string" && body.memberAgentId
-      ? body.memberAgentId
-      : undefined;
+  const memberAgentId = input.forwardedProps?.memberAgentId;
 
   let upstream: Response;
   try {
@@ -59,12 +58,21 @@ export async function POST(
       },
       body: JSON.stringify({
         threadId: sessionId,
-        runId: crypto.randomUUID(),
-        messages: [{ id: body.messageId, role: "user", content: body.content }],
-        ...(memberAgentId ? { forwardedProps: { memberAgentId } } : {}),
+        runId:
+          typeof input.runId === "string" && input.runId
+            ? input.runId
+            : crypto.randomUUID(),
+        messages: input.messages,
+        ...(Array.isArray(input.tools) ? { tools: input.tools } : {}),
+        ...(Array.isArray(input.context) ? { context: input.context } : {}),
+        ...(input.state !== undefined ? { state: input.state } : {}),
+        ...(typeof memberAgentId === "string" && memberAgentId
+          ? { forwardedProps: { memberAgentId } }
+          : {}),
       }),
       cache: "no-store",
-      // The person leaving stops the run (Hephaestus keeps what it produced).
+      // The person leaving or pressing Stop stops the run (Hephaestus keeps
+      // what it produced).
       signal: AbortSignal.any([request.signal, AbortSignal.timeout(RUN_LIMIT_MS)]),
     });
   } catch {

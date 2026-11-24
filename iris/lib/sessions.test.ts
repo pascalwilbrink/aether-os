@@ -2,13 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { AgentSessionMessage, SessionMember } from "./api";
 import {
-  applyEvent,
+  aguiMessagesOf,
+  authorEvent,
   authorLabel,
-  conversationOf,
+  authorsOf,
   participationLabel,
-  SseParser,
-  withUserMessage,
-  type AguiEvent,
+  runFailureMessage,
 } from "./sessions";
 
 const facilitator = {
@@ -42,113 +41,90 @@ const members: SessionMember[] = [
   },
 ];
 
-describe("SseParser", () => {
-  it("reads events across chunks and skips what isn't one", () => {
-    const parser = new SseParser();
-    expect(parser.push('data: {"type":"RUN_STA')).toEqual([]);
-    expect(
-      parser.push('RTED"}\n\ndata: not json\n\ndata: {"type":"RUN_FINISHED"}\r\n\r\n'),
-    ).toEqual([{ type: "RUN_STARTED" }, { type: "RUN_FINISHED" }]);
-  });
-});
+const stored: AgentSessionMessage[] = [
+  {
+    id: "u-1",
+    role: "user",
+    author: { kind: "user", agentId: null, agentVersionId: null },
+    content: "Hi",
+    toolCalls: [],
+    toolCallId: null,
+    createdAt: "2026-11-24T10:00:00Z",
+  },
+  {
+    id: "a-1",
+    role: "assistant",
+    author: { kind: "agent", agentId: "x", agentVersionId: "x-1" },
+    content: "",
+    toolCalls: [{ id: "c-1", name: "search_knowledge", arguments: "{}" }],
+    toolCallId: null,
+    createdAt: "2026-11-24T10:00:01Z",
+  },
+  {
+    id: "t-1",
+    role: "tool",
+    author: { kind: "agent", agentId: "x", agentVersionId: "x-1" },
+    content: '{"results":[]}',
+    toolCalls: [],
+    toolCallId: "c-1",
+    createdAt: "2026-11-24T10:00:02Z",
+  },
+];
 
-describe("the conversation", () => {
-  it("follows a council turn: the facilitator's call, the member's answer, its result", () => {
-    const events: AguiEvent[] = [
-      { type: "RUN_STARTED" },
-      {
-        type: "CUSTOM",
-        name: "message-author",
-        value: { messageId: "f-msg", author: facilitator },
-      },
-      {
-        type: "TOOL_CALL_START",
-        toolCallId: "ask-1",
-        toolCallName: "ask_member",
-        parentMessageId: "f-msg",
-      },
-      { type: "TOOL_CALL_ARGS", toolCallId: "ask-1", delta: '{"agentId":"a"}' },
-      { type: "TOOL_CALL_END", toolCallId: "ask-1" },
-      {
-        type: "CUSTOM",
-        name: "message-author",
-        value: { messageId: "m-msg", author: architect },
-      },
-      { type: "TEXT_MESSAGE_START", messageId: "m-msg" },
-      { type: "TEXT_MESSAGE_CONTENT", messageId: "m-msg", delta: "Post" },
-      { type: "TEXT_MESSAGE_CONTENT", messageId: "m-msg", delta: "gres." },
-      { type: "TEXT_MESSAGE_END", messageId: "m-msg" },
-      {
-        type: "TOOL_CALL_RESULT",
-        toolCallId: "ask-1",
-        messageId: "t-1",
-        content: '{"answer":"Postgres."}',
-      },
-      { type: "RUN_FINISHED" },
-    ];
-    const start = withUserMessage({ messages: [], error: null }, "u-1", "Which database?");
-    const end = events.reduce(applyEvent, start);
-    expect(end.messages).toEqual([
-      expect.objectContaining({ id: "u-1", role: "user", content: "Which database?" }),
-      expect.objectContaining({
-        id: "f-msg",
-        author: facilitator,
-        toolCalls: [
-          {
-            id: "ask-1",
-            name: "ask_member",
-            arguments: '{"agentId":"a"}',
-            result: '{"answer":"Postgres."}',
-          },
-        ],
-      }),
-      expect.objectContaining({ id: "m-msg", author: architect, content: "Postgres." }),
-    ]);
-    expect(end.error).toBeNull();
-  });
-
-  it("keeps a run's error until the next message", () => {
-    const failed = applyEvent(
-      { messages: [], error: null },
-      { type: "RUN_ERROR", message: "No budget", code: "BUDGET_EXHAUSTED" },
-    );
-    expect(failed.error).toEqual({ message: "No budget", code: "BUDGET_EXHAUSTED" });
-    expect(withUserMessage(failed, "u-2", "Again").error).toBeNull();
-  });
-
-  it("puts stored tool results with their calls", () => {
-    const stored: AgentSessionMessage[] = [
-      {
-        id: "u-1",
-        role: "user",
-        author: { kind: "user", agentId: null, agentVersionId: null },
-        content: "Hi",
-        toolCalls: [],
-        toolCallId: null,
-        createdAt: "2026-11-24T10:00:00Z",
-      },
+describe("the stored conversation", () => {
+  it("becomes the agent's AG-UI messages, tool results after their calls", () => {
+    expect(aguiMessagesOf(stored)).toEqual([
+      { id: "u-1", role: "user", content: "Hi" },
       {
         id: "a-1",
         role: "assistant",
-        author: { kind: "agent", agentId: "x", agentVersionId: "x-1" },
         content: "",
-        toolCalls: [{ id: "c-1", name: "search_knowledge", arguments: "{}" }],
-        toolCallId: null,
-        createdAt: "2026-11-24T10:00:01Z",
+        toolCalls: [
+          {
+            id: "c-1",
+            type: "function",
+            function: { name: "search_knowledge", arguments: "{}" },
+          },
+        ],
       },
-      {
-        id: "t-1",
-        role: "tool",
-        author: { kind: "agent", agentId: "x", agentVersionId: "x-1" },
-        content: '{"results":[]}',
-        toolCalls: [],
-        toolCallId: "c-1",
-        createdAt: "2026-11-24T10:00:02Z",
-      },
-    ];
-    const { messages } = conversationOf(stored);
-    expect(messages).toHaveLength(2);
-    expect(messages[1].toolCalls[0].result).toBe('{"results":[]}');
+      { id: "t-1", role: "tool", content: '{"results":[]}', toolCallId: "c-1" },
+    ]);
+  });
+
+  it("leaves out a tool result without its call", () => {
+    expect(aguiMessagesOf([{ ...stored[2], toolCallId: null }])).toEqual([]);
+  });
+
+  it("knows who wrote each message", () => {
+    expect(authorsOf(stored).get("a-1")).toEqual(stored[1].author);
+  });
+});
+
+describe("authors announced in a run", () => {
+  it("reads message-author events and ignores other custom events", () => {
+    expect(
+      authorEvent({ name: "message-author", value: { messageId: "m", author: architect } }),
+    ).toEqual({ messageId: "m", author: architect });
+    expect(authorEvent({ name: "other", value: { messageId: "m", author: architect } })).toBeNull();
+    expect(authorEvent({ name: "message-author", value: {} })).toBeNull();
+  });
+});
+
+describe("a failed run", () => {
+  it("says why Hephaestus refused it, from the problem details in the error", () => {
+    expect(
+      runFailureMessage({
+        message: 'HTTP 409: {"code":"SESSION_BUSY","detail":"Busy."}',
+      }),
+    ).toBe("The agent is still answering. Wait for it to finish.");
+  });
+
+  it("says what a run error means", () => {
+    expect(runFailureMessage({ message: "Stopped.", code: "RUN_STOPPED" })).toBe(
+      "The answer was stopped.",
+    );
+    expect(runFailureMessage({ message: "Something broke." })).toBe("Something broke.");
+    expect(runFailureMessage({})).toBe("The run failed.");
   });
 });
 
