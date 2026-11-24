@@ -128,7 +128,7 @@ Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created` (with
 | `artifact.created` | `artifactId`, `taskId`, `kind`, `status`, `primary` | Iris, Kriterion |
 | `artifact.status-changed` | `artifactId`, `from`, `to`, `revisionOf` | Iris, Kriterion |
 | `artifact.deleted` | `artifactId` | Iris, Kriterion |
-| `session.started` | `sessionId`, `agentId`, `agentVersionId`, `startedBy` (`interaction.md`) | later Iris |
+| `session.started` | `sessionId`, `agentId` (a council session's facilitator), `agentVersionId`, `councilId`, `councilVersionId` (`councils.md`), `startedBy` (`interaction.md`) | later Iris |
 | `session.ended` | the same, and `reason` (`closed`, `idle`); usage is Pylon's, per session | later Iris |
 | `document.version-published` | document reference (`documentId`, `version`, `objectKey`, `sha256`) | Seshat (index), Iris |
 | `document.deleted` | `documentId` | Seshat, Loculus cleanup |

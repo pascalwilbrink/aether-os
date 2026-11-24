@@ -1002,10 +1002,13 @@ export const listSessions = <ThrowOnError extends boolean = false>(
 
 /**
  * Starts a session (`../docs/interaction.md`): a conversation between
- * the caller and an agent in the project. The agent's published version
- * is pinned now, like a task's (`AGENT_NOT_PUBLISHED`, `AGENT_ARCHIVED`);
- * the session acts for the caller, read-only. Only the person who
- * started it can see and use it.
+ * the caller and an agent in the project, or with a council
+ * (`../docs/councils.md`): its facilitator and members. Exactly one of
+ * `agentId` and `councilId`. The published versions are pinned now,
+ * like a task's: the agent's (`AGENT_NOT_PUBLISHED`, `AGENT_ARCHIVED`),
+ * or the council's (`COUNCIL_UNAVAILABLE`) with its facilitator's and
+ * each member's published agent version. The session acts for the
+ * caller, read-only. Only the person who started it can see and use it.
  *
  */
 export const createSession = <ThrowOnError extends boolean = false>(
@@ -1088,6 +1091,15 @@ export const endSession = <ThrowOnError extends boolean = false>(
  * that call (`TOOL_CALL_START`, `TOOL_CALL_ARGS`, `TOOL_CALL_END`) and
  * the frontend answers it with a `tool` message in the next run.
  * `context` entries are given to the agent for this run.
+ *
+ * In a council session the facilitator answers, with the council's
+ * tools: `ask_member` (one member answers in the session; required
+ * members, and the ones it invited) and `invite_members`. A member's
+ * message starts with a `CUSTOM` event named `message-author`
+ * (`{ messageId, author }`), as every message of the run does. With
+ * `forwardedProps.memberAgentId`, the person addresses that member
+ * directly instead (`allowDirectInteraction`; else, or for an agent
+ * that isn't a member, `SESSION_MEMBER_INVALID`).
  *
  * The agent runs with a session token Hephaestus obtains from Pistis
  * for the caller (read-only: the agent sees what the caller can see,

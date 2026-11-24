@@ -1,15 +1,19 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
-import type { ApiTypes } from '@hephaestus/core';
+import type { AgentVersion, ApiTypes } from '@hephaestus/core';
 import { AgentVersionsService } from '@hephaestus/agents';
+import { CouncilsService } from '@hephaestus/councils';
 
 import type { AguiEvent } from './agui.js';
 import {
   SessionAgent,
   SessionRunError,
   failureOf,
+  type CouncilMemberForRun,
   type SessionHistoryMessage,
+  type SessionTurn,
 } from './session-agent.js';
+import { SessionMemberInvalidError } from './session.errors.js';
 import { SessionTokens } from './session-tokens.js';
 import { SESSION_OPTIONS, type SessionOptions } from './session.options.js';
 import { SessionsService } from './sessions.service.js';
@@ -36,6 +40,7 @@ export class SessionRunsService {
   constructor(
     private readonly sessions: SessionsService,
     private readonly agentVersions: AgentVersionsService,
+    private readonly councils: CouncilsService,
     private readonly tokens: SessionTokens,
     private readonly agent: SessionAgent,
     @Inject(SESSION_OPTIONS) private readonly options: SessionOptions,
@@ -48,32 +53,68 @@ export class SessionRunsService {
     input: ApiTypes.RunAgentInput,
     userToken: string,
   ): Promise<SessionRun> {
+    const addressed = await this.addressedMember(
+      organizationId,
+      projectId,
+      sessionId,
+      input.forwardedProps?.memberAgentId,
+    );
     const { session, history } = await this.sessions.startRun(
       organizationId,
       projectId,
       sessionId,
       input,
     );
-    let token: string;
-    let agentVersion: Awaited<ReturnType<AgentVersionsService['findById']>>;
+    // One session token per agent that speaks (Pylon meters each to its
+    // agent), the first one now, so Pistis refusing is a 403.
+    const tokens = new Map<string, Promise<string>>();
+    const tokenFor = (agentId: string, agentVersionId: string) => {
+      let token = tokens.get(agentId);
+      if (!token) {
+        token = this.tokens.issue({
+          userToken,
+          projectId,
+          sessionId,
+          agentId,
+          agentVersionId,
+          expiresInSeconds: SESSION_TOKEN_SECONDS,
+        });
+        tokens.set(agentId, token);
+      }
+      return token;
+    };
+    let agentVersion: AgentVersion;
+    let council: SessionTurn['council'] = null;
     try {
       agentVersion = await this.agentVersions.findById(
         organizationId,
         session.agentId,
         session.agentVersionId,
       );
-      token = await this.tokens.issue({
-        userToken,
-        projectId,
-        sessionId,
-        agentId: session.agentId,
-        agentVersionId: session.agentVersionId,
-        expiresInSeconds: SESSION_TOKEN_SECONDS,
-      });
+      if (session.councilId) {
+        const members: CouncilMemberForRun[] = [];
+        for (const member of session.members) {
+          members.push({
+            ...member,
+            version: await this.agentVersions.findById(
+              organizationId,
+              member.agentId,
+              member.agentVersionId,
+            ),
+          });
+        }
+        council = { members, addressed };
+      }
+      const first = addressed
+        ? (council?.members.find((member) => member.agentId === addressed)
+            ?.version ?? agentVersion)
+        : agentVersion;
+      await tokenFor(first.agentId, first.id);
     } catch (error) {
       await this.sessions.finishRun(sessionId, []);
       throw error;
     }
+    const invited = new Set<string>();
 
     return {
       stream: async (emit, clientSignal) => {
@@ -99,11 +140,13 @@ export class SessionRunsService {
               projectId,
               sessionId,
               agentVersion,
+              council,
               history,
               frontendTools: input.tools ?? [],
               context: input.context ?? [],
               state: input.state,
-              token,
+              tokenFor,
+              invited,
               signal,
             },
             emit,
@@ -124,9 +167,49 @@ export class SessionRunsService {
           });
         } finally {
           clearTimeout(timer);
-          await this.sessions.finishRun(sessionId, produced);
+          await this.sessions.finishRun(sessionId, produced, invited);
         }
       },
     };
+  }
+
+  /**
+   * The member a run addresses directly (`forwardedProps.memberAgentId`):
+   * only in a council session that allows it, and only a member of it.
+   */
+  private async addressedMember(
+    organizationId: string,
+    projectId: string,
+    sessionId: string,
+    memberAgentId: string | undefined,
+  ): Promise<string | null> {
+    if (!memberAgentId) {
+      return null;
+    }
+    const session = await this.sessions.findById(
+      organizationId,
+      projectId,
+      sessionId,
+    );
+    if (!session.councilVersionId) {
+      throw new SessionMemberInvalidError(
+        'Only a council session has members to address.',
+      );
+    }
+    const version = await this.councils.version(
+      organizationId,
+      session.councilVersionId,
+    );
+    if (!version.settings.allowDirectInteraction) {
+      throw new SessionMemberInvalidError(
+        "This council doesn't allow addressing its members directly.",
+      );
+    }
+    if (!session.members.some((member) => member.agentId === memberAgentId)) {
+      throw new SessionMemberInvalidError(
+        `${memberAgentId} isn't a member of this council.`,
+      );
+    }
+    return memberAgentId;
   }
 }

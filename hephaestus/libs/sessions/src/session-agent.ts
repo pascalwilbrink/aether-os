@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { Agent } from '@mastra/core/agent';
+import { Agent, type ToolsInput } from '@mastra/core/agent';
 import type { Mastra } from '@mastra/core/mastra';
 import { createTool } from '@mastra/core/tools';
 import { Workspace } from '@mastra/core/workspace';
@@ -18,13 +18,23 @@ import { SkillsService, type SkillForRun } from '@hephaestus/skills';
 import { ToolServersService, type ConnectedTools } from '@hephaestus/tools';
 
 import type { AguiEvent } from './agui.js';
+import {
+  facilitatorSection,
+  memberSection,
+  transcript,
+} from './council-prompts.js';
 import type {
+  SessionAuthor,
   SessionMessageRole,
   SessionToolCall,
 } from './session-message.entity.js';
+import type { SessionMemberState } from './session.entity.js';
 
 /** Model calls (agent loop steps) one run may make. */
 const MAX_STEPS = 20;
+
+/** Failures of a member's answer that end the whole run, not just the answer. */
+const FATAL = new Set(['BUDGET_EXHAUSTED', 'RUN_TIMEOUT', 'RUN_STOPPED']);
 
 /** A message of the session, as the agent's history. */
 export interface SessionHistoryMessage {
@@ -34,22 +44,36 @@ export interface SessionHistoryMessage {
   toolCalls: SessionToolCall[];
   toolCallId: string | null;
   toolName: string | null;
+  author: SessionAuthor;
 }
 
-/** What one turn of the agent is given. */
+/** A council session's member, with its pinned version, for a run. */
+export interface CouncilMemberForRun extends SessionMemberState {
+  version: AgentVersion;
+}
+
+/** What one turn of the agent (or the council) is given. */
 export interface SessionTurn {
   organizationId: string;
   projectId: string;
   sessionId: string;
+  /** The agent; in a council session the facilitator. */
   agentVersion: AgentVersion;
+  /** A council session's members, and the one the person addressed, if any. */
+  council: {
+    members: CouncilMemberForRun[];
+    addressed: string | null;
+  } | null;
   /** The session's messages, oldest first, the new ones included. */
   history: SessionHistoryMessage[];
   /** The frontend's tools (AG-UI `tools`). */
   frontendTools: ApiTypes.AguiTool[];
   context: { description: string; value: string }[];
   state: unknown;
-  /** The session token (the person, read-only, in the project). */
-  token: string;
+  /** A session token for an agent of the session (the person, read-only, in the project). */
+  tokenFor: (agentId: string, agentVersionId: string) => Promise<string>;
+  /** Members brought into the conversation during the run (collected here). */
+  invited: Set<string>;
   signal: AbortSignal;
 }
 
@@ -64,14 +88,40 @@ export class SessionRunError extends Error {
   }
 }
 
+/** One agent's part of a turn. */
+interface Speaker {
+  version: AgentVersion;
+  author: SessionAuthor;
+  /** The instructions, given the names of its tool servers' tools. */
+  instructions: (tools: readonly string[]) => string;
+  messages: unknown[];
+  /** Tools of its own for this turn (the council's), given its writer. */
+  tools?: (writer: TurnWriter) => ToolsInput;
+  /** The frontend's tools: the agent session's agent and the facilitator get them. */
+  frontendTools?: readonly ApiTypes.AguiTool[];
+}
+
+/** What every speaker of a turn shares. */
+interface TurnContext {
+  turn: SessionTurn;
+  emit: (event: AguiEvent) => void;
+  produced: SessionHistoryMessage[];
+  signal: AbortSignal;
+  /** Ends the whole turn (a member's budget ran out, …). */
+  stop: (error: SessionRunError) => void;
+}
+
 /**
- * Runs one turn of a session's agent with Mastra
- * (../../../../docs/interaction.md): the pinned version's instructions,
- * model (through Pylon, with the session token), tools from the
- * organization's tool servers, skills, and the project's knowledge
- * (read-only), plus the frontend's tools, which only describe themselves:
- * when the agent calls one, the turn ends with that call and the frontend
- * answers it in the next run. Streams the turn as AG-UI events (`emit`) and
+ * Runs one turn of a session with Mastra (../../../../docs/interaction.md,
+ * ../../../../docs/councils.md). Each agent that speaks is its pinned
+ * version: its instructions, model (through Pylon, with a session token for
+ * it), tools from the organization's tool servers, skills, and the
+ * project's knowledge (read-only). In an agent session the agent answers,
+ * with the frontend's tools too, which only describe themselves: calling
+ * one ends the turn and the frontend answers it in the next run. In a
+ * council session the facilitator answers, with the council's tools
+ * (`ask_member`, `invite_members`) and the frontend's; or, when the person
+ * addressed one, that member. Streams the turn as AG-UI events (`emit`) and
  * collects the messages it produced (`produced`), which the caller keeps,
  * even when the turn fails part way.
  */
@@ -92,127 +142,304 @@ export class SessionAgent {
     emit: (event: AguiEvent) => void,
     produced: SessionHistoryMessage[],
   ): Promise<void> {
+    const stopped = new AbortController();
+    const signal = AbortSignal.any([turn.signal, stopped.signal]);
+    const context: TurnContext = {
+      turn,
+      emit,
+      produced,
+      signal,
+      stop: (error) => stopped.abort(error),
+    };
     const version = turn.agentVersion;
-    const skills = await this.loadSkills(turn.organizationId, version);
-    const connected = await this.connectTools(turn, version);
+    const prefix = contextMessages(turn.context, turn.state);
+    const council = turn.council;
     try {
-      await this.stream(turn, emit, produced, connected, skills);
-    } finally {
-      await connected.close();
+      if (!council) {
+        await this.speak(context, {
+          version,
+          author: {
+            kind: 'agent',
+            agentId: version.agentId,
+            agentVersionId: version.id,
+          },
+          instructions: (tools) =>
+            sessionInstructions(version.instructions, tools),
+          messages: [...prefix, ...modelMessages(turn.history)],
+          frontendTools: turn.frontendTools,
+        });
+      } else if (council.addressed) {
+        const member = council.members.find(
+          (candidate) => candidate.agentId === council.addressed,
+        ) as CouncilMemberForRun;
+        turn.invited.add(member.agentId);
+        const asked = trailingUserMessages(turn.history);
+        await this.answerAsMember(
+          context,
+          member,
+          turn.history.slice(0, turn.history.length - asked.length),
+          asked.map((message) => message.content).join('\n\n'),
+          true,
+        );
+      } else {
+        await this.speak(context, {
+          version,
+          author: {
+            kind: 'facilitator',
+            agentId: version.agentId,
+            agentVersionId: version.id,
+          },
+          instructions: (tools) =>
+            [
+              sessionInstructions(version.instructions, tools),
+              '',
+              facilitatorSection(council.members),
+            ].join('\n'),
+          messages: [
+            ...prefix,
+            ...modelMessages(turn.history, council.members),
+          ],
+          tools: (writer) => this.councilTools(context, writer),
+          frontendTools: turn.frontendTools,
+        });
+      }
+    } catch (error) {
+      throw failureOf(error, signal);
+    }
+    if (signal.aborted) {
+      throw failureOf(signal.reason, signal);
     }
   }
 
-  private async stream(
-    turn: SessionTurn,
-    emit: (event: AguiEvent) => void,
-    produced: SessionHistoryMessage[],
-    connected: ConnectedTools,
-    skills: SkillForRun[],
-  ): Promise<void> {
-    const version = turn.agentVersion;
-    const resolved = this.gateway.resolveForSession(version.model, turn.token);
-    const knowledge = this.knowledge.available
-      ? readOnly(
-          knowledgeTools(this.knowledge, {
-            organizationId: turn.organizationId,
-            projectId: turn.projectId,
-            token: turn.token,
-          }),
-        )
-      : {};
-    const agent = new Agent({
-      id: `session-${turn.sessionId}`,
-      name: `${version.agentId} v${version.version}`,
-      instructions: sessionInstructions(
-        version.instructions,
-        Object.keys(connected.tools),
-      ),
-      model: resolved.model,
-      ...(this.mastra ? { mastra: this.mastra } : {}),
-      tools: { ...connected.tools, ...knowledge },
-      ...(skills.length > 0
-        ? {
-            workspace: new Workspace({
-              skills: [SKILLS_ROOT],
-              skillSource: new InMemorySkillSource(skills),
-            }),
-          }
-        : {}),
+  /** A member answers (the facilitator's question, or the person's message). */
+  private answerAsMember(
+    context: TurnContext,
+    member: CouncilMemberForRun,
+    before: readonly SessionHistoryMessage[],
+    question: string,
+    addressedByPerson: boolean,
+  ): Promise<string> {
+    const members = context.turn.council?.members ?? [];
+    return this.speak(context, {
+      version: member.version,
+      author: {
+        kind: 'member',
+        agentId: member.agentId,
+        agentVersionId: member.agentVersionId,
+      },
+      instructions: (tools) =>
+        [
+          sessionInstructions(member.version.instructions, tools),
+          '',
+          memberSection(member, addressedByPerson),
+        ].join('\n'),
+      messages: [
+        ...contextMessages(context.turn.context, context.turn.state),
+        { role: 'system', content: transcript(before, members) },
+        { role: 'user', content: question },
+      ],
     });
+  }
 
-    const output = await agent.stream(
-      [
-        ...contextMessages(turn.context, turn.state),
-        ...modelMessages(turn.history),
-      ] as Parameters<Agent['stream']>[0],
-      {
-        abortSignal: turn.signal,
-        maxSteps: MAX_STEPS,
-        clientTools: frontendTools(turn.frontendTools),
-        tracingOptions: {
-          metadata: {
-            organizationId: turn.organizationId,
-            projectId: turn.projectId,
-            sessionId: turn.sessionId,
-            agentVersionId: version.id,
+  /**
+   * The facilitator's tools (../../../../docs/councils.md, The facilitator's
+   * tools). Refusals are answers the facilitator can act on, not errors.
+   * Calls run one at a time, so members answer in turn.
+   */
+  private councilTools(context: TurnContext, writer: TurnWriter): ToolsInput {
+    const members = context.turn.council?.members ?? [];
+    const find = (agentId: string) =>
+      members.find((member) => member.agentId === agentId);
+    return {
+      ask_member: createTool({
+        id: 'ask_member',
+        description:
+          'Ask one member of your council a question. They answer in the conversation, with what has been said so far; their answer comes back to you. ' +
+          'Only required members and the ones you invited can be asked.',
+        inputSchema: z.object({
+          agentId: z.string().describe("The member's agentId"),
+          question: z.string().min(1).max(4000),
+        }),
+        execute: async (input, options) => {
+          const member = find(input.agentId);
+          if (!member) {
+            return {
+              refused: `${input.agentId} isn't a member of this council.`,
+            };
+          }
+          if (!member.invited && !context.turn.invited.has(member.agentId)) {
+            return {
+              refused: `${member.name} isn't taking part yet: invite them with invite_members first.`,
+            };
+          }
+          // The facilitator's call goes before the member's answer.
+          const toolCallId = (options as { agent?: { toolCallId?: string } })
+            ?.agent?.toolCallId;
+          if (toolCallId) {
+            writer.toolCall(toolCallId, 'ask_member', input);
+          }
+          writer.close();
+          try {
+            const answer = await this.answerAsMember(
+              context,
+              member,
+              [...context.turn.history, ...context.produced],
+              input.question,
+              false,
+            );
+            return { member: member.name, answer };
+          } catch (error) {
+            const failure = failureOf(error, context.signal);
+            if (FATAL.has(failure.code)) {
+              context.stop(failure);
+              throw failure;
+            }
+            return { member: member.name, failed: failure.message };
+          }
+        },
+      }),
+      invite_members: createTool({
+        id: 'invite_members',
+        description:
+          'Bring conditional or optional members into the conversation, saying why; then you can ask them.',
+        inputSchema: z.object({
+          agentIds: z.array(z.string()).min(1).max(12),
+          reason: z.string().min(1).max(1000),
+        }),
+        execute: (input) => {
+          const invited: string[] = [];
+          const notMembers: string[] = [];
+          for (const agentId of input.agentIds) {
+            const member = find(agentId);
+            if (!member) {
+              notMembers.push(agentId);
+            } else {
+              context.turn.invited.add(agentId);
+              invited.push(member.name);
+            }
+          }
+          return Promise.resolve({ invited, notMembers, reason: input.reason });
+        },
+      }),
+    };
+  }
+
+  /** One agent's part of the turn, streamed; its text. */
+  private async speak(context: TurnContext, speaker: Speaker): Promise<string> {
+    const { turn } = context;
+    const version = speaker.version;
+    const token = await turn.tokenFor(version.agentId, version.id);
+    const skills = await this.loadSkills(turn.organizationId, version);
+    const connected = await this.connectTools(turn, version, token);
+    const writer = new TurnWriter(
+      context.emit,
+      context.produced,
+      speaker.author,
+    );
+    try {
+      const knowledge = this.knowledge.available
+        ? readOnly(
+            knowledgeTools(this.knowledge, {
+              organizationId: turn.organizationId,
+              projectId: turn.projectId,
+              token,
+            }),
+          )
+        : {};
+      const agent = new Agent({
+        id: `session-${turn.sessionId}-${version.agentId}`,
+        name: `${version.agentId} v${version.version}`,
+        instructions: speaker.instructions(Object.keys(connected.tools)),
+        model: this.gateway.resolveForSession(version.model, token).model,
+        ...(this.mastra ? { mastra: this.mastra } : {}),
+        tools: {
+          ...connected.tools,
+          ...knowledge,
+          ...speaker.tools?.(writer),
+        },
+        ...(skills.length > 0
+          ? {
+              workspace: new Workspace({
+                skills: [SKILLS_ROOT],
+                skillSource: new InMemorySkillSource(skills),
+              }),
+            }
+          : {}),
+      });
+      const output = await agent.stream(
+        speaker.messages as Parameters<Agent['stream']>[0],
+        {
+          abortSignal: context.signal,
+          maxSteps: MAX_STEPS,
+          ...(speaker.frontendTools?.length
+            ? { clientTools: frontendTools(speaker.frontendTools) }
+            : {}),
+          ...(speaker.tools ? { toolCallConcurrency: 1 } : {}),
+          tracingOptions: {
+            metadata: {
+              organizationId: turn.organizationId,
+              projectId: turn.projectId,
+              sessionId: turn.sessionId,
+              agentVersionId: version.id,
+            },
+          },
+          modelSettings: {
+            temperature: version.model.temperature,
+            maxOutputTokens: version.model.maxTokens,
+            // Pylon retries a call before answering.
+            maxRetries: 0,
           },
         },
-        modelSettings: {
-          temperature: version.model.temperature,
-          maxOutputTokens: version.model.maxTokens,
-          // Pylon retries a call before answering.
-          maxRetries: 0,
-        },
-      },
-    );
-
-    const writer = new TurnWriter(emit, produced);
-    try {
-      for await (const chunk of output.fullStream as AsyncIterable<{
-        type: string;
-        payload?: Record<string, unknown>;
-      }>) {
-        const payload = chunk.payload ?? {};
-        switch (chunk.type) {
-          case 'text-delta':
-            writer.text(typeof payload.text === 'string' ? payload.text : '');
-            break;
-          case 'tool-call':
-            writer.toolCall(
-              String(payload.toolCallId),
-              String(payload.toolName),
-              payload.args,
-            );
-            break;
-          case 'tool-result':
-            writer.toolResult(
-              String(payload.toolCallId),
-              String(payload.toolName),
-              payload.result,
-              Boolean(payload.isError),
-            );
-            break;
-          case 'tool-error':
-            writer.toolResult(
-              String(payload.toolCallId),
-              String(payload.toolName),
-              { error: errorMessage(payload.error) },
-              true,
-            );
-            break;
-          case 'error':
-            throw payload.error ?? new Error('The agent failed');
-          default:
-            break;
+      );
+      try {
+        for await (const chunk of output.fullStream as AsyncIterable<{
+          type: string;
+          payload?: Record<string, unknown>;
+        }>) {
+          const payload = chunk.payload ?? {};
+          switch (chunk.type) {
+            case 'text-delta':
+              writer.text(typeof payload.text === 'string' ? payload.text : '');
+              break;
+            case 'tool-call':
+              writer.toolCall(
+                String(payload.toolCallId),
+                String(payload.toolName),
+                payload.args,
+              );
+              break;
+            case 'tool-result':
+              writer.toolResult(
+                String(payload.toolCallId),
+                String(payload.toolName),
+                payload.result,
+                Boolean(payload.isError),
+              );
+              break;
+            case 'tool-error':
+              writer.toolResult(
+                String(payload.toolCallId),
+                String(payload.toolName),
+                { error: errorMessage(payload.error) },
+                true,
+              );
+              break;
+            case 'error':
+              throw payload.error ?? new Error('The agent failed');
+            default:
+              break;
+          }
         }
+      } catch (error) {
+        throw failureOf(error, context.signal);
       }
-    } catch (error) {
-      throw failureOf(error, turn.signal);
+      if (context.signal.aborted) {
+        throw failureOf(context.signal.reason, context.signal);
+      }
+      return writer.written;
     } finally {
       writer.close();
-    }
-    if (turn.signal.aborted) {
-      throw failureOf(turn.signal.reason, turn.signal);
+      await connected.close();
     }
   }
 
@@ -233,12 +460,13 @@ export class SessionAgent {
   private async connectTools(
     turn: SessionTurn,
     version: AgentVersion,
+    token: string,
   ): Promise<ConnectedTools> {
     try {
       return await this.toolServers.connect(
         turn.organizationId,
         version.tools,
-        turn.token,
+        token,
       );
     } catch (error) {
       this.logger.warn(
@@ -252,18 +480,35 @@ export class SessionAgent {
   }
 }
 
+/** The person's messages at the end of the history: what they just wrote. */
+function trailingUserMessages(
+  history: readonly SessionHistoryMessage[],
+): SessionHistoryMessage[] {
+  let first = history.length;
+  while (first > 0 && history[first - 1].role === 'user') {
+    first--;
+  }
+  return history.slice(first);
+}
+
 /**
- * Writes the turn as AG-UI events and as messages: text goes into the open
- * assistant message (opened by text or a tool call), a tool result closes
- * it and becomes a `tool` message.
+ * Writes one speaker's part of the turn as AG-UI events and as messages:
+ * text goes into the open assistant message (opened by text or a tool call,
+ * announced with a `message-author` event), a tool result closes it and
+ * becomes a `tool` message. A tool call is written once, however often it's
+ * reported.
  */
 class TurnWriter {
   private assistant: SessionHistoryMessage | null = null;
   private textOpen = false;
+  private readonly calls = new Set<string>();
+  /** All its text, for the facilitator when a member answered. */
+  written = '';
 
   constructor(
     private readonly emit: (event: AguiEvent) => void,
     private readonly produced: SessionHistoryMessage[],
+    private readonly author: SessionAuthor,
   ) {}
 
   text(delta: string): void {
@@ -280,6 +525,7 @@ class TurnWriter {
       this.textOpen = true;
     }
     message.content += delta;
+    this.written += delta;
     this.emit({
       type: 'TEXT_MESSAGE_CONTENT',
       messageId: message.messageId,
@@ -288,6 +534,10 @@ class TurnWriter {
   }
 
   toolCall(toolCallId: string, toolName: string, args: unknown): void {
+    if (this.calls.has(toolCallId)) {
+      return;
+    }
+    this.calls.add(toolCallId);
     this.endText();
     const message = this.open();
     const text = JSON.stringify(withoutMetadata(args) ?? {});
@@ -321,6 +571,7 @@ class TurnWriter {
       toolCalls: [],
       toolCallId,
       toolName,
+      author: this.author,
     });
     this.emit({
       type: 'TOOL_CALL_RESULT',
@@ -345,8 +596,14 @@ class TurnWriter {
         toolCalls: [],
         toolCallId: null,
         toolName: null,
+        author: this.author,
       };
       this.produced.push(this.assistant);
+      this.emit({
+        type: 'CUSTOM',
+        name: 'message-author',
+        value: { messageId: this.assistant.messageId, author: this.author },
+      });
     }
     return this.assistant;
   }
@@ -447,26 +704,53 @@ function contextMessages(
 }
 
 /**
- * The session's messages as the model's history (AI SDK messages). A tool
- * call nobody answered (the person wrote on instead) gets a result saying
- * so, as providers require one for every call.
+ * The session's messages as the model's history (AI SDK messages), from
+ * the point of view of the agent session's agent or the council's
+ * facilitator. A tool call nobody answered (the person wrote on instead)
+ * gets a result saying so, as providers require one for every call. In a
+ * council, members' messages aren't the facilitator's own: an answer to its
+ * `ask_member` is in that call's result, and one the person asked for
+ * directly is shown as what the member said; their tool calls are left out.
  */
 export function modelMessages(
   history: readonly SessionHistoryMessage[],
+  members: readonly SessionMemberState[] = [],
 ): unknown[] {
+  const memberNames = new Map(
+    members.map((member) => [member.agentId, member.name]),
+  );
   const answered = new Set(
     history
       .filter((message) => message.role === 'tool')
       .map((message) => message.toolCallId),
   );
   const names = new Map<string, string>();
+  const asking = new Set<string>();
   const messages: unknown[] = [];
   for (const message of history) {
+    if (message.author.kind === 'member') {
+      if (
+        asking.size === 0 &&
+        message.role === 'assistant' &&
+        message.content
+      ) {
+        const name =
+          memberNames.get(message.author.agentId ?? '') ?? 'A member';
+        messages.push({
+          role: 'user',
+          content: `[${name}, a member of your council, answered the person:]\n${message.content}`,
+        });
+      }
+      continue;
+    }
     if (message.role === 'user') {
       messages.push({ role: 'user', content: message.content });
     } else if (message.role === 'assistant') {
       for (const call of message.toolCalls) {
         names.set(call.id, call.name);
+        if (call.name === 'ask_member' && answered.has(call.id)) {
+          asking.add(call.id);
+        }
       }
       messages.push({
         role: 'assistant',
@@ -495,6 +779,7 @@ export function modelMessages(
         });
       }
     } else if (message.toolCallId) {
+      asking.delete(message.toolCallId);
       messages.push({
         role: 'tool',
         content: [

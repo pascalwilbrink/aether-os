@@ -17,11 +17,11 @@ import {
   type Page,
   type PageRequest,
 } from '@hephaestus/core';
-import { AgentsService } from '@hephaestus/agents';
 import { ProjectsService } from '@hephaestus/tenancy';
 
 import type { SessionHistoryMessage } from './session-agent.js';
 import { SessionMessagesService } from './session-messages.service.js';
+import { SessionSubjects } from './session-subjects.js';
 import { SessionBusyError, SessionEndedError } from './session.errors.js';
 import { SessionEntity, type SessionEndedReason } from './session.entity.js';
 import { SessionMapper } from './session.mapper.js';
@@ -45,7 +45,7 @@ export class SessionsService {
     private readonly sessions: Repository<SessionEntity>,
     private readonly messages: SessionMessagesService,
     private readonly mapper: SessionMapper,
-    private readonly agents: AgentsService,
+    private readonly subjects: SessionSubjects,
     private readonly projects: ProjectsService,
     private readonly access: AccessControl,
     private readonly events: HephaestusEvents,
@@ -59,16 +59,12 @@ export class SessionsService {
   ): Promise<ApiTypes.SessionResponse> {
     const person = this.person();
     await this.projects.assertAcceptsWrites(organizationId, projectId);
-    const agentVersionId = await this.agents.publishedVersion(
-      organizationId,
-      body.agentId,
-    );
+    const subject = await this.subjects.pin(organizationId, body);
     const entity = await this.sessions.save(
       this.mapper.toEntity({
         organizationId,
         projectId,
-        agentId: body.agentId,
-        agentVersionId,
+        ...subject,
         startedBy: person,
         title: body.title ?? null,
         now: new Date(),
@@ -84,6 +80,8 @@ export class SessionsService {
         sessionId: entity.id,
         agentId: entity.agentId,
         agentVersionId: entity.agentVersionId,
+        councilId: entity.councilId,
+        councilVersionId: entity.councilVersionId,
         startedBy: entity.startedBy,
       },
     });
@@ -197,11 +195,15 @@ export class SessionsService {
     return { session, history: [...history, ...added] };
   }
 
-  /** Keeps what the run produced and releases the run lock. */
+  /**
+   * Keeps what the run produced, marks the members it brought into the
+   * conversation, and releases the run lock.
+   */
   @Transactional()
   async finishRun(
     sessionId: string,
     produced: readonly SessionHistoryMessage[],
+    invited: ReadonlySet<string> = new Set(),
   ): Promise<void> {
     const session = await this.sessions.findOne({
       where: { id: sessionId },
@@ -221,6 +223,11 @@ export class SessionsService {
       ),
       now,
     );
+    if (invited.size > 0) {
+      session.members = session.members.map((member) =>
+        invited.has(member.agentId) ? { ...member, invited: true } : member,
+      );
+    }
     session.runningSince = null;
     session.lastActivityAt = now;
     await this.sessions.save(session);
@@ -357,6 +364,7 @@ export function newMessages(
         toolCalls: [],
         toolCallId: null,
         toolName: null,
+        author: { kind: 'user', agentId: null, agentVersionId: null },
       });
     } else if (
       message.role === 'tool' &&
@@ -373,6 +381,8 @@ export function newMessages(
         toolCalls: [],
         toolCallId: message.toolCallId,
         toolName: calls.get(message.toolCallId) ?? null,
+        // The frontend's answer, for the person.
+        author: { kind: 'user', agentId: null, agentVersionId: null },
       });
     }
   }

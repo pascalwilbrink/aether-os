@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { Repository } from 'typeorm';
+import { In, type Repository } from 'typeorm';
 
 import {
   type AgoraEvents,
@@ -39,6 +39,21 @@ export class AgentsService {
     if (!(await this.agents.existsBy({ id: agentId, organizationId }))) {
       throw this.notFound(agentId);
     }
+  }
+
+  /** The agents' names, by ID (the organization's; others are left out). */
+  async names(
+    organizationId: string,
+    agentIds: readonly string[],
+  ): Promise<Map<string, string>> {
+    if (agentIds.length === 0) {
+      return new Map();
+    }
+    const agents = await this.agents.find({
+      where: { organizationId, id: In([...agentIds]) },
+      select: { id: true, name: true },
+    });
+    return new Map(agents.map((agent) => [agent.id, agent.name]));
   }
 
   /**

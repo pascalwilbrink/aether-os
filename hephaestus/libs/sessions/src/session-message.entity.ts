@@ -2,6 +2,13 @@ import { Check, Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 export type SessionMessageRole = 'user' | 'assistant' | 'tool';
 
+/** Who wrote it: the person, an agent session's agent, a council's facilitator or a member. */
+export interface SessionAuthor {
+  kind: 'user' | 'agent' | 'facilitator' | 'member';
+  agentId: string | null;
+  agentVersionId: string | null;
+}
+
 export interface SessionToolCall {
   id: string;
   name: string;
@@ -16,6 +23,10 @@ export interface SessionToolCall {
  */
 @Entity({ name: 'session_messages' })
 @Check('ck_session_messages_role', `role IN ('user', 'assistant', 'tool')`)
+@Check(
+  'ck_session_messages_author_kind',
+  `author_kind IN ('user', 'agent', 'facilitator', 'member')`,
+)
 @Index('uq_session_messages_session_id_ordinal', ['sessionId', 'ordinal'], {
   unique: true,
 })
@@ -40,6 +51,15 @@ export class SessionMessageEntity {
 
   @Column({ type: 'text' })
   role: SessionMessageRole;
+
+  @Column({ type: 'text' })
+  authorKind: SessionAuthor['kind'];
+
+  @Column({ type: 'uuid', nullable: true })
+  authorAgentId: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  authorAgentVersionId: string | null;
 
   @Column({ type: 'text' })
   content: string;

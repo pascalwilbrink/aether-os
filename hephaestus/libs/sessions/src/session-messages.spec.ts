@@ -1,4 +1,6 @@
 import { modelMessages, type SessionHistoryMessage } from './session-agent.js';
+import { transcript } from './council-prompts.js';
+import type { SessionMemberState } from './session.entity.js';
 import { newMessages } from './sessions.service.js';
 
 const message = (
@@ -9,6 +11,10 @@ const message = (
   toolCalls: [],
   toolCallId: null,
   toolName: null,
+  author:
+    fields.role === 'user' || fields.role === 'tool'
+      ? { kind: 'user', agentId: null, agentVersionId: null }
+      : { kind: 'agent', agentId: 'agent-1', agentVersionId: 'version-1' },
   ...fields,
 });
 
@@ -40,6 +46,7 @@ describe('newMessages', () => {
         content: 'ok',
         toolCallId: 'c-1',
         toolName: 'open_task',
+        author: { kind: 'user', agentId: null, agentVersionId: null },
       }),
       message({ messageId: 'u-2', role: 'user', content: 'Thanks' }),
     ]);
@@ -79,5 +86,105 @@ describe('modelMessages', () => {
       },
       { role: 'user', content: 'Never mind' },
     ]);
+  });
+});
+
+describe('a council session', () => {
+  const facilitator = {
+    kind: 'facilitator' as const,
+    agentId: 'facilitator',
+    agentVersionId: 'f-1',
+  };
+  const architect = {
+    kind: 'member' as const,
+    agentId: 'architect',
+    agentVersionId: 'a-1',
+  };
+  const members: SessionMemberState[] = [
+    {
+      agentId: 'architect',
+      agentVersionId: 'a-1',
+      name: 'Architect',
+      participation: 'required',
+      role: 'design',
+      when: null,
+      invited: true,
+    },
+  ];
+  const conversation = [
+    message({ messageId: 'u-1', role: 'user', content: 'Which database?' }),
+    message({
+      messageId: 'f-1',
+      role: 'assistant',
+      author: facilitator,
+      toolCalls: [
+        {
+          id: 'ask-1',
+          name: 'ask_member',
+          arguments: '{"agentId":"architect","question":"Which?"}',
+        },
+      ],
+    }),
+    message({
+      messageId: 'm-1',
+      role: 'assistant',
+      author: architect,
+      content: 'Postgres.',
+      toolCalls: [{ id: 'own-1', name: 'search_knowledge', arguments: '{}' }],
+    }),
+    message({
+      messageId: 'm-2',
+      role: 'tool',
+      author: architect,
+      toolCallId: 'own-1',
+      content: '{}',
+    }),
+    message({
+      messageId: 't-1',
+      role: 'tool',
+      author: facilitator,
+      toolCallId: 'ask-1',
+      toolName: 'ask_member',
+      content: '{"member":"Architect","answer":"Postgres."}',
+    }),
+    message({
+      messageId: 'f-2',
+      role: 'assistant',
+      author: facilitator,
+      content: 'The architect says Postgres.',
+    }),
+    message({ messageId: 'u-2', role: 'user', content: 'Architect, why?' }),
+    message({
+      messageId: 'm-3',
+      role: 'assistant',
+      author: architect,
+      content: 'It fits.',
+    }),
+  ];
+
+  it("leaves members' answers to the facilitator's calls in their results, and shows direct answers as theirs", () => {
+    const history = modelMessages(conversation, members) as {
+      role: string;
+      content: unknown;
+    }[];
+    expect(history.map((entry) => entry.role)).toEqual([
+      'user',
+      'assistant',
+      'tool',
+      'assistant',
+      'user',
+      'user',
+    ]);
+    expect(JSON.stringify(history)).not.toContain('own-1');
+    expect(history[5].content).toContain('Architect, a member of your council');
+    expect(history[5].content).toContain('It fits.');
+  });
+
+  it('gives members a transcript of who said what', () => {
+    const text = transcript(conversation, members);
+    expect(text).toContain('Person: Which database?');
+    expect(text).toContain('Architect (member): Postgres.');
+    expect(text).toContain('Facilitator: The architect says Postgres.');
+    expect(text).not.toContain('{}');
   });
 });

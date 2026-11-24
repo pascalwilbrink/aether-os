@@ -244,3 +244,79 @@ function frontMatter(files: TestSkillFile[]): {
     new RegExp(`^${key}:\\s*(.+)$`, 'm').exec(skillMd)?.[1].trim() ?? '';
   return { name: field('name'), description: field('description') };
 }
+
+/** A council member, as a council version lists them. */
+export interface TestCouncilMember {
+  agentId: string;
+  participation: 'required' | 'conditional' | 'optional';
+  role?: string;
+  when?: string;
+}
+
+/**
+ * A council with one published version, as Agora would have announced it
+ * (`council.created`, `council-version.published`).
+ */
+export async function publishedCouncil(
+  app: INestApplicationContext,
+  organizationId: string,
+  fields: {
+    facilitatorId: string;
+    members: TestCouncilMember[];
+    allowDirectInteraction?: boolean;
+  },
+): Promise<{ councilId: string; versionId: string }> {
+  const councilId = uuidv7();
+  const versionId = uuidv7();
+  await deliverAgoraEvent(app, {
+    eventType: 'council.created',
+    aggregateId: councilId,
+    aggregateVersion: 1,
+    organizationId,
+    payload: {
+      councilId,
+      key: 'architecture',
+      name: 'Architecture',
+      description: '',
+      createdBy: 'user-1',
+      createdAt: new Date().toISOString(),
+    },
+  });
+  await deliverAgoraEvent(app, {
+    eventType: 'council-version.published',
+    aggregateId: councilId,
+    aggregateVersion: 2,
+    organizationId,
+    payload: {
+      councilId,
+      councilVersionId: versionId,
+      previousVersionId: null,
+      version: {
+        id: versionId,
+        councilId,
+        organizationId,
+        version: 1,
+        status: 'published',
+        facilitator: { agentId: fields.facilitatorId },
+        members: fields.members,
+        settings: {
+          defaultMode: 'facilitated',
+          allowDirectInteraction: fields.allowDirectInteraction ?? true,
+          allowDiscussion: true,
+          allowPlanning: true,
+          allowDelegation: false,
+          requireSynthesis: true,
+        },
+        discussion: {
+          maxRounds: 3,
+          allowAgentResponses: true,
+          requireFacilitatorConclusion: true,
+        },
+        createdBy: 'user-1',
+        createdAt: new Date().toISOString(),
+        publishedAt: new Date().toISOString(),
+      },
+    },
+  });
+  return { councilId, versionId };
+}

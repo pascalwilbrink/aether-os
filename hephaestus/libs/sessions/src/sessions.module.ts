@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import type { Env } from '@hephaestus/core';
 import { AgentsModule } from '@hephaestus/agents';
+import { CouncilsModule } from '@hephaestus/councils';
 import { ModelGateway, ModelsModule } from '@hephaestus/models';
 import {
   agentTracing,
@@ -26,6 +27,7 @@ import { SessionMapper } from './session.mapper.js';
 import { SESSION_OPTIONS, type SessionOptions } from './session.options.js';
 import { SessionsController } from './sessions.controller.js';
 import { SessionsService } from './sessions.service.js';
+import { SessionSubjects } from './session-subjects.js';
 
 /**
  * Sessions (../../../../docs/interaction.md): a person talking to an agent
@@ -37,6 +39,7 @@ import { SessionsService } from './sessions.service.js';
     TypeOrmModule.forFeature([SessionEntity, SessionMessageEntity]),
     TenancyModule,
     AgentsModule,
+    CouncilsModule,
     ModelsModule,
     ToolsModule,
     SkillsModule,
@@ -91,6 +94,7 @@ import { SessionsService } from './sessions.service.js';
         ),
     },
     SessionMapper,
+    SessionSubjects,
     SessionMessagesService,
     SessionsService,
     SessionRunsService,

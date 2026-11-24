@@ -715,10 +715,13 @@ export interface paths {
         put?: never;
         /**
          * @description Starts a session (`../docs/interaction.md`): a conversation between
-         *     the caller and an agent in the project. The agent's published version
-         *     is pinned now, like a task's (`AGENT_NOT_PUBLISHED`, `AGENT_ARCHIVED`);
-         *     the session acts for the caller, read-only. Only the person who
-         *     started it can see and use it.
+         *     the caller and an agent in the project, or with a council
+         *     (`../docs/councils.md`): its facilitator and members. Exactly one of
+         *     `agentId` and `councilId`. The published versions are pinned now,
+         *     like a task's: the agent's (`AGENT_NOT_PUBLISHED`, `AGENT_ARCHIVED`),
+         *     or the council's (`COUNCIL_UNAVAILABLE`) with its facilitator's and
+         *     each member's published agent version. The session acts for the
+         *     caller, read-only. Only the person who started it can see and use it.
          */
         post: operations["createSession"];
         delete?: never;
@@ -817,6 +820,15 @@ export interface paths {
          *     the frontend answers it with a `tool` message in the next run.
          *     `context` entries are given to the agent for this run.
          *
+         *     In a council session the facilitator answers, with the council's
+         *     tools: `ask_member` (one member answers in the session; required
+         *     members, and the ones it invited) and `invite_members`. A member's
+         *     message starts with a `CUSTOM` event named `message-author`
+         *     (`{ messageId, author }`), as every message of the run does. With
+         *     `forwardedProps.memberAgentId`, the person addresses that member
+         *     directly instead (`allowDirectInteraction`; else, or for an agent
+         *     that isn't a member, `SESSION_MEMBER_INVALID`).
+         *
          *     The agent runs with a session token Hephaestus obtains from Pistis
          *     for the caller (read-only: the agent sees what the caller can see,
          *     and changes nothing itself), its version's tool servers and skills,
@@ -873,7 +885,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "TASK_CONTEXT_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_FIELDS_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "SESSION_BUSY" | "SESSION_ENDED" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "TASK_CONTEXT_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_FIELDS_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "SESSION_BUSY" | "SESSION_ENDED" | "SESSION_MEMBER_INVALID" | "COUNCIL_UNAVAILABLE" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -1853,10 +1865,41 @@ export interface components {
         };
         /** @enum {string} */
         SessionStatus: "active" | "ended";
+        /** @description Exactly one of `agentId` and `councilId`. */
         CreateSessionRequest: {
             /** Format: uuid */
-            agentId: string;
+            agentId?: string;
+            /** Format: uuid */
+            councilId?: string;
             title?: string;
+        };
+        SessionMember: {
+            /** Format: uuid */
+            agentId: string;
+            /**
+             * Format: uuid
+             * @description Pinned when the session started.
+             */
+            agentVersionId: string;
+            name: string;
+            /** @enum {string} */
+            participation: "required" | "conditional" | "optional";
+            role: string | null;
+            /** @description A conditional member's condition. */
+            when: string | null;
+            /** @description Taking part in the conversation (required members always are; others once invited or addressed). */
+            invited: boolean;
+        };
+        SessionMessageAuthor: {
+            /**
+             * @description `user`: the person; `agent`: an agent session's agent; `facilitator` and `member`: a council's.
+             * @enum {string}
+             */
+            kind: "user" | "agent" | "facilitator" | "member";
+            /** Format: uuid */
+            agentId: string | null;
+            /** Format: uuid */
+            agentVersionId: string | null;
         };
         SessionResponse: {
             /** Format: uuid */
@@ -1865,13 +1908,25 @@ export interface components {
             organizationId: string;
             /** Format: uuid */
             projectId: string;
-            /** Format: uuid */
+            /**
+             * Format: uuid
+             * @description The agent; in a council session the facilitator.
+             */
             agentId: string;
             /**
              * Format: uuid
              * @description Pinned when it started.
              */
             agentVersionId: string;
+            /** Format: uuid */
+            councilId: string | null;
+            /**
+             * Format: uuid
+             * @description Pinned when it started.
+             */
+            councilVersionId: string | null;
+            /** @description A council session's members; empty otherwise. */
+            members: components["schemas"]["SessionMember"][];
             /** @description The person's `sub`. */
             startedBy: string;
             title: string | null;
@@ -1902,9 +1957,10 @@ export interface components {
             id: string;
             /** @enum {string} */
             role: "user" | "assistant" | "tool";
+            author: components["schemas"]["SessionMessageAuthor"];
             content: string;
             toolCalls: components["schemas"]["SessionToolCall"][];
-            /** @description A tool message's call. */
+            /** @description A tool message's call; a member's answer, the facilitator's `ask_member` call it answers. */
             toolCallId: string | null;
             createdAt: components["schemas"]["Timestamp"];
         };
@@ -1924,8 +1980,11 @@ export interface components {
             }[];
             /** @description The frontend's shared state (AG-UI): given to the agent as context for this run. */
             state?: unknown;
-            /** @description Ignored. */
-            forwardedProps?: unknown;
+            /** @description In a council session, `memberAgentId` addresses that member directly; anything else is ignored. */
+            forwardedProps?: {
+                /** Format: uuid */
+                memberAgentId?: string;
+            };
         };
         AguiMessage: {
             id: string;

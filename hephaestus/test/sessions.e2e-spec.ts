@@ -21,13 +21,14 @@ interface AguiEvent {
 
 /** Reads a server-sent event stream whole. */
 const sseText = (
-  response: NodeJS.ReadableStream,
+  response: request.Response,
   callback: (error: Error | null, body: string) => void,
 ) => {
+  const stream = response as unknown as NodeJS.ReadableStream;
   let body = '';
-  response.setEncoding('utf8');
-  response.on('data', (chunk: string) => (body += chunk));
-  response.on('end', () => callback(null, body));
+  stream.setEncoding('utf8');
+  stream.on('data', (chunk: string) => (body += chunk));
+  stream.on('end', () => callback(null, body));
 };
 
 const eventsOf = (body: string): AguiEvent[] =>
@@ -109,6 +110,8 @@ describe('Sessions (e2e)', () => {
         sessionId: session.id,
         agentId,
         agentVersionId: versionId,
+        councilId: null,
+        councilVersionId: null,
         startedBy: 'user-1',
       },
     ]);
@@ -119,6 +122,7 @@ describe('Sessions (e2e)', () => {
     ]);
     expect(events.map((event) => event.type)).toEqual([
       'RUN_STARTED',
+      'CUSTOM',
       'TEXT_MESSAGE_START',
       'TEXT_MESSAGE_CONTENT',
       'TEXT_MESSAGE_CONTENT',
@@ -126,6 +130,14 @@ describe('Sessions (e2e)', () => {
       'RUN_FINISHED',
     ]);
     expect(events[0]).toMatchObject({ threadId: session.id, runId: 'run-1' });
+    // Every message is announced with its author.
+    expect(events[1]).toMatchObject({
+      name: 'message-author',
+      value: {
+        messageId: events[2].messageId,
+        author: { kind: 'agent', agentId, agentVersionId: versionId },
+      },
+    });
     expect(
       events
         .filter((event) => event.type === 'TEXT_MESSAGE_CONTENT')
@@ -160,13 +172,13 @@ describe('Sessions (e2e)', () => {
         toolCalls: [],
       }),
     ]);
-    expect(messages.body.items[1].id).toBe(events[1].messageId);
+    expect(messages.body.items[1].id).toBe(events[2].messageId);
 
     // The next turn sees the history; messages it already has are ignored.
     models.replies = [{ text: 'Sure.' }];
     await run(session.id, [
       { id: 'm-1', role: 'user', content: 'Hi!' },
-      { id: events[1].messageId, role: 'assistant', content: 'changed' },
+      { id: events[2].messageId, role: 'assistant', content: 'changed' },
       { id: 'm-2', role: 'user', content: 'Can you help?' },
     ]);
     const prompt = JSON.stringify(models.calls[1].prompt);
@@ -189,18 +201,20 @@ describe('Sessions (e2e)', () => {
     ]);
     expect(events.map((event) => event.type)).toEqual([
       'RUN_STARTED',
+      'CUSTOM',
       'TOOL_CALL_START',
       'TOOL_CALL_ARGS',
       'TOOL_CALL_END',
       'TOOL_CALL_RESULT',
+      'CUSTOM',
       'TEXT_MESSAGE_START',
       'TEXT_MESSAGE_CONTENT',
       'TEXT_MESSAGE_CONTENT',
       'TEXT_MESSAGE_END',
       'RUN_FINISHED',
     ]);
-    expect(events[1]).toMatchObject({ toolCallName: 'search_knowledge' });
-    expect(JSON.parse(events[2].delta as string)).toEqual({ query: 'deploys' });
+    expect(events[2]).toMatchObject({ toolCallName: 'search_knowledge' });
+    expect(JSON.parse(events[3].delta as string)).toEqual({ query: 'deploys' });
     expect(knowledgeBase.calls[0]).toMatchObject({
       method: 'search',
       scope: { organizationId: orgId, projectId, token: 'session-token-1' },
@@ -217,7 +231,7 @@ describe('Sessions (e2e)', () => {
       'tool',
       'assistant',
     ]);
-    expect(messages[2].toolCallId).toBe(events[1].toolCallId);
+    expect(messages[2].toolCallId).toBe(events[2].toolCallId);
   });
 
   it("ends the turn at a frontend tool's call and continues with its answer", async () => {
@@ -244,13 +258,14 @@ describe('Sessions (e2e)', () => {
     );
     expect(first.map((event) => event.type)).toEqual([
       'RUN_STARTED',
+      'CUSTOM',
       'TOOL_CALL_START',
       'TOOL_CALL_ARGS',
       'TOOL_CALL_END',
       'RUN_FINISHED',
     ]);
     expect(models.calls).toHaveLength(1);
-    const toolCallId = first[1].toolCallId as string;
+    const toolCallId = first[2].toolCallId as string;
 
     models.replies = [{ text: 'It is open.' }];
     const second = await run(

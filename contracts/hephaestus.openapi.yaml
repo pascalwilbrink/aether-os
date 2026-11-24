@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.34.0
+  version: 0.35.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -1008,10 +1008,13 @@ paths:
       x-permission: '`session:use` in the project'
       description: |
         Starts a session (`../docs/interaction.md`): a conversation between
-        the caller and an agent in the project. The agent's published version
-        is pinned now, like a task's (`AGENT_NOT_PUBLISHED`, `AGENT_ARCHIVED`);
-        the session acts for the caller, read-only. Only the person who
-        started it can see and use it.
+        the caller and an agent in the project, or with a council
+        (`../docs/councils.md`): its facilitator and members. Exactly one of
+        `agentId` and `councilId`. The published versions are pinned now,
+        like a task's: the agent's (`AGENT_NOT_PUBLISHED`, `AGENT_ARCHIVED`),
+        or the council's (`COUNCIL_UNAVAILABLE`) with its facilitator's and
+        each member's published agent version. The session acts for the
+        caller, read-only. Only the person who started it can see and use it.
       requestBody:
         required: true
         content:
@@ -1139,6 +1142,15 @@ paths:
         that call (`TOOL_CALL_START`, `TOOL_CALL_ARGS`, `TOOL_CALL_END`) and
         the frontend answers it with a `tool` message in the next run.
         `context` entries are given to the agent for this run.
+
+        In a council session the facilitator answers, with the council's
+        tools: `ask_member` (one member answers in the session; required
+        members, and the ones it invited) and `invite_members`. A member's
+        message starts with a `CUSTOM` event named `message-author`
+        (`{ messageId, author }`), as every message of the run does. With
+        `forwardedProps.memberAgentId`, the person addresses that member
+        directly instead (`allowDirectInteraction`; else, or for an agent
+        that isn't a member, `SESSION_MEMBER_INVALID`).
 
         The agent runs with a session token Hephaestus obtains from Pistis
         for the caller (read-only: the agent sees what the caller can see,
@@ -1276,6 +1288,8 @@ components:
         - TOOL_SERVER_INVALID
         - SESSION_BUSY
         - SESSION_ENDED
+        - SESSION_MEMBER_INVALID
+        - COUNCIL_UNAVAILABLE
         - WORKSPACE_INVALID_EXPIRY
         - WORKSPACE_INVALID_TRANSITION
     DomainProblem:
@@ -2616,19 +2630,49 @@ components:
     CreateSessionRequest:
       type: object
       additionalProperties: false
-      required: [agentId]
+      description: Exactly one of `agentId` and `councilId`.
       properties:
         agentId: { type: string, format: uuid }
+        councilId: { type: string, format: uuid }
         title: { type: string, minLength: 1, maxLength: 200 }
+    SessionMember:
+      type: object
+      required: [agentId, agentVersionId, name, participation, role, when, invited]
+      properties:
+        agentId: { type: string, format: uuid }
+        agentVersionId: { type: string, format: uuid, description: Pinned when the session started. }
+        name: { type: string }
+        participation: { type: string, enum: [required, conditional, optional] }
+        role: { type: [string, 'null'] }
+        when: { type: [string, 'null'], description: A conditional member's condition. }
+        invited:
+          type: boolean
+          description: Taking part in the conversation (required members always are; others once invited or addressed).
+    SessionMessageAuthor:
+      type: object
+      required: [kind, agentId, agentVersionId]
+      properties:
+        kind:
+          type: string
+          enum: [user, agent, facilitator, member]
+          description: '`user`: the person; `agent`: an agent session''s agent; `facilitator` and `member`: a council''s.'
+        agentId: { type: [string, 'null'], format: uuid }
+        agentVersionId: { type: [string, 'null'], format: uuid }
     SessionResponse:
       type: object
-      required: [id, organizationId, projectId, agentId, agentVersionId, startedBy, title, status, endedReason, running, lastActivityAt, createdAt, endedAt]
+      required: [id, organizationId, projectId, agentId, agentVersionId, councilId, councilVersionId, members, startedBy, title, status, endedReason, running, lastActivityAt, createdAt, endedAt]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
         projectId: { type: string, format: uuid }
-        agentId: { type: string, format: uuid }
+        agentId: { type: string, format: uuid, description: The agent; in a council session the facilitator. }
         agentVersionId: { type: string, format: uuid, description: Pinned when it started. }
+        councilId: { type: [string, 'null'], format: uuid }
+        councilVersionId: { type: [string, 'null'], format: uuid, description: Pinned when it started. }
+        members:
+          type: array
+          description: A council session's members; empty otherwise.
+          items: { $ref: '#/components/schemas/SessionMember' }
         startedBy: { type: string, description: 'The person''s `sub`.' }
         title: { type: [string, 'null'] }
         status: { $ref: '#/components/schemas/SessionStatus' }
@@ -2660,17 +2704,18 @@ components:
         arguments: { type: string, description: The arguments as JSON text. }
     SessionMessage:
       type: object
-      required: [id, role, content, toolCalls, toolCallId, createdAt]
+      required: [id, role, author, content, toolCalls, toolCallId, createdAt]
       properties:
         id: { type: string, description: The message's AG-UI ID. }
         role: { type: string, enum: [user, assistant, tool] }
+        author: { $ref: '#/components/schemas/SessionMessageAuthor' }
         content: { type: string }
         toolCalls:
           type: array
           items: { $ref: '#/components/schemas/SessionToolCall' }
         toolCallId:
           type: [string, 'null']
-          description: A tool message's call.
+          description: A tool message's call; a member's answer, the facilitator's `ask_member` call it answers.
         createdAt: { $ref: '#/components/schemas/Timestamp' }
     SessionMessagePage:
       allOf:
@@ -2706,7 +2751,11 @@ components:
               description: { type: string, maxLength: 1000 }
               value: { type: string, maxLength: 20000 }
         state: { description: "The frontend's shared state (AG-UI): given to the agent as context for this run." }
-        forwardedProps: { description: Ignored. }
+        forwardedProps:
+          type: object
+          description: 'In a council session, `memberAgentId` addresses that member directly; anything else is ignored.'
+          properties:
+            memberAgentId: { type: string, format: uuid }
     AguiMessage:
       type: object
       required: [id, role]
