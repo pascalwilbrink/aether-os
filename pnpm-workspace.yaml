@@ -12,6 +12,7 @@ packages:
   - seshat
   - pylon
   - ui/iris
+  - ui/atlas
   - ui/design
 
 # Native builds allowed during install.

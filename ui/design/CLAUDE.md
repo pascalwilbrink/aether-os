@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Design
 
-`@aether-os/design` is Aether-os's design system (see `../../CLAUDE.md`): the shared look of its user interfaces, so a second UI looks like Iris (`../iris`) without copying it. It holds only what has nothing to do with any one service:
+`@aether-os/design` is Aether-os's design system (see `../../CLAUDE.md`): the shared look of its user interfaces, so Atlas (`../atlas`) looks like Iris (`../iris`) without copying it. It holds only what has nothing to do with any one service:
 
 - `theme.css`: the theme for Tailwind CSS v4, imported after `tailwindcss` (`@import "@aether-os/design/theme.css"`). Dark mode follows the person's choice, a class on `<html>` (`light`, `dark` or `system`, which follows `prefers-color-scheme`), through a redefined `dark:` variant; it also tells Tailwind (`@source`) to read the package's built components for their classes.
 - `theme.ts`: `Theme`, `themeOf` (a stored value, or `system`) and `themeScript(storageKey)`, the script an app puts in its `<head>` so the stored theme is on `<html>` before the first paint.

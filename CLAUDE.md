@@ -23,6 +23,7 @@ Aether-os is a platform for building, running and supporting AI agents. This fol
 | **RabbitMQ** | Event bus between services | infrastructure | Planned |
 | **OpenTelemetry + Jaeger + Langfuse + Loki** | Observability: OTLP from every service; service traces in Jaeger, LLM traces in Langfuse, logs in Loki, browsed in Grafana | infrastructure | Traces: every service exports to the Collector (Krepis's `startTelemetry`), Jaeger shows them, and agent runs (Hephaestus's executions with Mastra's model and tool calls) go to Langfuse too. Logs: every service logs through Krepis's `createLogger` (Winston, JSON lines on stdout with the trace and tenant on each), sent over OTLP to Loki and linked to their traces in Grafana |
 | **Seshat** | Project knowledge (documents, decisions, facts, conventions, architecture, lessons learned), searched by agents and people (`docs/knowledge.md`) | `seshat/` | Active: knowledge items per project and per department (a department's seen read-only by its projects; written by people, proposed by agents, accepted by approvers, versioned, superseded, retired), documents indexed from Loculus, passages embedded through Pylon (pgvector), hybrid search (keywords and meaning), documents of repositories linked to the project (read through Proxenos, indexed again after every push, read-only), every change published as an event; agents search, read and propose it with Hephaestus's knowledge tools, and people manage it on Iris's Knowledge page |
+| **Atlas** | A second web frontend for Aether-os (Next.js), built on the design system | `ui/atlas/` | New: the shell (theme, health); no pages yet |
 | **Design** | `@aether-os/design`: the design system of Aether-os's user interfaces (theme with light and dark mode, form styles, icons, theme switch, remembered values) | `ui/design/` | Active: extracted from Iris, which builds on it |
 | **Kriterion** | Eval framework for measuring agent quality | not in this folder | Separate |
 | **Echo** | Voice: a Pipecat server (Python) for talking to agents over WebRTC, speech in and out of the same session as the copilot (`docs/interaction.md`) | not created yet | Proposed |
@@ -124,7 +125,7 @@ Organizations and projects live in Polis only: Hephaestus keeps their status fro
 
 ### Workspace
 
-The root `pnpm-workspace.yaml` lists the packages: `contracts` (`@aether-os/contracts`), `krepis` (`@aether-os/krepis`), `polis`, `hephaestus`, `pistis`, `proxenos`, `kairos`, `kerykes`, `loculus`, `agora`, `seshat`, `pylon`, `ui/iris` and `ui/design` (`@aether-os/design`). There is one lockfile, at the root; always run `pnpm install` from the root. Add new services to `pnpm-workspace.yaml`.
+The root `pnpm-workspace.yaml` lists the packages: `contracts` (`@aether-os/contracts`), `krepis` (`@aether-os/krepis`), `polis`, `hephaestus`, `pistis`, `proxenos`, `kairos`, `kerykes`, `loculus`, `agora`, `seshat`, `pylon`, `ui/iris`, `ui/atlas` and `ui/design` (`@aether-os/design`). There is one lockfile, at the root; always run `pnpm install` from the root. Add new services to `pnpm-workspace.yaml`.
 
 ```bash
 pnpm install               # whole workspace
@@ -147,14 +148,14 @@ pnpm format:check          # prettier, as CI runs it (`pnpm format` in a package
 `docker-compose.yml` at this root runs the shared infrastructure; the app services run outside it with `pnpm` from their own directories.
 
 ```bash
-pnpm start:dev             # everything: infra, Krepis build, then every service and Iris (on 3010, or IRIS_PORT) in watch mode
+pnpm start:dev             # everything: infra, Krepis build, then every service, Iris (on 3010, or IRIS_PORT) and Atlas (on 3012, or ATLAS_PORT) in watch mode
 docker compose up -d       # Postgres, RabbitMQ, OpenBao, OPA, OTel Collector, Jaeger, Langfuse, Loki, Grafana, Mailpit, RustFS, Uptime Kuma, Dashy
 docker compose down -v     # stop and wipe all data
 ```
 
 | What | Where |
 |---|---|
-| Iris / Polis / Hephaestus / Pistis / Proxenos / Kairos / Kerykes / Loculus / Agora / Seshat / Pylon | `localhost:3000` / `3001` / `3002` / `3003` / `3004` / `3005` / `3006` / `3007` / `3008` / `3009` / `3011` (each app's default `PORT`) |
+| Iris / Polis / Hephaestus / Pistis / Proxenos / Kairos / Kerykes / Loculus / Agora / Seshat / Pylon / Atlas | `localhost:3000` / `3001` / `3002` / `3003` / `3004` / `3005` / `3006` / `3007` / `3008` / `3009` / `3011` / `3012` (each app's default `PORT`) |
 | Postgres | `localhost:5432`, user `aether` / `aether`, one database per service (`infra/postgres/init/`); the pgvector image (Postgres 17): a volume made by the earlier `postgres:17.5-alpine` needs `pnpm infra:reindex` once (glibc sorts text unlike musl) |
 | RabbitMQ | AMQP `localhost:5672`, UI `localhost:15672`, `aether` / `aether` |
 | OpenBao | `localhost:8200`, root token `dev-root-token` (dev mode: in-memory, wiped on restart) |

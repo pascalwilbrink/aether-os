@@ -17,7 +17,7 @@
 #   Dashy         3500 (start page: Iris, Uptime Kuma, Grafana and the tools)
 # App services run outside compose: Iris 3000 (3010 with `pnpm start:dev`),
 # Polis 3001, Hephaestus 3002, Pistis 3003, Proxenos 3004, Kairos 3005,
-# Kerykes 3006, Loculus 3007, Agora 3008, Seshat 3009, Pylon 3011.
+# Kerykes 3006, Loculus 3007, Agora 3008, Seshat 3009, Pylon 3011, Atlas 3012.
 
 name: aether-os
 
