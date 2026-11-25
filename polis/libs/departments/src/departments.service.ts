@@ -162,7 +162,7 @@ export class DepartmentsService {
   }
 
   /**
-   * For putting something in a department (a project, a member): 404 unless
+   * For putting something in a department (a project): 404 unless
    * it exists in the organization, `ORGANIZATION_SUSPENDED` or
    * `DEPARTMENT_ARCHIVED` unless both are active. Locks the department row
    * (shared) until the transaction ends, so it can't be archived halfway.

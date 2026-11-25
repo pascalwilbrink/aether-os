@@ -3,9 +3,8 @@ import { Check, Column, Entity, Index, PrimaryColumn, Unique } from 'typeorm';
 import type { DepartmentStatus } from './department.types.js';
 
 /**
- * An optional group in an organization: projects (each in at most one) and
- * people (department members). It grants nothing; roles stay on
- * organization and project memberships.
+ * An optional group in an organization's projects (each in at most one).
+ * It grants nothing; roles stay on organization and project memberships.
  */
 @Entity({ name: 'departments' })
 @Unique('uq_departments_organization_id_slug', ['organizationId', 'slug'])

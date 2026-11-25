@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -17,27 +16,18 @@ import {
   ZodSerializerDto,
 } from '@polis/core';
 
-import { AddDepartmentMemberRequest } from './dto/add-department-member.request.js';
 import { CreateDepartmentRequest } from './dto/create-department.request.js';
-import { DepartmentMemberPage } from './dto/department-member-page.response.js';
-import { DepartmentMemberParams } from './dto/department-member.params.js';
-import { DepartmentMemberResponse } from './dto/department-member.response.js';
 import { DepartmentPage } from './dto/department-page.response.js';
 import { DepartmentParams } from './dto/department.params.js';
 import { DepartmentResponse } from './dto/department.response.js';
 import { DepartmentsParams } from './dto/departments.params.js';
-import { ListDepartmentMembersQuery } from './dto/list-department-members.query.js';
 import { ListDepartmentsQuery } from './dto/list-departments.query.js';
 import { UpdateDepartmentRequest } from './dto/update-department.request.js';
-import { DepartmentMembersService } from './department-members.service.js';
 import { DepartmentsService } from './departments.service.js';
 
 @Controller('organizations/:organizationId/departments')
 export class DepartmentsController {
-  constructor(
-    private readonly departments: DepartmentsService,
-    private readonly members: DepartmentMembersService,
-  ) {}
+  constructor(private readonly departments: DepartmentsService) {}
 
   @Post()
   @RequirePermission('org:manage')
@@ -84,35 +74,5 @@ export class DepartmentsController {
   @ZodSerializerDto(DepartmentResponse)
   archive(@Param() { organizationId, departmentId }: DepartmentParams) {
     return this.departments.archive(organizationId, departmentId);
-  }
-
-  @Post(':departmentId/members')
-  @RequirePermission('org:manage')
-  @ZodSerializerDto(DepartmentMemberResponse)
-  addMember(
-    @Param() { organizationId, departmentId }: DepartmentParams,
-    @Body() body: AddDepartmentMemberRequest,
-  ) {
-    return this.members.add(organizationId, departmentId, body);
-  }
-
-  @Get(':departmentId/members')
-  @RequirePermission('org:read')
-  @PlatformAccess('platform:read')
-  @ZodSerializerDto(DepartmentMemberPage)
-  listMembers(
-    @Param() { organizationId, departmentId }: DepartmentParams,
-    @Query() query: ListDepartmentMembersQuery,
-  ) {
-    return this.members.list(organizationId, departmentId, query);
-  }
-
-  @Delete(':departmentId/members/:memberId')
-  @RequirePermission('org:manage')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  removeMember(
-    @Param() { organizationId, departmentId, memberId }: DepartmentMemberParams,
-  ) {
-    return this.members.remove(organizationId, departmentId, memberId);
   }
 }

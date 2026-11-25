@@ -2,36 +2,6 @@
 // (@aether-os/contracts). Do not edit it by hand; run `pnpm generate:api`.
 
 /**
- * Payload of `department-member.added`.
- */
-export interface DepartmentMemberAdded {
-  memberId: string;
-  departmentId: string;
-  principal: {
-    /**
-     * The principal's Pistis `sub`.
-     */
-    sub: string;
-    sub_type: 'user' | 'service_account';
-  };
-}
-
-/**
- * Payload of `department-member.removed`.
- */
-export interface DepartmentMemberRemoved {
-  memberId: string;
-  departmentId: string;
-  principal: {
-    /**
-     * The principal's Pistis `sub`.
-     */
-    sub: string;
-    sub_type: 'user' | 'service_account';
-  };
-}
-
-/**
  * Payload of `department.archived`.
  */
 export interface DepartmentArchived {
@@ -244,8 +214,6 @@ export interface ProjectDepartmentChanged {
 
 /** Every Polis event type, mapped to its payload. */
 export interface PolisEventPayloads {
-  'department-member.added': DepartmentMemberAdded;
-  'department-member.removed': DepartmentMemberRemoved;
   'department.archived': DepartmentArchived;
   'department.created': DepartmentCreated;
   'department.updated': DepartmentUpdated;
@@ -267,8 +235,6 @@ export type PolisEventType = keyof PolisEventPayloads;
 
 /** Every Polis event type in the spec. */
 export const POLIS_EVENT_TYPES = [
-  'department-member.added',
-  'department-member.removed',
   'department.archived',
   'department.created',
   'department.updated',

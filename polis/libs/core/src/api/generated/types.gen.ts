@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'ORGANIZATION_SLUG_TAKEN' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_SLUG_TAKEN' | 'MEMBERSHIP_EXISTS' | 'PROJECT_ARCHIVED' | 'PROJECT_MEMBERSHIP_EXISTS' | 'PROJECT_MEMBER_NOT_IN_ORGANIZATION' | 'PROJECT_ROLE_EXCEEDS_CAP' | 'DEPARTMENT_SLUG_TAKEN' | 'DEPARTMENT_ARCHIVED' | 'DEPARTMENT_HAS_PROJECTS' | 'DEPARTMENT_MEMBER_EXISTS' | 'DEPARTMENT_MEMBER_NOT_IN_ORGANIZATION';
+export type DomainErrorCode = 'ORGANIZATION_SLUG_TAKEN' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_SLUG_TAKEN' | 'MEMBERSHIP_EXISTS' | 'PROJECT_ARCHIVED' | 'PROJECT_MEMBERSHIP_EXISTS' | 'PROJECT_MEMBER_NOT_IN_ORGANIZATION' | 'PROJECT_ROLE_EXCEEDS_CAP' | 'DEPARTMENT_SLUG_TAKEN' | 'DEPARTMENT_ARCHIVED' | 'DEPARTMENT_HAS_PROJECTS';
 
 /**
  * Problem details for a business-rule violation.
@@ -83,25 +83,6 @@ export type DepartmentResponse = {
 
 export type DepartmentPage = PageMeta & {
     items: Array<DepartmentResponse>;
-};
-
-export type AddDepartmentMemberRequest = {
-    subjectType: SubjectType;
-    subject: Subject;
-};
-
-export type DepartmentMemberResponse = {
-    id: string;
-    organizationId: string;
-    departmentId: string;
-    subjectType: SubjectType;
-    subject: string;
-    createdBy: string;
-    createdAt: Timestamp;
-};
-
-export type DepartmentMemberPage = PageMeta & {
-    items: Array<DepartmentMemberResponse>;
 };
 
 export type ProjectStatus = 'active' | 'archived';
@@ -877,168 +858,6 @@ export type ArchiveDepartmentResponses = {
 };
 
 export type ArchiveDepartmentResponse = ArchiveDepartmentResponses[keyof ArchiveDepartmentResponses];
-
-export type ListDepartmentMembersData = {
-    body?: never;
-    path: {
-        organizationId: string;
-        departmentId: string;
-    };
-    query?: {
-        /**
-         * Page size.
-         */
-        limit?: number;
-        /**
-         * Opaque cursor from the previous page's `nextCursor`; leave it out for
-         * the first page. A cursor only works with the filters it was made with
-         * (otherwise `400 INVALID_CURSOR`).
-         *
-         */
-        cursor?: string;
-    };
-    url: '/v1/organizations/{organizationId}/departments/{departmentId}/members';
-};
-
-export type ListDepartmentMembersErrors = {
-    /**
-     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-     * `INVALID_CURSOR`.
-     *
-     */
-    400: CommonOpenapiProblem;
-    /**
-     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
-     * access token (signature, issuer, audience, expiry).
-     *
-     */
-    401: CommonOpenapiProblem;
-    /**
-     * `FORBIDDEN`: the token is valid but lacks the permission
-     * (`x-permission` on the operation). Another organization's resources
-     * are 404, not 403.
-     *
-     */
-    403: CommonOpenapiProblem;
-    /**
-     * `NOT_FOUND`: the resource doesn't exist.
-     */
-    404: CommonOpenapiProblem;
-};
-
-export type ListDepartmentMembersError = ListDepartmentMembersErrors[keyof ListDepartmentMembersErrors];
-
-export type ListDepartmentMembersResponses = {
-    /**
-     * Newest first
-     */
-    200: DepartmentMemberPage;
-};
-
-export type ListDepartmentMembersResponse = ListDepartmentMembersResponses[keyof ListDepartmentMembersResponses];
-
-export type AddDepartmentMemberData = {
-    body: AddDepartmentMemberRequest;
-    path: {
-        organizationId: string;
-        departmentId: string;
-    };
-    query?: never;
-    url: '/v1/organizations/{organizationId}/departments/{departmentId}/members';
-};
-
-export type AddDepartmentMemberErrors = {
-    /**
-     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-     * `INVALID_CURSOR`.
-     *
-     */
-    400: CommonOpenapiProblem;
-    /**
-     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
-     * access token (signature, issuer, audience, expiry).
-     *
-     */
-    401: CommonOpenapiProblem;
-    /**
-     * `FORBIDDEN`: the token is valid but lacks the permission
-     * (`x-permission` on the operation). Another organization's resources
-     * are 404, not 403.
-     *
-     */
-    403: CommonOpenapiProblem;
-    /**
-     * `NOT_FOUND`: the resource doesn't exist.
-     */
-    404: CommonOpenapiProblem;
-    /**
-     * A business rule forbids this (409, with a `DomainErrorCode`).
-     */
-    409: DomainProblem;
-};
-
-export type AddDepartmentMemberError = AddDepartmentMemberErrors[keyof AddDepartmentMemberErrors];
-
-export type AddDepartmentMemberResponses = {
-    /**
-     * Added
-     */
-    201: DepartmentMemberResponse;
-};
-
-export type AddDepartmentMemberResponse = AddDepartmentMemberResponses[keyof AddDepartmentMemberResponses];
-
-export type RemoveDepartmentMemberData = {
-    body?: never;
-    path: {
-        organizationId: string;
-        departmentId: string;
-        memberId: string;
-    };
-    query?: never;
-    url: '/v1/organizations/{organizationId}/departments/{departmentId}/members/{memberId}';
-};
-
-export type RemoveDepartmentMemberErrors = {
-    /**
-     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
-     * `INVALID_CURSOR`.
-     *
-     */
-    400: CommonOpenapiProblem;
-    /**
-     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
-     * access token (signature, issuer, audience, expiry).
-     *
-     */
-    401: CommonOpenapiProblem;
-    /**
-     * `FORBIDDEN`: the token is valid but lacks the permission
-     * (`x-permission` on the operation). Another organization's resources
-     * are 404, not 403.
-     *
-     */
-    403: CommonOpenapiProblem;
-    /**
-     * `NOT_FOUND`: the resource doesn't exist.
-     */
-    404: CommonOpenapiProblem;
-    /**
-     * A business rule forbids this (409, with a `DomainErrorCode`).
-     */
-    409: DomainProblem;
-};
-
-export type RemoveDepartmentMemberError = RemoveDepartmentMemberErrors[keyof RemoveDepartmentMemberErrors];
-
-export type RemoveDepartmentMemberResponses = {
-    /**
-     * Removed
-     */
-    204: void;
-};
-
-export type RemoveDepartmentMemberResponse = RemoveDepartmentMemberResponses[keyof RemoveDepartmentMemberResponses];
 
 export type ListProjectsData = {
     body?: never;

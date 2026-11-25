@@ -24,21 +24,3 @@ export class DepartmentHasProjectsError extends DomainError {
     );
   }
 }
-
-export class DepartmentMemberExistsError extends DomainError {
-  constructor(subjectType: string, subject: string) {
-    super(
-      `The ${subjectType} ${subject} is already in this department.`,
-      'DEPARTMENT_MEMBER_EXISTS',
-    );
-  }
-}
-
-export class DepartmentMemberNotInOrganizationError extends DomainError {
-  constructor(subjectType: string, subject: string) {
-    super(
-      `The ${subjectType} ${subject} is not a member of this organization.`,
-      'DEPARTMENT_MEMBER_NOT_IN_ORGANIZATION',
-    );
-  }
-}

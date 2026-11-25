@@ -12,9 +12,6 @@ import type {
   ActivateOrganizationData,
   ActivateOrganizationErrors,
   ActivateOrganizationResponses,
-  AddDepartmentMemberData,
-  AddDepartmentMemberErrors,
-  AddDepartmentMemberResponses,
   ArchiveDepartmentData,
   ArchiveDepartmentErrors,
   ArchiveDepartmentResponses,
@@ -60,9 +57,6 @@ import type {
   GetProjectMembershipErrors,
   GetProjectMembershipResponses,
   GetProjectResponses,
-  ListDepartmentMembersData,
-  ListDepartmentMembersErrors,
-  ListDepartmentMembersResponses,
   ListDepartmentsData,
   ListDepartmentsErrors,
   ListDepartmentsResponses,
@@ -84,9 +78,6 @@ import type {
   ListProjectsData,
   ListProjectsErrors,
   ListProjectsResponses,
-  RemoveDepartmentMemberData,
-  RemoveDepartmentMemberErrors,
-  RemoveDepartmentMemberResponses,
   SetProjectDepartmentData,
   SetProjectDepartmentErrors,
   SetProjectDepartmentResponses,
@@ -247,9 +238,8 @@ export const listDepartments = <ThrowOnError extends boolean = false>(
 
 /**
  * Creates an active department. Departments are optional: they group
- * an organization's projects (a project is in at most one) and people
- * (department members). They grant no permissions: roles stay on
- * organization and project memberships.
+ * an organization's projects (a project is in at most one). They grant
+ * no permissions: roles stay on organization and project memberships.
  *
  */
 export const createDepartment = <ThrowOnError extends boolean = false>(
@@ -316,7 +306,6 @@ export const updateDepartment = <ThrowOnError extends boolean = false>(
 /**
  * Archives the department (final). Refused while an active project is
  * in it (`DEPARTMENT_HAS_PROJECTS`): move those projects out first.
- * Its members stay, for the record.
  *
  */
 export const archiveDepartment = <ThrowOnError extends boolean = false>(
@@ -333,69 +322,6 @@ export const archiveDepartment = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/departments/{departmentId}/archive',
-    ...options,
-  });
-
-export const listDepartmentMembers = <ThrowOnError extends boolean = false>(
-  options: Options<ListDepartmentMembersData, ThrowOnError>,
-): RequestResult<
-  ListDepartmentMembersResponses,
-  ListDepartmentMembersErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).get<
-    ListDepartmentMembersResponses,
-    ListDepartmentMembersErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/departments/{departmentId}/members',
-    ...options,
-  });
-
-/**
- * Adds a member of the organization to the department
- * (`DEPARTMENT_MEMBER_NOT_IN_ORGANIZATION` otherwise; once:
- * `DEPARTMENT_MEMBER_EXISTS`); the department must be active
- * (`DEPARTMENT_ARCHIVED`). Informational: it grants nothing. Leaving
- * the organization removes the principal from its departments.
- *
- */
-export const addDepartmentMember = <ThrowOnError extends boolean = false>(
-  options: Options<AddDepartmentMemberData, ThrowOnError>,
-): RequestResult<
-  AddDepartmentMemberResponses,
-  AddDepartmentMemberErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).post<
-    AddDepartmentMemberResponses,
-    AddDepartmentMemberErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/departments/{departmentId}/members',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-export const removeDepartmentMember = <ThrowOnError extends boolean = false>(
-  options: Options<RemoveDepartmentMemberData, ThrowOnError>,
-): RequestResult<
-  RemoveDepartmentMemberResponses,
-  RemoveDepartmentMemberErrors,
-  ThrowOnError
-> =>
-  (options.client ?? client).delete<
-    RemoveDepartmentMemberResponses,
-    RemoveDepartmentMemberErrors,
-    ThrowOnError
-  >({
-    security: [{ scheme: 'bearer', type: 'http' }],
-    url: '/v1/organizations/{organizationId}/departments/{departmentId}/members/{memberId}',
     ...options,
   });
 

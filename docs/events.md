@@ -56,7 +56,6 @@ Rules:
 | `project.created` / `project.archived` / `project.deleted` | `projectId` (and on `project.created` its `departmentId`, or null) | Hephaestus, Kairos, Themis, Seshat |
 | `project.department-changed` | `projectId`, `from`, `to` (department IDs or null) | Seshat (department knowledge, planned) |
 | `department.created` / `department.updated` / `department.archived` | `departmentId` (and `slug` on `department.created`) | Seshat (planned), Iris |
-| `department-member.added` / `department-member.removed` | `memberId`, `departmentId`, `principal`; removed also when the organization membership went | Kerykes (planned) |
 | `membership.granted` | `principal`, `scope` (organization or project), `roles` | Pistis, Iris, Kerykes |
 | `membership.role-changed` | `principal`, `scope`, `from`, `to` (role lists) | Pistis, every service (drop cached permissions; Kerykes updates its recipient copy) |
 | `membership.revoked` | `principal`, `scope` | Pistis, every service |

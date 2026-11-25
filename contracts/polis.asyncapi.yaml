@@ -53,8 +53,6 @@ channels:
       departmentCreated: { $ref: '#/components/messages/departmentCreated' }
       departmentUpdated: { $ref: '#/components/messages/departmentUpdated' }
       departmentArchived: { $ref: '#/components/messages/departmentArchived' }
-      departmentMemberAdded: { $ref: '#/components/messages/departmentMemberAdded' }
-      departmentMemberRemoved: { $ref: '#/components/messages/departmentMemberRemoved' }
       projectDepartmentChanged: { $ref: '#/components/messages/projectDepartmentChanged' }
 
 operations:
@@ -76,8 +74,6 @@ operations:
       - $ref: '#/channels/polisEvents/messages/departmentCreated'
       - $ref: '#/channels/polisEvents/messages/departmentUpdated'
       - $ref: '#/channels/polisEvents/messages/departmentArchived'
-      - $ref: '#/channels/polisEvents/messages/departmentMemberAdded'
-      - $ref: '#/channels/polisEvents/messages/departmentMemberRemoved'
       - $ref: '#/channels/polisEvents/messages/projectDepartmentChanged'
 
 components:
@@ -224,26 +220,6 @@ components:
             properties:
               eventType: { const: department.archived }
               payload: { $ref: '#/components/schemas/DepartmentArchived' }
-    departmentMemberAdded:
-      name: department-member.added
-      summary: "A member of the organization was added to a department."
-      payload:
-        allOf:
-          - $ref: '#/components/schemas/Envelope'
-          - type: object
-            properties:
-              eventType: { const: department-member.added }
-              payload: { $ref: '#/components/schemas/DepartmentMemberAdded' }
-    departmentMemberRemoved:
-      name: department-member.removed
-      summary: "A principal was removed from a department (also when it left the organization)."
-      payload:
-        allOf:
-          - $ref: '#/components/schemas/Envelope'
-          - type: object
-            properties:
-              eventType: { const: department-member.removed }
-              payload: { $ref: '#/components/schemas/DepartmentMemberRemoved' }
     projectDepartmentChanged:
       name: project.department-changed
       summary: "A project moved into, out of or between departments."
@@ -346,16 +322,6 @@ components:
       required: [departmentId]
       properties:
         departmentId: { $ref: '#/components/schemas/Uuid' }
-    DepartmentMemberAdded: { $ref: '#/components/schemas/DepartmentMemberChanged' }
-    DepartmentMemberRemoved: { $ref: '#/components/schemas/DepartmentMemberChanged' }
-    DepartmentMemberChanged:
-      type: object
-      additionalProperties: false
-      required: [memberId, departmentId, principal]
-      properties:
-        memberId: { $ref: '#/components/schemas/Uuid' }
-        departmentId: { $ref: '#/components/schemas/Uuid' }
-        principal: { $ref: '#/components/schemas/Principal' }
     ProjectArchived: { $ref: '#/components/schemas/ProjectChanged' }
     ProjectChanged:
       type: object

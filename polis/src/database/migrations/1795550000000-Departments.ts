@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/** Departments, their members, and a project's optional department. */
+/** Departments, and a project's optional department. */
 export class Departments1795550000000 implements MigrationInterface {
   name = 'Departments1795550000000';
 
@@ -26,26 +26,6 @@ export class Departments1795550000000 implements MigrationInterface {
             CREATE INDEX "ix_departments_organization_id_created_at_id" ON "departments" ("organization_id", "created_at", "id")
         `);
     await queryRunner.query(`
-            CREATE TABLE "department_members" (
-                "id" uuid NOT NULL,
-                "organization_id" uuid NOT NULL,
-                "department_id" uuid NOT NULL,
-                "subject_type" text NOT NULL,
-                "subject" text NOT NULL,
-                "created_by" text NOT NULL,
-                "created_at" TIMESTAMP WITH TIME ZONE NOT NULL,
-                CONSTRAINT "uq_department_members_department_id_subject" UNIQUE ("department_id", "subject_type", "subject"),
-                CONSTRAINT "ck_department_members_subject_type" CHECK (subject_type IN ('user', 'service_account')),
-                CONSTRAINT "PK_88e8868d7c4c4ba3673df9b7cef" PRIMARY KEY ("id")
-            )
-        `);
-    await queryRunner.query(`
-            CREATE INDEX "ix_department_members_department_id_created_at_id" ON "department_members" ("department_id", "created_at", "id")
-        `);
-    await queryRunner.query(`
-            CREATE INDEX "ix_department_members_organization_id_subject" ON "department_members" ("organization_id", "subject_type", "subject")
-        `);
-    await queryRunner.query(`
             ALTER TABLE "projects" ADD "department_id" uuid
         `);
     await queryRunner.query(`
@@ -59,9 +39,6 @@ export class Departments1795550000000 implements MigrationInterface {
         `);
     await queryRunner.query(`
             ALTER TABLE "projects" DROP COLUMN "department_id"
-        `);
-    await queryRunner.query(`
-            DROP TABLE "department_members"
         `);
     await queryRunner.query(`
             DROP TABLE "departments"

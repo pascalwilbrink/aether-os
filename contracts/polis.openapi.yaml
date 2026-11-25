@@ -4,7 +4,7 @@ info:
   version: 0.8.0
   description: |
     Tenancy service for Aether-os: organizations, their optional
-    departments (which group projects and people), the projects inside them,
+    departments (which group projects), the projects inside them,
     memberships (which principal belongs to which organization, with which
     roles) and project memberships (a member's role in one project).
     Other services store organization and project IDs and resolve them here.
@@ -154,9 +154,8 @@ paths:
       x-permission: '`org:manage`'
       description: |
         Creates an active department. Departments are optional: they group
-        an organization's projects (a project is in at most one) and people
-        (department members). They grant no permissions: roles stay on
-        organization and project memberships.
+        an organization's projects (a project is in at most one). They grant
+        no permissions: roles stay on organization and project memberships.
       requestBody:
         required: true
         content:
@@ -250,7 +249,6 @@ paths:
       description: |
         Archives the department (final). Refused while an active project is
         in it (`DEPARTMENT_HAS_PROJECTS`): move those projects out first.
-        Its members stay, for the record.
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -259,74 +257,6 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/DepartmentResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-
-  /v1/organizations/{organizationId}/departments/{departmentId}/members:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-      - $ref: '#/components/parameters/DepartmentId'
-    post:
-      tags: [departments]
-      operationId: addDepartmentMember
-      x-permission: '`org:manage`'
-      description: |
-        Adds a member of the organization to the department
-        (`DEPARTMENT_MEMBER_NOT_IN_ORGANIZATION` otherwise; once:
-        `DEPARTMENT_MEMBER_EXISTS`); the department must be active
-        (`DEPARTMENT_ARCHIVED`). Informational: it grants nothing. Leaving
-        the organization removes the principal from its departments.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/AddDepartmentMemberRequest' }
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '201':
-          description: Added
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/DepartmentMemberResponse' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/DomainError' }
-    get:
-      tags: [departments]
-      operationId: listDepartmentMembers
-      x-permission: '`org:read`, or `platform:read`'
-      parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Cursor'
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '200':
-          description: Newest first
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/DepartmentMemberPage' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { $ref: '#/components/responses/NotFound' }
-
-  /v1/organizations/{organizationId}/departments/{departmentId}/members/{memberId}:
-    parameters:
-      - $ref: '#/components/parameters/OrganizationId'
-      - $ref: '#/components/parameters/DepartmentId'
-      - name: memberId
-        in: path
-        required: true
-        schema: { type: string, format: uuid }
-    delete:
-      tags: [departments]
-      operationId: removeDepartmentMember
-      x-permission: '`org:manage`'
-      responses:
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '204': { description: Removed }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
@@ -776,8 +706,6 @@ components:
         - DEPARTMENT_SLUG_TAKEN
         - DEPARTMENT_ARCHIVED
         - DEPARTMENT_HAS_PROJECTS
-        - DEPARTMENT_MEMBER_EXISTS
-        - DEPARTMENT_MEMBER_NOT_IN_ORGANIZATION
     DomainProblem:
       description: Problem details for a business-rule violation.
       allOf:
@@ -882,33 +810,6 @@ components:
             items:
               type: array
               items: { $ref: '#/components/schemas/DepartmentResponse' }
-    AddDepartmentMemberRequest:
-      type: object
-      additionalProperties: false
-      required: [subjectType, subject]
-      properties:
-        subjectType: { $ref: '#/components/schemas/SubjectType' }
-        subject: { $ref: '#/components/schemas/Subject' }
-    DepartmentMemberResponse:
-      type: object
-      required: [id, organizationId, departmentId, subjectType, subject, createdBy, createdAt]
-      properties:
-        id: { type: string, format: uuid }
-        organizationId: { type: string, format: uuid }
-        departmentId: { type: string, format: uuid }
-        subjectType: { $ref: '#/components/schemas/SubjectType' }
-        subject: { type: string }
-        createdBy: { type: string }
-        createdAt: { $ref: '#/components/schemas/Timestamp' }
-    DepartmentMemberPage:
-      allOf:
-        - $ref: '#/components/schemas/PageMeta'
-        - type: object
-          required: [items]
-          properties:
-            items:
-              type: array
-              items: { $ref: '#/components/schemas/DepartmentMemberResponse' }
 
     # ---------- projects ----------
     ProjectStatus:
