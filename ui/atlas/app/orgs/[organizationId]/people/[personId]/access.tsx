@@ -1,6 +1,6 @@
 import { loadAccess } from "@/lib/access";
 import type { Person } from "@/lib/api/polis";
-import type { Session } from "@/lib/auth/session";
+import type { Session } from "@aether-os/sign-in";
 import { assignableRoles } from "@/lib/members";
 
 import { GrantForm } from "../../../../components/role-forms";

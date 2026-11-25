@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { seal, unseal } from "./seal";
+import { seal, unseal } from "./seal.js";
 import {
   needsRefresh,
   openPendingSignIn,
@@ -11,7 +11,7 @@ import {
   sealSession,
   type Session,
   tokenFingerprint,
-} from "./session";
+} from "./session.js";
 
 const SECRET = "a-test-secret-that-is-long-enough-123";
 
@@ -74,7 +74,7 @@ describe("session cookies", () => {
     ).toBe(true);
   });
 
-  it("only returns to paths on Iris", () => {
+  it("only returns to paths on the app", () => {
     expect(safeReturnTo("/orgs/x")).toBe("/orgs/x");
     expect(safeReturnTo("https://evil.example")).toBe("/");
     expect(safeReturnTo("//evil.example")).toBe("/");

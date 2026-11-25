@@ -1,33 +1,42 @@
 import "server-only";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+
+import {
+  createSignIn,
+  organizationRoles,
+  type Session,
+} from "@aether-os/sign-in";
 
 import { isAdmin } from "../admin";
 import { config } from "../config";
-import { organizationRoles } from "./claims";
-import { openSession, SESSION_COOKIE, type Session } from "./session";
 
 /**
- * The current session, read from the encrypted cookie (refreshed by
- * `proxy.ts` before the page renders), or null. Reads the request, so call
- * it inside a `<Suspense>` boundary.
+ * Atlas's sign-in through Pistis (`@aether-os/sign-in`, `../../../sign-in`):
+ * the session in the `atlas_session` cookie, the `/auth/` routes and the
+ * proxy. Configuration is read when used (`lib/config.ts`).
  */
-export async function currentSession(): Promise<Session | null> {
-  return openSession(
-    (await cookies()).get(SESSION_COOKIE)?.value,
-    config.sessionSecret,
-  );
-}
+export const signIn = createSignIn(
+  () => ({
+    issuer: config.pistisIssuer,
+    clientId: config.clientId,
+    appUrl: config.url,
+    sessionSecret: config.sessionSecret,
+    secureCookies: config.secureCookies,
+    pistisUrl: config.pistisUrl,
+  }),
+  { cookiePrefix: "atlas" },
+);
+
+/**
+ * The current session, or null. Reads the request, so call it inside a
+ * `<Suspense>` boundary.
+ */
+export const currentSession = () => signIn.currentSession();
 
 /** The current session, or off to sign in (coming back to `returnTo`). */
-export async function requireSession(returnTo = "/"): Promise<Session> {
-  const session = await currentSession();
-  if (!session) {
-    redirect(`/auth/sign-in?returnTo=${encodeURIComponent(returnTo)}`);
-  }
-  return session;
-}
+export const requireSession = (returnTo = "/") =>
+  signIn.requireSession(returnTo);
 
 /**
  * The session, with a token for `organizationId` in which the person is an
@@ -40,12 +49,7 @@ export async function requireAdmin(
   organizationId: string,
   returnTo: string,
 ): Promise<Session> {
-  const session = await requireSession(returnTo);
-  if (session.organizationId !== organizationId) {
-    redirect(
-      `/auth/sign-in?organization=${encodeURIComponent(organizationId)}&returnTo=${encodeURIComponent(returnTo)}`,
-    );
-  }
+  const session = await signIn.requireOrganization(organizationId, returnTo);
   if (!isAdmin(organizationRoles(session.accessToken))) {
     redirect("/orgs?error=not-admin");
   }

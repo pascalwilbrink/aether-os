@@ -8,7 +8,7 @@ import {
   PATH_HEADER,
   refreshAfterForbidden,
   tokenFingerprint,
-} from "../auth/session";
+} from "@aether-os/sign-in";
 import { serviceNameFor } from "../services";
 
 /**

@@ -1560,15 +1560,12 @@ importers:
       '@aether-os/design':
         specifier: workspace:*
         version: link:../design
-      jose:
-        specifier: ^6.2.17
-        version: 6.2.17
+      '@aether-os/sign-in':
+        specifier: workspace:*
+        version: link:../sign-in
       next:
         specifier: 16.4.6
         version: 16.4.6(@babel/core@7.29.13)(@opentelemetry/api@1.10.0)(@types/node@20.19.43)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      openid-client:
-        specifier: ^6.9.0
-        version: 6.9.0
       react:
         specifier: 19.3.0
         version: 19.3.0
@@ -1633,6 +1630,9 @@ importers:
       '@aether-os/design':
         specifier: workspace:*
         version: link:../design
+      '@aether-os/sign-in':
+        specifier: workspace:*
+        version: link:../sign-in
       '@ag-ui/client':
         specifier: 1.0.2
         version: 1.0.2
@@ -1645,15 +1645,9 @@ importers:
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
-      jose:
-        specifier: ^6.2.17
-        version: 6.2.17
       next:
         specifier: 16.4.6
         version: 16.4.6(@babel/core@7.29.13)(@opentelemetry/api@1.10.0)(@types/node@20.19.43)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      openid-client:
-        specifier: ^6.9.0
-        version: 6.9.0
       react:
         specifier: 19.3.0
         version: 19.3.0
@@ -1697,6 +1691,34 @@ importers:
       tailwindcss:
         specifier: 4.3.3
         version: 4.3.3
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.12
+        version: 4.1.12(@opentelemetry/api@1.10.0)(@types/node@20.19.43)(@vitest/coverage-v8@4.1.12)(vite@8.3.8(@types/node@20.19.43)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+
+  ui/sign-in:
+    dependencies:
+      jose:
+        specifier: ^6.2.17
+        version: 6.2.17
+      openid-client:
+        specifier: ^6.9.0
+        version: 6.9.0
+    devDependencies:
+      '@types/node':
+        specifier: ^20
+        version: 20.19.43
+      next:
+        specifier: 16.4.6
+        version: 16.4.6(@babel/core@7.29.13)(@opentelemetry/api@1.10.0)(@types/node@20.19.43)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: 19.3.0
+        version: 19.3.0(react@19.3.0)
       typescript:
         specifier: ^5
         version: 5.9.3

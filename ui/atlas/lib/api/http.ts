@@ -2,7 +2,7 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 
-import { tokenFingerprint } from "../auth/session";
+import { tokenFingerprint } from "@aether-os/sign-in";
 import { config } from "../config";
 
 /**

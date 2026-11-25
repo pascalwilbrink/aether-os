@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import { seal, unseal } from "./seal";
+import { seal, unseal } from "./seal.js";
 
 /**
  * A signed-in person's session, kept server-side only in an encrypted,
@@ -21,6 +21,12 @@ export interface Session {
   refreshToken: string | null;
   /** For RP-initiated logout at Pistis. */
   idToken: string | null;
+  /**
+   * The fingerprint of the access token the app refreshed because a page was
+   * refused (403): that token has the person's current roles, so a 403 with
+   * it is shown, not refreshed again (`refreshAfterForbidden`).
+   */
+  refreshedForForbidden?: string;
 }
 
 /** The pending sign-in, between the redirect to Pistis and the callback. */
@@ -32,8 +38,11 @@ export interface PendingSignIn {
   returnTo: string;
 }
 
-export const SESSION_COOKIE = "atlas_session";
-export const SIGN_IN_COOKIE = "atlas_sign_in";
+/** The app's cookies: `<prefix>_session` and `<prefix>_sign_in` (`iris`, `atlas`). */
+export const cookieNames = (prefix: string) => ({
+  session: `${prefix}_session`,
+  signIn: `${prefix}_sign_in`,
+});
 /** As long as Pistis's refresh tokens (14 days). */
 export const SESSION_MAX_AGE = 14 * 24 * 60 * 60;
 export const SIGN_IN_MAX_AGE = 10 * 60;
@@ -84,4 +93,32 @@ export function safeReturnTo(value: string | null | undefined): string {
     !value.startsWith("/\\")
     ? value
     : "/";
+}
+
+/** Where a page refused with a 403 goes for a token with current roles. */
+export const FORBIDDEN_REFRESH_PATH = "/auth/refresh";
+
+/** The page's path, set by the proxy (`pathHeader`) for the server to read. */
+export const PATH_HEADER = "x-aether-path";
+
+/**
+ * Where to send a page whose call a service refused (403), or null to show
+ * the refusal: once per token, with the person's current roles from Pistis
+ * (they may have been granted one since the token was issued). Only while a
+ * page loads: a Server Action's refusal is its form's message.
+ */
+export function refreshAfterForbidden(
+  session: Pick<Session, "accessToken" | "refreshedForForbidden"> | null,
+  token: string,
+  request: { serverAction: boolean; page: boolean; path: string | null },
+): string | null {
+  if (!session || session.accessToken !== token) return null;
+  if (request.serverAction || !request.page || !request.path) return null;
+  const fingerprint = tokenFingerprint(token);
+  if (session.refreshedForForbidden === fingerprint) return null;
+  const query = new URLSearchParams({
+    token: fingerprint,
+    returnTo: safeReturnTo(request.path),
+  });
+  return `${FORBIDDEN_REFRESH_PATH}?${query}`;
 }
