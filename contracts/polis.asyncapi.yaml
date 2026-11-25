@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Polis events
-  version: 0.4.0
+  version: 0.5.0
   description: |
     Events Polis publishes to the `polis.events` topic exchange on RabbitMQ;
     the routing key is the event type. Every message is the Krepis
@@ -57,6 +57,11 @@ channels:
       personCreated: { $ref: '#/components/messages/personCreated' }
       personUpdated: { $ref: '#/components/messages/personUpdated' }
       personDeleted: { $ref: '#/components/messages/personDeleted' }
+      teamCreated: { $ref: '#/components/messages/teamCreated' }
+      teamUpdated: { $ref: '#/components/messages/teamUpdated' }
+      teamArchived: { $ref: '#/components/messages/teamArchived' }
+      teamMemberAdded: { $ref: '#/components/messages/teamMemberAdded' }
+      teamMemberRemoved: { $ref: '#/components/messages/teamMemberRemoved' }
 
 operations:
   publishPolisEvents:
@@ -81,6 +86,11 @@ operations:
       - $ref: '#/channels/polisEvents/messages/personCreated'
       - $ref: '#/channels/polisEvents/messages/personUpdated'
       - $ref: '#/channels/polisEvents/messages/personDeleted'
+      - $ref: '#/channels/polisEvents/messages/teamCreated'
+      - $ref: '#/channels/polisEvents/messages/teamUpdated'
+      - $ref: '#/channels/polisEvents/messages/teamArchived'
+      - $ref: '#/channels/polisEvents/messages/teamMemberAdded'
+      - $ref: '#/channels/polisEvents/messages/teamMemberRemoved'
 
 components:
   messages:
@@ -268,6 +278,57 @@ components:
               eventType: { const: person.deleted }
               payload: { $ref: '#/components/schemas/PersonDeleted' }
 
+    teamCreated:
+      name: team.created
+      summary: "A team was created."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: team.created }
+              payload: { $ref: '#/components/schemas/TeamCreated' }
+    teamUpdated:
+      name: team.updated
+      summary: "A team's name, description or departments changed."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: team.updated }
+              payload: { $ref: '#/components/schemas/TeamUpdated' }
+    teamArchived:
+      name: team.archived
+      summary: "A team was archived (final)."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: team.archived }
+              payload: { $ref: '#/components/schemas/TeamArchived' }
+    teamMemberAdded:
+      name: team-member.added
+      summary: "A person joined a team."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: team-member.added }
+              payload: { $ref: '#/components/schemas/TeamMemberAdded' }
+    teamMemberRemoved:
+      name: team-member.removed
+      summary: "A person left a team (also when the person was deleted)."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: team-member.removed }
+              payload: { $ref: '#/components/schemas/TeamMemberRemoved' }
+
   schemas:
     Uuid: { type: string, format: uuid }
     Envelope:
@@ -388,6 +449,27 @@ components:
       additionalProperties: false
       required: [personId]
       properties:
+        personId: { $ref: '#/components/schemas/Uuid' }
+    TeamCreated: { $ref: '#/components/schemas/TeamChanged' }
+    TeamUpdated: { $ref: '#/components/schemas/TeamChanged' }
+    TeamArchived: { $ref: '#/components/schemas/TeamChanged' }
+    TeamChanged:
+      type: object
+      additionalProperties: false
+      required: [teamId, departmentIds]
+      properties:
+        teamId: { $ref: '#/components/schemas/Uuid' }
+        departmentIds:
+          type: array
+          items: { $ref: '#/components/schemas/Uuid' }
+    TeamMemberAdded: { $ref: '#/components/schemas/TeamMemberChanged' }
+    TeamMemberRemoved: { $ref: '#/components/schemas/TeamMemberChanged' }
+    TeamMemberChanged:
+      type: object
+      additionalProperties: false
+      required: [teamId, personId]
+      properties:
+        teamId: { $ref: '#/components/schemas/Uuid' }
         personId: { $ref: '#/components/schemas/Uuid' }
     MembershipGranted:
       type: object

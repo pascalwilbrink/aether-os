@@ -213,6 +213,122 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listTeams"];
+        put?: never;
+        /**
+         * @description Creates an active team of the organization, in any of its active
+         *     departments (`DEPARTMENT_ARCHIVED`; another organization's is
+         *     `404`). Its slug is unique in the organization (`TEAM_SLUG_TAKEN`).
+         *     Teams grant nothing: roles stay on memberships. Its people are
+         *     persons, added with `…/members`.
+         */
+        post: operations["createTeam"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/teams/{teamId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                teamId: components["parameters"]["TeamId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getTeam"];
+        /**
+         * @description Replaces the name, description and departments (the slug stays;
+         *     departments it joins must be active, one it stays in may be
+         *     archived). Unchanged → no new version and no event. An archived team
+         *     can't be changed (`TEAM_ARCHIVED`).
+         */
+        put: operations["updateTeam"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/teams/{teamId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                teamId: components["parameters"]["TeamId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Archives the team (final); its members and departments stay, for the record. */
+        post: operations["archiveTeam"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/teams/{teamId}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                teamId: components["parameters"]["TeamId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listTeamMembers"];
+        put?: never;
+        /**
+         * @description Adds a person of the organization to the team (another
+         *     organization's is `404`), once (`TEAM_MEMBER_EXISTS`); the team must
+         *     be active (`TEAM_ARCHIVED`). Deleting the person removes them from
+         *     their teams.
+         */
+        post: operations["addTeamMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/teams/{teamId}/members/{personId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                teamId: components["parameters"]["TeamId"];
+                personId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Takes the person out of the team (`404` when they aren't in it); the team must be active. */
+        delete: operations["removeTeamMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/projects": {
         parameters: {
             query?: never;
@@ -468,7 +584,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "ORGANIZATION_SLUG_TAKEN" | "ORGANIZATION_SUSPENDED" | "PROJECT_SLUG_TAKEN" | "MEMBERSHIP_EXISTS" | "PROJECT_ARCHIVED" | "PROJECT_MEMBERSHIP_EXISTS" | "PROJECT_MEMBER_NOT_IN_ORGANIZATION" | "PROJECT_ROLE_EXCEEDS_CAP" | "DEPARTMENT_SLUG_TAKEN" | "DEPARTMENT_ARCHIVED" | "DEPARTMENT_HAS_PROJECTS" | "PERSON_EMAIL_TAKEN";
+        DomainErrorCode: "ORGANIZATION_SLUG_TAKEN" | "ORGANIZATION_SUSPENDED" | "PROJECT_SLUG_TAKEN" | "MEMBERSHIP_EXISTS" | "PROJECT_ARCHIVED" | "PROJECT_MEMBERSHIP_EXISTS" | "PROJECT_MEMBER_NOT_IN_ORGANIZATION" | "PROJECT_ROLE_EXCEEDS_CAP" | "DEPARTMENT_SLUG_TAKEN" | "DEPARTMENT_ARCHIVED" | "DEPARTMENT_HAS_PROJECTS" | "PERSON_EMAIL_TAKEN" | "TEAM_SLUG_TAKEN" | "TEAM_ARCHIVED" | "TEAM_MEMBER_EXISTS";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -574,6 +690,60 @@ export interface components {
         };
         PersonPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["PersonResponse"][];
+        };
+        /** @enum {string} */
+        TeamStatus: "active" | "archived";
+        /** @description The organization's departments the team is in. */
+        TeamDepartmentIds: string[];
+        CreateTeamRequest: {
+            name: string;
+            /** @description Unique within the organization. */
+            slug: components["schemas"]["Slug"];
+            /** @default  */
+            description: string;
+            /** @default [] */
+            departmentIds: components["schemas"]["TeamDepartmentIds"];
+        };
+        UpdateTeamRequest: {
+            name: string;
+            description: string;
+            departmentIds: components["schemas"]["TeamDepartmentIds"];
+        };
+        TeamResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            name: string;
+            slug: string;
+            description: string;
+            departmentIds: string[];
+            status: components["schemas"]["TeamStatus"];
+            createdBy: string;
+            createdAt: components["schemas"]["Timestamp"];
+            updatedAt: components["schemas"]["Timestamp"];
+            version: components["schemas"]["Version"];
+        };
+        TeamPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["TeamResponse"][];
+        };
+        AddTeamMemberRequest: {
+            /**
+             * Format: uuid
+             * @description A person of the organization.
+             */
+            personId: string;
+        };
+        TeamMemberResponse: {
+            /** Format: uuid */
+            teamId: string;
+            /** Format: uuid */
+            personId: string;
+            addedBy: string;
+            addedAt: components["schemas"]["Timestamp"];
+        };
+        TeamMemberPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["TeamMemberResponse"][];
         };
         /** @enum {string} */
         ProjectStatus: "active" | "archived";
@@ -780,6 +950,7 @@ export interface components {
     parameters: {
         OrganizationId: string;
         ProjectId: string;
+        TeamId: string;
         DepartmentId: string;
         MembershipId: string;
         /** @description Page size. */
@@ -1257,6 +1428,259 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    listTeams: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["TeamStatus"];
+                /** @description Only the teams in this department. */
+                departmentId?: string;
+                /** @description Only the teams this person is in. */
+                personId?: string;
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTeamRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    getTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                teamId: components["parameters"]["TeamId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                teamId: components["parameters"]["TeamId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTeamRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    archiveTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                teamId: components["parameters"]["TeamId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archived (or already archived) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    listTeamMembers: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                teamId: components["parameters"]["TeamId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    addTeamMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                teamId: components["parameters"]["TeamId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddTeamMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description Added */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    removeTeamMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                teamId: components["parameters"]["TeamId"];
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
             204: {
                 headers: {
                     [name: string]: unknown;

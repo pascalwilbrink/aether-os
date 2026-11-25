@@ -18,7 +18,10 @@ export type DomainErrorCode =
   | 'DEPARTMENT_SLUG_TAKEN'
   | 'DEPARTMENT_ARCHIVED'
   | 'DEPARTMENT_HAS_PROJECTS'
-  | 'PERSON_EMAIL_TAKEN';
+  | 'PERSON_EMAIL_TAKEN'
+  | 'TEAM_SLUG_TAKEN'
+  | 'TEAM_ARCHIVED'
+  | 'TEAM_MEMBER_EXISTS';
 
 /**
  * Problem details for a business-rule violation.
@@ -139,6 +142,65 @@ export type PersonResponse = {
 
 export type PersonPage = PageMeta & {
   items: Array<PersonResponse>;
+};
+
+export type TeamStatus = 'active' | 'archived';
+
+/**
+ * The organization's departments the team is in.
+ */
+export type TeamDepartmentIds = Array<string>;
+
+export type CreateTeamRequest = {
+  name: string;
+  /**
+   * Unique within the organization.
+   */
+  slug: Slug;
+  description?: string;
+  departmentIds?: TeamDepartmentIds;
+};
+
+export type UpdateTeamRequest = {
+  name: string;
+  description: string;
+  departmentIds: TeamDepartmentIds;
+};
+
+export type TeamResponse = {
+  id: string;
+  organizationId: string;
+  name: string;
+  slug: string;
+  description: string;
+  departmentIds: Array<string>;
+  status: TeamStatus;
+  createdBy: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  version: Version;
+};
+
+export type TeamPage = PageMeta & {
+  items: Array<TeamResponse>;
+};
+
+export type AddTeamMemberRequest = {
+  /**
+   * A person of the organization.
+   */
+  personId: string;
+};
+
+export type TeamMemberResponse = {
+  teamId: string;
+  personId: string;
+  addedBy: string;
+  addedAt: Timestamp;
+};
+
+export type TeamMemberPage = PageMeta & {
+  items: Array<TeamMemberResponse>;
 };
 
 export type ProjectStatus = 'active' | 'archived';
@@ -349,6 +411,8 @@ export type ProblemFieldError = {
 export type OrganizationId = string;
 
 export type ProjectId = string;
+
+export type TeamId = string;
 
 export type DepartmentId = string;
 
@@ -1204,6 +1268,440 @@ export type UpdatePersonResponses = {
 
 export type UpdatePersonResponse =
   UpdatePersonResponses[keyof UpdatePersonResponses];
+
+export type ListTeamsData = {
+  body?: never;
+  path: {
+    organizationId: string;
+  };
+  query?: {
+    status?: TeamStatus;
+    /**
+     * Only the teams in this department.
+     */
+    departmentId?: string;
+    /**
+     * Only the teams this person is in.
+     */
+    personId?: string;
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+  };
+  url: '/v1/organizations/{organizationId}/teams';
+};
+
+export type ListTeamsErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type ListTeamsError = ListTeamsErrors[keyof ListTeamsErrors];
+
+export type ListTeamsResponses = {
+  /**
+   * Newest first
+   */
+  200: TeamPage;
+};
+
+export type ListTeamsResponse = ListTeamsResponses[keyof ListTeamsResponses];
+
+export type CreateTeamData = {
+  body: CreateTeamRequest;
+  path: {
+    organizationId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/teams';
+};
+
+export type CreateTeamErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+};
+
+export type CreateTeamError = CreateTeamErrors[keyof CreateTeamErrors];
+
+export type CreateTeamResponses = {
+  /**
+   * Created
+   */
+  201: TeamResponse;
+};
+
+export type CreateTeamResponse = CreateTeamResponses[keyof CreateTeamResponses];
+
+export type GetTeamData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    teamId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/teams/{teamId}';
+};
+
+export type GetTeamErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type GetTeamError = GetTeamErrors[keyof GetTeamErrors];
+
+export type GetTeamResponses = {
+  /**
+   * OK
+   */
+  200: TeamResponse;
+};
+
+export type GetTeamResponse = GetTeamResponses[keyof GetTeamResponses];
+
+export type UpdateTeamData = {
+  body: UpdateTeamRequest;
+  path: {
+    organizationId: string;
+    teamId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/teams/{teamId}';
+};
+
+export type UpdateTeamErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+};
+
+export type UpdateTeamError = UpdateTeamErrors[keyof UpdateTeamErrors];
+
+export type UpdateTeamResponses = {
+  /**
+   * Updated
+   */
+  200: TeamResponse;
+};
+
+export type UpdateTeamResponse = UpdateTeamResponses[keyof UpdateTeamResponses];
+
+export type ArchiveTeamData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    teamId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/teams/{teamId}/archive';
+};
+
+export type ArchiveTeamErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+};
+
+export type ArchiveTeamError = ArchiveTeamErrors[keyof ArchiveTeamErrors];
+
+export type ArchiveTeamResponses = {
+  /**
+   * Archived (or already archived)
+   */
+  200: TeamResponse;
+};
+
+export type ArchiveTeamResponse =
+  ArchiveTeamResponses[keyof ArchiveTeamResponses];
+
+export type ListTeamMembersData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    teamId: string;
+  };
+  query?: {
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+  };
+  url: '/v1/organizations/{organizationId}/teams/{teamId}/members';
+};
+
+export type ListTeamMembersErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type ListTeamMembersError =
+  ListTeamMembersErrors[keyof ListTeamMembersErrors];
+
+export type ListTeamMembersResponses = {
+  /**
+   * Newest first
+   */
+  200: TeamMemberPage;
+};
+
+export type ListTeamMembersResponse =
+  ListTeamMembersResponses[keyof ListTeamMembersResponses];
+
+export type AddTeamMemberData = {
+  body: AddTeamMemberRequest;
+  path: {
+    organizationId: string;
+    teamId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/teams/{teamId}/members';
+};
+
+export type AddTeamMemberErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+};
+
+export type AddTeamMemberError = AddTeamMemberErrors[keyof AddTeamMemberErrors];
+
+export type AddTeamMemberResponses = {
+  /**
+   * Added
+   */
+  201: TeamMemberResponse;
+};
+
+export type AddTeamMemberResponse =
+  AddTeamMemberResponses[keyof AddTeamMemberResponses];
+
+export type RemoveTeamMemberData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    teamId: string;
+    personId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/teams/{teamId}/members/{personId}';
+};
+
+export type RemoveTeamMemberErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+};
+
+export type RemoveTeamMemberError =
+  RemoveTeamMemberErrors[keyof RemoveTeamMemberErrors];
+
+export type RemoveTeamMemberResponses = {
+  /**
+   * Removed
+   */
+  204: void;
+};
+
+export type RemoveTeamMemberResponse =
+  RemoveTeamMemberResponses[keyof RemoveTeamMemberResponses];
 
 export type ListProjectsData = {
   body?: never;

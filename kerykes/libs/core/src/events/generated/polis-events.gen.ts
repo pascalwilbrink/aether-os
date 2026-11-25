@@ -243,6 +243,46 @@ export interface ProjectDepartmentChanged {
   to: string | null;
 }
 
+/**
+ * Payload of `team-member.added`.
+ */
+export interface TeamMemberAdded {
+  teamId: string;
+  personId: string;
+}
+
+/**
+ * Payload of `team-member.removed`.
+ */
+export interface TeamMemberRemoved {
+  teamId: string;
+  personId: string;
+}
+
+/**
+ * Payload of `team.archived`.
+ */
+export interface TeamArchived {
+  teamId: string;
+  departmentIds: string[];
+}
+
+/**
+ * Payload of `team.created`.
+ */
+export interface TeamCreated {
+  teamId: string;
+  departmentIds: string[];
+}
+
+/**
+ * Payload of `team.updated`.
+ */
+export interface TeamUpdated {
+  teamId: string;
+  departmentIds: string[];
+}
+
 /** Every Polis event type, mapped to its payload. */
 export interface PolisEventPayloads {
   'department.archived': DepartmentArchived;
@@ -263,6 +303,11 @@ export interface PolisEventPayloads {
   'project.archived': ProjectArchived;
   'project.created': ProjectCreated;
   'project.department-changed': ProjectDepartmentChanged;
+  'team-member.added': TeamMemberAdded;
+  'team-member.removed': TeamMemberRemoved;
+  'team.archived': TeamArchived;
+  'team.created': TeamCreated;
+  'team.updated': TeamUpdated;
 }
 
 export type PolisEventType = keyof PolisEventPayloads;
@@ -287,4 +332,9 @@ export const POLIS_EVENT_TYPES = [
   'project.archived',
   'project.created',
   'project.department-changed',
+  'team-member.added',
+  'team-member.removed',
+  'team.archived',
+  'team.created',
+  'team.updated',
 ] as const satisfies readonly PolisEventType[];

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Polis API
-  version: 0.9.0
+  version: 0.10.0
   description: |
     Tenancy service for Aether-os: organizations, their optional
     departments (which group projects), persons (the people in an
@@ -31,6 +31,7 @@ tags:
   - name: organizations
   - name: departments
   - name: persons
+  - name: teams
   - name: projects
   - name: memberships
   - name: project-memberships
@@ -377,6 +378,200 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '204': { description: Deleted }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/teams:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [teams]
+      operationId: createTeam
+      x-permission: '`org:manage`'
+      description: |
+        Creates an active team of the organization, in any of its active
+        departments (`DEPARTMENT_ARCHIVED`; another organization's is
+        `404`). Its slug is unique in the organization (`TEAM_SLUG_TAKEN`).
+        Teams grant nothing: roles stay on memberships. Its people are
+        persons, added with `…/members`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTeamRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [teams]
+      operationId: listTeams
+      x-permission: '`org:read`, or `platform:read`'
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/TeamStatus' }
+        - name: departmentId
+          in: query
+          required: false
+          description: Only the teams in this department.
+          schema: { type: string, format: uuid }
+        - name: personId
+          in: query
+          required: false
+          description: Only the teams this person is in.
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/teams/{teamId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/TeamId'
+    get:
+      tags: [teams]
+      operationId: getTeam
+      x-permission: '`org:read`, or `platform:read`'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [teams]
+      operationId: updateTeam
+      x-permission: '`org:manage`'
+      description: |
+        Replaces the name, description and departments (the slug stays;
+        departments it joins must be active, one it stays in may be
+        archived). Unchanged → no new version and no event. An archived team
+        can't be changed (`TEAM_ARCHIVED`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTeamRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/teams/{teamId}/archive:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/TeamId'
+    post:
+      tags: [teams]
+      operationId: archiveTeam
+      x-permission: '`org:manage`'
+      description: Archives the team (final); its members and departments stay, for the record.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Archived (or already archived)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/teams/{teamId}/members:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/TeamId'
+    post:
+      tags: [teams]
+      operationId: addTeamMember
+      x-permission: '`org:manage`'
+      description: |
+        Adds a person of the organization to the team (another
+        organization's is `404`), once (`TEAM_MEMBER_EXISTS`); the team must
+        be active (`TEAM_ARCHIVED`). Deleting the person removes them from
+        their teams.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddTeamMemberRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Added
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamMemberResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [teams]
+      operationId: listTeamMembers
+      x-permission: '`org:read`, or `platform:read`'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamMemberPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/teams/{teamId}/members/{personId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/TeamId'
+      - name: personId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [teams]
+      operationId: removeTeamMember
+      x-permission: '`org:manage`'
+      description: Takes the person out of the team (`404` when they aren't in it); the team must be active.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '204': { description: Removed }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
@@ -779,6 +974,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    TeamId:
+      name: teamId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     DepartmentId:
       name: departmentId
       in: path
@@ -827,6 +1027,9 @@ components:
         - DEPARTMENT_ARCHIVED
         - DEPARTMENT_HAS_PROJECTS
         - PERSON_EMAIL_TAKEN
+        - TEAM_SLUG_TAKEN
+        - TEAM_ARCHIVED
+        - TEAM_MEMBER_EXISTS
     DomainProblem:
       description: Problem details for a business-rule violation.
       allOf:
@@ -991,6 +1194,87 @@ components:
             items:
               type: array
               items: { $ref: '#/components/schemas/PersonResponse' }
+
+    # ---------- teams ----------
+    TeamStatus:
+      type: string
+      enum: [active, archived]
+    TeamDepartmentIds:
+      type: array
+      maxItems: 50
+      uniqueItems: true
+      items: { type: string, format: uuid }
+      description: The organization's departments the team is in.
+    CreateTeamRequest:
+      type: object
+      additionalProperties: false
+      required: [name, slug]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        slug:
+          $ref: '#/components/schemas/Slug'
+          description: Unique within the organization.
+        description: { type: string, maxLength: 2000, default: '' }
+        departmentIds:
+          $ref: '#/components/schemas/TeamDepartmentIds'
+          default: []
+    UpdateTeamRequest:
+      type: object
+      additionalProperties: false
+      required: [name, description, departmentIds]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+        departmentIds: { $ref: '#/components/schemas/TeamDepartmentIds' }
+    TeamResponse:
+      type: object
+      required: [id, organizationId, name, slug, description, departmentIds, status, createdBy, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: string }
+        departmentIds:
+          type: array
+          items: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/TeamStatus' }
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        version: { $ref: '#/components/schemas/Version' }
+    TeamPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/TeamResponse' }
+    AddTeamMemberRequest:
+      type: object
+      additionalProperties: false
+      required: [personId]
+      properties:
+        personId: { type: string, format: uuid, description: A person of the organization. }
+    TeamMemberResponse:
+      type: object
+      required: [teamId, personId, addedBy, addedAt]
+      properties:
+        teamId: { type: string, format: uuid }
+        personId: { type: string, format: uuid }
+        addedBy: { type: string }
+        addedAt: { $ref: '#/components/schemas/Timestamp' }
+    TeamMemberPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/TeamMemberResponse' }
 
     # ---------- projects ----------
     ProjectStatus:

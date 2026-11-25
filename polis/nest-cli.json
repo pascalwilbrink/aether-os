@@ -78,6 +78,15 @@
       "compilerOptions": {
         "tsConfigPath": "libs/persons/tsconfig.lib.json"
       }
+    },
+    "teams": {
+      "type": "library",
+      "root": "libs/teams",
+      "entryFile": "index",
+      "sourceRoot": "libs/teams/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/teams/tsconfig.lib.json"
+      }
     }
   }
 }
