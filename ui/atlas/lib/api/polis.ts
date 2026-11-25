@@ -12,6 +12,11 @@ export type Department = PolisSchemas["DepartmentResponse"];
 export type Team = PolisSchemas["TeamResponse"];
 export type TeamMember = PolisSchemas["TeamMemberResponse"];
 export type Project = PolisSchemas["ProjectResponse"];
+export type Membership = PolisSchemas["MembershipResponse"];
+export type OrganizationRole = PolisSchemas["OrganizationRole"];
+export type ProjectMembership = PolisSchemas["ProjectMembershipResponse"];
+export type ProjectRole = PolisSchemas["ProjectRole"];
+export type SubjectType = PolisSchemas["SubjectType"];
 export type Person = PolisSchemas["PersonResponse"];
 export type PersonRequest = PolisSchemas["PersonRequest"];
 
@@ -265,4 +270,138 @@ export const listProjectsInDepartment = (
       `/v1/organizations/${organizationId}/projects?${query({ departmentId, cursor })}`,
       token,
     ),
+  );
+
+/** Every project of the organization (owners and admins read them all). */
+export const listProjects = (token: string, organizationId: string) =>
+  all((cursor) =>
+    call<Page<Project>>(
+      config.polisUrl,
+      `/v1/organizations/${organizationId}/projects?${query({ cursor })}`,
+      token,
+    ),
+  );
+
+export const getProject = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+) =>
+  call<Project>(
+    config.polisUrl,
+    `/v1/organizations/${organizationId}/projects/${projectId}`,
+    token,
+  );
+
+// --- Memberships: who may use the organization, with which roles ---
+
+const memberships = (organizationId: string) =>
+  `/v1/organizations/${organizationId}/memberships`;
+
+export const listMemberships = (
+  token: string,
+  organizationId: string,
+  subjectType?: SubjectType,
+) =>
+  all((cursor) =>
+    call<Page<Membership>>(
+      config.polisUrl,
+      `${memberships(organizationId)}?${query({ subjectType, cursor })}`,
+      token,
+    ),
+  );
+
+export const createMembership = (
+  token: string,
+  organizationId: string,
+  body: PolisSchemas["CreateMembershipRequest"],
+) =>
+  call<Membership>(
+    config.polisUrl,
+    memberships(organizationId),
+    token,
+    json("POST", body),
+  );
+
+export const updateMembership = (
+  token: string,
+  organizationId: string,
+  membershipId: string,
+  roles: OrganizationRole[],
+) =>
+  call<Membership>(
+    config.polisUrl,
+    `${memberships(organizationId)}/${membershipId}`,
+    token,
+    json("PUT", { roles }),
+  );
+
+export const deleteMembership = (
+  token: string,
+  organizationId: string,
+  membershipId: string,
+) =>
+  call<void>(
+    config.polisUrl,
+    `${memberships(organizationId)}/${membershipId}`,
+    token,
+    json("DELETE"),
+  );
+
+// --- Project memberships: a member's one role in a project ---
+
+const projectMemberships = (organizationId: string, projectId: string) =>
+  `/v1/organizations/${organizationId}/projects/${projectId}/memberships`;
+
+export const listProjectMemberships = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+) =>
+  all((cursor) =>
+    call<Page<ProjectMembership>>(
+      config.polisUrl,
+      `${projectMemberships(organizationId, projectId)}?${query({ cursor })}`,
+      token,
+    ),
+  );
+
+export const createProjectMembership = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+  body: PolisSchemas["CreateProjectMembershipRequest"],
+) =>
+  call<ProjectMembership>(
+    config.polisUrl,
+    projectMemberships(organizationId, projectId),
+    token,
+    json("POST", body),
+  );
+
+export const updateProjectMembership = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+  membershipId: string,
+  role: ProjectRole,
+) =>
+  call<ProjectMembership>(
+    config.polisUrl,
+    `${projectMemberships(organizationId, projectId)}/${membershipId}`,
+    token,
+    json("PUT", { role }),
+  );
+
+export const deleteProjectMembership = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+  membershipId: string,
+) =>
+  call<void>(
+    config.polisUrl,
+    `${projectMemberships(organizationId, projectId)}/${membershipId}`,
+    token,
+    json("DELETE"),
   );

@@ -17,7 +17,8 @@ export const zDomainErrorCode = z.enum([
     'PERSON_EMAIL_TAKEN',
     'TEAM_SLUG_TAKEN',
     'TEAM_ARCHIVED',
-    'TEAM_MEMBER_EXISTS'
+    'TEAM_MEMBER_EXISTS',
+    'LAST_OWNER'
 ]);
 
 /**

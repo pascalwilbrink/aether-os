@@ -21,7 +21,8 @@ export type DomainErrorCode =
   | 'PERSON_EMAIL_TAKEN'
   | 'TEAM_SLUG_TAKEN'
   | 'TEAM_ARCHIVED'
-  | 'TEAM_MEMBER_EXISTS';
+  | 'TEAM_MEMBER_EXISTS'
+  | 'LAST_OWNER';
 
 /**
  * Problem details for a business-rule violation.

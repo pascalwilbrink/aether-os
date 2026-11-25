@@ -65,10 +65,11 @@ describe('MembershipsService (Postgres)', () => {
   it('replaces roles and removes memberships', async () => {
     const membership = await add();
 
+    // Not to `owner`: the only owner can't be removed (LAST_OWNER, e2e).
     const updated = await memberships.update(orgId, membership.id, {
-      roles: ['owner'],
+      roles: ['admin'],
     });
-    expect(updated.roles).toEqual(['owner']);
+    expect(updated.roles).toEqual(['admin']);
     expect(updated.updatedAt > membership.updatedAt).toBe(true);
 
     await memberships.delete(orgId, membership.id);

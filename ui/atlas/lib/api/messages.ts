@@ -13,6 +13,15 @@ export const POLIS_MESSAGES: Record<string, string> = {
   TEAM_MEMBER_EXISTS: "They're in the team already.",
   PERSON_EMAIL_TAKEN: "Another person has that email address.",
   ORGANIZATION_SUSPENDED: "The organization is suspended.",
+  LAST_OWNER:
+    "The organization needs an owner: make someone else an owner first.",
+  MEMBERSHIP_EXISTS: "They're a member already.",
+  PROJECT_MEMBERSHIP_EXISTS: "They have a role in the project already.",
+  PROJECT_MEMBER_NOT_IN_ORGANIZATION:
+    "Only the organization's members get a role in its projects.",
+  PROJECT_ROLE_EXCEEDS_CAP:
+    "Their organization role doesn't allow that much in a project.",
+  PROJECT_ARCHIVED: "The project is archived.",
 };
 
 /**

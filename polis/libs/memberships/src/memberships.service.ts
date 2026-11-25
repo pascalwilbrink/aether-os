@@ -26,7 +26,7 @@ import type { SubjectMembershipResponse } from './dto/subject-membership.respons
 import type { UpdateMembershipRequest } from './dto/update-membership.request.js';
 import type { OrganizationRole, SubjectType } from './membership-roles.js';
 import { MembershipEntity } from './membership.entity.js';
-import { MembershipExistsError } from './membership.errors.js';
+import { LastOwnerError, MembershipExistsError } from './membership.errors.js';
 import { MembershipMapper } from './membership.mapper.js';
 
 /**
@@ -167,10 +167,18 @@ export class MembershipsService {
   ): Promise<MembershipResponse> {
     await this.organizations.assertAcceptsWrites(organizationId);
 
+    const owners = await this.lockOwners(organizationId);
     const entity = await this.load(organizationId, membershipId, true);
     this.assertMayTouchOwners([...entity.roles, ...dto.roles]);
     const from = entity.roles;
     this.mapper.applyTo(entity, dto, new Date());
+    if (
+      owners.length === 1 &&
+      owners[0] === entity.id &&
+      !entity.roles.includes('owner')
+    ) {
+      throw new LastOwnerError();
+    }
     if (sameRoles(from, entity.roles)) {
       // Nothing changed: no new version, no event.
       return this.mapper.toResponse(
@@ -193,8 +201,12 @@ export class MembershipsService {
   async delete(organizationId: string, membershipId: string): Promise<void> {
     await this.organizations.assertAcceptsWrites(organizationId);
 
+    const owners = await this.lockOwners(organizationId);
     const entity = await this.load(organizationId, membershipId, true);
     this.assertMayTouchOwners(entity.roles);
+    if (owners.length === 1 && owners[0] === entity.id) {
+      throw new LastOwnerError();
+    }
     const base = this.eventBase(entity);
     await this.memberships.remove(entity);
     await this.events.emit({
@@ -218,6 +230,24 @@ export class MembershipsService {
       subject,
     });
     return entity?.roles ?? null;
+  }
+
+  /**
+   * The organization's owner memberships, locked (in ID order) before the
+   * membership being changed, so two owners demoting each other at once
+   * can't both pass the last-owner check: the second waits, and then no
+   * longer counts the first. Their IDs.
+   */
+  private async lockOwners(organizationId: string): Promise<string[]> {
+    const owners = await this.memberships
+      .createQueryBuilder('membership')
+      .select('membership.id')
+      .where('membership.organizationId = :organizationId', { organizationId })
+      .andWhere(':owner = ANY(membership.roles)', { owner: 'owner' })
+      .orderBy('membership.id')
+      .setLock('pessimistic_write')
+      .getMany();
+    return owners.map((owner) => owner.id);
   }
 
   /** Owners are managed by owners only (docs/identity.md, Roles). */

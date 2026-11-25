@@ -175,6 +175,7 @@ Notes:
   An endpoint accepts them only where it says so (`@PlatformAccess`); everywhere else a platform service's own token is refused.
 - **Creating an organization:** any user may, and becomes its first `owner` in the same transaction; a platform service needs `platform:manage` and the organization then has no owner until one is granted. Service accounts can't.
 - **Owners are managed by owners:** granting `owner`, or changing or removing an owner's membership, needs the `owner` role (`member:manage` is not enough).
+- **An organization keeps an owner:** the last owner's membership can't lose `owner` or be removed (`LAST_OWNER`); make someone else an owner first. (An organization created by a platform service starts without one, as above.)
 
 ## Enforcement
 

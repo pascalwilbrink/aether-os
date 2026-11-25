@@ -234,6 +234,33 @@ describe('Memberships (e2e)', () => {
     await viewer.delete(`${base}/${member.body.id}`).expect(403);
   });
 
+  it('keeps the last owner', async () => {
+    const founder = (await http().get(base).expect(200)).body.items.find(
+      (m: { subject: string }) => m.subject === 'user-0',
+    );
+    const demote = await http()
+      .put(`${base}/${founder.id}`)
+      .send({ roles: ['admin'] })
+      .expect(409);
+    expect(demote.body.code).toBe('LAST_OWNER');
+    const remove = await http().delete(`${base}/${founder.id}`).expect(409);
+    expect(remove.body.code).toBe('LAST_OWNER');
+    // Owner and admin at once is still an owner.
+    await http()
+      .put(`${base}/${founder.id}`)
+      .send({ roles: ['owner', 'admin'] })
+      .expect(200);
+
+    // With a second owner, either can go.
+    const second = await add({ roles: ['owner'] }).expect(201);
+    await http()
+      .put(`${base}/${founder.id}`)
+      .send({ roles: ['member'] })
+      .expect(200);
+    const last = await http().delete(`${base}/${second.body.id}`).expect(409);
+    expect(last.body.code).toBe('LAST_OWNER');
+  });
+
   it('lets people list their own memberships, and only theirs', async () => {
     await add({ subject: 'user-1' }).expect(201);
     const user = await asMember(app, orgId, ['member'], { sub: 'user-1' });

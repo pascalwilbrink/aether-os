@@ -739,7 +739,9 @@ export const createMembership = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Removes the principal from the organization.
+ * Removes the principal from the organization; never its last owner
+ * (`LAST_OWNER`).
+ *
  */
 export const deleteMembership = <ThrowOnError extends boolean = false>(
   options: Options<DeleteMembershipData, ThrowOnError>,
@@ -772,7 +774,9 @@ export const getMembership = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Replaces the membership's roles.
+ * Replaces the membership's roles. The organization keeps at least one
+ * owner: taking `owner` from the last one is `LAST_OWNER`.
+ *
  */
 export const updateMembership = <ThrowOnError extends boolean = false>(
   options: Options<UpdateMembershipData, ThrowOnError>,
