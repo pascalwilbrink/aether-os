@@ -56,6 +56,7 @@ describe('Projects (e2e)', () => {
       name: 'App',
       slug: 'app',
       description: 'The main app',
+      departmentId: null,
       status: 'active',
       createdBy: 'user-1',
       createdAt: expect.any(String),

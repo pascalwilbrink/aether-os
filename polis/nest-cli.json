@@ -52,6 +52,15 @@
         "tsConfigPath": "libs/project-memberships/tsconfig.lib.json"
       }
     },
+    "departments": {
+      "type": "library",
+      "root": "libs/departments",
+      "entryFile": "index",
+      "sourceRoot": "libs/departments/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/departments/tsconfig.lib.json"
+      }
+    },
     "users": {
       "type": "library",
       "root": "libs/users",
@@ -59,6 +68,15 @@
       "sourceRoot": "libs/users/src",
       "compilerOptions": {
         "tsConfigPath": "libs/users/tsconfig.lib.json"
+      }
+    },
+    "persons": {
+      "type": "library",
+      "root": "libs/persons",
+      "entryFile": "index",
+      "sourceRoot": "libs/persons/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/persons/tsconfig.lib.json"
       }
     }
   }

@@ -10,7 +10,11 @@ export const zDomainErrorCode = z.enum([
     'PROJECT_ARCHIVED',
     'PROJECT_MEMBERSHIP_EXISTS',
     'PROJECT_MEMBER_NOT_IN_ORGANIZATION',
-    'PROJECT_ROLE_EXCEEDS_CAP'
+    'PROJECT_ROLE_EXCEEDS_CAP',
+    'DEPARTMENT_SLUG_TAKEN',
+    'DEPARTMENT_ARCHIVED',
+    'DEPARTMENT_HAS_PROJECTS',
+    'PERSON_EMAIL_TAKEN'
 ]);
 
 /**
@@ -46,12 +50,68 @@ export const zOrganizationResponse = z.object({
     version: zVersion
 });
 
+export const zDepartmentStatus = z.enum(['active', 'archived']);
+
+export const zCreateDepartmentRequest = z.object({
+    name: z.string().min(1).max(200),
+    slug: zSlug,
+    description: z.string().max(2000)
+});
+
+export const zUpdateDepartmentRequest = z.object({
+    name: z.string().min(1).max(200),
+    description: z.string().max(2000)
+});
+
+export const zDepartmentResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    name: z.string(),
+    slug: z.string(),
+    description: z.string(),
+    status: zDepartmentStatus,
+    createdBy: z.string(),
+    createdAt: zTimestamp,
+    updatedAt: zTimestamp,
+    version: zVersion
+});
+
+export const zPersonRequest = z.object({
+    name: z.string().min(1).max(200),
+    email: z.email().max(320),
+    description: z.string().max(2000).optional().default(''),
+    role: z.string().max(200).nullish(),
+    gender: z.string().max(100).nullish(),
+    departmentIds: z.array(z.uuid()).max(50).optional().default([])
+});
+
+export const zPersonResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    name: z.string(),
+    email: z.string(),
+    description: z.string(),
+    role: z.string().nullable(),
+    gender: z.string().nullable(),
+    departmentIds: z.array(z.uuid()),
+    userId: z.uuid().nullable(),
+    createdBy: z.string(),
+    createdAt: zTimestamp,
+    updatedAt: zTimestamp,
+    version: zVersion
+});
+
 export const zProjectStatus = z.enum(['active', 'archived']);
 
 export const zCreateProjectRequest = z.object({
     name: z.string().min(1).max(200),
     slug: zSlug,
-    description: z.string().max(2000)
+    description: z.string().max(2000),
+    departmentId: z.uuid().nullish()
+});
+
+export const zSetProjectDepartmentRequest = z.object({
+    departmentId: z.uuid().nullable()
 });
 
 export const zProjectResponse = z.object({
@@ -60,6 +120,7 @@ export const zProjectResponse = z.object({
     name: z.string(),
     slug: z.string(),
     description: z.string(),
+    departmentId: z.uuid().nullable(),
     status: zProjectStatus,
     createdBy: z.string(),
     createdAt: zTimestamp,
@@ -169,6 +230,14 @@ export const zOrganizationPage = zPageMeta.and(z.object({
     items: z.array(zOrganizationResponse)
 }));
 
+export const zDepartmentPage = zPageMeta.and(z.object({
+    items: z.array(zDepartmentResponse)
+}));
+
+export const zPersonPage = zPageMeta.and(z.object({
+    items: z.array(zPersonResponse)
+}));
+
 export const zProjectPage = zPageMeta.and(z.object({
     items: z.array(zProjectResponse)
 }));
@@ -228,6 +297,8 @@ export const zDomainProblem = zCommonOpenapiProblem.and(z.object({
 export const zOrganizationId = z.uuid();
 
 export const zProjectId = z.uuid();
+
+export const zDepartmentId = z.uuid();
 
 export const zMembershipId = z.uuid();
 
@@ -310,11 +381,129 @@ export const zActivateOrganizationPath = z.object({
  */
 export const zActivateOrganizationResponse = zOrganizationResponse;
 
+export const zListDepartmentsPath = z.object({
+    organizationId: z.uuid()
+});
+
+export const zListDepartmentsQuery = z.object({
+    status: zDepartmentStatus.optional(),
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListDepartmentsResponse = zDepartmentPage;
+
+export const zCreateDepartmentBody = zCreateDepartmentRequest;
+
+export const zCreateDepartmentPath = z.object({
+    organizationId: z.uuid()
+});
+
+/**
+ * Created
+ */
+export const zCreateDepartmentResponse = zDepartmentResponse;
+
+export const zGetDepartmentPath = z.object({
+    organizationId: z.uuid(),
+    departmentId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetDepartmentResponse = zDepartmentResponse;
+
+export const zUpdateDepartmentBody = zUpdateDepartmentRequest;
+
+export const zUpdateDepartmentPath = z.object({
+    organizationId: z.uuid(),
+    departmentId: z.uuid()
+});
+
+/**
+ * Updated
+ */
+export const zUpdateDepartmentResponse = zDepartmentResponse;
+
+export const zArchiveDepartmentPath = z.object({
+    organizationId: z.uuid(),
+    departmentId: z.uuid()
+});
+
+/**
+ * Archived (or already archived)
+ */
+export const zArchiveDepartmentResponse = zDepartmentResponse;
+
+export const zListPersonsPath = z.object({
+    organizationId: z.uuid()
+});
+
+export const zListPersonsQuery = z.object({
+    departmentId: z.uuid().optional(),
+    userId: z.uuid().optional(),
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListPersonsResponse = zPersonPage;
+
+export const zCreatePersonBody = zPersonRequest;
+
+export const zCreatePersonPath = z.object({
+    organizationId: z.uuid()
+});
+
+/**
+ * Created
+ */
+export const zCreatePersonResponse = zPersonResponse;
+
+export const zDeletePersonPath = z.object({
+    organizationId: z.uuid(),
+    personId: z.uuid()
+});
+
+/**
+ * Deleted
+ */
+export const zDeletePersonResponse = z.void();
+
+export const zGetPersonPath = z.object({
+    organizationId: z.uuid(),
+    personId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetPersonResponse = zPersonResponse;
+
+export const zUpdatePersonBody = zPersonRequest;
+
+export const zUpdatePersonPath = z.object({
+    organizationId: z.uuid(),
+    personId: z.uuid()
+});
+
+/**
+ * Updated
+ */
+export const zUpdatePersonResponse = zPersonResponse;
+
 export const zListProjectsPath = z.object({
     organizationId: z.uuid()
 });
 
 export const zListProjectsQuery = z.object({
+    departmentId: z.uuid().optional(),
     limit: z.int().gte(1).lte(100).optional().default(50),
     cursor: z.string().min(1).max(1024).optional()
 });
@@ -354,6 +543,18 @@ export const zArchiveProjectPath = z.object({
  * Archived (or already archived)
  */
 export const zArchiveProjectResponse = zProjectResponse;
+
+export const zSetProjectDepartmentBody = zSetProjectDepartmentRequest;
+
+export const zSetProjectDepartmentPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid()
+});
+
+/**
+ * Updated
+ */
+export const zSetProjectDepartmentResponse = zProjectResponse;
 
 export const zListMembershipsPath = z.object({
     organizationId: z.uuid()

@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Polis events
-  version: 0.2.0
+  version: 0.4.0
   description: |
     Events Polis publishes to the `polis.events` topic exchange on RabbitMQ;
     the routing key is the event type. Every message is the Krepis
@@ -50,6 +50,13 @@ channels:
       projectMembershipGranted: { $ref: '#/components/messages/projectMembershipGranted' }
       projectMembershipRoleChanged: { $ref: '#/components/messages/projectMembershipRoleChanged' }
       projectMembershipRevoked: { $ref: '#/components/messages/projectMembershipRevoked' }
+      departmentCreated: { $ref: '#/components/messages/departmentCreated' }
+      departmentUpdated: { $ref: '#/components/messages/departmentUpdated' }
+      departmentArchived: { $ref: '#/components/messages/departmentArchived' }
+      projectDepartmentChanged: { $ref: '#/components/messages/projectDepartmentChanged' }
+      personCreated: { $ref: '#/components/messages/personCreated' }
+      personUpdated: { $ref: '#/components/messages/personUpdated' }
+      personDeleted: { $ref: '#/components/messages/personDeleted' }
 
 operations:
   publishPolisEvents:
@@ -67,6 +74,13 @@ operations:
       - $ref: '#/channels/polisEvents/messages/projectMembershipGranted'
       - $ref: '#/channels/polisEvents/messages/projectMembershipRoleChanged'
       - $ref: '#/channels/polisEvents/messages/projectMembershipRevoked'
+      - $ref: '#/channels/polisEvents/messages/departmentCreated'
+      - $ref: '#/channels/polisEvents/messages/departmentUpdated'
+      - $ref: '#/channels/polisEvents/messages/departmentArchived'
+      - $ref: '#/channels/polisEvents/messages/projectDepartmentChanged'
+      - $ref: '#/channels/polisEvents/messages/personCreated'
+      - $ref: '#/channels/polisEvents/messages/personUpdated'
+      - $ref: '#/channels/polisEvents/messages/personDeleted'
 
 components:
   messages:
@@ -182,6 +196,78 @@ components:
               eventType: { const: project-membership.revoked }
               payload: { $ref: '#/components/schemas/ProjectMembershipRevoked' }
 
+    departmentCreated:
+      name: department.created
+      summary: "A department was created."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: department.created }
+              payload: { $ref: '#/components/schemas/DepartmentCreated' }
+    departmentUpdated:
+      name: department.updated
+      summary: "A department's name or description changed."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: department.updated }
+              payload: { $ref: '#/components/schemas/DepartmentUpdated' }
+    departmentArchived:
+      name: department.archived
+      summary: "A department was archived (final)."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: department.archived }
+              payload: { $ref: '#/components/schemas/DepartmentArchived' }
+    projectDepartmentChanged:
+      name: project.department-changed
+      summary: "A project moved into, out of or between departments."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: project.department-changed }
+              payload: { $ref: '#/components/schemas/ProjectDepartmentChanged' }
+
+    personCreated:
+      name: person.created
+      summary: "A person was recorded in an organization."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: person.created }
+              payload: { $ref: '#/components/schemas/PersonCreated' }
+    personUpdated:
+      name: person.updated
+      summary: "A person's fields, departments or linked user changed (also when a user with their email address was created)."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: person.updated }
+              payload: { $ref: '#/components/schemas/PersonUpdated' }
+    personDeleted:
+      name: person.deleted
+      summary: "A person was deleted."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: person.deleted }
+              payload: { $ref: '#/components/schemas/PersonDeleted' }
+
   schemas:
     Uuid: { type: string, format: uuid }
     Envelope:
@@ -231,7 +317,48 @@ components:
       properties:
         organizationId: { $ref: '#/components/schemas/Uuid' }
         reason: { type: [string, 'null'] }
-    ProjectCreated: { $ref: '#/components/schemas/ProjectChanged' }
+    ProjectCreated:
+      type: object
+      additionalProperties: false
+      required: [projectId, departmentId]
+      properties:
+        projectId: { $ref: '#/components/schemas/Uuid' }
+        departmentId:
+          description: The department it was created in, if any.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+    ProjectDepartmentChanged:
+      type: object
+      additionalProperties: false
+      required: [projectId, from, to]
+      properties:
+        projectId: { $ref: '#/components/schemas/Uuid' }
+        from:
+          description: The department it was in, if any.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        to:
+          description: The department it's in now, if any.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+    DepartmentCreated:
+      type: object
+      additionalProperties: false
+      required: [departmentId, slug]
+      properties:
+        departmentId: { $ref: '#/components/schemas/Uuid' }
+        slug: { type: string }
+    DepartmentUpdated: { $ref: '#/components/schemas/DepartmentChanged' }
+    DepartmentArchived: { $ref: '#/components/schemas/DepartmentChanged' }
+    DepartmentChanged:
+      type: object
+      additionalProperties: false
+      required: [departmentId]
+      properties:
+        departmentId: { $ref: '#/components/schemas/Uuid' }
     ProjectArchived: { $ref: '#/components/schemas/ProjectChanged' }
     ProjectChanged:
       type: object
@@ -239,6 +366,29 @@ components:
       required: [projectId]
       properties:
         projectId: { $ref: '#/components/schemas/Uuid' }
+    PersonCreated: { $ref: '#/components/schemas/PersonChanged' }
+    PersonUpdated: { $ref: '#/components/schemas/PersonChanged' }
+    PersonChanged:
+      type: object
+      additionalProperties: false
+      description: IDs only; a person's name, email address and other fields are read from Polis's API.
+      required: [personId, userId, departmentIds]
+      properties:
+        personId: { $ref: '#/components/schemas/Uuid' }
+        userId:
+          description: The linked Pistis user, if any.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        departmentIds:
+          type: array
+          items: { $ref: '#/components/schemas/Uuid' }
+    PersonDeleted:
+      type: object
+      additionalProperties: false
+      required: [personId]
+      properties:
+        personId: { $ref: '#/components/schemas/Uuid' }
     MembershipGranted:
       type: object
       additionalProperties: false

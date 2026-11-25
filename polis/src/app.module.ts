@@ -12,7 +12,9 @@ import {
   serviceCheck,
   type Env,
 } from '@polis/core';
+import { DepartmentsModule } from '@polis/departments';
 import { MembershipsModule } from '@polis/memberships';
+import { PersonsModule } from '@polis/persons';
 import { OrganizationsModule } from '@polis/organizations';
 import { ProjectMembershipsModule } from '@polis/project-memberships';
 import { ProjectsModule } from '@polis/projects';
@@ -60,10 +62,12 @@ export const PISTIS_SUBSCRIPTIONS = ['user.created'] as const;
     }),
     PolisEventsModule,
     OrganizationsModule,
+    DepartmentsModule,
     ProjectsModule,
     MembershipsModule,
     ProjectMembershipsModule,
     UsersModule,
+    PersonsModule,
   ],
 })
 export class AppModule {}

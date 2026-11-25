@@ -3,7 +3,9 @@ import { Memberships1794743007032 } from './1794743007032-Memberships.js';
 import { Outbox1794744119144 } from './1794744119144-Outbox.js';
 import { MembershipsBySubjectType1795000000000 } from './1795000000000-MembershipsBySubjectType.js';
 import { ProjectMemberships1794766125332 } from './1794766125332-ProjectMemberships.js';
+import { Departments1795550000000 } from './1795550000000-Departments.js';
 import { UsersAndInbox1795560000000 } from './1795560000000-UsersAndInbox.js';
+import { Persons1795570000000 } from './1795570000000-Persons.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -17,5 +19,7 @@ export const migrations = [
   Outbox1794744119144,
   ProjectMemberships1794766125332,
   MembershipsBySubjectType1795000000000,
+  Departments1795550000000,
   UsersAndInbox1795560000000,
+  Persons1795570000000,
 ];

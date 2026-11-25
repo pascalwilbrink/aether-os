@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 
@@ -21,6 +22,7 @@ import { ProjectPage } from './dto/project-page.response.js';
 import { ProjectParams } from './dto/project.params.js';
 import { ProjectResponse } from './dto/project.response.js';
 import { ProjectsParams } from './dto/projects.params.js';
+import { SetProjectDepartmentRequest } from './dto/set-project-department.request.js';
 import { ProjectsService } from './projects.service.js';
 
 @Controller('organizations/:organizationId/projects')
@@ -62,5 +64,15 @@ export class ProjectsController {
   @ZodSerializerDto(ProjectResponse)
   archive(@Param() { organizationId, projectId }: ProjectParams) {
     return this.projects.archive(organizationId, projectId);
+  }
+
+  @Put(':projectId/department')
+  @RequirePermission('project:manage', { project: 'projectId' })
+  @ZodSerializerDto(ProjectResponse)
+  setDepartment(
+    @Param() { organizationId, projectId }: ProjectParams,
+    @Body() body: SetProjectDepartmentRequest,
+  ) {
+    return this.projects.setDepartment(organizationId, projectId, body);
   }
 }

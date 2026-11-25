@@ -1,9 +1,11 @@
 openapi: 3.1.0
 info:
   title: Polis API
-  version: 0.7.0
+  version: 0.9.0
   description: |
-    Tenancy service for Aether-os: organizations, the projects inside them,
+    Tenancy service for Aether-os: organizations, their optional
+    departments (which group projects), persons (the people in an
+    organization, in any of its departments), the projects inside them,
     memberships (which principal belongs to which organization, with which
     roles) and project memberships (a member's role in one project).
     Other services store organization and project IDs and resolve them here.
@@ -27,6 +29,8 @@ security:
 
 tags:
   - name: organizations
+  - name: departments
+  - name: persons
   - name: projects
   - name: memberships
   - name: project-memberships
@@ -143,6 +147,240 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1/organizations/{organizationId}/departments:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [departments]
+      operationId: createDepartment
+      x-permission: '`org:manage`'
+      description: |
+        Creates an active department. Departments are optional: they group
+        an organization's projects (a project is in at most one). They grant
+        no permissions: roles stay on organization and project memberships.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateDepartmentRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DepartmentResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [departments]
+      operationId: listDepartments
+      x-permission: '`org:read`, or `platform:read`'
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Only active, or only archived, departments.
+          schema: { $ref: '#/components/schemas/DepartmentStatus' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DepartmentPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/departments/{departmentId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/DepartmentId'
+    get:
+      tags: [departments]
+      operationId: getDepartment
+      x-permission: '`org:read`, or `platform:read`'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DepartmentResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [departments]
+      operationId: updateDepartment
+      x-permission: '`org:manage`'
+      description: |
+        Replaces the name and description (the slug stays). Unchanged → no
+        new version and no event. An archived department can't be changed
+        (`DEPARTMENT_ARCHIVED`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateDepartmentRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DepartmentResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/departments/{departmentId}/archive:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/DepartmentId'
+    post:
+      tags: [departments]
+      operationId: archiveDepartment
+      x-permission: '`org:manage`'
+      description: |
+        Archives the department (final). Refused while an active project is
+        in it (`DEPARTMENT_HAS_PROJECTS`): move those projects out first.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Archived (or already archived)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DepartmentResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/persons:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [persons]
+      operationId: createPerson
+      x-permission: '`member:manage`'
+      description: |
+        Records a person of the organization, in any of its active
+        departments (`DEPARTMENT_ARCHIVED`; another organization's is `404`).
+        The email address is unique in the organization
+        (`PERSON_EMAIL_TAKEN`, compared case-insensitively). A person is
+        linked to the Pistis user with the same email address (`userId`),
+        when exactly one user has it and no other person of the organization
+        is linked to them; otherwise when such a user is created later.
+        Persons grant nothing: roles stay on memberships.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PersonRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PersonResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [persons]
+      operationId: listPersons
+      x-permission: '`member:read`, or `platform:read`'
+      parameters:
+        - name: departmentId
+          in: query
+          required: false
+          description: Only the persons in this department.
+          schema: { type: string, format: uuid }
+        - name: userId
+          in: query
+          required: false
+          description: Only the person linked to this Pistis user.
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PersonPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/persons/{personId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - name: personId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [persons]
+      operationId: getPerson
+      x-permission: '`member:read`, or `platform:read`'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PersonResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [persons]
+      operationId: updatePerson
+      x-permission: '`member:manage`'
+      description: |
+        Replaces the person's fields and departments (departments it joins
+        must be active; one it stays in may be archived). A new email
+        address links the person anew: to the one user with that address,
+        else to no one. Unchanged → no new version and no event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PersonRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PersonResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    delete:
+      tags: [persons]
+      operationId: deletePerson
+      x-permission: '`member:manage`'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '204': { description: Deleted }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
   /v1/organizations/{organizationId}/projects:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
@@ -154,7 +392,9 @@ paths:
         Creates an active project. Its creator gets the highest role their
         organization role allows in it (a `member` becomes `approver`, a
         service account `editor`), so they can open it; owners and admins get
-        none, being admins in every project already.
+        none, being admins in every project already. With a `departmentId`
+        it's in that department, which must be active (`DEPARTMENT_ARCHIVED`;
+        another organization's is `404`).
       requestBody:
         required: true
         content:
@@ -176,6 +416,11 @@ paths:
       operationId: listProjects
       x-permission: '`org:read`; lists only the projects the caller can read (all with `platform:read`)'
       parameters:
+        - name: departmentId
+          in: query
+          required: false
+          description: Only the projects in this department.
+          schema: { type: string, format: uuid }
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
       responses:
@@ -221,6 +466,35 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '200':
           description: Archived (or already archived)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/department:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+    put:
+      tags: [projects]
+      operationId: setProjectDepartment
+      x-permission: '`project:manage` in that project'
+      description: |
+        Moves the project into a department, or out of one (`null`). The
+        department must be active (`DEPARTMENT_ARCHIVED`) and the project
+        too (`PROJECT_ARCHIVED`). Unchanged → no new version and no event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetProjectDepartmentRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Updated
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ProjectResponse' }
@@ -505,6 +779,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    DepartmentId:
+      name: departmentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     MembershipId:
       name: membershipId
       in: path
@@ -544,6 +823,10 @@ components:
         - PROJECT_MEMBERSHIP_EXISTS
         - PROJECT_MEMBER_NOT_IN_ORGANIZATION
         - PROJECT_ROLE_EXCEEDS_CAP
+        - DEPARTMENT_SLUG_TAKEN
+        - DEPARTMENT_ARCHIVED
+        - DEPARTMENT_HAS_PROJECTS
+        - PERSON_EMAIL_TAKEN
     DomainProblem:
       description: Problem details for a business-rule violation.
       allOf:
@@ -604,6 +887,111 @@ components:
               type: array
               items: { $ref: '#/components/schemas/OrganizationResponse' }
 
+    # ---------- departments ----------
+    DepartmentStatus:
+      type: string
+      enum: [active, archived]
+    CreateDepartmentRequest:
+      type: object
+      additionalProperties: false
+      required: [name, slug, description]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        slug:
+          $ref: '#/components/schemas/Slug'
+          description: Unique within the organization.
+        description: { type: string, maxLength: 2000 }
+    UpdateDepartmentRequest:
+      type: object
+      additionalProperties: false
+      required: [name, description]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 2000 }
+    DepartmentResponse:
+      type: object
+      required: [id, organizationId, name, slug, description, status, createdBy, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/DepartmentStatus' }
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        version: { $ref: '#/components/schemas/Version' }
+    DepartmentPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/DepartmentResponse' }
+
+    # ---------- persons ----------
+    PersonRequest:
+      type: object
+      additionalProperties: false
+      required: [name, email]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        email:
+          type: string
+          format: email
+          maxLength: 320
+          description: Unique in the organization (case-insensitive); stored in lowercase. Links the person to the Pistis user with this address.
+        description: { type: string, maxLength: 2000, default: '' }
+        role:
+          type: [string, 'null']
+          maxLength: 200
+          description: Their job title, e.g. "Backend engineer". Informational; permissions stay on memberships.
+        gender:
+          type: [string, 'null']
+          maxLength: 100
+          description: As the person describes it; optional.
+        departmentIds:
+          type: array
+          maxItems: 50
+          uniqueItems: true
+          items: { type: string, format: uuid }
+          default: []
+          description: The organization's departments the person is in.
+    PersonResponse:
+      type: object
+      required: [id, organizationId, name, email, description, role, gender, departmentIds, userId, createdBy, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string }
+        description: { type: string }
+        role: { type: [string, 'null'] }
+        gender: { type: [string, 'null'] }
+        departmentIds:
+          type: array
+          items: { type: string, format: uuid }
+        userId:
+          type: [string, 'null']
+          format: uuid
+          description: The Pistis user (their `sub`) with the same email address, once linked.
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        version: { $ref: '#/components/schemas/Version' }
+    PersonPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/PersonResponse' }
+
     # ---------- projects ----------
     ProjectStatus:
       type: string
@@ -618,15 +1006,32 @@ components:
           $ref: '#/components/schemas/Slug'
           description: Unique within the organization.
         description: { type: string, maxLength: 2000 }
+        departmentId:
+          type: [string, 'null']
+          format: uuid
+          description: The department it's in; none when left out.
+    SetProjectDepartmentRequest:
+      type: object
+      additionalProperties: false
+      required: [departmentId]
+      properties:
+        departmentId:
+          type: [string, 'null']
+          format: uuid
+          description: The department to move it into; `null` takes it out of its department.
     ProjectResponse:
       type: object
-      required: [id, organizationId, name, slug, description, status, createdBy, createdAt, updatedAt, version]
+      required: [id, organizationId, name, slug, description, departmentId, status, createdBy, createdAt, updatedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
         name: { type: string }
         slug: { type: string }
         description: { type: string }
+        departmentId:
+          type: [string, 'null']
+          format: uuid
+          description: The department it's in, if any.
         status: { $ref: '#/components/schemas/ProjectStatus' }
         createdBy: { type: string }
         createdAt: { $ref: '#/components/schemas/Timestamp' }

@@ -12,7 +12,10 @@ import { OrganizationEntity } from '../../libs/organizations/src/organization.en
 import { MembershipEntity } from '../../libs/memberships/src/membership.entity.js';
 import { ProjectEntity } from '../../libs/projects/src/project.entity.js';
 import { ProjectMembershipEntity } from '../../libs/project-memberships/src/project-membership.entity.js';
+import { DepartmentEntity } from '../../libs/departments/src/department.entity.js';
 import { UserEntity } from '../../libs/users/src/user.entity.js';
+import { PersonEntity } from '../../libs/persons/src/person.entity.js';
+import { PersonDepartmentEntity } from '../../libs/persons/src/person-department.entity.js';
 import { migrations } from './migrations/index.js';
 
 /**
@@ -41,7 +44,10 @@ export default new DataSource(
       MembershipEntity,
       OutboxMessageEntity,
       ProjectMembershipEntity,
+      DepartmentEntity,
       UserEntity,
+      PersonEntity,
+      PersonDepartmentEntity,
       InboxMessageEntity,
     ],
   }),

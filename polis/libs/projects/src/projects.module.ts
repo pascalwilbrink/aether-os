@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { DepartmentsModule } from '@polis/departments';
 import { OrganizationsModule } from '@polis/organizations';
 
 import { ProjectEntity } from './project.entity.js';
@@ -9,7 +10,11 @@ import { ProjectsController } from './projects.controller.js';
 import { ProjectsService } from './projects.service.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ProjectEntity]), OrganizationsModule],
+  imports: [
+    TypeOrmModule.forFeature([ProjectEntity]),
+    OrganizationsModule,
+    DepartmentsModule,
+  ],
   controllers: [ProjectsController],
   providers: [ProjectsService, ProjectMapper],
   exports: [ProjectsService],

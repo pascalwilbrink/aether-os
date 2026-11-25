@@ -8,6 +8,6 @@ export async function resetDatabase(
   await app
     .get(DataSource)
     .query(
-      'TRUNCATE organizations, projects, memberships, project_memberships, users, outbox, inbox',
+      'TRUNCATE organizations, departments, projects, memberships, project_memberships, users, persons, person_departments, outbox, inbox',
     );
 }

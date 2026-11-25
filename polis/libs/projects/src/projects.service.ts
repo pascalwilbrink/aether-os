@@ -6,16 +6,24 @@ import {
   findPage,
   isUniqueViolation,
   mapPage,
+  OnDomainEvent,
   PolisEvents,
   Transactional,
+  type DomainEvent,
   type Page,
   type PageRequest,
+  type PolisEventPayloads,
   AccessControl,
 } from '@polis/core';
+import {
+  DepartmentHasProjectsError,
+  DepartmentsService,
+} from '@polis/departments';
 import { OrganizationsService } from '@polis/organizations';
 
 import type { CreateProjectRequest } from './dto/create-project.request.js';
 import type { ProjectResponse } from './dto/project.response.js';
+import type { SetProjectDepartmentRequest } from './dto/set-project-department.request.js';
 import { nextProjectStatus } from './project-transitions.js';
 import { ProjectEntity } from './project.entity.js';
 import {
@@ -26,7 +34,10 @@ import { ProjectMapper } from './project.mapper.js';
 
 /**
  * Reads require the organization to exist (404 otherwise); writes also
- * require it to be active (`ORGANIZATION_SUSPENDED` otherwise).
+ * require it to be active (`ORGANIZATION_SUSPENDED` otherwise). A project is
+ * in at most one of the organization's departments, which must be active
+ * when it's put there (`DEPARTMENT_ARCHIVED`); a department with active
+ * projects can't be archived (`DEPARTMENT_HAS_PROJECTS`).
  */
 @Injectable()
 export class ProjectsService {
@@ -35,6 +46,7 @@ export class ProjectsService {
     private readonly projects: Repository<ProjectEntity>,
     private readonly mapper: ProjectMapper,
     private readonly organizations: OrganizationsService,
+    private readonly departments: DepartmentsService,
     private readonly events: PolisEvents,
     private readonly access: AccessControl,
   ) {}
@@ -45,6 +57,9 @@ export class ProjectsService {
     dto: CreateProjectRequest,
   ): Promise<ProjectResponse> {
     await this.organizations.assertAcceptsWrites(organizationId);
+    if (dto.departmentId) {
+      await this.departments.assertActive(organizationId, dto.departmentId);
+    }
 
     const entity = this.mapper.toEntity(
       dto,
@@ -66,7 +81,7 @@ export class ProjectsService {
       aggregateVersion: entity.version,
       organizationId,
       projectId: entity.id,
-      payload: { projectId: entity.id },
+      payload: { projectId: entity.id, departmentId: entity.departmentId },
     });
 
     return this.mapper.toResponse(entity);
@@ -74,9 +89,11 @@ export class ProjectsService {
 
   async list(
     organizationId: string,
-    page: PageRequest,
+    query: PageRequest & { departmentId?: string },
   ): Promise<Page<ProjectResponse>> {
     await this.organizations.assertExists(organizationId);
+    const { departmentId, ...page } = query;
+    const inDepartment = departmentId ? { departmentId } : {};
 
     // Only the projects the caller may read (docs/identity.md: no access
     // by default; organization owners and admins see all).
@@ -89,8 +106,8 @@ export class ProjectsService {
       {
         where:
           readable === 'all'
-            ? { organizationId }
-            : { organizationId, id: readable },
+            ? { organizationId, ...inDepartment }
+            : { organizationId, ...inDepartment, id: readable },
         sortBy: 'createdAt',
         direction: 'DESC',
       },
@@ -134,6 +151,63 @@ export class ProjectsService {
     }
 
     return this.mapper.toResponse(entity);
+  }
+
+  /**
+   * Moves the project into a department, or out of one (`null`); the
+   * project must be active. Unchanged → no new version, no event.
+   */
+  @Transactional()
+  async setDepartment(
+    organizationId: string,
+    projectId: string,
+    dto: SetProjectDepartmentRequest,
+  ): Promise<ProjectResponse> {
+    await this.organizations.assertAcceptsWrites(organizationId);
+    const entity = await this.load(organizationId, projectId, true);
+    if (entity.status !== 'active') {
+      throw new ProjectArchivedError(projectId);
+    }
+    const to = dto.departmentId;
+    if (to === entity.departmentId) {
+      return this.mapper.toResponse(entity);
+    }
+    if (to) {
+      await this.departments.assertActive(organizationId, to);
+    }
+    const from = entity.departmentId;
+    entity.departmentId = to;
+    entity.updatedAt = new Date();
+    entity.version += 1;
+    await this.projects.save(entity);
+    await this.events.emit({
+      eventType: 'project.department-changed',
+      aggregateId: entity.id,
+      aggregateVersion: entity.version,
+      organizationId,
+      projectId: entity.id,
+      payload: { projectId: entity.id, from, to },
+    });
+
+    return this.mapper.toResponse(entity);
+  }
+
+  /**
+   * A department with active projects stays: refused in the archiving's
+   * transaction (it locked the department, so no project can join it now).
+   */
+  @OnDomainEvent('polis.department.archived')
+  async onDepartmentArchived(
+    event: DomainEvent<PolisEventPayloads['department.archived']>,
+  ): Promise<void> {
+    const { departmentId } = event.payload;
+    const count = await this.projects.countBy({
+      departmentId,
+      status: 'active',
+    });
+    if (count > 0) {
+      throw new DepartmentHasProjectsError(departmentId, count);
+    }
   }
 
   /**

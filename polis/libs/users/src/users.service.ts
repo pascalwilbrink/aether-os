@@ -25,7 +25,16 @@ export class UsersService {
   ) {}
 
   @OnDomainEvent('pistis.user.created')
-  async onUserCreated(event: DomainEvent<UserCreated>): Promise<void> {
+  onUserCreated(event: DomainEvent<UserCreated>): Promise<void> {
+    return this.record(event);
+  }
+
+  /**
+   * Records the user from Pistis's `user.created`, unless already there.
+   * Other handlers of the event (persons) call it first, so they find the
+   * user whichever handler runs first.
+   */
+  async record(event: DomainEvent<UserCreated>): Promise<void> {
     const { payload } = event;
     await this.users
       .createQueryBuilder()
@@ -40,6 +49,19 @@ export class UsersService {
       })
       .orIgnore()
       .execute();
+  }
+
+  /**
+   * The IDs of the users with this email address (case-insensitive). Pistis
+   * doesn't keep addresses unique, so there can be more than one.
+   */
+  async idsWithEmail(email: string): Promise<string[]> {
+    const rows = await this.users
+      .createQueryBuilder('user')
+      .select('user.id', 'id')
+      .where('lower(user.email) = lower(:email)', { email })
+      .getRawMany<{ id: string }>();
+    return rows.map((row) => row.id);
   }
 
   /** Whether Polis knows this user. */

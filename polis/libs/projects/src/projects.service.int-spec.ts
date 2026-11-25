@@ -132,7 +132,13 @@ describe('ProjectsService (Postgres)', () => {
         e.payload,
       ]),
     ).toEqual([
-      ['project.created', 1, orgId, project.id, { projectId: project.id }],
+      [
+        'project.created',
+        1,
+        orgId,
+        project.id,
+        { projectId: project.id, departmentId: null },
+      ],
       ['project.archived', 2, orgId, project.id, { projectId: project.id }],
     ]);
   });

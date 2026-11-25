@@ -59,7 +59,10 @@ Rules:
 | `organization.created` | `organizationId`, `slug` | Pistis, Iris |
 | `organization.suspended` / `organization.reactivated` | `organizationId`, `reason` | Every service (reject writes / resume) |
 | `organization.deleted` | `organizationId` | Every service (delete tenant data) |
-| `project.created` / `project.archived` / `project.deleted` | `projectId` | Hephaestus, Kairos, Themis, Seshat |
+| `project.created` / `project.archived` / `project.deleted` | `projectId` (and on `project.created` its `departmentId`, or null) | Hephaestus, Kairos, Themis, Seshat |
+| `person.created` / `person.updated` / `person.deleted` | `personId`, and `userId` (the linked Pistis user, or null) and `departmentIds` on created and updated; IDs only, no personal data | later Kerykes, Seshat |
+| `project.department-changed` | `projectId`, `from`, `to` (department IDs or null) | Seshat (department knowledge, planned) |
+| `department.created` / `department.updated` / `department.archived` | `departmentId` (and `slug` on `department.created`) | Seshat (planned), Iris |
 | `membership.granted` | `principal`, `scope` (organization or project), `roles` | Pistis, Iris, Kerykes |
 | `membership.role-changed` | `principal`, `scope`, `from`, `to` (role lists) | Pistis, every service (drop cached permissions; Kerykes updates its recipient copy) |
 | `membership.revoked` | `principal`, `scope` | Pistis, every service |
