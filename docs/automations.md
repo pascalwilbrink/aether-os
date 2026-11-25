@@ -32,4 +32,4 @@ The issue's title (and later its body) is written by whoever opened it: it reach
 - **Other triggers:** schedules, Slack and Jira (through Proxenos), Hephaestus's own events (a task failed).
 - **Watching automations and notifications** (Kerykes).
 
-Iris has the pages: a project's automations, creating and changing one, pausing, resuming and archiving it, and its runs (`../iris/CLAUDE.md`).
+Iris has the pages: a project's automations, creating and changing one, pausing, resuming and archiving it, and its runs (`../ui/iris/CLAUDE.md`).

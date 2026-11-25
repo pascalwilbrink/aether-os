@@ -1,0 +1,29 @@
+/*
+ * Aether-os's theme, for Tailwind CSS v4 (import it after `tailwindcss`).
+ * Dark mode follows the person's choice (light, dark, or the system's), set
+ * as a class on <html> before the first paint (`themeScript`); `system`
+ * follows prefers-color-scheme. `@source` lets Tailwind find the classes the
+ * package's components use.
+ */
+@source "./dist";
+
+@custom-variant dark {
+  &:where(.dark, .dark *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(.system, .system *) {
+      @slot;
+    }
+  }
+}
+
+html.dark {
+  color-scheme: dark;
+}
+html.light {
+  color-scheme: light;
+}
+html.system {
+  color-scheme: light dark;
+}

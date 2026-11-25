@@ -1,0 +1,56 @@
+"use client";
+
+import { MonitorIcon, MoonIcon, SunIcon } from "./icons.js";
+import { storeValue, useStoredValue } from "./stored-value.js";
+import { themeOf, type Theme } from "./theme.js";
+
+const THEMES: { theme: Theme; label: string; Icon: typeof SunIcon }[] = [
+  { theme: "system", label: "System", Icon: MonitorIcon },
+  { theme: "light", label: "Light", Icon: SunIcon },
+  { theme: "dark", label: "Dark", Icon: MoonIcon },
+];
+
+/** Puts the theme on <html>, where `themeScript` puts it on load. */
+function applyTheme(theme: Theme) {
+  document.documentElement.className = theme;
+}
+
+/**
+ * Light, dark or the system's: a class on <html> (see `themeScript`),
+ * remembered in this browser under `storageKey`.
+ */
+export function ThemeSwitch({ storageKey }: { storageKey: string }) {
+  const theme = themeOf(useStoredValue(storageKey));
+
+  const choose = (next: Theme) => {
+    applyTheme(next);
+    storeValue(storageKey, next);
+  };
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Theme"
+      className="inline-flex rounded-lg border border-zinc-200 p-0.5 dark:border-zinc-800"
+    >
+      {THEMES.map(({ theme: value, label, Icon }) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={theme === value}
+          title={label}
+          onClick={() => choose(value)}
+          className={`rounded-md p-1.5 ${
+            theme === value
+              ? "bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
+              : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+          }`}
+        >
+          <Icon width={16} height={16} />
+          <span className="sr-only">{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
