@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Pistis events
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Events Pistis publishes to the `pistis.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -13,7 +13,11 @@ info:
     `projectId` are null.
 
     Payloads carry personal data (a person's name and email address): keep
-    them out of logs and traces.
+    them out of logs and traces. Every event carries the user's whole
+    current state (a snapshot) and `aggregateVersion`, the user's `version`
+    in Pistis: a consumer keeps the newest it has seen and ignores older
+    ones, whatever order they arrive in. `user.updated` is also sent again,
+    at the same version, by `POST /v1/users/announce` (the backfill).
 
 defaultContentType: application/json
 
@@ -37,6 +41,9 @@ channels:
           autoDelete: false
     messages:
       userCreated: { $ref: '#/components/messages/userCreated' }
+      userUpdated: { $ref: '#/components/messages/userUpdated' }
+      userDisabled: { $ref: '#/components/messages/userDisabled' }
+      userEnabled: { $ref: '#/components/messages/userEnabled' }
 
 operations:
   publishPistisEvents:
@@ -44,6 +51,9 @@ operations:
     channel: { $ref: '#/channels/pistisEvents' }
     messages:
       - $ref: '#/channels/pistisEvents/messages/userCreated'
+      - $ref: '#/channels/pistisEvents/messages/userUpdated'
+      - $ref: '#/channels/pistisEvents/messages/userDisabled'
+      - $ref: '#/channels/pistisEvents/messages/userEnabled'
 
 components:
   messages:
@@ -58,6 +68,37 @@ components:
               eventType: { const: user.created }
               payload: { $ref: '#/components/schemas/UserCreated' }
 
+    userUpdated:
+      name: user.updated
+      summary: "A user's display name or email address changed; also re-sent for every user, at their current version, by `POST /v1/users/announce`."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: user.updated }
+              payload: { $ref: '#/components/schemas/UserUpdated' }
+    userDisabled:
+      name: user.disabled
+      summary: "A user was disabled: they can't sign in, and their tokens stop being issued."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: user.disabled }
+              payload: { $ref: '#/components/schemas/UserDisabled' }
+    userEnabled:
+      name: user.enabled
+      summary: "A disabled user was enabled again."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: user.enabled }
+              payload: { $ref: '#/components/schemas/UserEnabled' }
+
   schemas:
     Uuid: { type: string, format: uuid }
     Envelope:
@@ -69,12 +110,12 @@ components:
         eventType: { type: string }
         schemaVersion: { type: integer, const: 1 }
         aggregateId: { $ref: '#/components/schemas/Uuid', description: The user's ID. }
-        aggregateVersion: { type: integer, minimum: 1 }
+        aggregateVersion: { type: integer, minimum: 1, description: "The user's version in Pistis: 1 when created, one more with every change." }
         occurredAt: { type: string, format: date-time }
         organizationId: { type: 'null' }
         projectId: { type: 'null' }
         actor:
-          description: The caller who created the user (a platform service or operator); null when the user was created at their first sign-in.
+          description: The caller who created or changed the user (a platform service or operator); null when the user was created at their first sign-in.
           oneOf:
             - type: 'null'
             - type: object
@@ -87,6 +128,54 @@ components:
     UserCreated:
       type: object
       additionalProperties: false
+      required: [userId, displayName, email, status]
+      properties:
+        userId:
+          $ref: '#/components/schemas/Uuid'
+          description: The user's ID, their `sub` in every Pistis token.
+        displayName: { type: string }
+        email:
+          description: Contact only; never used to find or link a user.
+          oneOf:
+            - type: string
+            - type: 'null'
+        status: { enum: [active, disabled] }
+    UserUpdated:
+      type: object
+      additionalProperties: false
+      description: The user as they are now.
+      required: [userId, displayName, email, status]
+      properties:
+        userId:
+          $ref: '#/components/schemas/Uuid'
+          description: The user's ID, their `sub` in every Pistis token.
+        displayName: { type: string }
+        email:
+          description: Contact only; never used to find or link a user.
+          oneOf:
+            - type: string
+            - type: 'null'
+        status: { enum: [active, disabled] }
+    UserDisabled:
+      type: object
+      additionalProperties: false
+      description: The user as they are now.
+      required: [userId, displayName, email, status]
+      properties:
+        userId:
+          $ref: '#/components/schemas/Uuid'
+          description: The user's ID, their `sub` in every Pistis token.
+        displayName: { type: string }
+        email:
+          description: Contact only; never used to find or link a user.
+          oneOf:
+            - type: string
+            - type: 'null'
+        status: { enum: [active, disabled] }
+    UserEnabled:
+      type: object
+      additionalProperties: false
+      description: The user as they are now.
       required: [userId, displayName, email, status]
       properties:
         userId:

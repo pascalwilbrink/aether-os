@@ -12,10 +12,9 @@ import {
   type DomainEvent,
   type Page,
   type PageRequest,
-  type PistisEvents,
 } from '@polis/core';
 import { OrganizationsService } from '@polis/organizations';
-import { UsersService } from '@polis/users';
+import { UsersService, type UserSnapshot } from '@polis/users';
 
 import type { PersonRequest } from './dto/person.request.js';
 import type { PersonResponse } from './dto/person.response.js';
@@ -23,8 +22,6 @@ import { PersonDepartmentsService } from './person-departments.service.js';
 import { PersonEntity } from './person.entity.js';
 import { PersonEmailTakenError } from './person.errors.js';
 import { PersonMapper, personFields } from './person.mapper.js';
-
-type UserCreated = PistisEvents.PistisEventPayloads['user.created'];
 
 /**
  * The people of an organization: their name, email address, description,
@@ -205,38 +202,92 @@ export class PersonsService {
   }
 
   /**
-   * A new Pistis user links the persons waiting for their email address, in
-   * every organization, unless another user has that address too.
+   * Keeps persons linked to the user with their email address as Pistis's
+   * users come and change (`user.created`, `.updated`; `.disabled` and
+   * `.enabled` change no address, and leave links as they are). The user is
+   * recorded first (`UsersService.record`), so this sees them as the event
+   * has them whichever handler runs first.
    */
   @OnDomainEvent('pistis.user.created')
-  async onUserCreated(event: DomainEvent<UserCreated>): Promise<void> {
+  onUserCreated(event: DomainEvent<UserSnapshot>): Promise<void> {
+    return this.onUserChanged(event);
+  }
+
+  @OnDomainEvent('pistis.user.updated')
+  onUserUpdated(event: DomainEvent<UserSnapshot>): Promise<void> {
+    return this.onUserChanged(event);
+  }
+
+  @OnDomainEvent('pistis.user.disabled')
+  onUserDisabled(event: DomainEvent<UserSnapshot>): Promise<void> {
+    return this.onUserChanged(event);
+  }
+
+  @OnDomainEvent('pistis.user.enabled')
+  onUserEnabled(event: DomainEvent<UserSnapshot>): Promise<void> {
+    return this.onUserChanged(event);
+  }
+
+  /**
+   * After a user event: persons linked to the user whose address is no
+   * longer the user's are unlinked (and linked to the one other user with
+   * their address, if there is one); persons waiting with the user's
+   * address are linked to them when they're the only user with it. Works
+   * from Polis's copy of the user (the newest event), so an older event
+   * arriving late changes nothing.
+   */
+  private async onUserChanged(event: DomainEvent<UserSnapshot>): Promise<void> {
     await this.users.record(event);
-    const { userId, email } = event.payload;
-    if (!email) {
+    const user = await this.users.find(event.payload.userId);
+    if (!user) {
       return;
     }
-    if ((await this.users.idsWithEmail(email)).length !== 1) {
+    const email = user.email?.trim().toLowerCase() ?? null;
+
+    const linked = await this.persons.find({
+      where: { userId: user.id },
+      lock: { mode: 'pessimistic_write' },
+    });
+    for (const entity of linked) {
+      if (entity.email === email) {
+        continue;
+      }
+      entity.userId = null;
+      entity.userId = await this.userFor(
+        entity.organizationId,
+        entity.email,
+        entity.id,
+      );
+      await this.saveLinkChange(entity);
+    }
+
+    if (!email || (await this.users.idsWithEmail(email)).length !== 1) {
       return;
     }
     const waiting = await this.persons.find({
-      where: { email: email.trim().toLowerCase(), userId: IsNull() },
+      where: { email, userId: IsNull() },
       lock: { mode: 'pessimistic_write' },
     });
     for (const entity of waiting) {
-      if (await this.isLinked(entity.organizationId, userId, entity.id)) {
+      if (await this.isLinked(entity.organizationId, user.id, entity.id)) {
         continue;
       }
-      entity.userId = userId;
-      entity.updatedAt = new Date();
-      entity.version += 1;
-      await this.persons.save(entity);
-      const departments = await this.departments.of([entity.id]);
-      await this.emitChanged(
-        'person.updated',
-        entity,
-        departments.get(entity.id) ?? [],
-      );
+      entity.userId = user.id;
+      await this.saveLinkChange(entity);
     }
+  }
+
+  /** A person whose linked user changed: a new version and `person.updated`. */
+  private async saveLinkChange(entity: PersonEntity): Promise<void> {
+    entity.updatedAt = new Date();
+    entity.version += 1;
+    await this.persons.save(entity);
+    const departments = await this.departments.of([entity.id]);
+    await this.emitChanged(
+      'person.updated',
+      entity,
+      departments.get(entity.id) ?? [],
+    );
   }
 
   /**

@@ -37,6 +37,10 @@ export const zUserResponse = z.object({
     lastSignInAt: z.iso.datetime().nullable()
 });
 
+export const zUserAnnouncementResponse = z.object({
+    announced: z.int().gte(0)
+});
+
 /**
  * A member's profile, as other members see it.
  */
@@ -308,6 +312,11 @@ export const zEnableUserPath = z.object({
  * Active (or already active)
  */
 export const zEnableUserResponse = zUserResponse;
+
+/**
+ * The events are in the outbox
+ */
+export const zAnnounceUsersResponse = zUserAnnouncementResponse;
 
 export const zSetUpPasswordBody = zPasswordIdentityRequest;
 

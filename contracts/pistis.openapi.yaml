@@ -96,7 +96,7 @@ paths:
       tags: [users]
       operationId: updateUser
       x-permission: '`platform:manage` (platform operators)'
-      description: Replaces the user's profile (display name and contact email).
+      description: Replaces the user's profile (display name and contact email); a change publishes `user.updated`.
       requestBody:
         required: true
         content:
@@ -120,7 +120,7 @@ paths:
       tags: [users]
       operationId: disableUser
       x-permission: '`platform:manage` (platform operators)'
-      description: Blocks sign-in through every linked identity. Idempotent.
+      description: Blocks sign-in through every linked identity; publishes `user.disabled` when it changes something. Idempotent.
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -139,7 +139,7 @@ paths:
       tags: [users]
       operationId: enableUser
       x-permission: '`platform:manage` (platform operators)'
-      description: Allows sign-in again. Idempotent.
+      description: Allows sign-in again; publishes `user.enabled` when it changes something. Idempotent.
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -150,6 +150,26 @@ paths:
               schema: { $ref: '#/components/schemas/UserResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/users/announce:
+    post:
+      tags: [users]
+      operationId: announceUsers
+      x-permission: '`platform:manage` (platform operators)'
+      description: |
+        Publishes every user's current state as `user.updated`, at their
+        current version (no new version): the backfill for services that
+        keep a copy of Pistis's users (Polis) and missed users created
+        before Pistis published events. Consumers keep what they have when
+        it's as new, so running it again is harmless.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: The events are in the outbox
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserAnnouncementResponse' }
 
   /v1/users/{userId}/password:
     parameters:
@@ -579,6 +599,14 @@ components:
         lastSignInAt:
           type: [string, 'null']
           format: date-time
+    UserAnnouncementResponse:
+      type: object
+      required: [announced]
+      properties:
+        announced:
+          type: integer
+          minimum: 0
+          description: How many users were published.
     OrganizationUserResponse:
       type: object
       description: A member's profile, as other members see it.
