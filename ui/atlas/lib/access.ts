@@ -2,8 +2,8 @@ import "server-only";
 
 import { listOrganizationUsers } from "./api/pistis";
 import { listMemberships, listPersons } from "./api/polis";
-import { organizationRoles } from "./auth/claims";
-import type { Session } from "./auth/session";
+import { organizationRoles } from "@aether-os/sign-in";
+import type { Session } from "@aether-os/sign-in";
 import { members } from "./members";
 
 /**

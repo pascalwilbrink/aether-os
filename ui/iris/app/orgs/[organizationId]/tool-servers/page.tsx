@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 import { listToolServers } from "@/lib/api/hephaestus";
 import { requireOrganization } from "@/lib/auth/current";
-import { organizationRoles } from "@/lib/auth/claims";
+import { organizationRoles } from "@aether-os/sign-in";
 import { authLabel } from "@/lib/tool-servers";
 
 import { createToolServerAction } from "./actions";

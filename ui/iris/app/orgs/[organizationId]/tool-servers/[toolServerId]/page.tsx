@@ -7,7 +7,7 @@ import type { ToolSummary } from "@/lib/api";
 import { getToolServer, listToolServerTools } from "@/lib/api/hephaestus";
 import { ApiError } from "@/lib/api/http";
 import { requireOrganization } from "@/lib/auth/current";
-import { organizationRoles } from "@/lib/auth/claims";
+import { organizationRoles } from "@aether-os/sign-in";
 import { formatTime } from "@/lib/tasks";
 import { authLabel } from "@/lib/tool-servers";
 

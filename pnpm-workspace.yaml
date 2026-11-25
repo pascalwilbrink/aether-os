@@ -14,6 +14,7 @@ packages:
   - ui/iris
   - ui/atlas
   - ui/design
+  - ui/sign-in
 
 # Native builds allowed during install.
 onlyBuiltDependencies:

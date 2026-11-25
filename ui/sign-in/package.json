@@ -1,0 +1,40 @@
+{
+  "name": "@aether-os/sign-in",
+  "version": "0.1.0",
+  "description": "Signing in to Aether-os's web apps (Iris, Atlas) through Pistis: the server-side session, the /auth routes and the proxy that keeps tokens fresh",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prepare": "pnpm build"
+  },
+  "dependencies": {
+    "jose": "^6.2.17",
+    "openid-client": "^6.9.0"
+  },
+  "peerDependencies": {
+    "next": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "typescript": "^5",
+    "vitest": "^4.1.12"
+  }
+}

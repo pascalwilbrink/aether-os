@@ -2,7 +2,7 @@ import { unstable_rethrow } from "next/navigation";
 
 import { listNotifications } from "@/lib/api/kerykes";
 import { getOrganization, listProjects, myMemberships } from "@/lib/api/polis";
-import { organizationRoles } from "@/lib/auth/claims";
+import { organizationRoles } from "@aether-os/sign-in";
 import { currentSession } from "@/lib/auth/current";
 import { roleLabel, statusLine } from "@/lib/sidebar";
 

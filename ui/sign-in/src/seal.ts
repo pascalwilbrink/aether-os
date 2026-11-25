@@ -3,7 +3,7 @@ import { EncryptJWT, jwtDecrypt, base64url } from "jose";
 /**
  * Seals a value into an encrypted, authenticated string (a JWE with
  * `dir` + `A256GCM`, the key derived from `secret` with SHA-256) and opens
- * it again. Used for Atlas's cookies: the browser can't read or change them.
+ * it again. Used for the apps' cookies: the browser can't read or change them.
  */
 async function key(secret: string): Promise<Uint8Array> {
   const digest = await crypto.subtle.digest(

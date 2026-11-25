@@ -1,71 +1,21 @@
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 
-import { config as iris } from "@/lib/config";
-import { isRefusal, refreshSession } from "@/lib/auth/oidc";
-import { HEALTH_TIMEOUT_MS, isRunning } from "@/lib/services";
-import {
-  cookieOptions,
-  needsRefresh,
-  PATH_HEADER,
-  openSession,
-  sealSession,
-  SESSION_COOKIE,
-  SESSION_MAX_AGE,
-} from "@/lib/auth/session";
+import { PATH_HEADER } from "@aether-os/sign-in";
+
+import { signIn } from "@/lib/auth/current";
 
 /**
- * Keeps the access token fresh before pages render: Server Components
- * can't set cookies, and Pistis rotates refresh tokens, so the new tokens
- * must be stored here. The refreshed cookie goes to this request (so the
- * page sees it) and to the browser. If refreshing fails (expired, revoked,
- * no longer a member) the session is dropped and the page sends people to
- * sign in; if Pistis just doesn't answer, the session is kept (below).
+ * Keeps the access token fresh before pages render (`@aether-os/sign-in`):
+ * Server Components can't set cookies, and Pistis rotates refresh tokens.
+ * Puts the page's path in `PATH_HEADER`, for a page refused with a 403 to
+ * come back to (`lib/api/http.ts`). When Pistis doesn't answer and the
+ * token has expired, `/unavailable` waits for the services and reloads.
  */
-export async function proxy(request: NextRequest) {
-  // The page's path, for a page refused with a 403 to come back to
-  // (`lib/api/http.ts`); never what the browser sent under that name.
-  request.headers.set(
-    PATH_HEADER,
-    request.nextUrl.pathname + request.nextUrl.search,
-  );
-  const sealed = request.cookies.get(SESSION_COOKIE)?.value;
-  if (!sealed) {
-    return NextResponse.next({ request: { headers: request.headers } });
-  }
-  const session = await openSession(sealed, iris.sessionSecret);
-  if (session && !needsRefresh(session)) {
-    return NextResponse.next({ request: { headers: request.headers } });
-  }
-
-  let value: string | null = null;
-  if (session?.refreshToken) {
-    try {
-      value = await sealSession(await refreshSession(session), iris.sessionSecret);
-    } catch (error) {
-      console.warn("Refreshing the session failed", error);
-      // Pistis not answering (still starting, restarting) isn't the end of
-      // the session: keep it. While its access token still works, the page
-      // renders; once it's expired, a page that waits for Pistis and reloads.
-      if (!isRefusal(error) && !(await isRunning(iris.pistisUrl, HEALTH_TIMEOUT_MS))) {
-        return session.accessTokenExpiresAt > Date.now()
-          ? NextResponse.next()
-          : NextResponse.rewrite(new URL("/unavailable", request.url));
-      }
-    }
-  }
-
-  if (value) {
-    request.cookies.set(SESSION_COOKIE, value);
-  } else {
-    request.cookies.delete(SESSION_COOKIE);
-  }
-  const response = NextResponse.next({ request: { headers: request.headers } });
-  if (value) {
-    response.cookies.set(SESSION_COOKIE, value, cookieOptions(iris.secureCookies, SESSION_MAX_AGE));
-  } else {
-    response.cookies.delete(SESSION_COOKIE);
-  }
-  return response;
+export function proxy(request: NextRequest) {
+  return signIn.proxy(request, {
+    pathHeader: PATH_HEADER,
+    unavailablePath: "/unavailable",
+  });
 }
 
 export const config = {

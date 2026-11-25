@@ -13,9 +13,8 @@
   },
   "dependencies": {
     "@aether-os/design": "workspace:*",
-    "jose": "^6.2.17",
+    "@aether-os/sign-in": "workspace:*",
     "next": "16.4.6",
-    "openid-client": "^6.9.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1"

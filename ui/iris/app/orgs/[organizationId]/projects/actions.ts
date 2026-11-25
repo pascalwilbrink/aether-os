@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { ApiError } from "@/lib/api/http";
 import { messageOf } from "@/lib/api/messages";
 import { createProject } from "@/lib/api/polis";
-import { organizationRoles } from "@/lib/auth/claims";
+import { organizationRoles } from "@aether-os/sign-in";
 import { requireOrganization } from "@/lib/auth/current";
 import { newProjectRequest, type NewProjectFields } from "@/lib/projects";
 
