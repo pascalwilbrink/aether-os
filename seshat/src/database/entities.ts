@@ -5,6 +5,7 @@ import { KnowledgeEmbeddingEntity } from '../../libs/knowledge/src/knowledge-emb
 import { KnowledgeItemVersionEntity } from '../../libs/knowledge/src/knowledge-item-version.entity.js';
 import { KnowledgeItemEntity } from '../../libs/knowledge/src/knowledge-item.entity.js';
 import { KnowledgeRepositoryEntity } from '../../libs/knowledge/src/knowledge-repository.entity.js';
+import { ProjectDepartmentEntity } from '../../libs/tenancy/src/project-department.entity.js';
 
 /** Every entity, for the TypeORM CLI and the tests' schema check. */
 export const entities = [
@@ -13,6 +14,7 @@ export const entities = [
   KnowledgeChunkEntity,
   KnowledgeEmbeddingEntity,
   KnowledgeRepositoryEntity,
+  ProjectDepartmentEntity,
   OutboxMessageEntity,
   InboxMessageEntity,
 ];

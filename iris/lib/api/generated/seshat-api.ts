@@ -14,7 +14,12 @@ export interface paths {
             };
             cookie?: never;
         };
-        /** @description Newest first; `document` items too. */
+        /**
+         * @description Newest first; `document` items too, and the items of the project's
+         *     department (`departmentId` set, `projectId` null), which the project
+         *     reads but doesn't change (`KNOWLEDGE_ITEM_READ_ONLY` through its
+         *     routes).
+         */
         get: operations["listKnowledgeItems"];
         put?: never;
         /**
@@ -26,6 +31,12 @@ export interface paths {
          *     and the `alternatives` considered; other types can't.
          *     `supersedes` names an accepted item this one replaces: it becomes
          *     `superseded` when this one is accepted.
+         *
+         *     With `scope: department` it's a proposal to the project's department
+         *     (always `proposed`, whoever writes it; `KNOWLEDGE_ITEM_INVALID` when
+         *     the project is in no department, `DEPARTMENT_ARCHIVED`), accepted by
+         *     the department's owners and admins; `supersedes` then names an
+         *     accepted item of the department.
          */
         post: operations["createKnowledgeItem"];
         delete?: never;
@@ -309,7 +320,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Searches the project's knowledge: accepted items and indexed documents
+         * @description Searches the project's knowledge, and its department's (by keywords
+         *     only, for now): accepted items and indexed documents
          *     (items that were superseded, retired or rejected never come back,
          *     proposed ones only with `includeProposed`). Hybrid: by keywords
          *     (Postgres full-text search, English) and by meaning (the query's
@@ -320,6 +332,163 @@ export interface paths {
          *     only because the query is a body.
          */
         post: operations["searchKnowledge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
+            };
+            cookie?: never;
+        };
+        /** @description The department's own items, newest first, proposals included. */
+        get: operations["listDepartmentKnowledgeItems"];
+        put?: never;
+        /**
+         * @description A decision, fact, convention, architecture note or lesson of the
+         *     department, `accepted` at once when a person writes it. Every project
+         *     in the department sees it. The department must be active
+         *     (`DEPARTMENT_ARCHIVED`). `scope` is for a project's route
+         *     (`KNOWLEDGE_ITEM_INVALID` here); `supersedes` names an accepted item
+         *     of the department.
+         */
+        post: operations["createDepartmentKnowledgeItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getDepartmentKnowledgeItem"];
+        /** @description A new version of a proposed or accepted item of the department. */
+        put: operations["updateDepartmentKnowledgeItem"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listDepartmentKnowledgeItemVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description A proposal to the department becomes its knowledge; the item it supersedes becomes `superseded`. */
+        post: operations["acceptDepartmentKnowledgeItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["rejectDepartmentKnowledgeItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retireDepartmentKnowledgeItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Searches the department's own items, by keywords (`semantic` is false for now). */
+        post: operations["searchDepartmentKnowledge"];
         delete?: never;
         options?: never;
         head?: never;
@@ -362,7 +531,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "KNOWLEDGE_ITEM_INVALID_TRANSITION" | "KNOWLEDGE_ITEM_INVALID" | "KNOWLEDGE_DOCUMENT_INVALID" | "KNOWLEDGE_ITEM_READ_ONLY" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED";
+        DomainErrorCode: "KNOWLEDGE_ITEM_INVALID_TRANSITION" | "KNOWLEDGE_ITEM_INVALID" | "KNOWLEDGE_DOCUMENT_INVALID" | "KNOWLEDGE_ITEM_READ_ONLY" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "DEPARTMENT_ARCHIVED";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -472,6 +641,11 @@ export interface components {
             reason: string;
         };
         CreateKnowledgeItemRequest: {
+            /**
+             * @description On a project's route, `department` proposes it to the project's department instead; `project` when left out.
+             * @enum {string}
+             */
+            scope?: "project" | "department";
             type: components["schemas"]["WritableKnowledgeItemType"];
             title: string;
             /** @description Markdown. For a decision, its context, the decision and its consequences. */
@@ -484,7 +658,7 @@ export interface components {
             references?: components["schemas"]["KnowledgeReference"][];
             /**
              * Format: uuid
-             * @description An accepted item of the project this one replaces once accepted.
+             * @description An accepted item of the same project (or department) this one replaces once accepted.
              */
             supersedes?: string | null;
             /**
@@ -526,8 +700,16 @@ export interface components {
             id: string;
             /** Format: uuid */
             organizationId: string;
-            /** Format: uuid */
-            projectId: string;
+            /**
+             * Format: uuid
+             * @description The project it belongs to; null for a department's item.
+             */
+            projectId: string | null;
+            /**
+             * Format: uuid
+             * @description The department it belongs to (seen by every project in it); null for a project's item.
+             */
+            departmentId: string | null;
             type: components["schemas"]["KnowledgeItemType"];
             title: string;
             /** @description Markdown; for a document, empty (its text is in its chunks). */
@@ -740,6 +922,8 @@ export interface components {
     parameters: {
         OrganizationId: string;
         ProjectId: string;
+        /** @description A department of the organization in Polis. */
+        DepartmentId: string;
         ItemId: string;
         /** @description The repository link's ID in Proxenos. */
         LinkId: string;
@@ -1292,6 +1476,306 @@ export interface operations {
             path: {
                 organizationId: components["parameters"]["OrganizationId"];
                 projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchKnowledgeRequest"];
+            };
+        };
+        responses: {
+            /** @description Best first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeSearchResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listDepartmentKnowledgeItems: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+                type?: components["schemas"]["KnowledgeItemType"];
+                status?: components["schemas"]["KnowledgeItemStatus"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeItemPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createDepartmentKnowledgeItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateKnowledgeItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeItemResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    getDepartmentKnowledgeItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeItemResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateDepartmentKnowledgeItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateKnowledgeItemRequest"];
+            };
+        };
+        responses: {
+            /** @description The new version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeItemResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    listDepartmentKnowledgeItemVersions: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeItemVersionPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    acceptDepartmentKnowledgeItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeItemResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    rejectDepartmentKnowledgeItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeItemResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    retireDepartmentKnowledgeItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
+                itemId: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeItemResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    searchDepartmentKnowledge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                /** @description A department of the organization in Polis. */
+                departmentId: components["parameters"]["DepartmentId"];
             };
             cookie?: never;
         };

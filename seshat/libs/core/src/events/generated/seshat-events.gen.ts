@@ -6,7 +6,14 @@
  */
 export interface KnowledgeItemAccepted {
   itemId: string;
-  projectId: string;
+  /**
+   * The project the item belongs to; null for a department's item.
+   */
+  projectId: string | null;
+  /**
+   * The department the item belongs to; null for a project's item.
+   */
+  departmentId: string | null;
   type:
     'document' | 'decision' | 'fact' | 'convention' | 'architecture' | 'lesson';
   status: 'proposed' | 'accepted' | 'rejected' | 'superseded' | 'retired';
@@ -23,7 +30,14 @@ export interface KnowledgeItemAccepted {
  */
 export interface KnowledgeItemIndexed {
   itemId: string;
-  projectId: string;
+  /**
+   * The project the item belongs to; null for a department's item.
+   */
+  projectId: string | null;
+  /**
+   * The department the item belongs to; null for a project's item.
+   */
+  departmentId: string | null;
   /**
    * The content version whose chunks are ready.
    */
@@ -36,7 +50,14 @@ export interface KnowledgeItemIndexed {
  */
 export interface KnowledgeItemProposed {
   itemId: string;
-  projectId: string;
+  /**
+   * The project the item belongs to; null for a department's item.
+   */
+  projectId: string | null;
+  /**
+   * The department the item belongs to; null for a project's item.
+   */
+  departmentId: string | null;
   type:
     'document' | 'decision' | 'fact' | 'convention' | 'architecture' | 'lesson';
   status: 'proposed' | 'accepted' | 'rejected' | 'superseded' | 'retired';
@@ -53,7 +74,14 @@ export interface KnowledgeItemProposed {
  */
 export interface KnowledgeItemRejected {
   itemId: string;
-  projectId: string;
+  /**
+   * The project the item belongs to; null for a department's item.
+   */
+  projectId: string | null;
+  /**
+   * The department the item belongs to; null for a project's item.
+   */
+  departmentId: string | null;
   type:
     'document' | 'decision' | 'fact' | 'convention' | 'architecture' | 'lesson';
   status: 'proposed' | 'accepted' | 'rejected' | 'superseded' | 'retired';
@@ -70,7 +98,14 @@ export interface KnowledgeItemRejected {
  */
 export interface KnowledgeItemRetired {
   itemId: string;
-  projectId: string;
+  /**
+   * The project the item belongs to; null for a department's item.
+   */
+  projectId: string | null;
+  /**
+   * The department the item belongs to; null for a project's item.
+   */
+  departmentId: string | null;
   type:
     'document' | 'decision' | 'fact' | 'convention' | 'architecture' | 'lesson';
   status: 'proposed' | 'accepted' | 'rejected' | 'superseded' | 'retired';
@@ -87,7 +122,14 @@ export interface KnowledgeItemRetired {
  */
 export interface KnowledgeItemSuperseded {
   itemId: string;
-  projectId: string;
+  /**
+   * The project the item belongs to; null for a department's item.
+   */
+  projectId: string | null;
+  /**
+   * The department the item belongs to; null for a project's item.
+   */
+  departmentId: string | null;
   type:
     'document' | 'decision' | 'fact' | 'convention' | 'architecture' | 'lesson';
   status: 'proposed' | 'accepted' | 'rejected' | 'superseded' | 'retired';
@@ -104,7 +146,14 @@ export interface KnowledgeItemSuperseded {
  */
 export interface KnowledgeItemUpdated {
   itemId: string;
-  projectId: string;
+  /**
+   * The project the item belongs to; null for a department's item.
+   */
+  projectId: string | null;
+  /**
+   * The department the item belongs to; null for a project's item.
+   */
+  departmentId: string | null;
   type:
     'document' | 'decision' | 'fact' | 'convention' | 'architecture' | 'lesson';
   status: 'proposed' | 'accepted' | 'rejected' | 'superseded' | 'retired';

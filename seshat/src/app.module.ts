@@ -22,6 +22,12 @@ export const PROXENOS_SUBSCRIPTIONS = [
   'git.pushed',
 ] as const;
 
+/** Polis's events for the department each project is in (department knowledge). */
+export const POLIS_SUBSCRIPTIONS = [
+  'project.created',
+  'project.department-changed',
+] as const;
+
 // Validation, the /v1 prefix and problem details: configureHttpApp (server.ts).
 @Module({
   imports: [
@@ -49,7 +55,10 @@ export const PROXENOS_SUBSCRIPTIONS = [
     EventsModule.forRoot({
       service: 'seshat',
       publish: SESHAT_PUBLISHED_EVENTS,
-      subscribe: { proxenos: PROXENOS_SUBSCRIPTIONS },
+      subscribe: {
+        proxenos: PROXENOS_SUBSCRIPTIONS,
+        polis: POLIS_SUBSCRIPTIONS,
+      },
       rabbitmq: {
         inject: [ConfigService],
         useFactory: (config: ConfigService<Env, true>) => ({

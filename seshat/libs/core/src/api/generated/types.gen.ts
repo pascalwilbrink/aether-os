@@ -12,7 +12,8 @@ export type DomainErrorCode =
   | 'KNOWLEDGE_DOCUMENT_INVALID'
   | 'KNOWLEDGE_ITEM_READ_ONLY'
   | 'ORGANIZATION_SUSPENDED'
-  | 'PROJECT_ARCHIVED';
+  | 'PROJECT_ARCHIVED'
+  | 'DEPARTMENT_ARCHIVED';
 
 /**
  * Problem details for a business-rule violation.
@@ -152,6 +153,10 @@ export type DecisionAlternative = {
 };
 
 export type CreateKnowledgeItemRequest = {
+  /**
+   * On a project's route, `department` proposes it to the project's department instead; `project` when left out.
+   */
+  scope?: 'project' | 'department';
   type: WritableKnowledgeItemType;
   title: string;
   /**
@@ -169,7 +174,7 @@ export type CreateKnowledgeItemRequest = {
   tags?: Array<Tag>;
   references?: Array<KnowledgeReference>;
   /**
-   * An accepted item of the project this one replaces once accepted.
+   * An accepted item of the same project (or department) this one replaces once accepted.
    */
   supersedes?: string | null;
   /**
@@ -215,7 +220,14 @@ export type UpdateKnowledgeDocumentRequest = {
 export type KnowledgeItemResponse = {
   id: string;
   organizationId: string;
-  projectId: string;
+  /**
+   * The project it belongs to; null for a department's item.
+   */
+  projectId: string | null;
+  /**
+   * The department it belongs to (seen by every project in it); null for a project's item.
+   */
+  departmentId: string | null;
   type: KnowledgeItemType;
   title: string;
   /**
@@ -442,6 +454,11 @@ export type ProblemFieldError = {
 export type OrganizationId = string;
 
 export type ProjectId = string;
+
+/**
+ * A department of the organization in Polis.
+ */
+export type DepartmentId = string;
 
 export type ItemId = string;
 
@@ -1492,3 +1509,553 @@ export type SearchKnowledgeResponses = {
 
 export type SearchKnowledgeResponse =
   SearchKnowledgeResponses[keyof SearchKnowledgeResponses];
+
+export type ListDepartmentKnowledgeItemsData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    /**
+     * A department of the organization in Polis.
+     */
+    departmentId: string;
+  };
+  query?: {
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+    type?: KnowledgeItemType;
+    status?: KnowledgeItemStatus;
+  };
+  url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items';
+};
+
+export type ListDepartmentKnowledgeItemsErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type ListDepartmentKnowledgeItemsError =
+  ListDepartmentKnowledgeItemsErrors[keyof ListDepartmentKnowledgeItemsErrors];
+
+export type ListDepartmentKnowledgeItemsResponses = {
+  /**
+   * Newest first
+   */
+  200: KnowledgeItemPage;
+};
+
+export type ListDepartmentKnowledgeItemsResponse =
+  ListDepartmentKnowledgeItemsResponses[keyof ListDepartmentKnowledgeItemsResponses];
+
+export type CreateDepartmentKnowledgeItemData = {
+  body: CreateKnowledgeItemRequest;
+  path: {
+    organizationId: string;
+    /**
+     * A department of the organization in Polis.
+     */
+    departmentId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items';
+};
+
+export type CreateDepartmentKnowledgeItemErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type CreateDepartmentKnowledgeItemError =
+  CreateDepartmentKnowledgeItemErrors[keyof CreateDepartmentKnowledgeItemErrors];
+
+export type CreateDepartmentKnowledgeItemResponses = {
+  /**
+   * Created
+   */
+  201: KnowledgeItemResponse;
+};
+
+export type CreateDepartmentKnowledgeItemResponse =
+  CreateDepartmentKnowledgeItemResponses[keyof CreateDepartmentKnowledgeItemResponses];
+
+export type GetDepartmentKnowledgeItemData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    /**
+     * A department of the organization in Polis.
+     */
+    departmentId: string;
+    itemId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}';
+};
+
+export type GetDepartmentKnowledgeItemErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type GetDepartmentKnowledgeItemError =
+  GetDepartmentKnowledgeItemErrors[keyof GetDepartmentKnowledgeItemErrors];
+
+export type GetDepartmentKnowledgeItemResponses = {
+  /**
+   * OK
+   */
+  200: KnowledgeItemResponse;
+};
+
+export type GetDepartmentKnowledgeItemResponse =
+  GetDepartmentKnowledgeItemResponses[keyof GetDepartmentKnowledgeItemResponses];
+
+export type UpdateDepartmentKnowledgeItemData = {
+  body: UpdateKnowledgeItemRequest;
+  path: {
+    organizationId: string;
+    /**
+     * A department of the organization in Polis.
+     */
+    departmentId: string;
+    itemId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}';
+};
+
+export type UpdateDepartmentKnowledgeItemErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type UpdateDepartmentKnowledgeItemError =
+  UpdateDepartmentKnowledgeItemErrors[keyof UpdateDepartmentKnowledgeItemErrors];
+
+export type UpdateDepartmentKnowledgeItemResponses = {
+  /**
+   * The new version
+   */
+  200: KnowledgeItemResponse;
+};
+
+export type UpdateDepartmentKnowledgeItemResponse =
+  UpdateDepartmentKnowledgeItemResponses[keyof UpdateDepartmentKnowledgeItemResponses];
+
+export type ListDepartmentKnowledgeItemVersionsData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    /**
+     * A department of the organization in Polis.
+     */
+    departmentId: string;
+    itemId: string;
+  };
+  query?: {
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+  };
+  url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/versions';
+};
+
+export type ListDepartmentKnowledgeItemVersionsErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type ListDepartmentKnowledgeItemVersionsError =
+  ListDepartmentKnowledgeItemVersionsErrors[keyof ListDepartmentKnowledgeItemVersionsErrors];
+
+export type ListDepartmentKnowledgeItemVersionsResponses = {
+  /**
+   * Newest first
+   */
+  200: KnowledgeItemVersionPage;
+};
+
+export type ListDepartmentKnowledgeItemVersionsResponse =
+  ListDepartmentKnowledgeItemVersionsResponses[keyof ListDepartmentKnowledgeItemVersionsResponses];
+
+export type AcceptDepartmentKnowledgeItemData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    /**
+     * A department of the organization in Polis.
+     */
+    departmentId: string;
+    itemId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/accept';
+};
+
+export type AcceptDepartmentKnowledgeItemErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type AcceptDepartmentKnowledgeItemError =
+  AcceptDepartmentKnowledgeItemErrors[keyof AcceptDepartmentKnowledgeItemErrors];
+
+export type AcceptDepartmentKnowledgeItemResponses = {
+  /**
+   * OK
+   */
+  200: KnowledgeItemResponse;
+};
+
+export type AcceptDepartmentKnowledgeItemResponse =
+  AcceptDepartmentKnowledgeItemResponses[keyof AcceptDepartmentKnowledgeItemResponses];
+
+export type RejectDepartmentKnowledgeItemData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    /**
+     * A department of the organization in Polis.
+     */
+    departmentId: string;
+    itemId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/reject';
+};
+
+export type RejectDepartmentKnowledgeItemErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type RejectDepartmentKnowledgeItemError =
+  RejectDepartmentKnowledgeItemErrors[keyof RejectDepartmentKnowledgeItemErrors];
+
+export type RejectDepartmentKnowledgeItemResponses = {
+  /**
+   * OK
+   */
+  200: KnowledgeItemResponse;
+};
+
+export type RejectDepartmentKnowledgeItemResponse =
+  RejectDepartmentKnowledgeItemResponses[keyof RejectDepartmentKnowledgeItemResponses];
+
+export type RetireDepartmentKnowledgeItemData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    /**
+     * A department of the organization in Polis.
+     */
+    departmentId: string;
+    itemId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/retire';
+};
+
+export type RetireDepartmentKnowledgeItemErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+  /**
+   * `UNAVAILABLE`: a service this request depends on can't be reached
+   * right now. Safe to retry.
+   *
+   */
+  503: CommonOpenapiProblem;
+};
+
+export type RetireDepartmentKnowledgeItemError =
+  RetireDepartmentKnowledgeItemErrors[keyof RetireDepartmentKnowledgeItemErrors];
+
+export type RetireDepartmentKnowledgeItemResponses = {
+  /**
+   * OK
+   */
+  200: KnowledgeItemResponse;
+};
+
+export type RetireDepartmentKnowledgeItemResponse =
+  RetireDepartmentKnowledgeItemResponses[keyof RetireDepartmentKnowledgeItemResponses];
+
+export type SearchDepartmentKnowledgeData = {
+  body: SearchKnowledgeRequest;
+  path: {
+    organizationId: string;
+    /**
+     * A department of the organization in Polis.
+     */
+    departmentId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/search';
+};
+
+export type SearchDepartmentKnowledgeErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type SearchDepartmentKnowledgeError =
+  SearchDepartmentKnowledgeErrors[keyof SearchDepartmentKnowledgeErrors];
+
+export type SearchDepartmentKnowledgeResponses = {
+  /**
+   * Best first
+   */
+  200: KnowledgeSearchResponse;
+};
+
+export type SearchDepartmentKnowledgeResponse =
+  SearchDepartmentKnowledgeResponses[keyof SearchDepartmentKnowledgeResponses];

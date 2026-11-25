@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 import {
   ClientCredentialsServiceTokens,
@@ -13,10 +14,15 @@ import {
   type PolisClientOptions,
 } from './http-polis.client.js';
 import { PolisClient } from './polis-client.js';
+import { ProjectDepartmentEntity } from './project-department.entity.js';
 import { TenancyService } from './tenancy.service.js';
 
-/** Organizations and projects, from Polis with Seshat's own token. */
+/**
+ * Organizations, projects and departments, from Polis with Seshat's own
+ * token; the department of each project, from Polis's events.
+ */
 @Module({
+  imports: [TypeOrmModule.forFeature([ProjectDepartmentEntity])],
   providers: [
     TenancyService,
     {

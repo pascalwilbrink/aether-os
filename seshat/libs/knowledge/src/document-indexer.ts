@@ -85,10 +85,25 @@ export class DocumentIndexer
     ) {
       return true;
     }
+    const { projectId } = item;
+    if (projectId === null) {
+      // Claimed for a project only; a department's item never gets here.
+      return true;
+    }
     await runWithLogContext(
-      { organizationId: item.organizationId, projectId: item.projectId },
+      { organizationId: item.organizationId, projectId },
       async () => {
-        const result = await this.index(item);
+        const result = await this.index({
+          organizationId: item.organizationId,
+          projectId,
+          fileId: item.fileId,
+          sha256: item.sha256,
+          sizeBytes: item.sizeBytes,
+          contentType: item.contentType,
+          fileName: item.fileName,
+          repositoryLinkId: item.repositoryLinkId,
+          repositoryBlobSha: item.repositoryBlobSha,
+        });
         if (result.kind === 'failed') {
           this.logger.warn(
             `Document ${item.id} (version ${item.version}) couldn't be indexed: ${result.error}`,

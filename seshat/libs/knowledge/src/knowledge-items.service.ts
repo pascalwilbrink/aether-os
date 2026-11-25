@@ -1,6 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, type Repository } from 'typeorm';
+import { In, IsNull, type Repository } from 'typeorm';
 import { v7 as uuidv7 } from 'uuid';
 
 import {
@@ -32,12 +36,29 @@ import {
 import {
   KnowledgeItemInvalidError,
   KnowledgeItemInvalidTransitionError,
+  KnowledgeItemOfDepartmentError,
   KnowledgeItemReadOnlyError,
 } from './knowledge.errors.js';
 import { KnowledgeVersionsService } from './knowledge-versions.service.js';
 import { decisionOf, searchableText } from './decisions.js';
 
 type ItemResponse = ApiTypes.KnowledgeItemResponse;
+
+/**
+ * Whose knowledge a request is about. A project's (`projectId`): its own
+ * items, and its department's (`departmentId`), which it reads but doesn't
+ * change. Or a department's (`projectId` null): its own items only.
+ */
+export interface KnowledgeScope {
+  organizationId: string;
+  projectId: string | null;
+  departmentId: string | null;
+}
+
+/** Who an item belongs to: a project or a department. */
+type Owner =
+  | { projectId: string; departmentId: null }
+  | { projectId: null; departmentId: string };
 
 /** A file of an indexed repository, as its document records it. */
 export interface RepositoryDocumentFile {
@@ -82,7 +103,8 @@ export type EmbeddingResult =
   | { kind: 'failed'; error: string; retryable: boolean };
 
 /**
- * A project's knowledge items (../../../../docs/knowledge.md): written by
+ * A project's knowledge items, and a department's, which every project in
+ * the department reads (../../../../docs/knowledge.md): written by
  * people (`accepted` at once) or proposed by agents (service accounts:
  * `proposed`, for someone with `knowledge:approve`), versioned (every edit
  * is a new version, the old ones kept), searchable (their passages, in
@@ -102,25 +124,73 @@ export class KnowledgeItemsService {
     private readonly events: SeshatEvents,
   ) {}
 
+  /**
+   * A new written item. On a project, the project's (or, with `scope:
+   * department`, a proposal to its department); on a department, the
+   * department's.
+   */
   @Transactional()
   async create(
-    organizationId: string,
-    projectId: string,
+    scope: KnowledgeScope,
     dto: ApiTypes.CreateKnowledgeItemRequest,
   ): Promise<ItemResponse> {
-    await this.tenancy.assertProjectAcceptsWrites(organizationId, projectId);
+    const { organizationId } = scope;
+    let owner: Owner;
+    let proposalOnly = false;
+    if (scope.projectId === null) {
+      if (dto.scope === 'project') {
+        throw new KnowledgeItemInvalidError(
+          "A department's item has no project: leave scope out.",
+        );
+      }
+      const department = this.departmentOwner(scope);
+      await this.tenancy.assertDepartmentAcceptsWrites(
+        organizationId,
+        department.departmentId,
+      );
+      owner = department;
+    } else if (dto.scope === 'department') {
+      const { departmentId } = await this.tenancy.assertProjectAcceptsWrites(
+        organizationId,
+        scope.projectId,
+      );
+      if (!departmentId) {
+        throw new KnowledgeItemInvalidError(
+          `Project ${scope.projectId} is in no department: there's none to propose to.`,
+        );
+      }
+      await this.tenancy.assertDepartmentAcceptsWrites(
+        organizationId,
+        departmentId,
+      );
+      owner = { projectId: null, departmentId };
+      // From a project, a department's knowledge is only ever proposed.
+      proposalOnly = true;
+    } else {
+      await this.tenancy.assertProjectAcceptsWrites(
+        organizationId,
+        scope.projectId,
+      );
+      owner = { projectId: scope.projectId, departmentId: null };
+    }
     const superseded = dto.supersedes
-      ? await this.supersedable(organizationId, projectId, dto.supersedes)
+      ? await this.supersedable(organizationId, owner, dto.supersedes)
       : null;
-    const item = this.newItem(organizationId, projectId, dto.type, {
-      title: dto.title,
-      body: redactText(dto.body, { keepEmails: true }),
-      ...decisionOf(dto.type, dto),
-      tags: dto.tags ?? [],
-      references: dto.references ?? [],
-      supersedes: dto.supersedes ?? null,
-      reviewBy: dto.reviewBy ?? null,
-    });
+    const item = this.newItem(
+      organizationId,
+      owner,
+      dto.type,
+      {
+        title: dto.title,
+        body: redactText(dto.body, { keepEmails: true }),
+        ...decisionOf(dto.type, dto),
+        tags: dto.tags ?? [],
+        references: dto.references ?? [],
+        supersedes: dto.supersedes ?? null,
+        reviewBy: dto.reviewBy ?? null,
+      },
+      proposalOnly,
+    );
     await this.items.insert(item);
     await this.versions.record(item);
     await this.emit(
@@ -137,9 +207,28 @@ export class KnowledgeItemsService {
     return this.mapper.toResponse(item);
   }
 
-  async list(
+  /** A project's scope: its items, and its department's. */
+  async projectScope(
     organizationId: string,
     projectId: string,
+  ): Promise<KnowledgeScope> {
+    return {
+      organizationId,
+      projectId,
+      departmentId: await this.tenancy.departmentOf(organizationId, projectId),
+    };
+  }
+
+  /** A department's scope: its own items. */
+  departmentScope(
+    organizationId: string,
+    departmentId: string,
+  ): KnowledgeScope {
+    return { organizationId, projectId: null, departmentId };
+  }
+
+  async list(
+    scope: KnowledgeScope,
     filters: {
       type?: KnowledgeItemType;
       status?: ItemResponse['status'];
@@ -147,15 +236,18 @@ export class KnowledgeItemsService {
     },
     page: PageRequest,
   ): Promise<Page<ItemResponse>> {
+    const filter = {
+      ...(filters.type ? { type: filters.type } : {}),
+      ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.sessionId ? { sourceSessionId: filters.sessionId } : {}),
+    };
     const entities = await findPage(
       this.items,
       {
         where: {
-          organizationId,
-          projectId,
-          ...(filters.type ? { type: filters.type } : {}),
-          ...(filters.status ? { status: filters.status } : {}),
-          ...(filters.sessionId ? { sourceSessionId: filters.sessionId } : {}),
+          organizationId: scope.organizationId,
+          scopeId: scopeIds(scope),
+          ...filter,
         },
         sortBy: 'createdAt',
         direction: 'DESC',
@@ -165,64 +257,54 @@ export class KnowledgeItemsService {
     return mapPage(entities, (entity) => this.mapper.toResponse(entity));
   }
 
-  async findById(
-    organizationId: string,
-    projectId: string,
-    itemId: string,
-  ): Promise<ItemResponse> {
-    return this.mapper.toResponse(
-      await this.load(organizationId, projectId, itemId),
-    );
+  async findById(scope: KnowledgeScope, itemId: string): Promise<ItemResponse> {
+    return this.mapper.toResponse(await this.load(scope, itemId));
   }
 
-  /** The items with these IDs in the project, in no particular order. */
+  /** The items with these IDs in the scope, in no particular order. */
   async findMany(
-    organizationId: string,
-    projectId: string,
+    scope: KnowledgeScope,
     itemIds: string[],
   ): Promise<ItemResponse[]> {
     if (itemIds.length === 0) {
       return [];
     }
     const entities = await this.items.findBy({
-      organizationId,
-      projectId,
+      organizationId: scope.organizationId,
+      scopeId: In(scopeIds(scope)),
       id: In(itemIds),
     });
     return entities.map((entity) => this.mapper.toResponse(entity));
   }
 
   async versionsOf(
-    organizationId: string,
-    projectId: string,
+    scope: KnowledgeScope,
     itemId: string,
     page: PageRequest,
   ): Promise<Page<ApiTypes.KnowledgeItemVersionResponse>> {
-    await this.load(organizationId, projectId, itemId);
+    await this.load(scope, itemId);
     return this.versions.list(itemId, page);
   }
 
   /** The item's current version's passages, in order (a document's text). */
   async passagesOf(
-    organizationId: string,
-    projectId: string,
+    scope: KnowledgeScope,
     itemId: string,
     page: PageRequest,
   ): Promise<Page<ApiTypes.KnowledgePassage>> {
-    const item = await this.load(organizationId, projectId, itemId);
+    const item = await this.load(scope, itemId);
     return this.chunks.page(item.id, item.version, page);
   }
 
   /** A new version of a written item. Agents may only change proposals. */
   @Transactional()
   async update(
-    organizationId: string,
-    projectId: string,
+    scope: KnowledgeScope,
     itemId: string,
     dto: ApiTypes.UpdateKnowledgeItemRequest,
   ): Promise<ItemResponse> {
-    await this.tenancy.assertProjectAcceptsWrites(organizationId, projectId);
-    const item = await this.load(organizationId, projectId, itemId, true);
+    await this.assertWritable(scope);
+    const item = await this.loadOwned(scope, itemId);
     assertNotFromRepository(item);
     if (item.type === 'document') {
       throw new KnowledgeItemInvalidError(
@@ -247,19 +329,20 @@ export class KnowledgeItemsService {
   }
 
   @Transactional()
-  async accept(
-    organizationId: string,
-    projectId: string,
-    itemId: string,
-  ): Promise<ItemResponse> {
-    await this.tenancy.assertProjectAcceptsWrites(organizationId, projectId);
-    const item = await this.load(organizationId, projectId, itemId, true);
+  async accept(scope: KnowledgeScope, itemId: string): Promise<ItemResponse> {
+    this.assertApprover(scope);
+    await this.assertWritable(scope);
+    const item = await this.loadOwned(scope, itemId);
     assertNotFromRepository(item);
     if (item.status === 'accepted') {
       return this.mapper.toResponse(item);
     }
     const superseded = item.supersedes
-      ? await this.supersedable(organizationId, projectId, item.supersedes)
+      ? await this.supersedable(
+          scope.organizationId,
+          ownerOf(item),
+          item.supersedes,
+        )
       : null;
     this.move(item, 'accept');
     item.acceptedBy = this.access.principal().sub;
@@ -272,21 +355,13 @@ export class KnowledgeItemsService {
   }
 
   @Transactional()
-  async reject(
-    organizationId: string,
-    projectId: string,
-    itemId: string,
-  ): Promise<ItemResponse> {
-    return this.act(organizationId, projectId, itemId, 'reject', 'rejected');
+  async reject(scope: KnowledgeScope, itemId: string): Promise<ItemResponse> {
+    return this.act(scope, itemId, 'reject', 'rejected');
   }
 
   @Transactional()
-  async retire(
-    organizationId: string,
-    projectId: string,
-    itemId: string,
-  ): Promise<ItemResponse> {
-    return this.act(organizationId, projectId, itemId, 'retire', 'retired');
+  async retire(scope: KnowledgeScope, itemId: string): Promise<ItemResponse> {
+    return this.act(scope, itemId, 'retire', 'retired');
   }
 
   // ---- documents (DocumentsService, DocumentIndexer) ----
@@ -300,16 +375,21 @@ export class KnowledgeItemsService {
     dto: { title?: string; tags?: string[] },
   ): Promise<ItemResponse> {
     await this.tenancy.assertProjectAcceptsWrites(organizationId, projectId);
-    const item = this.newItem(organizationId, projectId, 'document', {
-      title: dto.title ?? file.fileName,
-      body: '',
-      rationale: null,
-      alternatives: [],
-      tags: dto.tags ?? [],
-      references: [],
-      supersedes: null,
-      reviewBy: null,
-    });
+    const item = this.newItem(
+      organizationId,
+      { projectId, departmentId: null },
+      'document',
+      {
+        title: dto.title ?? file.fileName,
+        body: '',
+        rationale: null,
+        alternatives: [],
+        tags: dto.tags ?? [],
+        references: [],
+        supersedes: null,
+        reviewBy: null,
+      },
+    );
     this.setFile(item, file);
     await this.items.insert(item);
     await this.versions.record(item);
@@ -332,7 +412,10 @@ export class KnowledgeItemsService {
     dto: { title?: string; tags?: string[] },
   ): Promise<ItemResponse> {
     await this.tenancy.assertProjectAcceptsWrites(organizationId, projectId);
-    const item = await this.load(organizationId, projectId, itemId, true);
+    const item = await this.loadOwned(
+      { organizationId, projectId, departmentId: null },
+      itemId,
+    );
     assertNotFromRepository(item);
     if (item.type !== 'document') {
       throw new KnowledgeItemInvalidError(
@@ -362,6 +445,8 @@ export class KnowledgeItemsService {
       .setOnLocked('skip_locked')
       .where(`item.embeddingStatus = 'pending'`)
       .andWhere(`item.status IN ('accepted', 'proposed')`)
+      // Embeddings are charged to a project (Pylon): a department's items aren't embedded yet.
+      .andWhere('item.projectId IS NOT NULL')
       .andWhere('(item.nextEmbedAt IS NULL OR item.nextEmbedAt <= :now)', {
         now,
       })
@@ -457,6 +542,8 @@ export class KnowledgeItemsService {
       .setLock('pessimistic_write')
       .setOnLocked('skip_locked')
       .where(`item.indexingStatus = 'pending'`)
+      // Documents are a project's (Loculus's files, linked repositories).
+      .andWhere('item.projectId IS NOT NULL')
       .andWhere('(item.nextIndexAt IS NULL OR item.nextIndexAt <= :now)', {
         now,
       })
@@ -591,6 +678,7 @@ export class KnowledgeItemsService {
       id: uuidv7(),
       organizationId: source.organizationId,
       projectId: source.projectId,
+      departmentId: null,
       type: 'document',
       title: file.path,
       body: '',
@@ -647,7 +735,7 @@ export class KnowledgeItemsService {
 
   private newItem(
     organizationId: string,
-    projectId: string,
+    owner: Owner,
     type: KnowledgeItemType,
     content: Pick<
       KnowledgeItemEntity,
@@ -660,20 +748,23 @@ export class KnowledgeItemsService {
       | 'supersedes'
       | 'reviewBy'
     >,
+    proposalOnly = false,
   ): KnowledgeItemEntity {
     const principal = this.access.principal();
     // People write knowledge; agents (service accounts, and agents in a
     // person's session with its session token) propose it.
     const session = principal.sessionId !== null;
     const person = principal.subType === 'user' && !session;
+    const accepted = person && !proposalOnly;
     const now = new Date();
     return Object.assign(new KnowledgeItemEntity(), {
       id: uuidv7(),
       organizationId,
-      projectId,
+      projectId: owner.projectId,
+      departmentId: owner.departmentId,
       type,
       ...content,
-      status: person ? 'accepted' : 'proposed',
+      status: accepted ? 'accepted' : 'proposed',
       version: 1,
       revision: 0,
       sourceKind: person ? 'person' : session ? 'session' : 'task',
@@ -706,8 +797,8 @@ export class KnowledgeItemsService {
       embeddedAt: null,
       createdBy: principal.sub,
       updatedBy: principal.sub,
-      acceptedBy: person ? principal.sub : null,
-      acceptedAt: person ? now : null,
+      acceptedBy: accepted ? principal.sub : null,
+      acceptedAt: accepted ? now : null,
       createdAt: now,
       updatedAt: now,
     } satisfies KnowledgeItemEntity);
@@ -766,14 +857,14 @@ export class KnowledgeItemsService {
   }
 
   private async act(
-    organizationId: string,
-    projectId: string,
+    scope: KnowledgeScope,
     itemId: string,
     action: KnowledgeItemAction,
     done: ItemResponse['status'],
   ): Promise<ItemResponse> {
-    await this.tenancy.assertProjectAcceptsWrites(organizationId, projectId);
-    const item = await this.load(organizationId, projectId, itemId, true);
+    this.assertApprover(scope);
+    await this.assertWritable(scope);
+    const item = await this.loadOwned(scope, itemId);
     assertNotFromRepository(item);
     if (item.status !== done) {
       this.move(item, action);
@@ -805,19 +896,19 @@ export class KnowledgeItemsService {
     item.status = next;
   }
 
-  /** An accepted item of the project that a new one may replace. */
+  /** An accepted item of the same project (or department) that a new one may replace. */
   private async supersedable(
     organizationId: string,
-    projectId: string,
+    owner: Owner,
     itemId: string,
   ): Promise<KnowledgeItemEntity> {
     const item = await this.items.findOne({
-      where: { id: itemId, organizationId, projectId },
+      where: { id: itemId, organizationId, ...ownedBy(owner) },
       lock: { mode: 'pessimistic_write' },
     });
     if (item?.status !== 'accepted') {
       throw new KnowledgeItemInvalidError(
-        `supersedes must name an accepted item of the project (${itemId} isn't one).`,
+        `supersedes must name an accepted item of the ${owner.projectId ? 'project' : 'department'} (${itemId} isn't one).`,
       );
     }
     assertNotFromRepository(item);
@@ -862,6 +953,7 @@ export class KnowledgeItemsService {
         payload: {
           itemId: item.id,
           projectId: item.projectId,
+          departmentId: item.departmentId,
           version: item.version,
           chunkCount: item.chunkCount,
         },
@@ -874,6 +966,7 @@ export class KnowledgeItemsService {
       payload: {
         itemId: item.id,
         projectId: item.projectId,
+        departmentId: item.departmentId,
         type: item.type,
         status: item.status,
         version: item.version,
@@ -883,22 +976,109 @@ export class KnowledgeItemsService {
     });
   }
 
-  /** Scoped to the project: another project's item is a 404. */
+  /** An item the scope sees: another project's or department's is a 404. */
   private async load(
-    organizationId: string,
-    projectId: string,
+    scope: KnowledgeScope,
     itemId: string,
-    forUpdate = false,
   ): Promise<KnowledgeItemEntity> {
-    const item = await this.items.findOne({
-      where: { id: itemId, organizationId, projectId },
-      ...(forUpdate ? { lock: { mode: 'pessimistic_write' as const } } : {}),
+    const item = await this.items.findOneBy({
+      id: itemId,
+      organizationId: scope.organizationId,
+      scopeId: In(scopeIds(scope)),
     });
     if (!item) {
       throw new NotFoundException(`Knowledge item ${itemId} not found`);
     }
     return item;
   }
+
+  /**
+   * An item the scope may change, locked: its own. A project's view of its
+   * department's item is read-only (`KNOWLEDGE_ITEM_READ_ONLY`).
+   */
+  private async loadOwned(
+    scope: KnowledgeScope,
+    itemId: string,
+  ): Promise<KnowledgeItemEntity> {
+    const item = await this.items.findOne({
+      where: {
+        id: itemId,
+        organizationId: scope.organizationId,
+        scopeId: In(scopeIds(scope)),
+      },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!item) {
+      throw new NotFoundException(`Knowledge item ${itemId} not found`);
+    }
+    if (scope.projectId !== null && item.projectId === null) {
+      throw new KnowledgeItemOfDepartmentError(item.id);
+    }
+    return item;
+  }
+
+  /** The department a department's scope is about. */
+  private departmentOwner(scope: KnowledgeScope): Owner & {
+    departmentId: string;
+  } {
+    if (!scope.departmentId) {
+      throw new Error('A department scope without its department');
+    }
+    return { projectId: null, departmentId: scope.departmentId };
+  }
+
+  /** Writes need an active organization, and an active project or department (Polis). */
+  private async assertWritable(scope: KnowledgeScope): Promise<void> {
+    if (scope.projectId !== null) {
+      await this.tenancy.assertProjectAcceptsWrites(
+        scope.organizationId,
+        scope.projectId,
+      );
+    } else {
+      await this.tenancy.assertDepartmentAcceptsWrites(
+        scope.organizationId,
+        this.departmentOwner(scope).departmentId,
+      );
+    }
+  }
+
+  /**
+   * Accepting, rejecting and retiring a department's knowledge is a
+   * person's (its routes check `org:knowledge:write`, which isn't limited to
+   * people like `knowledge:approve` is).
+   */
+  private assertApprover(scope: KnowledgeScope): void {
+    if (scope.projectId !== null) {
+      return;
+    }
+    const principal = this.access.principal();
+    if (principal.subType !== 'user' || principal.sessionId !== null) {
+      throw new ForbiddenException(
+        "Only people accept, reject and retire a department's knowledge",
+      );
+    }
+  }
+}
+
+/** The projects and departments whose items a scope sees (`scopeId`). */
+function scopeIds(scope: KnowledgeScope): string[] {
+  return [scope.projectId, scope.departmentId].filter(
+    (id): id is string => id !== null,
+  );
+}
+
+/** The `where` of an owner's items. */
+function ownedBy(owner: Owner) {
+  return owner.projectId !== null
+    ? { projectId: owner.projectId }
+    : { departmentId: owner.departmentId, projectId: IsNull() };
+}
+
+/** Who an item belongs to. */
+function ownerOf(item: KnowledgeItemEntity): Owner {
+  return item.projectId !== null
+    ? { projectId: item.projectId, departmentId: null }
+    : { projectId: null, departmentId: item.departmentId ?? '' };
 }
 
 /** Who changed a repository document: the repository, not a person. */
@@ -939,7 +1119,9 @@ function assertNotFromRepository(item: KnowledgeItemEntity): void {
 
 /** New passages wait for their vectors (none to embed without passages). */
 function awaitEmbedding(item: KnowledgeItemEntity): void {
-  item.embeddingStatus = item.chunkCount > 0 ? 'pending' : null;
+  // A department's items aren't embedded yet: Pylon charges embeddings to a project.
+  item.embeddingStatus =
+    item.chunkCount > 0 && item.projectId !== null ? 'pending' : null;
   item.embeddingAttempts = 0;
   item.nextEmbedAt = null;
   item.embeddingError = null;

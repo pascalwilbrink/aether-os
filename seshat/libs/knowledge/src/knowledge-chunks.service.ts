@@ -27,15 +27,21 @@ export interface ChunkMatch {
 
 export interface ChunkSearch {
   organizationId: string;
-  projectId: string;
+  /** A project's items, and its department's (`departmentId`); or only a department's (`projectId` null). */
+  projectId: string | null;
+  departmentId: string | null;
   query: string;
   statuses: string[];
   types?: string[];
   limit: number;
 }
 
-/** A search by meaning: the query's vector, from `model`. */
-export interface VectorSearch extends Omit<ChunkSearch, 'query'> {
+/** A search by meaning: the query's vector, from `model`; a project's items only (only theirs are embedded). */
+export interface VectorSearch extends Omit<
+  ChunkSearch,
+  'query' | 'projectId' | 'departmentId'
+> {
+  projectId: string;
   vector: number[];
   model: string;
   /** The least cosine similarity a passage needs. */
@@ -88,6 +94,7 @@ export class KnowledgeChunksService {
           itemId: item.id,
           organizationId: item.organizationId,
           projectId: item.projectId,
+          departmentId: item.departmentId,
           version: item.version,
           ordinal,
           text: piece,
@@ -198,7 +205,8 @@ export class KnowledgeChunksService {
   /**
    * The best passage of each matching item, best item first: the item's
    * status and type must be among those asked for, and only its current
-   * version counts.
+   * version counts. A project's items and its department's (either may be
+   * null: `= NULL` matches nothing).
    */
   async search(search: ChunkSearch): Promise<ChunkMatch[]> {
     const rows: { item_id: string; text: string; score: number }[] =
@@ -209,7 +217,7 @@ export class KnowledgeChunksService {
            JOIN knowledge_items i ON i.id = c.item_id AND i.version = c.version
            CROSS JOIN websearch_to_tsquery('english', $3) q
           WHERE c.organization_id = $1
-            AND c.project_id = $2
+            AND (c.project_id = $2::uuid OR c.department_id = $6::uuid)
             AND c.tsv @@ q
             AND i.status = ANY($4)
             AND ($5::text[] IS NULL OR i.type = ANY($5))
@@ -220,6 +228,7 @@ export class KnowledgeChunksService {
           search.query,
           search.statuses,
           search.types?.length ? search.types : null,
+          search.departmentId,
         ],
       );
     return rows

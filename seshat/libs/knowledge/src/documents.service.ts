@@ -42,7 +42,10 @@ export class DocumentsService {
     dto: ApiTypes.UpdateKnowledgeDocumentRequest,
   ): Promise<ApiTypes.KnowledgeItemResponse> {
     // A repository document changes with a commit: refused before Loculus is asked.
-    const item = await this.items.findById(organizationId, projectId, itemId);
+    const item = await this.items.findById(
+      { organizationId, projectId, departmentId: null },
+      itemId,
+    );
     if (item.source.kind === 'repository') {
       throw new KnowledgeItemReadOnlyError(
         itemId,

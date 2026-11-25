@@ -20,6 +20,15 @@ export class ProjectArchivedError extends DomainError {
   }
 }
 
+export class DepartmentArchivedError extends DomainError {
+  constructor(departmentId: string) {
+    super(
+      `Department ${departmentId} is archived and its knowledge can't be changed.`,
+      'DEPARTMENT_ARCHIVED',
+    );
+  }
+}
+
 /** Polis couldn't be asked (503). */
 export class PolisUnavailableError extends ServiceUnavailableException {
   constructor(reason: string) {

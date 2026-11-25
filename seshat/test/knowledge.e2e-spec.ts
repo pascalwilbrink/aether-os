@@ -505,8 +505,8 @@ describe('Knowledge (e2e)', () => {
       (e) => e.eventType === 'knowledge-item.indexed',
     );
     expect(indexedEvents.map((e) => e.payload)).toEqual([
-      { itemId: id, projectId, version: 1, chunkCount: 1 },
-      { itemId: id, projectId, version: 2, chunkCount: 1 },
+      { itemId: id, projectId, departmentId: null, version: 1, chunkCount: 1 },
+      { itemId: id, projectId, departmentId: null, version: 2, chunkCount: 1 },
     ]);
   });
 

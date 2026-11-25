@@ -46,6 +46,13 @@ export type IndexingStatus = ApiTypes.DocumentIndexing['status'];
   'createdAt',
   'id',
 ])
+// A project's view (its items and its department's), or a department's, newest first.
+@Index('ix_knowledge_items_scope_created_at_id', ['scopeId', 'createdAt', 'id'])
+// A project's or a department's, never both.
+@Check(
+  'ck_knowledge_items_owner',
+  `(project_id IS NULL) <> (department_id IS NULL)`,
+)
 @Check(
   'ck_knowledge_items_embedding_status',
   `embedding_status IS NULL OR embedding_status IN ('pending', 'embedded')`,
@@ -65,8 +72,26 @@ export class KnowledgeItemEntity {
   @Column({ type: 'uuid' })
   organizationId: string;
 
-  @Column({ type: 'uuid' })
-  projectId: string;
+  /** The project it belongs to; null for a department's item. */
+  @Column({ type: 'uuid', nullable: true })
+  projectId: string | null;
+
+  /** The department it belongs to, seen by every project in it; null for a project's item. */
+  @Column({ type: 'uuid', nullable: true })
+  departmentId: string | null;
+
+  /**
+   * Its project or department, whichever it has (kept by Postgres): a
+   * project's view of its items and its department's is one `IN` filter.
+   */
+  @Column({
+    type: 'uuid',
+    generatedType: 'STORED',
+    asExpression: 'COALESCE(project_id, department_id)',
+    insert: false,
+    update: false,
+  })
+  scopeId?: string;
 
   @Column({ type: 'text' })
   type: KnowledgeItemType;

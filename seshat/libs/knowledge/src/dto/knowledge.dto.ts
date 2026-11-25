@@ -14,6 +14,9 @@ import {
   zKnowledgePassagePage,
   zKnowledgeSearchResponse,
   zListKnowledgeItemsPath,
+  zListDepartmentKnowledgeItemsPath,
+  zListDepartmentKnowledgeItemsQuery,
+  zGetDepartmentKnowledgeItemPath,
   zListKnowledgeItemsQuery,
   zListKnowledgeItemVersionsQuery,
   zListKnowledgeItemPassagesQuery,
@@ -26,6 +29,17 @@ import {
 export class ProjectParams extends createZodDto(zListKnowledgeItemsPath) {}
 /** `:organizationId`, `:projectId` and `:itemId` (UUIDs). */
 export class ItemParams extends createZodDto(zGetKnowledgeItemPath) {}
+/** `:organizationId` and `:departmentId` (UUIDs). */
+export class DepartmentParams extends createZodDto(
+  zListDepartmentKnowledgeItemsPath,
+) {}
+/** `:organizationId`, `:departmentId` and `:itemId` (UUIDs). */
+export class DepartmentItemParams extends createZodDto(
+  zGetDepartmentKnowledgeItemPath,
+) {}
+export class ListDepartmentKnowledgeItemsQuery extends createZodDto(
+  zListDepartmentKnowledgeItemsQuery,
+) {}
 
 export class CreateKnowledgeItemRequest extends createZodDto(
   zCreateKnowledgeItemRequest,

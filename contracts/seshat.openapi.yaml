@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Seshat API
-  version: 0.4.0
+  version: 0.5.0
   description: |
     Project knowledge (`../docs/knowledge.md`): what agents know about the
     project they work in. Typed items (decisions, facts, conventions,
@@ -10,6 +10,13 @@ info:
     with where it came from, a
     lifecycle (`proposed` → `accepted` → `superseded` / `retired`, or
     `rejected`) and a history of versions.
+
+    A department of the organization (Polis) has knowledge of its own:
+    items every project in the department sees, read-only, in its lists,
+    reads and search (by keywords; their passages aren't embedded yet).
+    Organization owners and admins write and accept them under
+    `…/departments/{departmentId}/knowledge`; agents and people of a
+    project propose them from the project (`scope: department`).
 
     People write knowledge directly; agents (task tokens) only propose it,
     and someone with `knowledge:approve` accepts it. Every change is
@@ -27,6 +34,7 @@ security:
 
 tags:
   - name: knowledge
+  - name: department-knowledge
 
 paths:
   /v1/organizations/{organizationId}/projects/{projectId}/knowledge/items:
@@ -46,6 +54,12 @@ paths:
         and the `alternatives` considered; other types can't.
         `supersedes` names an accepted item this one replaces: it becomes
         `superseded` when this one is accepted.
+
+        With `scope: department` it's a proposal to the project's department
+        (always `proposed`, whoever writes it; `KNOWLEDGE_ITEM_INVALID` when
+        the project is in no department, `DEPARTMENT_ARCHIVED`), accepted by
+        the department's owners and admins; `supersedes` then names an
+        accepted item of the department.
       requestBody:
         required: true
         content:
@@ -68,7 +82,10 @@ paths:
       operationId: listKnowledgeItems
       x-permission: '`knowledge:read` in the project'
       description: |
-        Newest first; `document` items too.
+        Newest first; `document` items too, and the items of the project's
+        department (`departmentId` set, `projectId` null), which the project
+        reads but doesn't change (`KNOWLEDGE_ITEM_READ_ONLY` through its
+        routes).
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
@@ -430,7 +447,8 @@ paths:
       operationId: searchKnowledge
       x-permission: '`knowledge:read` in the project'
       description: |
-        Searches the project's knowledge: accepted items and indexed documents
+        Searches the project's knowledge, and its department's (by keywords
+        only, for now): accepted items and indexed documents
         (items that were superseded, retired or rejected never come back,
         proposed ones only with `includeProposed`). Hybrid: by keywords
         (Postgres full-text search, English) and by meaning (the query's
@@ -439,6 +457,210 @@ paths:
         the query couldn't be embedded), by keyword only (`semantic: false`).
         Each result is an item with the passage that matched. A read; `POST`
         only because the query is a body.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SearchKnowledgeRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Best first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeSearchResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/DepartmentId'
+    post:
+      tags: [department-knowledge]
+      operationId: createDepartmentKnowledgeItem
+      x-permission: '`org:knowledge:write` (organization owners and admins)'
+      description: |
+        A decision, fact, convention, architecture note or lesson of the
+        department, `accepted` at once when a person writes it. Every project
+        in the department sees it. The department must be active
+        (`DEPARTMENT_ARCHIVED`). `scope` is for a project's route
+        (`KNOWLEDGE_ITEM_INVALID` here); `supersedes` names an accepted item
+        of the department.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateKnowledgeItemRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+    get:
+      tags: [department-knowledge]
+      operationId: listDepartmentKnowledgeItems
+      x-permission: '`org:read`'
+      description: The department's own items, newest first, proposals included.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - { name: type, in: query, schema: { $ref: '#/components/schemas/KnowledgeItemType' } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/KnowledgeItemStatus' } }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/DepartmentId'
+      - $ref: '#/components/parameters/ItemId'
+    get:
+      tags: [department-knowledge]
+      operationId: getDepartmentKnowledgeItem
+      x-permission: '`org:read`, or `platform:read`'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [department-knowledge]
+      operationId: updateDepartmentKnowledgeItem
+      x-permission: '`org:knowledge:write`'
+      description: A new version of a proposed or accepted item of the department.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateKnowledgeItemRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: The new version
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/DepartmentId'
+      - $ref: '#/components/parameters/ItemId'
+    get:
+      tags: [department-knowledge]
+      operationId: listDepartmentKnowledgeItemVersions
+      x-permission: '`org:read`'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemVersionPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/accept:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/DepartmentId'
+      - $ref: '#/components/parameters/ItemId'
+    post:
+      tags: [department-knowledge]
+      operationId: acceptDepartmentKnowledgeItem
+      x-permission: '`org:knowledge:write`, people only'
+      description: A proposal to the department becomes its knowledge; the item it supersedes becomes `superseded`.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/reject:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/DepartmentId'
+      - $ref: '#/components/parameters/ItemId'
+    post:
+      tags: [department-knowledge]
+      operationId: rejectDepartmentKnowledgeItem
+      x-permission: '`org:knowledge:write`, people only'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/retire:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/DepartmentId'
+      - $ref: '#/components/parameters/ItemId'
+    post:
+      tags: [department-knowledge]
+      operationId: retireDepartmentKnowledgeItem
+      x-permission: '`org:knowledge:write`, people only'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /v1/organizations/{organizationId}/departments/{departmentId}/knowledge/search:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/DepartmentId'
+    post:
+      tags: [department-knowledge]
+      operationId: searchDepartmentKnowledge
+      x-permission: '`org:read`'
+      description: Searches the department's own items, by keywords (`semantic` is false for now).
       requestBody:
         required: true
         content:
@@ -466,6 +688,12 @@ components:
       name: projectId
       in: path
       required: true
+      schema: { type: string, format: uuid }
+    DepartmentId:
+      name: departmentId
+      in: path
+      required: true
+      description: A department of the organization in Polis.
       schema: { type: string, format: uuid }
     ItemId:
       name: itemId
@@ -510,6 +738,7 @@ components:
         - KNOWLEDGE_ITEM_READ_ONLY
         - ORGANIZATION_SUSPENDED
         - PROJECT_ARCHIVED
+        - DEPARTMENT_ARCHIVED
     DomainProblem:
       description: Problem details for a business-rule violation.
       allOf:
@@ -648,6 +877,10 @@ components:
       additionalProperties: false
       required: [type, title, body]
       properties:
+        scope:
+          type: string
+          enum: [project, department]
+          description: On a project's route, `department` proposes it to the project's department instead; `project` when left out.
         type: { $ref: '#/components/schemas/WritableKnowledgeItemType' }
         title: { type: string, minLength: 1, maxLength: 200 }
         body:
@@ -676,7 +909,7 @@ components:
         supersedes:
           type: [string, 'null']
           format: uuid
-          description: An accepted item of the project this one replaces once accepted.
+          description: An accepted item of the same project (or department) this one replaces once accepted.
         reviewBy:
           type: [string, 'null']
           format: date
@@ -743,11 +976,18 @@ components:
 
     KnowledgeItemResponse:
       type: object
-      required: [id, organizationId, projectId, type, title, body, rationale, alternatives, status, version, tags, references, source, supersedes, supersededBy, reviewBy, document, createdBy, updatedBy, acceptedBy, acceptedAt, createdAt, updatedAt]
+      required: [id, organizationId, projectId, departmentId, type, title, body, rationale, alternatives, status, version, tags, references, source, supersedes, supersededBy, reviewBy, document, createdBy, updatedBy, acceptedBy, acceptedAt, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
-        projectId: { type: string, format: uuid }
+        projectId:
+          type: [string, 'null']
+          format: uuid
+          description: The project it belongs to; null for a department's item.
+        departmentId:
+          type: [string, 'null']
+          format: uuid
+          description: The department it belongs to (seen by every project in it); null for a project's item.
         type: { $ref: '#/components/schemas/KnowledgeItemType' }
         title: { type: string }
         body:

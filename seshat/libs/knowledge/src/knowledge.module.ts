@@ -22,6 +22,7 @@ import { KnowledgeItemVersionEntity } from './knowledge-item-version.entity.js';
 import { KnowledgeItemEntity } from './knowledge-item.entity.js';
 import { KnowledgeItemMapper } from './knowledge-item.mapper.js';
 import { KnowledgeChunksService } from './knowledge-chunks.service.js';
+import { DepartmentKnowledgeController } from './department-knowledge.controller.js';
 import { KnowledgeController } from './knowledge.controller.js';
 import { KnowledgeItemsService } from './knowledge-items.service.js';
 import { KnowledgeSearchService } from './knowledge-search.service.js';
@@ -54,7 +55,11 @@ import {
     ]),
     TenancyModule,
   ],
-  controllers: [KnowledgeController, KnowledgeRepositoriesController],
+  controllers: [
+    KnowledgeController,
+    DepartmentKnowledgeController,
+    KnowledgeRepositoriesController,
+  ],
   providers: [
     KnowledgeItemsService,
     KnowledgeItemMapper,

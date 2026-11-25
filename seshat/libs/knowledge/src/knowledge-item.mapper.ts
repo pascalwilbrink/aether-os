@@ -13,6 +13,7 @@ export class KnowledgeItemMapper {
       id: entity.id,
       organizationId: entity.organizationId,
       projectId: entity.projectId,
+      departmentId: entity.departmentId,
       type: entity.type,
       title: entity.title,
       body: entity.body,
