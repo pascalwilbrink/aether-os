@@ -166,7 +166,7 @@ describe('Persons (e2e)', () => {
         await asOwner(app, other.id)
       )
         .post(`/v1/organizations/${other.id}/departments`)
-        .send({ name: 'x', slug: 'x', description: '' })
+        .send({ name: 'xyz', slug: 'xyz', description: '' })
         .expect(201)
     ).body.id as string;
     await owner
