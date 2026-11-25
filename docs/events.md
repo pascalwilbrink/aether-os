@@ -44,6 +44,12 @@ Rules:
 
 ## Catalogue
 
+### Pistis (`pistis.events`)
+
+| Event | Payload | Consumers |
+|---|---|---|
+| `user.created` | `userId`, `displayName`, `email`, `status`; `organizationId` and `projectId` null (users are platform-wide) | Polis (its copy of users) |
+
 ### Polis (`polis.events`)
 
 **Published** since Polis's outbox landed, and **consumed by Hephaestus** (`hephaestus.polis-events`: the organization and project events, for its copy of their status); the contract is `../contracts/polis.asyncapi.yaml`, which is the source for these events from now on (membership payloads also carry `membershipId`). Not built yet: `organization.deleted` and `project.deleted` (Polis has no deletes). Project memberships are published as their own events (below), not as `membership.*` with a project scope.

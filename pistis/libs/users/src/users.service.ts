@@ -5,6 +5,7 @@ import { In, type Repository } from 'typeorm';
 import {
   findPage,
   mapPage,
+  PistisEvents,
   Transactional,
   type Page,
   type PageRequest,
@@ -28,13 +29,29 @@ export class UsersService {
     @InjectRepository(UserEntity)
     private readonly users: Repository<UserEntity>,
     private readonly mapper: UserMapper,
+    private readonly events: PistisEvents,
   ) {}
 
-  /** A new user without identities; `AccountsService` links the first one. */
+  /**
+   * A new user without identities; `AccountsService` links the first one.
+   * `user.created` goes to the outbox in the same transaction, so other
+   * services (Polis) learn of every user that exists.
+   */
   @Transactional()
   async create(user: NewUser): Promise<UserResponse> {
     const entity = this.mapper.toEntity(user, new Date());
     await this.users.insert(entity);
+    await this.events.emit({
+      eventType: 'user.created',
+      aggregateId: entity.id,
+      aggregateVersion: 1,
+      payload: {
+        userId: entity.id,
+        displayName: entity.displayName,
+        email: entity.email,
+        status: entity.status,
+      },
+    });
 
     return this.mapper.toResponse(entity);
   }

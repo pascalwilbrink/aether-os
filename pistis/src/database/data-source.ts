@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 
 import { ApiKeyEntity } from '../../libs/service-accounts/src/api-key.entity.js';
 import { ServiceAccountEntity } from '../../libs/service-accounts/src/service-account.entity.js';
-import { postgresOptions } from '@aether-os/krepis';
+import { OutboxMessageEntity, postgresOptions } from '@aether-os/krepis';
 
 import { OidcPayloadEntity } from '../../libs/oidc/src/oidc-payload.entity.js';
 import { PasswordCredentialEntity } from '../../libs/users/src/password-credential.entity.js';
@@ -39,6 +39,7 @@ export default new DataSource(
       OidcPayloadEntity,
       ServiceAccountEntity,
       ApiKeyEntity,
+      OutboxMessageEntity,
     ],
   }),
 );

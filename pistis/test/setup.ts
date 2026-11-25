@@ -8,6 +8,9 @@ import { FakeUpstream, upstream } from './fake-upstream.js';
 
 // Every test app connects to the run's Postgres container.
 process.env.DATABASE_URL = inject('databaseUrl');
+process.env.RABBITMQ_URL = inject('rabbitmqUrl');
+// Tests run the relay themselves (OutboxRelay.relayBatch).
+process.env.OUTBOX_RELAY_INTERVAL_MS = '0';
 process.env.NODE_ENV = 'test';
 // The lowest allowed scrypt cost: real hashes, quickly.
 process.env.PASSWORD_SCRYPT_COST = '14';

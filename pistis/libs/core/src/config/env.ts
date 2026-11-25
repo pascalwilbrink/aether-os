@@ -183,6 +183,10 @@ export const zEnv = z
     PORT: z.coerce.number().int().positive().default(3003),
     /** Pistis's own Postgres database. */
     DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+    /** RabbitMQ, where Pistis's events (`user.created`) go, through the outbox. */
+    RABBITMQ_URL: z.url({ protocol: /^amqps?$/ }),
+    /** How often the relay publishes waiting events; 0 turns it off. */
+    OUTBOX_RELAY_INTERVAL_MS: z.coerce.number().int().min(0).default(1000),
     /**
      * scrypt cost for new password hashes, as log2(N): 17 is OWASP's
      * recommendation (N = 131072, 128 MiB). Stored with each hash, so raising
