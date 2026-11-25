@@ -35,6 +35,7 @@ import {
   KnowledgeItemReadOnlyError,
 } from './knowledge.errors.js';
 import { KnowledgeVersionsService } from './knowledge-versions.service.js';
+import { decisionOf, searchableText } from './decisions.js';
 
 type ItemResponse = ApiTypes.KnowledgeItemResponse;
 
@@ -114,6 +115,7 @@ export class KnowledgeItemsService {
     const item = this.newItem(organizationId, projectId, dto.type, {
       title: dto.title,
       body: redactText(dto.body, { keepEmails: true }),
+      ...decisionOf(dto.type, dto),
       tags: dto.tags ?? [],
       references: dto.references ?? [],
       supersedes: dto.supersedes ?? null,
@@ -138,7 +140,11 @@ export class KnowledgeItemsService {
   async list(
     organizationId: string,
     projectId: string,
-    filters: { type?: KnowledgeItemType; status?: ItemResponse['status'] },
+    filters: {
+      type?: KnowledgeItemType;
+      status?: ItemResponse['status'];
+      sessionId?: string;
+    },
     page: PageRequest,
   ): Promise<Page<ItemResponse>> {
     const entities = await findPage(
@@ -149,6 +155,7 @@ export class KnowledgeItemsService {
           projectId,
           ...(filters.type ? { type: filters.type } : {}),
           ...(filters.status ? { status: filters.status } : {}),
+          ...(filters.sessionId ? { sourceSessionId: filters.sessionId } : {}),
         },
         sortBy: 'createdAt',
         direction: 'DESC',
@@ -226,6 +233,10 @@ export class KnowledgeItemsService {
     Object.assign(item, {
       title: dto.title,
       body: redactText(dto.body, { keepEmails: true }),
+      ...decisionOf(item.type, {
+        rationale: dto.rationale === undefined ? item.rationale : dto.rationale,
+        alternatives: dto.alternatives ?? item.alternatives,
+      }),
       tags: dto.tags ?? item.tags,
       references: dto.references ?? item.references,
       reviewBy: dto.reviewBy === undefined ? item.reviewBy : dto.reviewBy,
@@ -292,6 +303,8 @@ export class KnowledgeItemsService {
     const item = this.newItem(organizationId, projectId, 'document', {
       title: dto.title ?? file.fileName,
       body: '',
+      rationale: null,
+      alternatives: [],
       tags: dto.tags ?? [],
       references: [],
       supersedes: null,
@@ -581,6 +594,8 @@ export class KnowledgeItemsService {
       type: 'document',
       title: file.path,
       body: '',
+      rationale: null,
+      alternatives: [],
       status: 'accepted',
       version: 1,
       revision: 0,
@@ -588,6 +603,8 @@ export class KnowledgeItemsService {
       references: [],
       sourceKind: 'repository',
       sourceTaskId: null,
+      sourceSessionId: null,
+      sourceAgentId: null,
       supersedes: null,
       supersededBy: null,
       reviewBy: null,
@@ -634,12 +651,21 @@ export class KnowledgeItemsService {
     type: KnowledgeItemType,
     content: Pick<
       KnowledgeItemEntity,
-      'title' | 'body' | 'tags' | 'references' | 'supersedes' | 'reviewBy'
+      | 'title'
+      | 'body'
+      | 'rationale'
+      | 'alternatives'
+      | 'tags'
+      | 'references'
+      | 'supersedes'
+      | 'reviewBy'
     >,
   ): KnowledgeItemEntity {
     const principal = this.access.principal();
-    // People write knowledge; agents (service accounts) propose it.
-    const person = principal.subType === 'user';
+    // People write knowledge; agents (service accounts, and agents in a
+    // person's session with its session token) propose it.
+    const session = principal.sessionId !== null;
+    const person = principal.subType === 'user' && !session;
     const now = new Date();
     return Object.assign(new KnowledgeItemEntity(), {
       id: uuidv7(),
@@ -650,8 +676,10 @@ export class KnowledgeItemsService {
       status: person ? 'accepted' : 'proposed',
       version: 1,
       revision: 0,
-      sourceKind: person ? 'person' : 'task',
-      sourceTaskId: person ? null : principal.taskId,
+      sourceKind: person ? 'person' : session ? 'session' : 'task',
+      sourceTaskId: person || session ? null : principal.taskId,
+      sourceSessionId: session ? principal.sessionId : null,
+      sourceAgentId: session ? principal.agentId : null,
       supersededBy: null,
       fileId: null,
       fileName: null,
@@ -730,9 +758,9 @@ export class KnowledgeItemsService {
     await this.save(item, 'knowledge-item.updated');
   }
 
-  /** A written item's passages (its title and body), searchable at once. */
+  /** A written item's passages (its title, body and a decision's reasons), searchable at once. */
   private async indexText(item: KnowledgeItemEntity): Promise<void> {
-    item.chunkCount = await this.chunks.replace(item, item.body);
+    item.chunkCount = await this.chunks.replace(item, searchableText(item));
     awaitEmbedding(item);
     await this.save(item, 'knowledge-item.indexed');
   }

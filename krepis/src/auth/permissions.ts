@@ -66,6 +66,10 @@ const PROJECT_PERMISSIONS = {
   // (people only, like task:approve).
   'knowledge:read': ['admin', 'approver', 'editor', 'viewer'],
   'knowledge:write': ['admin', 'approver', 'editor'],
+  // Proposing an item for someone to accept (Seshat's POST …/items): what
+  // writers may do, and the one write a session token may make (an agent in
+  // a session, e.g. a council's decision; docs/councils.md).
+  'knowledge:propose': ['admin', 'approver', 'editor'],
   'knowledge:approve': ['admin', 'approver'],
   // Model calls and embeddings through Pylon (docs/pylon.md); task tokens.
   'model:invoke': ['admin', 'approver', 'editor'],

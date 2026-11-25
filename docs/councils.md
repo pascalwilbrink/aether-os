@@ -162,7 +162,9 @@ The facilitator records decisions as they're reached (`record_decision`): Seshat
 - the decision itself and its context (as now);
 - a structured **`rationale`**;
 - **`alternatives`**: what else was considered and why it wasn't chosen;
-- the session as their source (`source.kind: council`, with the session and round).
+- the session as their source (`source.kind: session`, with the session and the facilitator, from its session token; the round as a `round` reference).
+
+Built in Seshat and Krepis: `rationale` and `alternatives` (`{ option, reason }`, only on decisions, `KNOWLEDGE_ITEM_INVALID` otherwise; searchable with the body), `source.kind: session` (`sessionId`, `agentId`), `GET …/items?sessionId=`, `session` and `round` references, and `knowledge:propose`, which session tokens have (they never write, edit or accept knowledge).
 
 They're proposed, like everything an agent writes to project knowledge, and become knowledge when a person accepts them (in the session, or in Seshat's inbox). An accepted decision is what later tasks and sessions find when they search the project's knowledge.
 

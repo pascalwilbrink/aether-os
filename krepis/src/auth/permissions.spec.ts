@@ -188,6 +188,20 @@ describe('FixedPermissionEvaluator', () => {
     expect(
       evaluator.hasProjectPermission(editor, PROJECT, 'knowledge:write'),
     ).toBe(false);
+    // Proposing knowledge, as the person could; never accepting it.
+    expect(
+      evaluator.hasProjectPermission(editor, PROJECT, 'knowledge:propose'),
+    ).toBe(true);
+    expect(
+      evaluator.hasProjectPermission(
+        session('viewer'),
+        PROJECT,
+        'knowledge:propose',
+      ),
+    ).toBe(false);
+    expect(
+      evaluator.hasProjectPermission(editor, PROJECT, 'knowledge:approve'),
+    ).toBe(false);
     const admin = session('editor', ['owner']);
     expect(evaluator.hasProjectPermission(admin, PROJECT, 'task:approve')).toBe(
       false,

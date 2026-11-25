@@ -171,7 +171,7 @@ components:
           type: integer
           minimum: 1
           description: The item's content version (its text, or a document's file).
-        sourceKind: { enum: [person, task, repository] }
+        sourceKind: { enum: [person, task, session, repository] }
         supersededBy:
           oneOf:
             - $ref: '#/components/schemas/Uuid'

@@ -45,9 +45,11 @@ export abstract class PermissionEvaluator {
 
 /**
  * What a session token may do (docs/interaction.md, Session tokens): read
- * what the person can read in the session's project, and call models for
- * the session when the person may use sessions. Nothing else, whatever the
- * person's roles: the agent sees what they see and changes nothing.
+ * what the person can read in the session's project, call models for the
+ * session when the person may use sessions, and propose knowledge (a
+ * proposal changes nothing until a person accepts it; Seshat never accepts a
+ * session's item at once). Nothing else, whatever the person's roles: the
+ * agent sees what they see and changes nothing on its own.
  */
 export const SESSION_ORGANIZATION_PERMISSIONS: readonly OrganizationPermission[] =
   ['org:read', 'agent:read', 'council:read'];
@@ -55,6 +57,7 @@ export const SESSION_PROJECT_PERMISSIONS: readonly ProjectPermission[] = [
   'project:read',
   'task:read',
   'knowledge:read',
+  'knowledge:propose',
   'file:read',
   'automation:read',
   'workspace:read',

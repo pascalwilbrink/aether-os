@@ -43,6 +43,7 @@ export type {
   CreateKnowledgeItemResponse,
   CreateKnowledgeItemResponses,
   Cursor,
+  DecisionAlternative,
   DeleteKnowledgeRepositoryData,
   DeleteKnowledgeRepositoryError,
   DeleteKnowledgeRepositoryErrors,

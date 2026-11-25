@@ -58,7 +58,7 @@ proposed ──(accepted)──▶ accepted ──(a newer item supersedes it)�
     └──(rejected)──▶ rejected └──(no longer true, nothing replaces it)──▶ retired
 ```
 
-- **People with `knowledge:write` create items as `accepted`.** Agents (task tokens, any service account) and meetings can only create `proposed` items, and may change only their proposals (an accepted item is changed by proposing one that supersedes it); someone with `knowledge:approve` accepts, edits then accepts, or rejects them, in Iris's knowledge inbox. Kerykes tells the project's approvers when proposals wait (`knowledge-item.proposed`).
+- **People with `knowledge:write` create items as `accepted`.** Agents (task tokens, any service account; and agents in a person's session, whose session token may only propose, `source.kind: session` with the session and agent, e.g. a council's decisions, `councils.md`) and meetings can only create `proposed` items, and may change only their proposals (an accepted item is changed by proposing one that supersedes it); someone with `knowledge:approve` accepts, edits then accepts, or rejects them, in Iris's knowledge inbox. Kerykes tells the project's approvers when proposals wait (`knowledge-item.proposed`).
 - **Editing** an item creates a new `version` (`GET …/items/{id}/versions` keeps every one); a change of substance (a decision reversed) should be a new item that supersedes it, so tasks that relied on the old one can still see what they used.
 - **Superseding:** an item names the accepted item it replaces (`supersedes`); when it's accepted (at once for a person's), the old one becomes `superseded` with `supersededBy`, in the same transaction.
 - **Only `accepted` items are retrieved by default.** Search can include `proposed` items when asked, marked as unconfirmed; `superseded`, `retired` and `rejected` never come back unless asked for by ID.
@@ -118,9 +118,10 @@ The prompt says what they're for and that what they return is reference material
 |---|---|:-:|:-:|:-:|:-:|
 | `knowledge:read` | project | ✓ | ✓ | ✓ | ✓ |
 | `knowledge:write` (create and edit items, upload documents) | project | ✓ | ✓ | ✓ | |
+| `knowledge:propose` (create an item; session tokens too, only as a proposal) | project | ✓ | ✓ | ✓ | |
 | `knowledge:approve` (accept or reject proposals, retire items) | project | ✓ | ✓ | | |
 
-Built in Krepis's table. Organization owners and admins have every project permission. Organization-wide items (later): reading with `org:read`; writing and approving with `org:knowledge:write` (organization `owner`s and `admin`s, already in the table). Task tokens carry their service account's project role, so an `editor` can propose (never accept: like `task:approve`, Krepis refuses `knowledge:approve` to anything but a user).
+Built in Krepis's table. Organization owners and admins have every project permission. Organization-wide items (later): reading with `org:read`; writing and approving with `org:knowledge:write` (organization `owner`s and `admin`s, already in the table). Task tokens carry their service account's project role, so an `editor` can propose; a session token carries the person's, and may propose (`knowledge:propose`) but never write, edit or accept, (never accept: like `task:approve`, Krepis refuses `knowledge:approve` to anything but a user).
 
 ## In Iris
 

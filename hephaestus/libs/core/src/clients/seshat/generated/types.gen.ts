@@ -48,7 +48,18 @@ export type Tag = string;
  * Something an item points at, e.g. the task or the document it came from.
  */
 export type KnowledgeReference = {
-  kind: 'item' | 'document' | 'file' | 'task' | 'artifact' | 'url';
+  /**
+   * `session` and `round`: a session (e.g. a council's) and one of its deliberation rounds, in Hephaestus.
+   */
+  kind:
+    | 'item'
+    | 'document'
+    | 'file'
+    | 'task'
+    | 'artifact'
+    | 'url'
+    | 'session'
+    | 'round';
   /**
    * An ID, or for `url` the URL.
    */
@@ -59,13 +70,20 @@ export type KnowledgeReference = {
 /**
  * Where the item came from, set by Seshat from the token: `person`
  * (a person wrote it), `task` (an agent proposed it, with `taskId`),
- * or `repository` (a document indexed from a repository linked to the
- * project, with `repository`; read-only: change it with a commit).
+ * `session` (an agent in a person's session proposed it, e.g. a
+ * council's facilitator: `sessionId`, `agentId`), or `repository` (a
+ * document indexed from a repository linked to the project, with
+ * `repository`; read-only: change it with a commit).
  *
  */
 export type KnowledgeSource = {
-  kind: 'person' | 'task' | 'repository';
+  kind: 'person' | 'task' | 'session' | 'repository';
   taskId?: string | null;
+  sessionId?: string | null;
+  /**
+   * The agent that proposed it in the session.
+   */
+  agentId?: string | null;
   repository?: KnowledgeRepositoryFile | null;
 };
 
@@ -122,6 +140,17 @@ export type KnowledgeDocument = KnowledgeDocumentFile & {
   indexing: DocumentIndexing;
 };
 
+export type DecisionAlternative = {
+  /**
+   * What was considered.
+   */
+  option: string;
+  /**
+   * Why it wasn't chosen.
+   */
+  reason: string;
+};
+
 export type CreateKnowledgeItemRequest = {
   type: WritableKnowledgeItemType;
   title: string;
@@ -129,6 +158,14 @@ export type CreateKnowledgeItemRequest = {
    * Markdown. For a decision, its context, the decision and its consequences.
    */
   body: string;
+  /**
+   * A decision's rationale (Markdown); only on a `decision`.
+   */
+  rationale?: string | null;
+  /**
+   * What else a decision considered, and why not; only on a `decision`.
+   */
+  alternatives?: Array<DecisionAlternative>;
   tags?: Array<Tag>;
   references?: Array<KnowledgeReference>;
   /**
@@ -144,6 +181,14 @@ export type CreateKnowledgeItemRequest = {
 export type UpdateKnowledgeItemRequest = {
   title: string;
   body: string;
+  /**
+   * A decision's rationale (Markdown); only on a `decision`. Left out, it's kept.
+   */
+  rationale?: string | null;
+  /**
+   * What else a decision considered, and why not; only on a `decision`. Left out, they're kept.
+   */
+  alternatives?: Array<DecisionAlternative>;
   tags?: Array<Tag>;
   references?: Array<KnowledgeReference>;
   reviewBy?: string | null;
@@ -177,6 +222,11 @@ export type KnowledgeItemResponse = {
    * Markdown; for a document, empty (its text is in its chunks).
    */
   body: string;
+  /**
+   * A decision's rationale; null for anything else, or none given.
+   */
+  rationale: string | null;
+  alternatives: Array<DecisionAlternative>;
   status: KnowledgeItemStatus;
   version: number;
   tags: Array<string>;
@@ -203,6 +253,11 @@ export type KnowledgeItemVersionResponse = {
   version: number;
   title: string;
   body: string;
+  /**
+   * A decision's rationale; null for anything else, or none given.
+   */
+  rationale: string | null;
+  alternatives: Array<DecisionAlternative>;
   tags: Array<string>;
   references: Array<KnowledgeReference>;
   document: KnowledgeDocumentFile | null;
@@ -441,6 +496,10 @@ export type ListKnowledgeItemsData = {
     cursor?: string;
     type?: KnowledgeItemType;
     status?: KnowledgeItemStatus;
+    /**
+     * Only items proposed in this session (`source.sessionId`).
+     */
+    sessionId?: string;
   };
   url: '/v1/organizations/{organizationId}/projects/{projectId}/knowledge/items';
 };

@@ -54,7 +54,16 @@ export const zTag = z
  * Something an item points at, e.g. the task or the document it came from.
  */
 export const zKnowledgeReference = z.object({
-  kind: z.enum(['item', 'document', 'file', 'task', 'artifact', 'url']),
+  kind: z.enum([
+    'item',
+    'document',
+    'file',
+    'task',
+    'artifact',
+    'url',
+    'session',
+    'round',
+  ]),
   id: z.string().min(1).max(2000),
   title: z.string().max(200).optional(),
 });
@@ -74,13 +83,17 @@ export const zKnowledgeRepositoryFile = z.object({
 /**
  * Where the item came from, set by Seshat from the token: `person`
  * (a person wrote it), `task` (an agent proposed it, with `taskId`),
- * or `repository` (a document indexed from a repository linked to the
- * project, with `repository`; read-only: change it with a commit).
+ * `session` (an agent in a person's session proposed it, e.g. a
+ * council's facilitator: `sessionId`, `agentId`), or `repository` (a
+ * document indexed from a repository linked to the project, with
+ * `repository`; read-only: change it with a commit).
  *
  */
 export const zKnowledgeSource = z.object({
-  kind: z.enum(['person', 'task', 'repository']),
+  kind: z.enum(['person', 'task', 'session', 'repository']),
   taskId: z.uuid().nullish(),
+  sessionId: z.uuid().nullish(),
+  agentId: z.uuid().nullish(),
   repository: zKnowledgeRepositoryFile.nullish(),
 });
 
@@ -112,10 +125,17 @@ export const zKnowledgeDocument = zKnowledgeDocumentFile.and(
   }),
 );
 
+export const zDecisionAlternative = z.object({
+  option: z.string().min(1).max(500),
+  reason: z.string().min(1).max(2000),
+});
+
 export const zCreateKnowledgeItemRequest = z.object({
   type: zWritableKnowledgeItemType,
   title: z.string().min(1).max(200),
   body: z.string().min(1).max(20000),
+  rationale: z.string().max(5000).nullish(),
+  alternatives: z.array(zDecisionAlternative).max(10).optional(),
   tags: z.array(zTag).max(20).optional(),
   references: z.array(zKnowledgeReference).max(20).optional(),
   supersedes: z.uuid().nullish(),
@@ -125,6 +145,8 @@ export const zCreateKnowledgeItemRequest = z.object({
 export const zUpdateKnowledgeItemRequest = z.object({
   title: z.string().min(1).max(200),
   body: z.string().min(1).max(20000),
+  rationale: z.string().max(5000).nullish(),
+  alternatives: z.array(zDecisionAlternative).max(10).optional(),
   tags: z.array(zTag).max(20).optional(),
   references: z.array(zKnowledgeReference).max(20).optional(),
   reviewBy: z.iso.date().nullish(),
@@ -149,6 +171,8 @@ export const zKnowledgeItemResponse = z.object({
   type: zKnowledgeItemType,
   title: z.string(),
   body: z.string(),
+  rationale: z.string().nullable(),
+  alternatives: z.array(zDecisionAlternative),
   status: zKnowledgeItemStatus,
   version: z.int().gte(1),
   tags: z.array(z.string()),
@@ -171,6 +195,8 @@ export const zKnowledgeItemVersionResponse = z.object({
   version: z.int().gte(1),
   title: z.string(),
   body: z.string(),
+  rationale: z.string().nullable(),
+  alternatives: z.array(zDecisionAlternative),
   tags: z.array(z.string()),
   references: z.array(zKnowledgeReference),
   document: zKnowledgeDocumentFile.nullable(),
@@ -350,6 +376,7 @@ export const zListKnowledgeItemsQuery = z.object({
   cursor: z.string().min(1).max(1024).optional(),
   type: zKnowledgeItemType.optional(),
   status: zKnowledgeItemStatus.optional(),
+  sessionId: z.uuid().optional(),
 });
 
 /**

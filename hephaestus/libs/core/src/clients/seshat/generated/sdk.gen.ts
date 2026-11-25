@@ -104,7 +104,10 @@ export const listKnowledgeItems = <ThrowOnError extends boolean = false>(
 /**
  * A decision, fact, convention, architecture note or lesson. A person's
  * item is `accepted` at once; one from a service account (an agent's task
- * token) is `proposed`, for someone with `knowledge:approve` to accept.
+ * token) or a session (an agent in a person's session, e.g. a council's
+ * facilitator; `source.kind: session`) is `proposed`, for someone with
+ * `knowledge:approve` to accept. A decision can carry its `rationale`
+ * and the `alternatives` considered; other types can't.
  * `supersedes` names an accepted item this one replaces: it becomes
  * `superseded` when this one is accepted.
  *
