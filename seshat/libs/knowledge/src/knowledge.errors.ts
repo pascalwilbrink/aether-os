@@ -38,3 +38,13 @@ export class KnowledgeItemReadOnlyError extends DomainError {
     );
   }
 }
+
+/** A department's item, seen from one of its projects: changed only on the department (409). */
+export class KnowledgeItemOfDepartmentError extends DomainError {
+  constructor(itemId: string) {
+    super(
+      `Knowledge item ${itemId} belongs to the project's department: change it there.`,
+      'KNOWLEDGE_ITEM_READ_ONLY',
+    );
+  }
+}

@@ -17,8 +17,13 @@ export class KnowledgeChunkEntity {
   @Column({ type: 'uuid' })
   organizationId: string;
 
-  @Column({ type: 'uuid' })
-  projectId: string;
+  /** The item's project; null for a department's item. */
+  @Column({ type: 'uuid', nullable: true })
+  projectId: string | null;
+
+  /** The item's department; null for a project's item. */
+  @Column({ type: 'uuid', nullable: true })
+  departmentId: string | null;
 
   /** The item's content version this passage belongs to. */
   @Column({ type: 'integer' })

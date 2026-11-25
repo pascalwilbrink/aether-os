@@ -7,7 +7,10 @@ import {
   type ChunkMatch,
   KnowledgeChunksService,
 } from './knowledge-chunks.service.js';
-import { KnowledgeItemsService } from './knowledge-items.service.js';
+import {
+  KnowledgeItemsService,
+  type KnowledgeScope,
+} from './knowledge-items.service.js';
 import {
   KNOWLEDGE_OPTIONS,
   type KnowledgeOptions,
@@ -26,7 +29,8 @@ const QUERY_EMBEDDING_TIMEOUT_MS = 5000;
 type MatchedBy = ApiTypes.KnowledgeSearchResult['matchedBy'][number];
 
 /**
- * Searching a project's knowledge (../../../../docs/knowledge.md, Search):
+ * Searching a project's knowledge, with its department's, or a
+ * department's (../../../../docs/knowledge.md, Search):
  * by keywords (Postgres full-text) and by meaning (the query's embedding,
  * through Pylon, against the passages'), each item ranked by both with
  * reciprocal rank fusion. The best passage of each item, best first.
@@ -45,14 +49,18 @@ export class KnowledgeSearchService {
     @Inject(KNOWLEDGE_OPTIONS) private readonly options: KnowledgeOptions,
   ) {}
 
+  /**
+   * A project's knowledge and its department's, or a department's own. By
+   * meaning only a project's items (only theirs are embedded); a
+   * department's own search is by keywords.
+   */
   async search(
-    organizationId: string,
-    projectId: string,
+    knowledge: KnowledgeScope,
     request: ApiTypes.SearchKnowledgeRequest,
   ): Promise<ApiTypes.KnowledgeSearchResponse> {
+    const { organizationId, projectId, departmentId } = knowledge;
     const scope = {
       organizationId,
-      projectId,
       statuses: request.includeProposed
         ? ['accepted', 'proposed']
         : ['accepted'],
@@ -60,8 +68,15 @@ export class KnowledgeSearchService {
       limit: CANDIDATES,
     };
     const [keyword, semantic] = await Promise.all([
-      this.chunks.search({ ...scope, query: request.query }),
-      this.searchByMeaning(scope, request.query),
+      this.chunks.search({
+        ...scope,
+        projectId,
+        departmentId,
+        query: request.query,
+      }),
+      projectId === null
+        ? Promise.resolve(null)
+        : this.searchByMeaning({ ...scope, projectId }, request.query),
     ]);
     const ranked = fuse(
       { keyword, semantic: semantic ?? [] },
@@ -70,8 +85,7 @@ export class KnowledgeSearchService {
     const items = new Map(
       (
         await this.items.findMany(
-          organizationId,
-          projectId,
+          knowledge,
           ranked.map((match) => match.itemId),
         )
       ).map((item) => [item.id, item]),

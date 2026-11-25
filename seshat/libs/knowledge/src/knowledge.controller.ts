@@ -39,7 +39,10 @@ import { KnowledgeSearchService } from './knowledge-search.service.js';
 
 const IN_PROJECT = { project: 'projectId' };
 
-/** A project's knowledge (../../../../docs/knowledge.md). */
+/**
+ * A project's knowledge, with its department's, which it reads but doesn't
+ * change (../../../../docs/knowledge.md).
+ */
 @Controller('organizations/:organizationId/projects/:projectId/knowledge')
 export class KnowledgeController {
   constructor(
@@ -52,23 +55,25 @@ export class KnowledgeController {
   // Everyone who writes, and session tokens, which only propose.
   @RequirePermission('knowledge:propose', IN_PROJECT)
   @ZodSerializerDto(KnowledgeItemResponse)
-  create(
+  async create(
     @Param() { organizationId, projectId }: ProjectParams,
     @Body() body: CreateKnowledgeItemRequest,
   ) {
-    return this.items.create(organizationId, projectId, body);
+    return this.items.create(
+      await this.items.projectScope(organizationId, projectId),
+      body,
+    );
   }
 
   @Get('items')
   @RequirePermission('knowledge:read', IN_PROJECT)
   @ZodSerializerDto(KnowledgeItemPage)
-  list(
+  async list(
     @Param() { organizationId, projectId }: ProjectParams,
     @Query() { type, status, sessionId, ...page }: ListKnowledgeItemsQuery,
   ) {
     return this.items.list(
-      organizationId,
-      projectId,
+      await this.items.projectScope(organizationId, projectId),
       { type, status, sessionId },
       page,
     );
@@ -79,62 +84,86 @@ export class KnowledgeController {
   // Platform services read items too (Hephaestus pins them on tasks).
   @PlatformAccess('platform:read')
   @ZodSerializerDto(KnowledgeItemResponse)
-  findById(@Param() { organizationId, projectId, itemId }: ItemParams) {
-    return this.items.findById(organizationId, projectId, itemId);
+  async findById(@Param() { organizationId, projectId, itemId }: ItemParams) {
+    return this.items.findById(
+      await this.items.projectScope(organizationId, projectId),
+      itemId,
+    );
   }
 
   @Put('items/:itemId')
   @RequirePermission('knowledge:write', IN_PROJECT)
   @ZodSerializerDto(KnowledgeItemResponse)
-  update(
+  async update(
     @Param() { organizationId, projectId, itemId }: ItemParams,
     @Body() body: UpdateKnowledgeItemRequest,
   ) {
-    return this.items.update(organizationId, projectId, itemId, body);
+    return this.items.update(
+      await this.items.projectScope(organizationId, projectId),
+      itemId,
+      body,
+    );
   }
 
   @Get('items/:itemId/versions')
   @RequirePermission('knowledge:read', IN_PROJECT)
   @ZodSerializerDto(KnowledgeItemVersionPage)
-  versions(
+  async versions(
     @Param() { organizationId, projectId, itemId }: ItemParams,
     @Query() page: ListKnowledgeItemVersionsQuery,
   ) {
-    return this.items.versionsOf(organizationId, projectId, itemId, page);
+    return this.items.versionsOf(
+      await this.items.projectScope(organizationId, projectId),
+      itemId,
+      page,
+    );
   }
 
   @Get('items/:itemId/passages')
   @RequirePermission('knowledge:read', IN_PROJECT)
   @ZodSerializerDto(KnowledgePassagePage)
-  passages(
+  async passages(
     @Param() { organizationId, projectId, itemId }: ItemParams,
     @Query() page: ListKnowledgeItemPassagesQuery,
   ) {
-    return this.items.passagesOf(organizationId, projectId, itemId, page);
+    return this.items.passagesOf(
+      await this.items.projectScope(organizationId, projectId),
+      itemId,
+      page,
+    );
   }
 
   @Post('items/:itemId/accept')
   @HttpCode(HttpStatus.OK)
   @RequirePermission('knowledge:approve', IN_PROJECT)
   @ZodSerializerDto(KnowledgeItemResponse)
-  accept(@Param() { organizationId, projectId, itemId }: ItemParams) {
-    return this.items.accept(organizationId, projectId, itemId);
+  async accept(@Param() { organizationId, projectId, itemId }: ItemParams) {
+    return this.items.accept(
+      await this.items.projectScope(organizationId, projectId),
+      itemId,
+    );
   }
 
   @Post('items/:itemId/reject')
   @HttpCode(HttpStatus.OK)
   @RequirePermission('knowledge:approve', IN_PROJECT)
   @ZodSerializerDto(KnowledgeItemResponse)
-  reject(@Param() { organizationId, projectId, itemId }: ItemParams) {
-    return this.items.reject(organizationId, projectId, itemId);
+  async reject(@Param() { organizationId, projectId, itemId }: ItemParams) {
+    return this.items.reject(
+      await this.items.projectScope(organizationId, projectId),
+      itemId,
+    );
   }
 
   @Post('items/:itemId/retire')
   @HttpCode(HttpStatus.OK)
   @RequirePermission('knowledge:approve', IN_PROJECT)
   @ZodSerializerDto(KnowledgeItemResponse)
-  retire(@Param() { organizationId, projectId, itemId }: ItemParams) {
-    return this.items.retire(organizationId, projectId, itemId);
+  async retire(@Param() { organizationId, projectId, itemId }: ItemParams) {
+    return this.items.retire(
+      await this.items.projectScope(organizationId, projectId),
+      itemId,
+    );
   }
 
   @Post('documents')
@@ -161,10 +190,13 @@ export class KnowledgeController {
   @HttpCode(HttpStatus.OK)
   @RequirePermission('knowledge:read', IN_PROJECT)
   @ZodSerializerDto(KnowledgeSearchResponse)
-  search(
+  async search(
     @Param() { organizationId, projectId }: ProjectParams,
     @Body() body: SearchKnowledgeRequest,
   ) {
-    return this.searches.search(organizationId, projectId, body);
+    return this.searches.search(
+      await this.items.projectScope(organizationId, projectId),
+      body,
+    );
   }
 }

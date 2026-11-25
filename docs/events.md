@@ -61,7 +61,7 @@ Rules:
 | `organization.deleted` | `organizationId` | Every service (delete tenant data) |
 | `project.created` / `project.archived` / `project.deleted` | `projectId` (and on `project.created` its `departmentId`, or null) | Hephaestus, Kairos, Themis, Seshat |
 | `person.created` / `person.updated` / `person.deleted` | `personId`, and `userId` (the linked Pistis user, or null) and `departmentIds` on created and updated; IDs only, no personal data | later Kerykes, Seshat |
-| `project.department-changed` | `projectId`, `from`, `to` (department IDs or null) | Seshat (department knowledge, planned) |
+| `project.department-changed` | `projectId`, `from`, `to` (department IDs or null) | Seshat (which department's knowledge a project sees) |
 | `department.created` / `department.updated` / `department.archived` | `departmentId` (and `slug` on `department.created`) | Seshat (planned), Iris |
 | `membership.granted` | `principal`, `scope` (organization or project), `roles` | Pistis, Iris, Kerykes |
 | `membership.role-changed` | `principal`, `scope`, `from`, `to` (role lists) | Pistis, every service (drop cached permissions; Kerykes updates its recipient copy) |
@@ -160,8 +160,8 @@ Every event has the knowledge item as its aggregate; the item's `revision` grows
 
 | Event | Payload | Consumers |
 |---|---|---|
-| `knowledge-item.proposed` / `.accepted` / `.rejected` / `.updated` / `.superseded` / `.retired` | `itemId`, `projectId`, `type`, `status`, `version`, `sourceKind`, `supersededBy` | later Kerykes (proposals to review), Iris |
-| `knowledge-item.indexed` | `itemId`, `projectId`, `version`, `chunkCount` | later Iris |
+| `knowledge-item.proposed` / `.accepted` / `.rejected` / `.updated` / `.superseded` / `.retired` | `itemId`, `projectId` and `departmentId` (one of them, the other null), `type`, `status`, `version`, `sourceKind`, `supersededBy` | later Kerykes (proposals to review), Iris |
+| `knowledge-item.indexed` | `itemId`, `projectId`, `departmentId`, `version`, `chunkCount` | later Iris |
 
 ### Learning, council sessions and meetings (Proposal)
 

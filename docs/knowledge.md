@@ -16,7 +16,7 @@ Later: organization-wide items, a project setting pinning items on every task, p
 | Decision | Choice |
 |---|---|
 | Owner | **Seshat, a service in this repository** (`../seshat/`) like the others: Krepis, Postgres, the outbox, Pistis tokens. Aether-os services never keep their own copies. |
-| Scope | **Per project**, plus **organization-wide** items (conventions every project shares). Never across organizations. |
+| Scope | **Per project**, plus **per department** (built: items every project in a department of Polis sees, read-only) and **organization-wide** items (conventions every project shares; later). Never across organizations. |
 | Unit | **Typed knowledge items** (`document`, `decision`, `fact`, `convention`, `architecture`, `lesson`), not free text in one memory. |
 | Document content | **Lives once, in Loculus** (or in the project's repository); Seshat indexes it and keeps a reference, as `tasks.md` already decides for documents. |
 | Who writes | **People write directly; agents and meetings propose.** A proposal becomes knowledge only when someone with `knowledge:approve` accepts it. |
@@ -121,7 +121,17 @@ The prompt says what they're for and that what they return is reference material
 | `knowledge:propose` (create an item; session tokens too, only as a proposal) | project | ✓ | ✓ | ✓ | |
 | `knowledge:approve` (accept or reject proposals, retire items) | project | ✓ | ✓ | | |
 
-Built in Krepis's table. Organization owners and admins have every project permission. Organization-wide items (later): reading with `org:read`; writing and approving with `org:knowledge:write` (organization `owner`s and `admin`s, already in the table). Task tokens carry their service account's project role, so an `editor` can propose; a session token carries the person's, and may propose (`knowledge:propose`) but never write, edit or accept, (never accept: like `task:approve`, Krepis refuses `knowledge:approve` to anything but a user).
+Built in Krepis's table. Organization owners and admins have every project permission. A department's items (built, below) and organization-wide items (later): reading with `org:read`; writing and approving with `org:knowledge:write` (organization `owner`s and `admin`s, already in the table). Task tokens carry their service account's project role, so an `editor` can propose; a session token carries the person's, and may propose (`knowledge:propose`) but never write, edit or accept, (never accept: like `task:approve`, Krepis refuses `knowledge:approve` to anything but a user).
+
+### A department's knowledge (built)
+
+A department (Polis, `polis/CLAUDE.md`) has knowledge of its own, under `/v1/organizations/{id}/departments/{departmentId}/knowledge`: written items only (no documents yet: Loculus keeps a project's files), owned by the department (`projectId` null, `departmentId` set).
+
+- **Who:** every member of the organization reads them (`org:read`); organization owners and admins write, accept, reject and retire them (`org:knowledge:write`; accepting, rejecting and retiring are a person's, as with `knowledge:approve`). A person's item written there is accepted at once.
+- **Proposals from projects:** an agent (task or session token) or a person in a project proposes an item to the project's department with `scope: department` on the project's `POST …/items`; it's always `proposed`, accepted on the department.
+- **Seen by its projects:** a project's list, reads, versions, passages and search include its department's items, read-only there (`KNOWLEDGE_ITEM_READ_ONLY`). So agents' knowledge tools and pinning on tasks see them with no change in Hephaestus.
+- **Which department:** Seshat keeps a copy of each project's department from Polis's `project.created` and `project.department-changed` (version-guarded), asking Polis the first time a project comes up; reads go on without the department's items when Polis can't be asked.
+- **Search:** by keywords. A department's items aren't embedded yet: Pylon charges embeddings to a project, and a department has none. Embedding them needs Pylon to charge an organization (later).
 
 ## In Iris
 

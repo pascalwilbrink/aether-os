@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Seshat events
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Events Seshat publishes to the `seshat.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -161,10 +161,19 @@ components:
     KnowledgeItemChanged:
       type: object
       additionalProperties: false
-      required: [itemId, projectId, type, status, version, sourceKind, supersededBy]
+      required: [itemId, projectId, departmentId, type, status, version, sourceKind, supersededBy]
       properties:
         itemId: { $ref: '#/components/schemas/Uuid' }
-        projectId: { $ref: '#/components/schemas/Uuid' }
+        projectId:
+          description: The project the item belongs to; null for a department's item.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        departmentId:
+          description: The department the item belongs to; null for a project's item.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
         type: { enum: [document, decision, fact, convention, architecture, lesson] }
         status: { enum: [proposed, accepted, rejected, superseded, retired] }
         version:
@@ -179,10 +188,19 @@ components:
     KnowledgeItemIndexed:
       type: object
       additionalProperties: false
-      required: [itemId, projectId, version, chunkCount]
+      required: [itemId, projectId, departmentId, version, chunkCount]
       properties:
         itemId: { $ref: '#/components/schemas/Uuid' }
-        projectId: { $ref: '#/components/schemas/Uuid' }
+        projectId:
+          description: The project the item belongs to; null for a department's item.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        departmentId:
+          description: The department the item belongs to; null for a project's item.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
         version:
           type: integer
           minimum: 1

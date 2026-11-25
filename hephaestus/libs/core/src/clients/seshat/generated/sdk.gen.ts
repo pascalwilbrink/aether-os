@@ -9,9 +9,15 @@ import type {
   TDataShape,
 } from './client/index.js';
 import type {
+  AcceptDepartmentKnowledgeItemData,
+  AcceptDepartmentKnowledgeItemErrors,
+  AcceptDepartmentKnowledgeItemResponses,
   AcceptKnowledgeItemData,
   AcceptKnowledgeItemErrors,
   AcceptKnowledgeItemResponses,
+  CreateDepartmentKnowledgeItemData,
+  CreateDepartmentKnowledgeItemErrors,
+  CreateDepartmentKnowledgeItemResponses,
   CreateKnowledgeDocumentData,
   CreateKnowledgeDocumentErrors,
   CreateKnowledgeDocumentResponses,
@@ -21,12 +27,21 @@ import type {
   DeleteKnowledgeRepositoryData,
   DeleteKnowledgeRepositoryErrors,
   DeleteKnowledgeRepositoryResponses,
+  GetDepartmentKnowledgeItemData,
+  GetDepartmentKnowledgeItemErrors,
+  GetDepartmentKnowledgeItemResponses,
   GetKnowledgeItemData,
   GetKnowledgeItemErrors,
   GetKnowledgeItemResponses,
   GetKnowledgeRepositoryData,
   GetKnowledgeRepositoryErrors,
   GetKnowledgeRepositoryResponses,
+  ListDepartmentKnowledgeItemsData,
+  ListDepartmentKnowledgeItemsErrors,
+  ListDepartmentKnowledgeItemsResponses,
+  ListDepartmentKnowledgeItemVersionsData,
+  ListDepartmentKnowledgeItemVersionsErrors,
+  ListDepartmentKnowledgeItemVersionsResponses,
   ListKnowledgeItemPassagesData,
   ListKnowledgeItemPassagesErrors,
   ListKnowledgeItemPassagesResponses,
@@ -42,18 +57,30 @@ import type {
   PutKnowledgeRepositoryData,
   PutKnowledgeRepositoryErrors,
   PutKnowledgeRepositoryResponses,
+  RejectDepartmentKnowledgeItemData,
+  RejectDepartmentKnowledgeItemErrors,
+  RejectDepartmentKnowledgeItemResponses,
   RejectKnowledgeItemData,
   RejectKnowledgeItemErrors,
   RejectKnowledgeItemResponses,
+  RetireDepartmentKnowledgeItemData,
+  RetireDepartmentKnowledgeItemErrors,
+  RetireDepartmentKnowledgeItemResponses,
   RetireKnowledgeItemData,
   RetireKnowledgeItemErrors,
   RetireKnowledgeItemResponses,
+  SearchDepartmentKnowledgeData,
+  SearchDepartmentKnowledgeErrors,
+  SearchDepartmentKnowledgeResponses,
   SearchKnowledgeData,
   SearchKnowledgeErrors,
   SearchKnowledgeResponses,
   SyncKnowledgeRepositoryData,
   SyncKnowledgeRepositoryErrors,
   SyncKnowledgeRepositoryResponses,
+  UpdateDepartmentKnowledgeItemData,
+  UpdateDepartmentKnowledgeItemErrors,
+  UpdateDepartmentKnowledgeItemResponses,
   UpdateKnowledgeDocumentData,
   UpdateKnowledgeDocumentErrors,
   UpdateKnowledgeDocumentResponses,
@@ -81,7 +108,10 @@ export type Options<
 };
 
 /**
- * Newest first; `document` items too.
+ * Newest first; `document` items too, and the items of the project's
+ * department (`departmentId` set, `projectId` null), which the project
+ * reads but doesn't change (`KNOWLEDGE_ITEM_READ_ONLY` through its
+ * routes).
  *
  */
 export const listKnowledgeItems = <ThrowOnError extends boolean = false>(
@@ -110,6 +140,12 @@ export const listKnowledgeItems = <ThrowOnError extends boolean = false>(
  * and the `alternatives` considered; other types can't.
  * `supersedes` names an accepted item this one replaces: it becomes
  * `superseded` when this one is accepted.
+ *
+ * With `scope: department` it's a proposal to the project's department
+ * (always `proposed`, whoever writes it; `KNOWLEDGE_ITEM_INVALID` when
+ * the project is in no department, `DEPARTMENT_ARCHIVED`), accepted by
+ * the department's owners and admins; `supersedes` then names an
+ * accepted item of the department.
  *
  */
 export const createKnowledgeItem = <ThrowOnError extends boolean = false>(
@@ -450,7 +486,8 @@ export const syncKnowledgeRepository = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Searches the project's knowledge: accepted items and indexed documents
+ * Searches the project's knowledge, and its department's (by keywords
+ * only, for now): accepted items and indexed documents
  * (items that were superseded, retired or rejected never come back,
  * proposed ones only with `includeProposed`). Hybrid: by keywords
  * (Postgres full-text search, English) and by meaning (the query's
@@ -475,6 +512,208 @@ export const searchKnowledge = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/projects/{projectId}/knowledge/search',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * The department's own items, newest first, proposals included.
+ */
+export const listDepartmentKnowledgeItems = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<ListDepartmentKnowledgeItemsData, ThrowOnError>,
+): RequestResult<
+  ListDepartmentKnowledgeItemsResponses,
+  ListDepartmentKnowledgeItemsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListDepartmentKnowledgeItemsResponses,
+    ListDepartmentKnowledgeItemsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items',
+    ...options,
+  });
+
+/**
+ * A decision, fact, convention, architecture note or lesson of the
+ * department, `accepted` at once when a person writes it. Every project
+ * in the department sees it. The department must be active
+ * (`DEPARTMENT_ARCHIVED`). `scope` is for a project's route
+ * (`KNOWLEDGE_ITEM_INVALID` here); `supersedes` names an accepted item
+ * of the department.
+ *
+ */
+export const createDepartmentKnowledgeItem = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<CreateDepartmentKnowledgeItemData, ThrowOnError>,
+): RequestResult<
+  CreateDepartmentKnowledgeItemResponses,
+  CreateDepartmentKnowledgeItemErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    CreateDepartmentKnowledgeItemResponses,
+    CreateDepartmentKnowledgeItemErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+export const getDepartmentKnowledgeItem = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<GetDepartmentKnowledgeItemData, ThrowOnError>,
+): RequestResult<
+  GetDepartmentKnowledgeItemResponses,
+  GetDepartmentKnowledgeItemErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetDepartmentKnowledgeItemResponses,
+    GetDepartmentKnowledgeItemErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}',
+    ...options,
+  });
+
+/**
+ * A new version of a proposed or accepted item of the department.
+ */
+export const updateDepartmentKnowledgeItem = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<UpdateDepartmentKnowledgeItemData, ThrowOnError>,
+): RequestResult<
+  UpdateDepartmentKnowledgeItemResponses,
+  UpdateDepartmentKnowledgeItemErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    UpdateDepartmentKnowledgeItemResponses,
+    UpdateDepartmentKnowledgeItemErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+export const listDepartmentKnowledgeItemVersions = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<ListDepartmentKnowledgeItemVersionsData, ThrowOnError>,
+): RequestResult<
+  ListDepartmentKnowledgeItemVersionsResponses,
+  ListDepartmentKnowledgeItemVersionsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListDepartmentKnowledgeItemVersionsResponses,
+    ListDepartmentKnowledgeItemVersionsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/versions',
+    ...options,
+  });
+
+/**
+ * A proposal to the department becomes its knowledge; the item it supersedes becomes `superseded`.
+ */
+export const acceptDepartmentKnowledgeItem = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<AcceptDepartmentKnowledgeItemData, ThrowOnError>,
+): RequestResult<
+  AcceptDepartmentKnowledgeItemResponses,
+  AcceptDepartmentKnowledgeItemErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    AcceptDepartmentKnowledgeItemResponses,
+    AcceptDepartmentKnowledgeItemErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/accept',
+    ...options,
+  });
+
+export const rejectDepartmentKnowledgeItem = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<RejectDepartmentKnowledgeItemData, ThrowOnError>,
+): RequestResult<
+  RejectDepartmentKnowledgeItemResponses,
+  RejectDepartmentKnowledgeItemErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    RejectDepartmentKnowledgeItemResponses,
+    RejectDepartmentKnowledgeItemErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/reject',
+    ...options,
+  });
+
+export const retireDepartmentKnowledgeItem = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<RetireDepartmentKnowledgeItemData, ThrowOnError>,
+): RequestResult<
+  RetireDepartmentKnowledgeItemResponses,
+  RetireDepartmentKnowledgeItemErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    RetireDepartmentKnowledgeItemResponses,
+    RetireDepartmentKnowledgeItemErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/items/{itemId}/retire',
+    ...options,
+  });
+
+/**
+ * Searches the department's own items, by keywords (`semantic` is false for now).
+ */
+export const searchDepartmentKnowledge = <ThrowOnError extends boolean = false>(
+  options: Options<SearchDepartmentKnowledgeData, ThrowOnError>,
+): RequestResult<
+  SearchDepartmentKnowledgeResponses,
+  SearchDepartmentKnowledgeErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    SearchDepartmentKnowledgeResponses,
+    SearchDepartmentKnowledgeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments/{departmentId}/knowledge/search',
     ...options,
     headers: {
       'Content-Type': 'application/json',

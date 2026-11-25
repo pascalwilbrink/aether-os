@@ -9,6 +9,7 @@ export const zDomainErrorCode = z.enum([
   'KNOWLEDGE_ITEM_READ_ONLY',
   'ORGANIZATION_SUSPENDED',
   'PROJECT_ARCHIVED',
+  'DEPARTMENT_ARCHIVED',
 ]);
 
 export const zTimestamp = z.iso.datetime();
@@ -131,6 +132,7 @@ export const zDecisionAlternative = z.object({
 });
 
 export const zCreateKnowledgeItemRequest = z.object({
+  scope: z.enum(['project', 'department']).optional(),
   type: zWritableKnowledgeItemType,
   title: z.string().min(1).max(200),
   body: z.string().min(1).max(20000),
@@ -167,7 +169,8 @@ export const zUpdateKnowledgeDocumentRequest = z.object({
 export const zKnowledgeItemResponse = z.object({
   id: z.uuid(),
   organizationId: z.uuid(),
-  projectId: z.uuid(),
+  projectId: z.uuid().nullable(),
+  departmentId: z.uuid().nullable(),
   type: zKnowledgeItemType,
   title: z.string(),
   body: z.string(),
@@ -332,6 +335,11 @@ export const zDomainProblem = zCommonOpenapiProblem.and(
 export const zOrganizationId = z.uuid();
 
 export const zProjectId = z.uuid();
+
+/**
+ * A department of the organization in Polis.
+ */
+export const zDepartmentId = z.uuid();
 
 export const zItemId = z.uuid();
 
@@ -582,3 +590,118 @@ export const zSearchKnowledgePath = z.object({
  * Best first
  */
 export const zSearchKnowledgeResponse = zKnowledgeSearchResponse;
+
+export const zListDepartmentKnowledgeItemsPath = z.object({
+  organizationId: z.uuid(),
+  departmentId: z.uuid(),
+});
+
+export const zListDepartmentKnowledgeItemsQuery = z.object({
+  limit: z.int().gte(1).lte(100).optional().default(50),
+  cursor: z.string().min(1).max(1024).optional(),
+  type: zKnowledgeItemType.optional(),
+  status: zKnowledgeItemStatus.optional(),
+});
+
+/**
+ * Newest first
+ */
+export const zListDepartmentKnowledgeItemsResponse = zKnowledgeItemPage;
+
+export const zCreateDepartmentKnowledgeItemBody = zCreateKnowledgeItemRequest;
+
+export const zCreateDepartmentKnowledgeItemPath = z.object({
+  organizationId: z.uuid(),
+  departmentId: z.uuid(),
+});
+
+/**
+ * Created
+ */
+export const zCreateDepartmentKnowledgeItemResponse = zKnowledgeItemResponse;
+
+export const zGetDepartmentKnowledgeItemPath = z.object({
+  organizationId: z.uuid(),
+  departmentId: z.uuid(),
+  itemId: z.uuid(),
+});
+
+/**
+ * OK
+ */
+export const zGetDepartmentKnowledgeItemResponse = zKnowledgeItemResponse;
+
+export const zUpdateDepartmentKnowledgeItemBody = zUpdateKnowledgeItemRequest;
+
+export const zUpdateDepartmentKnowledgeItemPath = z.object({
+  organizationId: z.uuid(),
+  departmentId: z.uuid(),
+  itemId: z.uuid(),
+});
+
+/**
+ * The new version
+ */
+export const zUpdateDepartmentKnowledgeItemResponse = zKnowledgeItemResponse;
+
+export const zListDepartmentKnowledgeItemVersionsPath = z.object({
+  organizationId: z.uuid(),
+  departmentId: z.uuid(),
+  itemId: z.uuid(),
+});
+
+export const zListDepartmentKnowledgeItemVersionsQuery = z.object({
+  limit: z.int().gte(1).lte(100).optional().default(50),
+  cursor: z.string().min(1).max(1024).optional(),
+});
+
+/**
+ * Newest first
+ */
+export const zListDepartmentKnowledgeItemVersionsResponse =
+  zKnowledgeItemVersionPage;
+
+export const zAcceptDepartmentKnowledgeItemPath = z.object({
+  organizationId: z.uuid(),
+  departmentId: z.uuid(),
+  itemId: z.uuid(),
+});
+
+/**
+ * OK
+ */
+export const zAcceptDepartmentKnowledgeItemResponse = zKnowledgeItemResponse;
+
+export const zRejectDepartmentKnowledgeItemPath = z.object({
+  organizationId: z.uuid(),
+  departmentId: z.uuid(),
+  itemId: z.uuid(),
+});
+
+/**
+ * OK
+ */
+export const zRejectDepartmentKnowledgeItemResponse = zKnowledgeItemResponse;
+
+export const zRetireDepartmentKnowledgeItemPath = z.object({
+  organizationId: z.uuid(),
+  departmentId: z.uuid(),
+  itemId: z.uuid(),
+});
+
+/**
+ * OK
+ */
+export const zRetireDepartmentKnowledgeItemResponse = zKnowledgeItemResponse;
+
+export const zSearchDepartmentKnowledgeBody = zSearchKnowledgeRequest;
+
+export const zSearchDepartmentKnowledgePath = z.object({
+  organizationId: z.uuid(),
+  departmentId: z.uuid(),
+});
+
+/**
+ * Best first
+ */
+export const zSearchDepartmentKnowledgeResponse = zKnowledgeSearchResponse;

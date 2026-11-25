@@ -8,6 +8,7 @@ import {
 } from '@seshat/core';
 
 import {
+  type DepartmentState,
   PolisClient,
   type OrganizationState,
   type ProjectState,
@@ -81,7 +82,29 @@ export class HttpPolisClient extends PolisClient {
       id: result.id,
       organizationId: result.organizationId,
       status: result.status,
+      departmentId: result.departmentId,
       version: result.version,
+    };
+  }
+
+  async getDepartment(
+    organizationId: string,
+    departmentId: string,
+  ): Promise<DepartmentState | null> {
+    const result = await this.call(() =>
+      PolisApi.getDepartment({
+        client: this.client,
+        path: { organizationId, departmentId },
+      }),
+    );
+    if (!result) {
+      return null;
+    }
+
+    return {
+      id: result.id,
+      organizationId: result.organizationId,
+      status: result.status,
     };
   }
 

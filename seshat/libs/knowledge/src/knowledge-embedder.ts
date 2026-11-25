@@ -91,10 +91,23 @@ export class KnowledgeEmbedder
     if (!item) {
       return false;
     }
+    const { projectId } = item;
+    if (projectId === null) {
+      // Claimed for a project only; a department's item never gets here.
+      return true;
+    }
     await runWithLogContext(
-      { organizationId: item.organizationId, projectId: item.projectId },
+      { organizationId: item.organizationId, projectId },
       async () => {
-        const result = await this.embed(item, model);
+        const result = await this.embed(
+          {
+            id: item.id,
+            organizationId: item.organizationId,
+            projectId,
+            version: item.version,
+          },
+          model,
+        );
         if (result.kind === 'failed') {
           this.logger.warn(
             `Item ${item.id} (version ${item.version}) couldn't be embedded: ${result.error}`,
