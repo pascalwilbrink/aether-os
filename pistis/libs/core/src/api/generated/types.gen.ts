@@ -55,6 +55,13 @@ export type UserResponse = {
     lastSignInAt: string | null;
 };
 
+export type UserAnnouncementResponse = {
+    /**
+     * How many users were published.
+     */
+    announced: number;
+};
+
 /**
  * A member's profile, as other members see it.
  */
@@ -583,6 +590,40 @@ export type EnableUserResponses = {
 };
 
 export type EnableUserResponse = EnableUserResponses[keyof EnableUserResponses];
+
+export type AnnounceUsersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/users/announce';
+};
+
+export type AnnounceUsersErrors = {
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+};
+
+export type AnnounceUsersError = AnnounceUsersErrors[keyof AnnounceUsersErrors];
+
+export type AnnounceUsersResponses = {
+    /**
+     * The events are in the outbox
+     */
+    200: UserAnnouncementResponse;
+};
+
+export type AnnounceUsersResponse = AnnounceUsersResponses[keyof AnnounceUsersResponses];
 
 export type SetUpPasswordData = {
     body: PasswordIdentityRequest;

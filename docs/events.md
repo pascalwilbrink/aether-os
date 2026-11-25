@@ -38,7 +38,7 @@ Every event and command uses the Krepis `DomainEvent` shape. **`DomainEvent` in 
 
 Rules:
 
-- **Thin, not secret.** Payloads carry IDs, states and the few fields consumers need to act without calling back. Never secrets, prompts, artifact content or personal data beyond IDs; consumers fetch details through the API with their own permissions.
+- **Thin, not secret.** Payloads carry IDs, states and the few fields consumers need to act without calling back. Never secrets, prompts, artifact content or personal data beyond IDs; consumers fetch details through the API with their own permissions. **The one exception is Pistis's user events**, which carry a user's display name and email address: Polis links persons to users by email address and must keep its copy current without calling Pistis for every change. They go only to `pistis.events`, are consumed only by Polis, and stay out of logs and traces.
 - **Tenancy is in the envelope**, so consumers can route, filter and check tenancy without parsing the payload. A consumer must never act on a resource in an organization other than the one in the envelope.
 - **Versioning:** within a `schemaVersion` only additive, optional changes. A breaking change is a new `schemaVersion`; the producer publishes both versions until every consumer has moved.
 
@@ -48,7 +48,7 @@ Rules:
 
 | Event | Payload | Consumers |
 |---|---|---|
-| `user.created` | `userId`, `displayName`, `email`, `status`; `organizationId` and `projectId` null (users are platform-wide) | Polis (its copy of users) |
+| `user.created` / `user.updated` / `user.disabled` / `user.enabled` | The user as they are now (a snapshot): `userId`, `displayName`, `email`, `status`; `aggregateVersion` is the user's version (1 when created, one more per change), so consumers keep the newest; `organizationId` and `projectId` null (users are platform-wide). `user.updated` is also re-sent for every user, at the same version, by `POST /v1/users/announce` (the backfill) | Polis (its copy of users, and persons' links) |
 
 ### Polis (`polis.events`)
 

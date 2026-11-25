@@ -51,6 +51,27 @@ describe('Persons (e2e)', () => {
     return userId;
   };
 
+  /** One of Pistis's later user events (the user as they are now). */
+  const userChanged = (
+    eventType: 'user.updated' | 'user.disabled',
+    userId: string,
+    version: number,
+    email: string | null,
+    status: 'active' | 'disabled' = 'active',
+  ) =>
+    app.get(EventInbox).receive('pistis', {
+      eventId: uuidv7(),
+      eventType,
+      schemaVersion: 1,
+      aggregateId: userId,
+      aggregateVersion: version,
+      occurredAt: new Date(),
+      organizationId: null,
+      projectId: null,
+      actor: null,
+      payload: { userId, displayName: 'Someone', email, status },
+    } as DomainEvent<UserCreated>);
+
   const department = async (slug: string) =>
     (
       await owner
@@ -257,6 +278,48 @@ describe('Persons (e2e)', () => {
         { personId: grace.id, userId: null, departmentIds: [] },
       ],
     ]);
+  });
+
+  it("follows a user's new email address", async () => {
+    const first = await userCreated('ada@example.com');
+    const linked = (await owner.post(base).send(ada()).expect(201)).body;
+    expect(linked.userId).toBe(first);
+    // A second user with the address doesn't move the link.
+    const second = await userCreated('ada@example.com');
+    // Someone waiting for the address the first user moves to.
+    const waiting = (
+      await owner
+        .post(base)
+        .send({ name: 'Ada at work', email: 'ada@work.example' })
+        .expect(201)
+    ).body;
+    expect(waiting.userId).toBeNull();
+
+    // Disabling the user leaves the link as it is.
+    await userChanged('user.disabled', first, 2, 'ada@example.com', 'disabled');
+    const person = (id: string) =>
+      owner
+        .get(`${base}/${id}`)
+        .expect(200)
+        .then(({ body }) => body);
+    expect((await person(linked.id)).userId).toBe(first);
+
+    // The first user's address changes: Ada (still at the old address) goes
+    // to the one user left with it, and the waiting person to the first.
+    await userChanged('user.updated', first, 3, 'Ada@Work.example');
+    expect(await person(linked.id)).toMatchObject({
+      userId: second,
+      version: 2,
+    });
+    expect(await person(waiting.id)).toMatchObject({
+      userId: first,
+      version: 2,
+    });
+
+    // An older event arriving late changes nothing.
+    await userChanged('user.updated', first, 2, 'ada@example.com');
+    expect((await person(waiting.id)).userId).toBe(first);
+    expect((await person(linked.id)).userId).toBe(second);
   });
 
   it('changes and deletes a person', async () => {

@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
+import { DataSource } from 'typeorm';
 
 import { TokenSigner } from '@pistis/oidc';
 
@@ -94,6 +95,85 @@ describe('Users (e2e)', () => {
       .post(`/v1/users/${user.id}/enable`)
       .expect(200);
     expect(enabled.body.status).toBe('active');
+  });
+
+  /** The user events in the outbox, oldest first: type, version, payload. */
+  const userEvents = async () =>
+    (
+      await app.get(DataSource).query<
+        {
+          message: {
+            eventType: string;
+            aggregateVersion: number;
+            payload: unknown;
+          };
+        }[]
+      >('SELECT message FROM outbox ORDER BY created_at, id')
+    ).map(({ message }) => [
+      message.eventType,
+      message.aggregateVersion,
+      message.payload,
+    ]);
+
+  it('publishes every change with the user as they are, at a new version', async () => {
+    const user = await createUser();
+    const snapshot = (fields: Record<string, unknown> = {}) => ({
+      userId: user.id,
+      displayName: 'Ada',
+      email: 'ada@example.com',
+      status: 'active',
+      ...fields,
+    });
+
+    await http()
+      .put(`/v1/users/${user.id}`)
+      .send({ displayName: 'Ada L.', email: 'ada@example.org' })
+      .expect(200);
+    // The same again: no new version, no event.
+    await http()
+      .put(`/v1/users/${user.id}`)
+      .send({ displayName: 'Ada L.', email: 'ada@example.org' })
+      .expect(200);
+    await http().post(`/v1/users/${user.id}/disable`).expect(200);
+    await http().post(`/v1/users/${user.id}/disable`).expect(200);
+    await http().post(`/v1/users/${user.id}/enable`).expect(200);
+
+    const changed = { displayName: 'Ada L.', email: 'ada@example.org' };
+    expect(await userEvents()).toEqual([
+      ['user.created', 1, snapshot()],
+      ['user.updated', 2, snapshot(changed)],
+      ['user.disabled', 3, snapshot({ ...changed, status: 'disabled' })],
+      ['user.enabled', 4, snapshot(changed)],
+    ]);
+  });
+
+  it('announces every user again at their current version (the backfill)', async () => {
+    const ada = await createUser();
+    const grace = await createUser({
+      ...googleIdentity,
+      subject: 'grace',
+      email: 'grace@example.com',
+    });
+    await http().post(`/v1/users/${grace.id}/disable`).expect(200);
+
+    const res = await http().post('/v1/users/announce').expect(200);
+    expect(res.body).toEqual({ announced: 2 });
+    const announced = (await userEvents()).slice(-2);
+    expect(announced.map(([type]) => type)).toEqual([
+      'user.updated',
+      'user.updated',
+    ]);
+    expect(
+      Object.fromEntries(
+        announced.map(([, version, payload]) => [
+          (payload as { userId: string }).userId,
+          version,
+        ]),
+      ),
+    ).toEqual({ [ada.id]: 1, [grace.id]: 2 });
+
+    // Platform readers can't.
+    await (await readerAgent(app)).post('/v1/users/announce').expect(403);
   });
 
   it('links and unlinks identities', async () => {

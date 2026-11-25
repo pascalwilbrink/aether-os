@@ -9,6 +9,9 @@ import type {
   TDataShape,
 } from './client/index.js';
 import type {
+  AnnounceUsersData,
+  AnnounceUsersErrors,
+  AnnounceUsersResponses,
   ChangePasswordData,
   ChangePasswordErrors,
   ChangePasswordResponses,
@@ -138,7 +141,7 @@ export const getUser = <ThrowOnError extends boolean = false>(
   );
 
 /**
- * Replaces the user's profile (display name and contact email).
+ * Replaces the user's profile (display name and contact email); a change publishes `user.updated`.
  */
 export const updateUser = <ThrowOnError extends boolean = false>(
   options: Options<UpdateUserData, ThrowOnError>,
@@ -158,7 +161,7 @@ export const updateUser = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Blocks sign-in through every linked identity. Idempotent.
+ * Blocks sign-in through every linked identity; publishes `user.disabled` when it changes something. Idempotent.
  */
 export const disableUser = <ThrowOnError extends boolean = false>(
   options: Options<DisableUserData, ThrowOnError>,
@@ -174,7 +177,7 @@ export const disableUser = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * Allows sign-in again. Idempotent.
+ * Allows sign-in again; publishes `user.enabled` when it changes something. Idempotent.
  */
 export const enableUser = <ThrowOnError extends boolean = false>(
   options: Options<EnableUserData, ThrowOnError>,
@@ -186,6 +189,27 @@ export const enableUser = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/users/{userId}/enable',
+    ...options,
+  });
+
+/**
+ * Publishes every user's current state as `user.updated`, at their
+ * current version (no new version): the backfill for services that
+ * keep a copy of Pistis's users (Polis) and missed users created
+ * before Pistis published events. Consumers keep what they have when
+ * it's as new, so running it again is harmless.
+ *
+ */
+export const announceUsers = <ThrowOnError extends boolean = false>(
+  options?: Options<AnnounceUsersData, ThrowOnError>,
+): RequestResult<AnnounceUsersResponses, AnnounceUsersErrors, ThrowOnError> =>
+  (options?.client ?? client).post<
+    AnnounceUsersResponses,
+    AnnounceUsersErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/users/announce',
     ...options,
   });
 

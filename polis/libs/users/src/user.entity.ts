@@ -1,7 +1,8 @@
 import { Check, Column, Entity, PrimaryColumn } from 'typeorm';
 
 /**
- * Polis's copy of a Pistis user, from Pistis's `user.created` event. Pistis
+ * Polis's copy of a Pistis user, from Pistis's user events (`user.created`,
+ * `.updated`, `.disabled`, `.enabled`: each the user as they are). Pistis
  * owns users; this copy lets Polis know who exists without calling it.
  */
 @Entity({ name: 'users' })
@@ -25,7 +26,11 @@ export class UserEntity {
   @Column({ type: 'timestamptz' })
   createdAt: Date;
 
-  /** When Polis recorded it. */
+  /** When Polis recorded it (last changed it). */
   @Column({ type: 'timestamptz' })
   receivedAt: Date;
+
+  /** The user's version in Pistis (the newest event's `aggregateVersion`). */
+  @Column({ type: 'integer', default: 1 })
+  version: number;
 }

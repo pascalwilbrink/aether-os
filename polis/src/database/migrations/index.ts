@@ -7,6 +7,7 @@ import { Departments1795550000000 } from './1795550000000-Departments.js';
 import { UsersAndInbox1795560000000 } from './1795560000000-UsersAndInbox.js';
 import { Persons1795570000000 } from './1795570000000-Persons.js';
 import { Teams1795590000000 } from './1795590000000-Teams.js';
+import { UserVersions1795610000000 } from './1795610000000-UserVersions.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -24,4 +25,5 @@ export const migrations = [
   UsersAndInbox1795560000000,
   Persons1795570000000,
   Teams1795590000000,
+  UserVersions1795610000000,
 ];

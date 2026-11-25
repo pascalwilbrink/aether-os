@@ -21,6 +21,7 @@ import { LinkUserProviderRequest } from './dto/link-user-provider.request.js';
 import { ListUserProvidersQuery } from './dto/list-user-providers.query.js';
 import { ListUsersQuery } from './dto/list-users.query.js';
 import { UpdateUserRequest } from './dto/update-user.request.js';
+import { UserAnnouncementResponse } from './dto/user-announcement.response.js';
 import { UserPage } from './dto/user-page.response.js';
 import { UserParams } from './dto/user.params.js';
 import { UserProviderPage } from './dto/user-provider-page.response.js';
@@ -50,6 +51,14 @@ export class UsersController {
   @ZodSerializerDto(UserPage)
   list(@Query() query: ListUsersQuery) {
     return this.users.list(query);
+  }
+
+  /** Publishes every user's state again (the backfill for Polis's copy). */
+  @Post('announce')
+  @HttpCode(HttpStatus.OK)
+  @ZodSerializerDto(UserAnnouncementResponse)
+  async announce() {
+    return { announced: await this.users.announce() };
   }
 
   @Get(':userId')

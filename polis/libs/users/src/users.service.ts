@@ -10,12 +10,23 @@ import {
 
 import { UserEntity } from './user.entity.js';
 
-type UserCreated = PistisEvents.PistisEventPayloads['user.created'];
+/** Every Pistis user event carries the user as they are (a snapshot). */
+export type UserSnapshot = PistisEvents.PistisEventPayloads['user.created'];
+
+/** Pistis's user events Polis consumes (`PISTIS_SUBSCRIPTIONS`). */
+export const USER_EVENTS = [
+  'user.created',
+  'user.updated',
+  'user.disabled',
+  'user.enabled',
+] as const;
 
 /**
- * Polis's copy of Pistis's users. Each `user.created` from Pistis (through
- * the inbox, so a redelivered message is skipped) becomes a row; a user
- * already there is left as it is, so applying the event twice is harmless.
+ * Polis's copy of Pistis's users. Each user event from Pistis (through the
+ * inbox, so a redelivered message is skipped) carries the user as they are
+ * at a version: the copy keeps the newest, so events arriving out of order,
+ * twice, or again from Pistis's backfill (`POST /v1/users/announce`) change
+ * nothing they shouldn't.
  */
 @Injectable()
 export class UsersService {
@@ -25,30 +36,60 @@ export class UsersService {
   ) {}
 
   @OnDomainEvent('pistis.user.created')
-  onUserCreated(event: DomainEvent<UserCreated>): Promise<void> {
+  onUserCreated(event: DomainEvent<UserSnapshot>): Promise<void> {
+    return this.record(event);
+  }
+
+  @OnDomainEvent('pistis.user.updated')
+  onUserUpdated(event: DomainEvent<UserSnapshot>): Promise<void> {
+    return this.record(event);
+  }
+
+  @OnDomainEvent('pistis.user.disabled')
+  onUserDisabled(event: DomainEvent<UserSnapshot>): Promise<void> {
+    return this.record(event);
+  }
+
+  @OnDomainEvent('pistis.user.enabled')
+  onUserEnabled(event: DomainEvent<UserSnapshot>): Promise<void> {
     return this.record(event);
   }
 
   /**
-   * Records the user from Pistis's `user.created`, unless already there.
-   * Other handlers of the event (persons) call it first, so they find the
-   * user whichever handler runs first.
+   * Records the user from one of Pistis's user events: a new row, or the
+   * row replaced when the event is newer than what's there. Other handlers
+   * of the events (persons) call it first, so they find the user as the
+   * event has it whichever handler runs first.
    */
-  async record(event: DomainEvent<UserCreated>): Promise<void> {
+  async record(event: DomainEvent<UserSnapshot>): Promise<void> {
     const { payload } = event;
+    const now = new Date();
     await this.users
-      .createQueryBuilder()
+      .createQueryBuilder('copy')
       .insert()
       .values({
         id: payload.userId,
         displayName: payload.displayName,
         email: payload.email,
         status: payload.status,
+        // When Pistis created the user: this event's time only for
+        // `user.created`; a first sight through a later event (the backfill)
+        // has no better one.
         createdAt: new Date(event.occurredAt),
-        receivedAt: new Date(),
+        receivedAt: now,
+        version: event.aggregateVersion,
       })
-      .orIgnore()
+      .orUpdate(
+        ['display_name', 'email', 'status', 'received_at', 'version'],
+        ['id'],
+        { overwriteCondition: { where: 'copy.version < EXCLUDED.version' } },
+      )
       .execute();
+  }
+
+  /** The user as Polis has them, or null. */
+  find(userId: string): Promise<UserEntity | null> {
+    return this.users.findOneBy({ id: userId });
   }
 
   /**

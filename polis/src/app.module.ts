@@ -19,10 +19,10 @@ import { TeamsModule } from '@polis/teams';
 import { OrganizationsModule } from '@polis/organizations';
 import { ProjectMembershipsModule } from '@polis/project-memberships';
 import { ProjectsModule } from '@polis/projects';
-import { UsersModule } from '@polis/users';
+import { USER_EVENTS, UsersModule } from '@polis/users';
 
-/** Pistis's events Polis keeps a copy from. */
-export const PISTIS_SUBSCRIPTIONS = ['user.created'] as const;
+/** Pistis's events Polis keeps a copy from: every user event. */
+export const PISTIS_SUBSCRIPTIONS = USER_EVENTS;
 
 // Validation, the /v1 prefix and problem details: configureHttpApp (main.ts).
 @Module({

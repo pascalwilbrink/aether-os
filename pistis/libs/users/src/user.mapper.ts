@@ -22,6 +22,7 @@ export class UserMapper {
       createdAt: now,
       updatedAt: now,
       lastSignInAt: null,
+      version: 1,
     } satisfies UserEntity);
   }
 

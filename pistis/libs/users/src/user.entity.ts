@@ -29,4 +29,12 @@ export class UserEntity {
 
   @Column({ type: 'timestamptz', nullable: true })
   lastSignInAt: Date | null;
+
+  /**
+   * 1 when created, one more with every change other services hear of (the
+   * profile, the status): the `aggregateVersion` of the user's events.
+   * Signing in doesn't count.
+   */
+  @Column({ type: 'integer', default: 1 })
+  version: number;
 }

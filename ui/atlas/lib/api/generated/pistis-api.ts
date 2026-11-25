@@ -36,7 +36,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["getUser"];
-        /** @description Replaces the user's profile (display name and contact email). */
+        /** @description Replaces the user's profile (display name and contact email); a change publishes `user.updated`. */
         put: operations["updateUser"];
         post?: never;
         delete?: never;
@@ -56,7 +56,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Blocks sign-in through every linked identity. Idempotent. */
+        /** @description Blocks sign-in through every linked identity; publishes `user.disabled` when it changes something. Idempotent. */
         post: operations["disableUser"];
         delete?: never;
         options?: never;
@@ -75,8 +75,31 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Allows sign-in again. Idempotent. */
+        /** @description Allows sign-in again; publishes `user.enabled` when it changes something. Idempotent. */
         post: operations["enableUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/users/announce": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Publishes every user's current state as `user.updated`, at their
+         *     current version (no new version): the backfill for services that
+         *     keep a copy of Pistis's users (Polis) and missed users created
+         *     before Pistis published events. Consumers keep what they have when
+         *     it's as new, so running it again is harmless.
+         */
+        post: operations["announceUsers"];
         delete?: never;
         options?: never;
         head?: never;
@@ -383,6 +406,10 @@ export interface components {
             updatedAt: components["schemas"]["Timestamp"];
             /** Format: date-time */
             lastSignInAt: string | null;
+        };
+        UserAnnouncementResponse: {
+            /** @description How many users were published. */
+            announced: number;
         };
         /** @description A member's profile, as other members see it. */
         OrganizationUserResponse: {
@@ -777,6 +804,28 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    announceUsers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The events are in the outbox */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserAnnouncementResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     changePassword: {
