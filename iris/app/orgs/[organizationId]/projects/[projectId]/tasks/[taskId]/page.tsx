@@ -20,6 +20,7 @@ import { requireOrganization } from "@/lib/auth/current";
 import { pausedMessage } from "@/lib/budgets";
 import { config } from "@/lib/config";
 import { downloadHref, formatBytes } from "@/lib/files";
+import { taskPageContext } from "@/lib/copilot";
 import { traceLinks } from "@/lib/traces";
 import {
   artifactsByExecution,
@@ -35,6 +36,7 @@ import {
 import { setTaskBudgetAction } from "../../actions";
 import { ReviewForm } from "../../review-form";
 import { TaskActions } from "../../task-actions";
+import { CopilotPageContext } from "@/app/components/page-context";
 import { ActivityTimeline } from "./activity-timeline";
 
 type Props =
@@ -77,6 +79,10 @@ async function TaskView({
 
   return (
     <div className="space-y-10">
+      <CopilotPageContext
+        description="The task the person is looking at, with its latest executions"
+        value={taskPageContext(task, executions.items)}
+      />
       <div className="space-y-2">
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           <Link href={projectPath} className="underline">

@@ -6,8 +6,11 @@ import {
   authorEvent,
   authorLabel,
   authorsOf,
+  isRefusal,
   participationLabel,
   runFailureMessage,
+  sessionEventOf,
+  sessionRunBody,
 } from "./sessions";
 
 const facilitator = {
@@ -137,5 +140,48 @@ describe("names", () => {
     expect(participationLabel(members[0])).toBe("Always takes part");
     expect(participationLabel(members[1])).toBe("Joins when relevant: Anything about login");
     expect(participationLabel({ ...members[1], invited: true })).toBe("Taking part");
+  });
+});
+
+describe("a run as Hephaestus takes it", () => {
+  it("names the session and keeps only what Hephaestus reads", () => {
+    expect(
+      sessionRunBody(
+        {
+          runId: "r",
+          messages: [{ id: "u", role: "user", content: "Hi" }],
+          tools: [{ name: "open_page" }],
+          context: [{ description: "d", value: "v" }],
+          state: null,
+          forwardedProps: { memberAgentId: "a", copilotkit: { ui: {} } },
+        },
+        "s",
+      ),
+    ).toEqual({
+      threadId: "s",
+      runId: "r",
+      messages: [{ id: "u", role: "user", content: "Hi" }],
+      tools: [{ name: "open_page" }],
+      context: [{ description: "d", value: "v" }],
+      forwardedProps: { memberAgentId: "a" },
+    });
+    const bare = sessionRunBody({ forwardedProps: { copilotkit: {} } }, "s");
+    expect(bare).toMatchObject({ threadId: "s", messages: [] });
+    expect(bare).not.toHaveProperty("forwardedProps");
+    expect(typeof bare.runId).toBe("string");
+  });
+});
+
+describe("the copilot's session announced", () => {
+  it("reads iris-session events, a gone one as null", () => {
+    expect(sessionEventOf({ name: "iris-session", value: { sessionId: "s" } })).toEqual({ sessionId: "s" });
+    expect(sessionEventOf({ name: "iris-session", value: { sessionId: null } })).toEqual({ sessionId: null });
+    expect(sessionEventOf({ name: "message-author", value: {} })).toBeUndefined();
+  });
+
+  it("tells a refusal (problem details) from a run error", () => {
+    expect(isRefusal('HTTP 409: {"code":"SESSION_BUSY","detail":"Busy."}')).toBe(true);
+    expect(isRefusal("The model failed.")).toBe(false);
+    expect(isRefusal(undefined)).toBe(false);
   });
 });
