@@ -11,6 +11,7 @@ import { ModelGateway } from '@hephaestus/models';
 import {
   InMemorySkillSource,
   KnowledgeBase,
+  KnowledgeError,
   knowledgeTools,
   SKILLS_ROOT,
 } from '@hephaestus/runner';
@@ -24,6 +25,7 @@ import {
   roundSection,
   transcript,
 } from './council-prompts.js';
+import { decisionsSection, type WrittenSynthesis } from './decisions.js';
 import { modeSection, SESSION_MODES, type SessionMode } from './modes.js';
 import {
   checkedPlan,
@@ -92,6 +94,15 @@ export interface SessionTurn {
       plans: PlanForFacilitator[];
       count: number;
       proposed: ProposedPlan[];
+    };
+    /**
+     * Syntheses (`requireSynthesis`): how many the session has, and those
+     * the facilitator writes in this run (`written`, kept when it ends).
+     */
+    synthesis: {
+      required: boolean;
+      count: number;
+      written: WrittenSynthesis[];
     };
   } | null;
   /** The session's messages, oldest first, the new ones included. */
@@ -240,6 +251,13 @@ export class SessionAgent {
               ...(council.deliberation.settings.allowed
                 ? ['', council.deliberation.describe()]
                 : []),
+              '',
+              decisionsSection({
+                decisions: this.knowledge.available,
+                requireSynthesis: council.synthesis.required,
+                syntheses:
+                  council.synthesis.count + council.synthesis.written.length,
+              }),
             ].join('\n'),
           messages: [
             ...prefix,
@@ -379,6 +397,161 @@ export class SessionAgent {
       ...(context.turn.council?.planning.allowed
         ? this.planTools(context)
         : {}),
+      ...this.decisionTools(context),
+    };
+  }
+
+  /**
+   * `record_decision` and `write_synthesis` (../../../../docs/councils.md,
+   * Decisions, Synthesis). A decision is proposed to Seshat at once with the
+   * facilitator's session token (which may only propose: a person accepts
+   * it), referencing the session and its round; a synthesis is kept with the
+   * session when the run ends. Each is announced with a `CUSTOM` event.
+   */
+  private decisionTools(context: TurnContext): ToolsInput {
+    const { turn } = context;
+    const council = turn.council as NonNullable<SessionTurn['council']>;
+    const facilitator = turn.agentVersion;
+    const roundOf = (number: number | undefined) =>
+      number === undefined
+        ? null
+        : (council.deliberation.byNumber(number) ?? undefined);
+    const tools: ToolsInput = {
+      write_synthesis: createTool({
+        id: 'write_synthesis',
+        description:
+          "Close a discussion with a synthesis for the person: what was asked, what was concluded, what was decided, and what's still open (Markdown). Name the rounds it sums up.",
+        inputSchema: z.object({
+          content: z.string().min(1).max(20000),
+          rounds: z
+            .array(z.number().int().min(1))
+            .max(10)
+            .optional()
+            .describe('The numbers of the rounds it sums up'),
+        }),
+        execute: (input) => {
+          const rounds = (input.rounds ?? []).map(roundOf);
+          if (rounds.some((round) => round === undefined)) {
+            return Promise.resolve({
+              refused: `This session has no such round; it has ${council.deliberation.count}.`,
+            });
+          }
+          const synthesis: WrittenSynthesis = {
+            id: uuidv7(),
+            number:
+              council.synthesis.count + council.synthesis.written.length + 1,
+            content: input.content,
+            roundIds: rounds.flatMap((round) => (round ? [round.id] : [])),
+            writtenAt: new Date(),
+          };
+          council.synthesis.written.push(synthesis);
+          context.emit({
+            type: 'CUSTOM',
+            name: 'synthesis-written',
+            value: { synthesisId: synthesis.id, number: synthesis.number },
+          });
+          return Promise.resolve({
+            synthesis: synthesis.number,
+            written: true,
+          });
+        },
+      }),
+    };
+    if (!this.knowledge.available) {
+      return tools;
+    }
+    return {
+      ...tools,
+      record_decision: createTool({
+        id: 'record_decision',
+        description:
+          "Record a decision the council reached as a proposal in the project's knowledge, for a person to accept: what was decided and its context, why, and what else was considered.",
+        inputSchema: z.object({
+          title: z.string().min(1).max(200),
+          decision: z
+            .string()
+            .min(1)
+            .max(20000)
+            .describe('The decision, its context and consequences (Markdown)'),
+          rationale: z.string().min(1).max(5000).describe('Why'),
+          alternatives: z
+            .array(
+              z.object({
+                option: z.string().min(1).max(500),
+                reason: z
+                  .string()
+                  .min(1)
+                  .max(2000)
+                  .describe("Why it wasn't chosen"),
+              }),
+            )
+            .max(10)
+            .optional(),
+          round: z
+            .number()
+            .int()
+            .min(1)
+            .optional()
+            .describe('The number of the round it came from'),
+          tags: z.array(z.string()).max(20).optional(),
+        }),
+        execute: async (input) => {
+          const round = roundOf(input.round);
+          if (round === undefined) {
+            return {
+              refused: `This session has no round ${input.round}; it has ${council.deliberation.count}.`,
+            };
+          }
+          try {
+            const item = await this.knowledge.propose(
+              {
+                organizationId: turn.organizationId,
+                projectId: turn.projectId,
+                token: await turn.tokenFor(facilitator.agentId, facilitator.id),
+              },
+              {
+                type: 'decision',
+                title: input.title,
+                body: input.decision,
+                rationale: input.rationale,
+                alternatives: input.alternatives ?? [],
+                ...(input.tags ? { tags: input.tags } : {}),
+                references: [
+                  {
+                    kind: 'session',
+                    id: turn.sessionId,
+                    title: 'Council session',
+                  },
+                  ...(round
+                    ? [
+                        {
+                          kind: 'round' as const,
+                          id: round.id,
+                          title: `Round ${round.number}`,
+                        },
+                      ]
+                    : []),
+                ],
+              },
+            );
+            context.emit({
+              type: 'CUSTOM',
+              name: 'decision-recorded',
+              value: { itemId: item.id, title: item.title },
+            });
+            return {
+              decision: item.id,
+              status: item.status,
+              next: "Tell the person it's proposed: they (or an approver) accept it in the project's knowledge.",
+            };
+          } catch (error) {
+            if (error instanceof KnowledgeError) {
+              return { refused: `Seshat refused it: ${error.message}` };
+            }
+            throw error;
+          }
+        },
+      }),
     };
   }
 

@@ -54,6 +54,11 @@ export class Deliberation {
     return this.rounds.find((round) => round.status === 'open') ?? null;
   }
 
+  /** The session's round with this number, if any. */
+  byNumber(number: number): Round | null {
+    return this.rounds.find((round) => round.number === number) ?? null;
+  }
+
   get count(): number {
     return this.rounds.length;
   }

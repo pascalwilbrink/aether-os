@@ -22,6 +22,7 @@ import { ProjectsService } from '@hephaestus/tenancy';
 import type { CouncilPlanEntity } from './council-plan.entity.js';
 import type { Round } from './deliberation.js';
 import type { SessionMode } from './modes.js';
+import type { WrittenSynthesis } from './decisions.js';
 import type { ProposedPlan } from './plans.js';
 import type { SessionHistoryMessage } from './session-agent.js';
 import { SessionMessagesService } from './session-messages.service.js';
@@ -42,6 +43,22 @@ export interface StartedRun {
   rounds: Round[];
   /** A council session's plans so far. */
   plans: CouncilPlanEntity[];
+  /** How many syntheses a council session has. */
+  syntheses: number;
+}
+
+/** What a run changed besides its messages, kept when it ends. */
+export interface RunOutcome {
+  /** Members it brought into the conversation. */
+  invited?: ReadonlySet<string>;
+  /** Deliberation rounds it opened or concluded. */
+  rounds?: readonly Round[];
+  /** The mode the facilitator switched to. */
+  mode?: SessionMode | null;
+  /** Plans the facilitator proposed. */
+  plans?: readonly ProposedPlan[];
+  /** Syntheses the facilitator wrote. */
+  syntheses?: readonly WrittenSynthesis[];
 }
 
 /**
@@ -190,6 +207,16 @@ export class SessionsService {
     return this.messages.roundsPage(sessionId, page);
   }
 
+  async synthesesOf(
+    organizationId: string,
+    projectId: string,
+    sessionId: string,
+    page: PageRequest,
+  ): Promise<Page<ApiTypes.SessionSynthesis>> {
+    await this.load(organizationId, projectId, sessionId);
+    return this.messages.synthesesPage(sessionId, page);
+  }
+
   /** Ends it (`closed`); an ended session is returned as it is. */
   @Transactional()
   async end(
@@ -257,7 +284,16 @@ export class SessionsService {
     const plans = session.councilId
       ? await this.messages.plansOf(sessionId)
       : [];
-    return { session, history: [...history, ...added], rounds, plans };
+    const syntheses = session.councilId
+      ? await this.messages.synthesisCount(sessionId)
+      : 0;
+    return {
+      session,
+      history: [...history, ...added],
+      rounds,
+      plans,
+      syntheses,
+    };
   }
 
   /**
@@ -268,10 +304,13 @@ export class SessionsService {
   async finishRun(
     sessionId: string,
     produced: readonly SessionHistoryMessage[],
-    invited: ReadonlySet<string> = new Set(),
-    rounds: readonly Round[] = [],
-    mode: SessionMode | null = null,
-    plans: readonly ProposedPlan[] = [],
+    {
+      invited = new Set(),
+      rounds = [],
+      mode = null,
+      plans = [],
+      syntheses = [],
+    }: RunOutcome = {},
   ): Promise<void> {
     const session = await this.sessions.findOne({
       where: { id: sessionId },
@@ -283,6 +322,7 @@ export class SessionsService {
     const now = new Date();
     await this.messages.saveRounds(sessionId, rounds);
     const savedPlans = await this.messages.savePlans(sessionId, plans);
+    await this.messages.saveSyntheses(sessionId, syntheses);
     await this.messages.append(
       sessionId,
       produced.filter(

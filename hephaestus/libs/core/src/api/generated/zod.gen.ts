@@ -1040,6 +1040,18 @@ export const zDeliberationRound = z.object({
     concludedAt: z.iso.datetime().nullable()
 });
 
+/**
+ * What the facilitator wrote to close a discussion (docs/councils.md, Synthesis).
+ */
+export const zSessionSynthesis = z.object({
+    id: z.uuid(),
+    sessionId: z.uuid(),
+    number: z.int().gte(1),
+    content: z.string(),
+    roundIds: z.array(z.uuid()),
+    writtenAt: zTimestamp
+});
+
 export const zAguiMessage = z.object({
     id: z.string().min(1).max(200),
     role: z.enum([
@@ -1129,6 +1141,10 @@ export const zCouncilPlanPage = zPageMeta.and(z.object({
 
 export const zDeliberationRoundPage = zPageMeta.and(z.object({
     items: z.array(zDeliberationRound)
+}));
+
+export const zSessionSynthesisPage = zPageMeta.and(z.object({
+    items: z.array(zSessionSynthesis)
 }));
 
 export const zSessionMessagePage = zPageMeta.and(z.object({
@@ -1826,6 +1842,22 @@ export const zListDeliberationRoundsQuery = z.object({
  * Oldest first
  */
 export const zListDeliberationRoundsResponse = zDeliberationRoundPage;
+
+export const zListSessionSynthesesPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    sessionId: z.uuid()
+});
+
+export const zListSessionSynthesesQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Oldest first
+ */
+export const zListSessionSynthesesResponse = zSessionSynthesisPage;
 
 export const zSetSessionModeBody = zSetSessionModeRequest;
 

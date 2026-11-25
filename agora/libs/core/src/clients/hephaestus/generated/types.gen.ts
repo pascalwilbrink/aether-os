@@ -1512,6 +1512,31 @@ export type DeliberationRoundPage = PageMeta & {
   items: Array<DeliberationRound>;
 };
 
+/**
+ * What the facilitator wrote to close a discussion (docs/councils.md, Synthesis).
+ */
+export type SessionSynthesis = {
+  id: string;
+  sessionId: string;
+  /**
+   * Within the session: 1, 2, …
+   */
+  number: number;
+  /**
+   * Markdown.
+   */
+  content: string;
+  /**
+   * The deliberation rounds it sums up.
+   */
+  roundIds: Array<string>;
+  writtenAt: Timestamp;
+};
+
+export type SessionSynthesisPage = PageMeta & {
+  items: Array<SessionSynthesis>;
+};
+
 export type SessionMessagePage = PageMeta & {
   items: Array<SessionMessage>;
 };
@@ -4402,6 +4427,68 @@ export type ListDeliberationRoundsResponses = {
 
 export type ListDeliberationRoundsResponse =
   ListDeliberationRoundsResponses[keyof ListDeliberationRoundsResponses];
+
+export type ListSessionSynthesesData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    projectId: string;
+    sessionId: string;
+  };
+  query?: {
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+  };
+  url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/syntheses';
+};
+
+export type ListSessionSynthesesErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type ListSessionSynthesesError =
+  ListSessionSynthesesErrors[keyof ListSessionSynthesesErrors];
+
+export type ListSessionSynthesesResponses = {
+  /**
+   * Oldest first
+   */
+  200: SessionSynthesisPage;
+};
+
+export type ListSessionSynthesesResponse =
+  ListSessionSynthesesResponses[keyof ListSessionSynthesesResponses];
 
 export type SetSessionModeData = {
   body: SetSessionModeRequest;

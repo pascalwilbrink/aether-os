@@ -100,6 +100,9 @@ import type {
   ListSessionsData,
   ListSessionsErrors,
   ListSessionsResponses,
+  ListSessionSynthesesData,
+  ListSessionSynthesesErrors,
+  ListSessionSynthesesResponses,
   ListTaskArtifactsData,
   ListTaskArtifactsErrors,
   ListTaskArtifactsResponses,
@@ -1188,6 +1191,30 @@ export const listDeliberationRounds = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/rounds',
+    ...options,
+  });
+
+/**
+ * A council session's syntheses (docs/councils.md, Synthesis): what
+ * the facilitator wrote after a discussion (what was asked, concluded,
+ * decided, and what's open), oldest first; none in an agent session.
+ * Its decisions are Seshat's items (`GET …/knowledge/items?sessionId=`).
+ *
+ */
+export const listSessionSyntheses = <ThrowOnError extends boolean = false>(
+  options: Options<ListSessionSynthesesData, ThrowOnError>,
+): RequestResult<
+  ListSessionSynthesesResponses,
+  ListSessionSynthesesErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListSessionSynthesesResponses,
+    ListSessionSynthesesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/syntheses',
     ...options,
   });
 
