@@ -11,7 +11,8 @@ packages:
   - agora
   - seshat
   - pylon
-  - iris
+  - ui/iris
+  - ui/design
 
 # Native builds allowed during install.
 onlyBuiltDependencies:
