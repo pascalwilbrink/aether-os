@@ -6,6 +6,7 @@ import { HEALTH_TIMEOUT_MS, isRunning } from "@/lib/services";
 import {
   cookieOptions,
   needsRefresh,
+  PATH_HEADER,
   openSession,
   sealSession,
   SESSION_COOKIE,
@@ -21,13 +22,19 @@ import {
  * sign in; if Pistis just doesn't answer, the session is kept (below).
  */
 export async function proxy(request: NextRequest) {
+  // The page's path, for a page refused with a 403 to come back to
+  // (`lib/api/http.ts`); never what the browser sent under that name.
+  request.headers.set(
+    PATH_HEADER,
+    request.nextUrl.pathname + request.nextUrl.search,
+  );
   const sealed = request.cookies.get(SESSION_COOKIE)?.value;
   if (!sealed) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: request.headers } });
   }
   const session = await openSession(sealed, iris.sessionSecret);
   if (session && !needsRefresh(session)) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: request.headers } });
   }
 
   let value: string | null = null;

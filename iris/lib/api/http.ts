@@ -1,8 +1,14 @@
 import "server-only";
 
+import { headers } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
 
-import { tokenFingerprint } from "../auth/session";
+import { currentSession } from "../auth/current";
+import {
+  PATH_HEADER,
+  refreshAfterForbidden,
+  tokenFingerprint,
+} from "../auth/session";
 import { serviceNameFor } from "../services";
 
 /**
@@ -89,6 +95,13 @@ export async function call<T>(
     // session was revoked): the session is no use any more, so sign out.
     redirect(`/auth/expired?token=${tokenFingerprint(token)}`);
   }
+  if (response.status === 403) {
+    // Refused: the token's roles may be older than the person's (a role
+    // granted since). Once per token, while a page loads, get one with the
+    // current roles and load it again; a second refusal is shown.
+    const target = await forbiddenRefresh(token);
+    if (target) redirect(target);
+  }
   if (!response.ok) {
     const problem = (await response.json().catch(() => ({}))) as {
       code?: string;
@@ -111,6 +124,24 @@ export async function call<T>(
   return response.status === 204
     ? (undefined as T)
     : ((await response.json()) as T);
+}
+
+/** Where a refused page goes for a fresh token, or null (`refreshAfterForbidden`). */
+async function forbiddenRefresh(token: string): Promise<string | null> {
+  try {
+    const request = await headers();
+    const accept = request.get("accept") ?? "";
+    return refreshAfterForbidden(await currentSession(), token, {
+      serverAction: request.has("next-action"),
+      // A document, or a client navigation's React Server Components.
+      page: request.get("rsc") === "1" || accept.includes("text/html"),
+      path: request.get(PATH_HEADER),
+    });
+  } catch (error) {
+    unstable_rethrow(error);
+    // Outside a request (nothing to reload): show the refusal.
+    return null;
+  }
 }
 
 /** A page of a cursor-paginated list. */
