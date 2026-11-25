@@ -3,6 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 
 import { tokenFingerprint } from "../auth/session";
+import { config } from "../config";
 
 /**
  * A problem details error (RFC 9457) from an Aether-os API, with its
@@ -56,7 +57,7 @@ export async function call<T>(
     throw new ApiError(
       503,
       SERVICE_UNAVAILABLE,
-      "Polis can't be reached right now. It may still be starting: try again in a moment.",
+      `${serviceName(base)} can't be reached right now. It may still be starting: try again in a moment.`,
     );
   }
   if (response.status === 401) {
@@ -79,6 +80,13 @@ export async function call<T>(
   return response.status === 204
     ? (undefined as T)
     : ((await response.json()) as T);
+}
+
+/** Which service a base URL is, for messages. */
+function serviceName(base: string): string {
+  if (base === config.polisUrl) return "Polis";
+  if (base === config.pistisUrl) return "Pistis";
+  return "A service";
 }
 
 /** A page of a cursor-paginated list. */

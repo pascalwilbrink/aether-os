@@ -78,6 +78,10 @@ export const config = {
   get kerykesUrl() {
     return value("KERYKES_URL", "http://localhost:3006");
   },
+  /** Atlas, the management UI: where owners and admins manage people and access. */
+  get atlasUrl() {
+    return value("ATLAS_URL", "http://localhost:3012");
+  },
   /** Files: downloads of file artifacts (signed URLs). */
   get loculusUrl() {
     return value("LOCULUS_URL", "http://localhost:3007");

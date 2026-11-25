@@ -8,3 +8,13 @@ export class MembershipExistsError extends DomainError {
     );
   }
 }
+
+/** Removing or demoting the organization's last owner would leave no one to manage owners. */
+export class LastOwnerError extends DomainError {
+  constructor() {
+    super(
+      'The organization needs an owner: make someone else an owner first.',
+      'LAST_OWNER',
+    );
+  }
+}

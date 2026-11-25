@@ -5,6 +5,7 @@ import { ActionButton, RoleForm } from "@/app/components/action-forms";
 import { listOrganizationUsers, listServiceAccounts } from "@/lib/api/pistis";
 import { getOrganization, listMemberships } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
+import { config } from "@/lib/config";
 import {
   ORGANIZATION_ROLES,
   people,
@@ -77,7 +78,6 @@ async function Members({ params }: Props) {
               <th className="py-1 font-normal">Name</th>
               <th className="py-1 font-normal">Member since</th>
               <th className="py-1 font-normal">Role</th>
-              <th className="py-1 font-normal" />
             </tr>
           </thead>
           <tbody>
@@ -108,40 +108,23 @@ async function Members({ params }: Props) {
                     {formatTime(member.since)}
                   </td>
                   <td className="py-2">
-                    {self ? (
-                      member.roles.map(roleLabel).join(", ")
-                    ) : (
-                      <RoleForm
-                        action={changeRoleAction.bind(
-                          null,
-                          ref(member.membershipId),
-                        )}
-                        roles={ORGANIZATION_ROLES}
-                        current={member.roles[0]}
-                      />
-                    )}
-                  </td>
-                  <td className="py-2 text-right">
-                    {self ? null : (
-                      <ActionButton
-                        action={removeMemberAction.bind(
-                          null,
-                          ref(member.membershipId),
-                        )}
-                        label="Remove"
-                        pendingLabel="Removing…"
-                        confirmText={`Remove ${member.name} from ${organization.name}? They lose every role in its projects too.`}
-                      />
-                    )}
+                    {member.roles.map(roleLabel).join(", ")}
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        <p className="text-xs text-zinc-500">
-          People join by founding an organization for now; inviting someone by
-          email comes with notifications.
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          Owners and admins give people access and change their roles in{" "}
+          <a
+            href={`${config.atlasUrl}/orgs/${organizationId}/members`}
+            className="underline"
+          >
+            Atlas
+          </a>
+          , where the organization&apos;s people, departments and teams are
+          managed.
         </p>
       </section>
 

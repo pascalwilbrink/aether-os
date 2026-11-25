@@ -14,6 +14,7 @@ import {
   Section,
 } from "../../../../components/ui";
 import { deletePersonAction, updatePersonAction } from "../actions";
+import { PersonAccess } from "./access";
 import { PersonForm } from "../person-form";
 
 type Props = PageProps<"/orgs/[organizationId]/people/[personId]">;
@@ -29,10 +30,11 @@ export default function PersonPage({ params }: Props) {
 
 async function Content({ params }: Pick<Props, "params">) {
   const { organizationId, personId } = await params;
-  const { accessToken } = await requireAdmin(
+  const session = await requireAdmin(
     organizationId,
     orgPath(organizationId, `/people/${personId}`),
   );
+  const { accessToken } = session;
   const person = await orNotFound(
     getPerson(accessToken, organizationId, personId),
   );
@@ -72,6 +74,14 @@ async function Content({ params }: Pick<Props, "params">) {
             />
           </Card>
         </Section>
+        <div className="space-y-8">
+        <Section title="Access">
+          <PersonAccess
+            session={session}
+            organizationId={organizationId}
+            person={person}
+          />
+        </Section>
         <Section title="Teams">
           <LinkList
             empty="Not in a team. Add them from a team's page."
@@ -83,6 +93,7 @@ async function Content({ params }: Pick<Props, "params">) {
             }))}
           />
         </Section>
+        </div>
       </div>
     </>
   );

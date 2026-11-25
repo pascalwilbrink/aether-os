@@ -9,7 +9,7 @@
     "start": "next start -p 3012",
     "lint": "eslint",
     "test": "vitest run",
-    "generate:api": "openapi-typescript node_modules/@aether-os/contracts/polis.openapi.yaml -o lib/api/generated/polis-api.ts"
+    "generate:api": "openapi-typescript node_modules/@aether-os/contracts/polis.openapi.yaml -o lib/api/generated/polis-api.ts && openapi-typescript node_modules/@aether-os/contracts/pistis.openapi.yaml -o lib/api/generated/pistis-api.ts"
   },
   "dependencies": {
     "@aether-os/design": "workspace:*",

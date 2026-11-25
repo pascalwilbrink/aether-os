@@ -8,6 +8,8 @@ const LINKS = [
   { path: "/departments", label: "Departments" },
   { path: "/teams", label: "Teams" },
   { path: "/people", label: "People" },
+  { path: "/members", label: "Members" },
+  { path: "/projects", label: "Projects" },
 ];
 
 /** The organization's sections, the current one marked. */

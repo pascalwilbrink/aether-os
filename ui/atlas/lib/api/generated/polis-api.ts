@@ -447,10 +447,16 @@ export interface paths {
             cookie?: never;
         };
         get: operations["getMembership"];
-        /** @description Replaces the membership's roles. */
+        /**
+         * @description Replaces the membership's roles. The organization keeps at least one
+         *     owner: taking `owner` from the last one is `LAST_OWNER`.
+         */
         put: operations["updateMembership"];
         post?: never;
-        /** @description Removes the principal from the organization. */
+        /**
+         * @description Removes the principal from the organization; never its last owner
+         *     (`LAST_OWNER`).
+         */
         delete: operations["deleteMembership"];
         options?: never;
         head?: never;
@@ -584,7 +590,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "ORGANIZATION_SLUG_TAKEN" | "ORGANIZATION_SUSPENDED" | "PROJECT_SLUG_TAKEN" | "MEMBERSHIP_EXISTS" | "PROJECT_ARCHIVED" | "PROJECT_MEMBERSHIP_EXISTS" | "PROJECT_MEMBER_NOT_IN_ORGANIZATION" | "PROJECT_ROLE_EXCEEDS_CAP" | "DEPARTMENT_SLUG_TAKEN" | "DEPARTMENT_ARCHIVED" | "DEPARTMENT_HAS_PROJECTS" | "PERSON_EMAIL_TAKEN" | "TEAM_SLUG_TAKEN" | "TEAM_ARCHIVED" | "TEAM_MEMBER_EXISTS";
+        DomainErrorCode: "ORGANIZATION_SLUG_TAKEN" | "ORGANIZATION_SUSPENDED" | "PROJECT_SLUG_TAKEN" | "MEMBERSHIP_EXISTS" | "PROJECT_ARCHIVED" | "PROJECT_MEMBERSHIP_EXISTS" | "PROJECT_MEMBER_NOT_IN_ORGANIZATION" | "PROJECT_ROLE_EXCEEDS_CAP" | "DEPARTMENT_SLUG_TAKEN" | "DEPARTMENT_ARCHIVED" | "DEPARTMENT_HAS_PROJECTS" | "PERSON_EMAIL_TAKEN" | "TEAM_SLUG_TAKEN" | "TEAM_ARCHIVED" | "TEAM_MEMBER_EXISTS" | "LAST_OWNER";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
