@@ -167,11 +167,18 @@ describe("modes", () => {
     requireSynthesis: true,
   };
 
-  it("offers the modes the council allows, not those that come with plans", () => {
+  it("offers the modes the council allows", () => {
     expect(sessionModeChoices(settings).map((mode) => mode.role)).toEqual([
       "facilitated",
       "direct",
+      "planning",
+      "delegation",
     ]);
+    expect(
+      sessionModeChoices({ ...settings, allowPlanning: false, allowDelegation: false }).map(
+        (mode) => mode.role,
+      ),
+    ).toEqual(["facilitated", "direct"]);
     expect(sessionModeLabel("discussion")).toBe("Discussion");
     expect(sessionModeLabel("planning")).toBe("Planning");
   });

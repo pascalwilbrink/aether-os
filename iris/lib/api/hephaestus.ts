@@ -4,6 +4,7 @@ import { config } from "../config";
 import type {
   AgentSession,
   AgentSessionMessage,
+  CouncilPlan,
   DeliberationRound,
   ApiSchema,
   Artifact,
@@ -33,10 +34,11 @@ export function listTasks(
   token: string,
   organizationId: string,
   projectId: string,
-  filter: { status?: TaskStatus; cursor?: string } = {},
+  filter: { status?: TaskStatus; cursor?: string; parentTaskId?: string } = {},
 ) {
   const query = new URLSearchParams({ limit: "50" });
   if (filter.status) query.set("status", filter.status);
+  if (filter.parentTaskId) query.set("parentTaskId", filter.parentTaskId);
   if (filter.cursor) query.set("cursor", filter.cursor);
   return hephaestus<Page<Task>>(
     `${tasksOf(organizationId, projectId)}?${query}`,
@@ -442,6 +444,41 @@ export async function listDeliberationRounds(
   );
   return page.items;
 }
+
+/** A council session's plans, oldest first. */
+export async function listCouncilPlans(
+  token: string,
+  organizationId: string,
+  projectId: string,
+  sessionId: string,
+): Promise<CouncilPlan[]> {
+  const page: Page<CouncilPlan> = await hephaestus(
+    `${sessionsOf(organizationId, projectId)}/${sessionId}/plans?limit=100`,
+    token,
+  );
+  return page.items;
+}
+
+export type PlanDecision = "approve" | "reject" | "request-changes";
+
+/** Approves (making its tasks, with the council's delegation), rejects or sends back a proposed plan. */
+export const decideCouncilPlan = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+  sessionId: string,
+  planId: string,
+  decision: PlanDecision,
+  body:
+    | ApiSchema<"ApproveCouncilPlanRequest">
+    | ApiSchema<"RejectCouncilPlanRequest">
+    | ApiSchema<"RequestCouncilPlanChangesRequest">,
+) =>
+  hephaestus<CouncilPlan>(
+    `${sessionsOf(organizationId, projectId)}/${sessionId}/plans/${planId}/${decision}`,
+    token,
+    { method: "POST", body },
+  );
 
 export const setSessionMode = (
   token: string,

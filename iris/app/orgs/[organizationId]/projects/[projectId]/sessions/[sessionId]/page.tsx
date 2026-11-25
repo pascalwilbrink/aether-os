@@ -1,14 +1,23 @@
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 import { Suspense } from "react";
 
 import { ActionButton, RoleForm } from "@/app/components/action-forms";
 import { getAgent, getCouncil, listCouncilVersions } from "@/lib/api/agora";
+import type { CouncilPlan, Task } from "@/lib/api";
 import {
   getSession,
+  getTask,
+  listCouncilPlans,
   listDeliberationRounds,
   listSessionMessages,
+  listTasks,
 } from "@/lib/api/hephaestus";
+import { listServiceAccounts } from "@/lib/api/pistis";
+import { listProjectMemberships } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
+import { runnableServiceAccounts } from "@/lib/members";
+import { tasksByEntry } from "@/lib/plans";
 import {
   participationLabel,
   roundStatus,
@@ -19,6 +28,7 @@ import {
 import { formatTime } from "@/lib/tasks";
 
 import { endSessionAction, setSessionModeAction } from "../actions";
+import { PlanCard } from "./plan-card";
 import { SessionChat } from "./session-chat";
 
 type Props = PageProps<"/orgs/[organizationId]/projects/[projectId]/sessions/[sessionId]">;
@@ -41,7 +51,7 @@ async function Session({ params }: Props) {
     getSession(token, organizationId, projectId, sessionId),
     listSessionMessages(token, organizationId, projectId, sessionId),
   ]);
-  const [agent, council, rounds, councilVersions] = await Promise.all([
+  const [agent, council, rounds, councilVersions, plans] = await Promise.all([
     getAgent(token, organizationId, session.agentId).catch(() => null),
     session.councilId
       ? getCouncil(token, organizationId, session.councilId).catch(() => null)
@@ -52,6 +62,17 @@ async function Session({ params }: Props) {
     session.councilId
       ? listCouncilVersions(token, organizationId, session.councilId).catch(() => null)
       : Promise.resolve(null),
+    session.councilId
+      ? listCouncilPlans(token, organizationId, projectId, sessionId)
+      : Promise.resolve([]),
+  ]);
+  const [planWork, serviceAccounts] = await Promise.all([
+    Promise.all(
+      plans.map((plan) => planTasks(token, organizationId, projectId, plan)),
+    ),
+    plans.some((plan) => plan.status === "proposed")
+      ? reviewerAccounts(token, organizationId, projectId)
+      : Promise.resolve([]),
   ]);
   const councilVersion = councilVersions?.items.find(
     (version) => version.id === session.councilVersionId,
@@ -161,6 +182,30 @@ async function Session({ params }: Props) {
         </section>
       )}
 
+      {plans.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="font-medium">Plans</h2>
+          <ol className="space-y-3">
+            {plans
+              .map((plan, index) => ({ plan, work: planWork[index] }))
+              .reverse()
+              .map(({ plan, work }) => (
+                <PlanCard
+                  key={plan.id}
+                  project={{ organizationId, projectId }}
+                  sessionId={sessionId}
+                  plan={plan}
+                  members={session.members}
+                  tasks={work.tasks}
+                  planTask={work.planTask}
+                  serviceAccounts={serviceAccounts}
+                  ended={ended}
+                />
+              ))}
+          </ol>
+        </section>
+      )}
+
       <SessionChat
         project={{ organizationId, projectId }}
         sessionId={sessionId}
@@ -172,4 +217,62 @@ async function Session({ params }: Props) {
       />
     </div>
   );
+}
+
+/** The tasks an approved plan became: its plan task and its subtasks by entry (none when they can't be read). */
+async function planTasks(
+  token: string,
+  organizationId: string,
+  projectId: string,
+  plan: CouncilPlan,
+): Promise<{
+  planTask: Pick<Task, "id" | "status"> | null;
+  tasks: Record<string, Pick<Task, "id" | "status"> & { reassigned: boolean }>;
+}> {
+  if (!plan.taskId) return { planTask: null, tasks: {} };
+  try {
+    const [planTask, subtasks] = await Promise.all([
+      getTask(token, organizationId, projectId, plan.taskId),
+      listTasks(token, organizationId, projectId, { parentTaskId: plan.taskId }),
+    ]);
+    return {
+      planTask: { id: planTask.id, status: planTask.status },
+      tasks: Object.fromEntries(
+        [...tasksByEntry(subtasks.items)].map(([key, task]) => [
+          key,
+          {
+            id: task.id,
+            status: task.status,
+            reassigned: Boolean(
+              task.origin?.assignedBy && task.origin.assignedBy !== "facilitator",
+            ),
+          },
+        ]),
+      ),
+    };
+  } catch (error) {
+    unstable_rethrow(error);
+    return { planTask: null, tasks: {} };
+  }
+}
+
+/** The service accounts a plan's tasks can run as: active, with a role in the project. */
+async function reviewerAccounts(
+  token: string,
+  organizationId: string,
+  projectId: string,
+): Promise<{ id: string; name: string }[]> {
+  try {
+    const [accounts, grants] = await Promise.all([
+      listServiceAccounts(token, organizationId),
+      listProjectMemberships(token, organizationId, projectId),
+    ]);
+    return runnableServiceAccounts(accounts.items, grants.items).map(({ id, name }) => ({
+      id,
+      name,
+    }));
+  } catch (error) {
+    unstable_rethrow(error);
+    return [];
+  }
 }

@@ -320,6 +320,18 @@ const SESSION_MODES: {
     hint: "Your questions go to the council as deliberation rounds",
     allowed: (settings) => settings.allowDiscussion,
   },
+  {
+    value: "planning",
+    label: "Planning",
+    hint: "The council drafts a plan for you to review",
+    allowed: (settings) => settings.allowPlanning,
+  },
+  {
+    value: "delegation",
+    label: "Delegation",
+    hint: "The council follows an approved plan's tasks",
+    allowed: (settings) => settings.allowDelegation,
+  },
 ];
 
 /** A session's mode in words. */
@@ -327,7 +339,7 @@ export const sessionModeLabel = (mode: SessionMode) =>
   SESSION_MODES.find((entry) => entry.value === mode)?.label ??
   mode.charAt(0).toUpperCase() + mode.slice(1);
 
-/** The modes a council session can switch to (planning and delegation come with plans). */
+/** The modes a council session can switch to: the ones its council version allows. */
 export function sessionModeChoices(
   settings: CouncilSettings,
 ): { role: SessionMode; label: string; hint: string }[] {

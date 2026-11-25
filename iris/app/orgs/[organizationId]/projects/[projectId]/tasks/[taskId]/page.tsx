@@ -21,6 +21,7 @@ import { pausedMessage } from "@/lib/budgets";
 import { config } from "@/lib/config";
 import { downloadHref, formatBytes } from "@/lib/files";
 import { taskPageContext } from "@/lib/copilot";
+import { originLabel } from "@/lib/plans";
 import { traceLinks } from "@/lib/traces";
 import {
   artifactsByExecution,
@@ -104,6 +105,17 @@ async function TaskView({
           <h1 className="text-2xl font-semibold">{task.title}</h1>
           <StatusBadge status={task.status} />
         </div>
+        {task.origin ? (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            {originLabel(task.origin, who)}{" "}
+            <Link
+              href={`${projectPath}/sessions/${task.origin.sessionId}`}
+              className="underline"
+            >
+              Open the session
+            </Link>
+          </p>
+        ) : null}
         {task.failureReason ? (
           <p className="text-sm text-red-700 dark:text-red-300">
             {failureLabel(task.failureReason)}
