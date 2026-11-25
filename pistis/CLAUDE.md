@@ -32,7 +32,7 @@ pnpm test:e2e                  # integration (libs/**/*.int-spec.ts) and e2e (te
 
 Environment variables, validated at startup with the Zod schema in `libs/core/src/config/env.ts` (`pistisConfigModule()`). Locally from `.env` (`.env.example` has the `docker compose` defaults).
 
-- `DATABASE_URL` (required, Postgres), `POLIS_URL` (required, Polis's API), `PORT` (3003), `NODE_ENV`.
+- `DATABASE_URL` (required, Postgres), `RABBITMQ_URL` (required, AMQP: Pistis's events), `OUTBOX_RELAY_INTERVAL_MS` (1000; 0 turns the relay off, as in tests), `POLIS_URL` (required, Polis's API), `PORT` (3003), `NODE_ENV`.
 - `PISTIS_ISSUER` (`http://localhost:3003/oidc`): the issuer, i.e. where `/oidc` is reachable from outside.
 - `PISTIS_SIGNING_KEYS`: the private signing keys as a JWKS (JSON); the first one signs. `PISTIS_COOKIE_KEYS`: comma-separated keys for oidc-provider's signed cookies (≥ 32 characters each; the first signs). `PISTIS_CLIENTS`: the OIDC clients (JSON array of oidc-provider client metadata). All three are **required in production**; elsewhere Pistis generates an ES256 key per start (tokens don't survive a restart), uses a fixed cookie key, and registers Iris as the public client `iris` (redirect `http://localhost:3000/auth/callback`, and `:3010`, where the root's `pnpm start:dev` runs Iris). A `PISTIS_CLIENTS` set for development replaces all the built-in clients, so it's only needed for Iris on another port.
 - `ACCESS_TOKEN_TTL_SECONDS` (600; 300–900), `PASSWORD_SCRYPT_COST` (17; scrypt `N = 2^cost`, 14–20).
@@ -42,6 +42,7 @@ Environment variables, validated at startup with the Zod schema in `libs/core/sr
 
 - **`users`**: a person as Pistis knows them. `id` (UUIDv7) is their `sub` in every token. `displayName`, `email` (contact only), `status` (`active` / `disabled`; disabled users can't sign in through any identity), `lastSignInAt`.
 - **`user_providers`**: an external identity linked to a user: `(provider, subject)`, unique across all users. `provider` is the identity provider's key as configured in Pistis (`google`, `github`, `entra:<tenant id>`, …); `subject` is that provider's stable ID for the account (an OIDC `sub`, a GitHub user ID), never an email or a changeable username. Any number of identities can link to one user, which is how social logins and an organization's own provider map to the same person. Each link keeps the email the provider last reported (`email`, `emailVerified`) and `lastSignInAt`.
+- **`user.created`** (`../contracts/pistis.asyncapi.yaml`): `UsersService.create` emits it for every new user (through the API, or at a first sign-in with an external provider), with `userId`, `displayName`, `email` and `status`, through `PistisEvents` (`@pistis/core`, types generated into `libs/core/src/events/generated/` by `pnpm generate:api`) into the transactional `outbox` in the user's own transaction; Krepis's relay publishes it to `pistis.events`. Its `organizationId` and `projectId` are null: users are platform-wide. Polis keeps a copy of users from it. Tests start RabbitMQ too (`test/global-setup.ts`) and read the outbox (`users.int-spec.ts`).
 - **Never by email** (`../docs/identity.md`): an email address is never used to find or link a user. A first sign-in whose email matches an existing user still gets a new user; joining identities is an explicit link.
 
 Services (`libs/users`):

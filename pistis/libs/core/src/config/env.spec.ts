@@ -2,6 +2,7 @@ import { zEnv } from './env.js';
 
 const base = {
   DATABASE_URL: 'postgres://aether:aether@localhost:5432/pistis',
+  RABBITMQ_URL: 'amqp://aether:aether@localhost:5672',
   POLIS_URL: 'http://localhost:3001',
 };
 

@@ -31,7 +31,9 @@
       "@polis/departments": ["./libs/departments/src/index.ts"],
       "@polis/departments/*": ["./libs/departments/src/*"],
       "@polis/project-memberships": ["./libs/project-memberships/src/index.ts"],
-      "@polis/project-memberships/*": ["./libs/project-memberships/src/*"]
+      "@polis/project-memberships/*": ["./libs/project-memberships/src/*"],
+      "@polis/users": ["./libs/users/src/index.ts"],
+      "@polis/users/*": ["./libs/users/src/*"]
     },
     "rewriteRelativeImportExtensions": true
   }

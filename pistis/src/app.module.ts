@@ -4,8 +4,11 @@ import { ConfigService } from '@nestjs/config';
 import {
   AuthModule,
   DatabaseModule,
+  EventsModule,
   HealthModule,
+  PISTIS_PUBLISHED_EVENTS,
   pistisConfigModule,
+  PistisEventsModule,
   serviceCheck,
   type Env,
 } from '@pistis/core';
@@ -31,6 +34,21 @@ import { UsersModule } from '@pistis/users';
         serviceCheck('polis', config.get('POLIS_URL', { infer: true })),
       ],
     }),
+    // Outbox and relay: events are published to pistis.events on RabbitMQ.
+    EventsModule.forRoot({
+      service: 'pistis',
+      publish: PISTIS_PUBLISHED_EVENTS,
+      rabbitmq: {
+        inject: [ConfigService],
+        useFactory: (config: ConfigService<Env, true>) => ({
+          url: config.get('RABBITMQ_URL', { infer: true }),
+          relayIntervalMs: config.get('OUTBOX_RELAY_INTERVAL_MS', {
+            infer: true,
+          }),
+        }),
+      },
+    }),
+    PistisEventsModule,
     UsersModule,
     ServiceAccountsModule,
     OidcModule,
