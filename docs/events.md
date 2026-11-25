@@ -63,8 +63,6 @@ Rules:
 | `person.created` / `person.updated` / `person.deleted` | `personId`, and `userId` (the linked Pistis user, or null) and `departmentIds` on created and updated; IDs only, no personal data | later Kerykes, Seshat |
 | `team.created` / `team.updated` / `team.archived` | `teamId`, `departmentIds` | later Kerykes, Iris |
 | `team-member.added` / `team-member.removed` | `teamId`, `personId`; removed also when the person was deleted | later Kerykes, Iris |
-| `team.created` / `team.updated` / `team.archived` | `teamId`, `departmentIds` | later Kerykes, Iris |
-| `team-member.added` / `team-member.removed` | `teamId`, `personId`; removed also when the person was deleted | later Kerykes, Iris |
 | `project.department-changed` | `projectId`, `from`, `to` (department IDs or null) | Seshat (which department's knowledge a project sees) |
 | `department.created` / `department.updated` / `department.archived` | `departmentId` (and `slug` on `department.created`) | Seshat (planned), Iris |
 | `membership.granted` | `principal`, `scope` (organization or project), `roles` | Pistis, Iris, Kerykes |
