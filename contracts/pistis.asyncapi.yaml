@@ -1,0 +1,101 @@
+asyncapi: 3.0.0
+info:
+  title: Pistis events
+  version: 0.1.0
+  description: |
+    Events Pistis publishes to the `pistis.events` topic exchange on
+    RabbitMQ; the routing key is the event type. Every message is the Krepis
+    `DomainEvent` envelope (see `../docs/events.md`), JSON, persistent, with
+    the event ID as AMQP `messageId` and the event type as `type`.
+
+    Delivery is at least once (transactional outbox and relay): deduplicate
+    on `eventId`. Users belong to no organization, so `organizationId` and
+    `projectId` are null.
+
+    Payloads carry personal data (a person's name and email address): keep
+    them out of logs and traces.
+
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:5672
+    protocol: amqp
+    description: RabbitMQ from ../docker-compose.yml
+
+channels:
+  pistisEvents:
+    address: pistis.events
+    description: Topic exchange; consumers bind their own durable queue (`<consumer>.pistis-events`) to the routing keys they need.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: pistis.events
+          type: topic
+          durable: true
+          autoDelete: false
+    messages:
+      userCreated: { $ref: '#/components/messages/userCreated' }
+
+operations:
+  publishPistisEvents:
+    action: send
+    channel: { $ref: '#/channels/pistisEvents' }
+    messages:
+      - $ref: '#/channels/pistisEvents/messages/userCreated'
+
+components:
+  messages:
+    userCreated:
+      name: user.created
+      summary: A user was created (through the API, or at their first sign-in with an external provider).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: user.created }
+              payload: { $ref: '#/components/schemas/UserCreated' }
+
+  schemas:
+    Uuid: { type: string, format: uuid }
+    Envelope:
+      type: object
+      description: Krepis's `DomainEvent`.
+      required: [eventId, eventType, schemaVersion, aggregateId, aggregateVersion, occurredAt, organizationId, projectId, actor, payload]
+      properties:
+        eventId: { $ref: '#/components/schemas/Uuid', description: 'UUIDv7; the deduplication key.' }
+        eventType: { type: string }
+        schemaVersion: { type: integer, const: 1 }
+        aggregateId: { $ref: '#/components/schemas/Uuid', description: The user's ID. }
+        aggregateVersion: { type: integer, minimum: 1 }
+        occurredAt: { type: string, format: date-time }
+        organizationId: { type: 'null' }
+        projectId: { type: 'null' }
+        actor:
+          description: The caller who created the user (a platform service or operator); null when the user was created at their first sign-in.
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [sub, sub_type]
+              properties:
+                sub: { type: string }
+                sub_type: { enum: [user, service_account, service] }
+        payload: { type: object }
+    # ---------- event payloads (the envelope's `payload`) ----------
+    UserCreated:
+      type: object
+      additionalProperties: false
+      required: [userId, displayName, email, status]
+      properties:
+        userId:
+          $ref: '#/components/schemas/Uuid'
+          description: The user's ID, their `sub` in every Pistis token.
+        displayName: { type: string }
+        email:
+          description: Contact only; never used to find or link a user.
+          oneOf:
+            - type: string
+            - type: 'null'
+        status: { enum: [active, disabled] }

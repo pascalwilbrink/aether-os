@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
 
 import { createTestingModule } from '../../../test/testing-module.js';
 import { AccountsService, type SignInIdentity } from './accounts.service.js';
@@ -46,6 +47,37 @@ describe('Users and their identities (Postgres)', () => {
     const again = await accounts.resolveSignIn(google('g-1'));
     expect(again.created).toBe(false);
     expect(again.user.id).toBe(first.user.id);
+  });
+
+  it('announces every new user once, with user.created in the outbox', async () => {
+    const { user } = await accounts.resolveSignIn(google('g-1'));
+    await accounts.resolveSignIn(google('g-1'));
+
+    const rows: {
+      exchange: string;
+      routing_key: string;
+      message: Record<string, unknown>;
+    }[] = await moduleRef
+      .get(DataSource)
+      .query('SELECT exchange, routing_key, message FROM outbox');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      exchange: 'pistis.events',
+      routing_key: 'user.created',
+      message: {
+        eventType: 'user.created',
+        aggregateId: user.id,
+        aggregateVersion: 1,
+        organizationId: null,
+        projectId: null,
+        payload: {
+          userId: user.id,
+          displayName: 'Ada',
+          email: 'ada@example.com',
+          status: 'active',
+        },
+      },
+    });
   });
 
   it('signs in through any linked provider as the same user', async () => {

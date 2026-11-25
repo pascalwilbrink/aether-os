@@ -16,6 +16,10 @@ import { MembershipsModule } from '@polis/memberships';
 import { OrganizationsModule } from '@polis/organizations';
 import { ProjectMembershipsModule } from '@polis/project-memberships';
 import { ProjectsModule } from '@polis/projects';
+import { UsersModule } from '@polis/users';
+
+/** Pistis's events Polis keeps a copy from. */
+export const PISTIS_SUBSCRIPTIONS = ['user.created'] as const;
 
 // Validation, the /v1 prefix and problem details: configureHttpApp (main.ts).
 @Module({
@@ -34,6 +38,8 @@ import { ProjectsModule } from '@polis/projects';
     EventsModule.forRoot({
       service: 'polis',
       publish: POLIS_PUBLISHED_EVENTS,
+      // Through the inbox (deduplicated), from polis.pistis-events.
+      subscribe: { pistis: PISTIS_SUBSCRIPTIONS },
       rabbitmq: {
         inject: [ConfigService],
         useFactory: (config: ConfigService<Env, true>) => ({
@@ -57,6 +63,7 @@ import { ProjectsModule } from '@polis/projects';
     ProjectsModule,
     MembershipsModule,
     ProjectMembershipsModule,
+    UsersModule,
   ],
 })
 export class AppModule {}

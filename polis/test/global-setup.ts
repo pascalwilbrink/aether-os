@@ -1,7 +1,11 @@
 import { DataSource } from 'typeorm';
 import type { TestProject } from 'vitest/node';
 
-import { OutboxMessageEntity, postgresOptions } from '@aether-os/krepis';
+import {
+  InboxMessageEntity,
+  OutboxMessageEntity,
+  postgresOptions,
+} from '@aether-os/krepis';
 import {
   startTestPostgres,
   startTestRabbitMq,
@@ -11,6 +15,7 @@ import { OrganizationEntity } from '../libs/organizations/src/organization.entit
 import { MembershipEntity } from '../libs/memberships/src/membership.entity.js';
 import { ProjectEntity } from '../libs/projects/src/project.entity.js';
 import { ProjectMembershipEntity } from '../libs/project-memberships/src/project-membership.entity.js';
+import { UserEntity } from '../libs/users/src/user.entity.js';
 import { migrations } from '../src/database/migrations/index.js';
 
 declare module 'vitest' {
@@ -40,6 +45,8 @@ export default async function setup(project: TestProject) {
         MembershipEntity,
         OutboxMessageEntity,
         ProjectMembershipEntity,
+        UserEntity,
+        InboxMessageEntity,
       ],
     }),
   );
