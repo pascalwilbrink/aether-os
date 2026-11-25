@@ -148,7 +148,7 @@ describe('Departments (e2e)', () => {
         await asOwner(app, other.id)
       )
         .post(`/v1/organizations/${other.id}/departments`)
-        .send({ name: 'X', slug: 'x', description: '' })
+        .send({ name: 'X', slug: 'xyz', description: '' })
         .expect(201)
     ).body.id as string;
     await createProject('stray', foreign).expect(404);
