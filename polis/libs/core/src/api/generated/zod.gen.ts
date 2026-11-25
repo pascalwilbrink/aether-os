@@ -14,7 +14,10 @@ export const zDomainErrorCode = z.enum([
     'DEPARTMENT_SLUG_TAKEN',
     'DEPARTMENT_ARCHIVED',
     'DEPARTMENT_HAS_PROJECTS',
-    'PERSON_EMAIL_TAKEN'
+    'PERSON_EMAIL_TAKEN',
+    'TEAM_SLUG_TAKEN',
+    'TEAM_ARCHIVED',
+    'TEAM_MEMBER_EXISTS'
 ]);
 
 /**
@@ -99,6 +102,51 @@ export const zPersonResponse = z.object({
     createdAt: zTimestamp,
     updatedAt: zTimestamp,
     version: zVersion
+});
+
+export const zTeamStatus = z.enum(['active', 'archived']);
+
+/**
+ * The organization's departments the team is in.
+ */
+export const zTeamDepartmentIds = z.array(z.uuid()).max(50);
+
+export const zCreateTeamRequest = z.object({
+    name: z.string().min(1).max(200),
+    slug: zSlug,
+    description: z.string().max(2000).optional().default(''),
+    departmentIds: zTeamDepartmentIds.optional().default([])
+});
+
+export const zUpdateTeamRequest = z.object({
+    name: z.string().min(1).max(200),
+    description: z.string().max(2000),
+    departmentIds: zTeamDepartmentIds
+});
+
+export const zTeamResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    name: z.string(),
+    slug: z.string(),
+    description: z.string(),
+    departmentIds: z.array(z.uuid()),
+    status: zTeamStatus,
+    createdBy: z.string(),
+    createdAt: zTimestamp,
+    updatedAt: zTimestamp,
+    version: zVersion
+});
+
+export const zAddTeamMemberRequest = z.object({
+    personId: z.uuid()
+});
+
+export const zTeamMemberResponse = z.object({
+    teamId: z.uuid(),
+    personId: z.uuid(),
+    addedBy: z.string(),
+    addedAt: zTimestamp
 });
 
 export const zProjectStatus = z.enum(['active', 'archived']);
@@ -238,6 +286,14 @@ export const zPersonPage = zPageMeta.and(z.object({
     items: z.array(zPersonResponse)
 }));
 
+export const zTeamPage = zPageMeta.and(z.object({
+    items: z.array(zTeamResponse)
+}));
+
+export const zTeamMemberPage = zPageMeta.and(z.object({
+    items: z.array(zTeamMemberResponse)
+}));
+
 export const zProjectPage = zPageMeta.and(z.object({
     items: z.array(zProjectResponse)
 }));
@@ -297,6 +353,8 @@ export const zDomainProblem = zCommonOpenapiProblem.and(z.object({
 export const zOrganizationId = z.uuid();
 
 export const zProjectId = z.uuid();
+
+export const zTeamId = z.uuid();
 
 export const zDepartmentId = z.uuid();
 
@@ -497,6 +555,104 @@ export const zUpdatePersonPath = z.object({
  * Updated
  */
 export const zUpdatePersonResponse = zPersonResponse;
+
+export const zListTeamsPath = z.object({
+    organizationId: z.uuid()
+});
+
+export const zListTeamsQuery = z.object({
+    status: zTeamStatus.optional(),
+    departmentId: z.uuid().optional(),
+    personId: z.uuid().optional(),
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListTeamsResponse = zTeamPage;
+
+export const zCreateTeamBody = zCreateTeamRequest;
+
+export const zCreateTeamPath = z.object({
+    organizationId: z.uuid()
+});
+
+/**
+ * Created
+ */
+export const zCreateTeamResponse = zTeamResponse;
+
+export const zGetTeamPath = z.object({
+    organizationId: z.uuid(),
+    teamId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetTeamResponse = zTeamResponse;
+
+export const zUpdateTeamBody = zUpdateTeamRequest;
+
+export const zUpdateTeamPath = z.object({
+    organizationId: z.uuid(),
+    teamId: z.uuid()
+});
+
+/**
+ * Updated
+ */
+export const zUpdateTeamResponse = zTeamResponse;
+
+export const zArchiveTeamPath = z.object({
+    organizationId: z.uuid(),
+    teamId: z.uuid()
+});
+
+/**
+ * Archived (or already archived)
+ */
+export const zArchiveTeamResponse = zTeamResponse;
+
+export const zListTeamMembersPath = z.object({
+    organizationId: z.uuid(),
+    teamId: z.uuid()
+});
+
+export const zListTeamMembersQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListTeamMembersResponse = zTeamMemberPage;
+
+export const zAddTeamMemberBody = zAddTeamMemberRequest;
+
+export const zAddTeamMemberPath = z.object({
+    organizationId: z.uuid(),
+    teamId: z.uuid()
+});
+
+/**
+ * Added
+ */
+export const zAddTeamMemberResponse = zTeamMemberResponse;
+
+export const zRemoveTeamMemberPath = z.object({
+    organizationId: z.uuid(),
+    teamId: z.uuid(),
+    personId: z.uuid()
+});
+
+/**
+ * Removed
+ */
+export const zRemoveTeamMemberResponse = z.void();
 
 export const zListProjectsPath = z.object({
     organizationId: z.uuid()

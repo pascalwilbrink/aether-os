@@ -12,12 +12,18 @@ import type {
   ActivateOrganizationData,
   ActivateOrganizationErrors,
   ActivateOrganizationResponses,
+  AddTeamMemberData,
+  AddTeamMemberErrors,
+  AddTeamMemberResponses,
   ArchiveDepartmentData,
   ArchiveDepartmentErrors,
   ArchiveDepartmentResponses,
   ArchiveProjectData,
   ArchiveProjectErrors,
   ArchiveProjectResponses,
+  ArchiveTeamData,
+  ArchiveTeamErrors,
+  ArchiveTeamResponses,
   CreateDepartmentData,
   CreateDepartmentErrors,
   CreateDepartmentResponses,
@@ -36,6 +42,9 @@ import type {
   CreateProjectMembershipErrors,
   CreateProjectMembershipResponses,
   CreateProjectResponses,
+  CreateTeamData,
+  CreateTeamErrors,
+  CreateTeamResponses,
   DeleteMembershipData,
   DeleteMembershipErrors,
   DeleteMembershipResponses,
@@ -66,6 +75,9 @@ import type {
   GetProjectMembershipErrors,
   GetProjectMembershipResponses,
   GetProjectResponses,
+  GetTeamData,
+  GetTeamErrors,
+  GetTeamResponses,
   ListDepartmentsData,
   ListDepartmentsErrors,
   ListDepartmentsResponses,
@@ -90,6 +102,15 @@ import type {
   ListProjectsData,
   ListProjectsErrors,
   ListProjectsResponses,
+  ListTeamMembersData,
+  ListTeamMembersErrors,
+  ListTeamMembersResponses,
+  ListTeamsData,
+  ListTeamsErrors,
+  ListTeamsResponses,
+  RemoveTeamMemberData,
+  RemoveTeamMemberErrors,
+  RemoveTeamMemberResponses,
   SetProjectDepartmentData,
   SetProjectDepartmentErrors,
   SetProjectDepartmentResponses,
@@ -108,6 +129,9 @@ import type {
   UpdateProjectMembershipData,
   UpdateProjectMembershipErrors,
   UpdateProjectMembershipResponses,
+  UpdateTeamData,
+  UpdateTeamErrors,
+  UpdateTeamResponses,
 } from './types.gen.js';
 
 export type Options<
@@ -429,6 +453,156 @@ export const updatePerson = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  });
+
+export const listTeams = <ThrowOnError extends boolean = false>(
+  options: Options<ListTeamsData, ThrowOnError>,
+): RequestResult<ListTeamsResponses, ListTeamsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListTeamsResponses,
+    ListTeamsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/teams',
+    ...options,
+  });
+
+/**
+ * Creates an active team of the organization, in any of its active
+ * departments (`DEPARTMENT_ARCHIVED`; another organization's is
+ * `404`). Its slug is unique in the organization (`TEAM_SLUG_TAKEN`).
+ * Teams grant nothing: roles stay on memberships. Its people are
+ * persons, added with `…/members`.
+ *
+ */
+export const createTeam = <ThrowOnError extends boolean = false>(
+  options: Options<CreateTeamData, ThrowOnError>,
+): RequestResult<CreateTeamResponses, CreateTeamErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateTeamResponses,
+    CreateTeamErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/teams',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+export const getTeam = <ThrowOnError extends boolean = false>(
+  options: Options<GetTeamData, ThrowOnError>,
+): RequestResult<GetTeamResponses, GetTeamErrors, ThrowOnError> =>
+  (options.client ?? client).get<GetTeamResponses, GetTeamErrors, ThrowOnError>(
+    {
+      security: [{ scheme: 'bearer', type: 'http' }],
+      url: '/v1/organizations/{organizationId}/teams/{teamId}',
+      ...options,
+    },
+  );
+
+/**
+ * Replaces the name, description and departments (the slug stays;
+ * departments it joins must be active, one it stays in may be
+ * archived). Unchanged → no new version and no event. An archived team
+ * can't be changed (`TEAM_ARCHIVED`).
+ *
+ */
+export const updateTeam = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateTeamData, ThrowOnError>,
+): RequestResult<UpdateTeamResponses, UpdateTeamErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    UpdateTeamResponses,
+    UpdateTeamErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/teams/{teamId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Archives the team (final); its members and departments stay, for the record.
+ */
+export const archiveTeam = <ThrowOnError extends boolean = false>(
+  options: Options<ArchiveTeamData, ThrowOnError>,
+): RequestResult<ArchiveTeamResponses, ArchiveTeamErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    ArchiveTeamResponses,
+    ArchiveTeamErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/teams/{teamId}/archive',
+    ...options,
+  });
+
+export const listTeamMembers = <ThrowOnError extends boolean = false>(
+  options: Options<ListTeamMembersData, ThrowOnError>,
+): RequestResult<
+  ListTeamMembersResponses,
+  ListTeamMembersErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListTeamMembersResponses,
+    ListTeamMembersErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/teams/{teamId}/members',
+    ...options,
+  });
+
+/**
+ * Adds a person of the organization to the team (another
+ * organization's is `404`), once (`TEAM_MEMBER_EXISTS`); the team must
+ * be active (`TEAM_ARCHIVED`). Deleting the person removes them from
+ * their teams.
+ *
+ */
+export const addTeamMember = <ThrowOnError extends boolean = false>(
+  options: Options<AddTeamMemberData, ThrowOnError>,
+): RequestResult<AddTeamMemberResponses, AddTeamMemberErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    AddTeamMemberResponses,
+    AddTeamMemberErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/teams/{teamId}/members',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Takes the person out of the team (`404` when they aren't in it); the team must be active.
+ */
+export const removeTeamMember = <ThrowOnError extends boolean = false>(
+  options: Options<RemoveTeamMemberData, ThrowOnError>,
+): RequestResult<
+  RemoveTeamMemberResponses,
+  RemoveTeamMemberErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).delete<
+    RemoveTeamMemberResponses,
+    RemoveTeamMemberErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/teams/{teamId}/members/{personId}',
+    ...options,
   });
 
 export const listProjects = <ThrowOnError extends boolean = false>(

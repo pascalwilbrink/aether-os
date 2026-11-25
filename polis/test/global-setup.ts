@@ -19,6 +19,9 @@ import { DepartmentEntity } from '../libs/departments/src/department.entity.js';
 import { UserEntity } from '../libs/users/src/user.entity.js';
 import { PersonEntity } from '../libs/persons/src/person.entity.js';
 import { PersonDepartmentEntity } from '../libs/persons/src/person-department.entity.js';
+import { TeamEntity } from '../libs/teams/src/team.entity.js';
+import { TeamDepartmentEntity } from '../libs/teams/src/team-department.entity.js';
+import { TeamMemberEntity } from '../libs/teams/src/team-member.entity.js';
 import { migrations } from '../src/database/migrations/index.js';
 
 declare module 'vitest' {
@@ -52,6 +55,9 @@ export default async function setup(project: TestProject) {
         UserEntity,
         PersonEntity,
         PersonDepartmentEntity,
+        TeamEntity,
+        TeamDepartmentEntity,
+        TeamMemberEntity,
         InboxMessageEntity,
       ],
     }),

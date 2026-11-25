@@ -15,6 +15,7 @@ import {
 import { DepartmentsModule } from '@polis/departments';
 import { MembershipsModule } from '@polis/memberships';
 import { PersonsModule } from '@polis/persons';
+import { TeamsModule } from '@polis/teams';
 import { OrganizationsModule } from '@polis/organizations';
 import { ProjectMembershipsModule } from '@polis/project-memberships';
 import { ProjectsModule } from '@polis/projects';
@@ -68,6 +69,7 @@ export const PISTIS_SUBSCRIPTIONS = ['user.created'] as const;
     ProjectMembershipsModule,
     UsersModule,
     PersonsModule,
+    TeamsModule,
   ],
 })
 export class AppModule {}

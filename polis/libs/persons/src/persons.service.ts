@@ -126,6 +126,22 @@ export class PersonsService {
   }
 
   /**
+   * For putting a person somewhere (a team): 404 unless they're a person of
+   * the organization. Locks the row (shared) until the transaction ends, so
+   * they can't be deleted halfway.
+   */
+  @Transactional()
+  async assertExists(organizationId: string, personId: string): Promise<void> {
+    const entity = await this.persons.findOne({
+      where: { id: personId, organizationId },
+      lock: { mode: 'pessimistic_read' },
+    });
+    if (!entity) {
+      throw new NotFoundException(`Person ${personId} not found`);
+    }
+  }
+
+  /**
    * PUT: every field and the departments. A new email address links the
    * person anew. Unchanged → no new version, no event.
    */
