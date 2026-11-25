@@ -5,6 +5,7 @@ import {
   needsRefresh,
   openPendingSignIn,
   openSession,
+  refreshAfterForbidden,
   safeReturnTo,
   sealPendingSignIn,
   sealSession,
@@ -87,5 +88,50 @@ describe("tokenFingerprint", () => {
     expect(tokenFingerprint("access")).toBe(tokenFingerprint("access"));
     expect(tokenFingerprint("access")).not.toBe(tokenFingerprint("other"));
     expect(tokenFingerprint("access")).toMatch(/^[A-Za-z0-9_-]{22}$/);
+  });
+});
+
+describe("refreshAfterForbidden", () => {
+  const token = "token-a";
+  const session = { accessToken: token };
+  const page = { serverAction: false, page: true, path: "/orgs/o/projects/p?status=failed" };
+
+  it("sends a refused page for a token with current roles, and back", () => {
+    const target = refreshAfterForbidden(session, token, page);
+    const url = new URL(target!, "https://iris.test");
+    expect(url.pathname).toBe("/auth/refresh");
+    expect(url.searchParams.get("token")).toBe(tokenFingerprint(token));
+    expect(url.searchParams.get("returnTo")).toBe("/orgs/o/projects/p?status=failed");
+  });
+
+  it("shows the refusal once the token is fresh, so it can't loop", () => {
+    expect(
+      refreshAfterForbidden(
+        { ...session, refreshedForForbidden: tokenFingerprint(token) },
+        token,
+        page,
+      ),
+    ).toBeNull();
+    // A later token (the proxy refreshed it) gets one try again.
+    expect(
+      refreshAfterForbidden(
+        { accessToken: "token-b", refreshedForForbidden: tokenFingerprint(token) },
+        "token-b",
+        page,
+      ),
+    ).not.toBeNull();
+  });
+
+  it("leaves forms, other requests and other tokens alone", () => {
+    expect(refreshAfterForbidden(session, token, { ...page, serverAction: true })).toBeNull();
+    expect(refreshAfterForbidden(session, token, { ...page, page: false })).toBeNull();
+    expect(refreshAfterForbidden(session, token, { ...page, path: null })).toBeNull();
+    expect(refreshAfterForbidden(session, "someone-else", page)).toBeNull();
+    expect(refreshAfterForbidden(null, token, page)).toBeNull();
+  });
+
+  it("never sends anyone off-site", () => {
+    const target = refreshAfterForbidden(session, token, { ...page, path: "//evil.test" });
+    expect(new URL(target!, "https://iris.test").searchParams.get("returnTo")).toBe("/");
   });
 });

@@ -21,6 +21,12 @@ export interface Session {
   refreshToken: string | null;
   /** For RP-initiated logout at Pistis. */
   idToken: string | null;
+  /**
+   * The fingerprint of the access token Iris refreshed because a page was
+   * refused (403): that token has the person's current roles, so a 403 with
+   * it is shown, not refreshed again (`refreshAfterForbidden`).
+   */
+  refreshedForForbidden?: string;
 }
 
 /** The pending sign-in, between the redirect to Pistis and the callback. */
@@ -84,4 +90,32 @@ export function safeReturnTo(value: string | null | undefined): string {
     !value.startsWith("/\\")
     ? value
     : "/";
+}
+
+/** Where a page refused with a 403 goes for a token with current roles. */
+export const FORBIDDEN_REFRESH_PATH = "/auth/refresh";
+
+/** The page's path, set by `proxy.ts` for the server to read. */
+export const PATH_HEADER = "x-iris-path";
+
+/**
+ * Where to send a page whose call a service refused (403), or null to show
+ * the refusal: once per token, with the person's current roles from Pistis
+ * (they may have been granted one since the token was issued). Only while a
+ * page loads: a Server Action's refusal is its form's message.
+ */
+export function refreshAfterForbidden(
+  session: Pick<Session, "accessToken" | "refreshedForForbidden"> | null,
+  token: string,
+  request: { serverAction: boolean; page: boolean; path: string | null },
+): string | null {
+  if (!session || session.accessToken !== token) return null;
+  if (request.serverAction || !request.page || !request.path) return null;
+  const fingerprint = tokenFingerprint(token);
+  if (session.refreshedForForbidden === fingerprint) return null;
+  const query = new URLSearchParams({
+    token: fingerprint,
+    returnTo: safeReturnTo(request.path),
+  });
+  return `${FORBIDDEN_REFRESH_PATH}?${query}`;
 }
