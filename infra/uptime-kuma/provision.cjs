@@ -27,6 +27,7 @@ const SERVICES = [
   ['Agora', 3008],
   ['Seshat', 3009],
   ['Pylon', 3011],
+  ['Atlas', Number(process.env.ATLAS_PORT ?? 3012)],
 ];
 
 const SERVICES_GROUP = 'Aether-os services';

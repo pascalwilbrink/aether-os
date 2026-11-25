@@ -1,0 +1,36 @@
+{
+  "name": "atlas",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3012",
+    "start:dev": "next dev -p ${ATLAS_PORT:-3012}",
+    "build": "next build",
+    "start": "next start -p 3012",
+    "lint": "eslint",
+    "test": "vitest run",
+    "generate:api": "openapi-typescript node_modules/@aether-os/contracts/polis.openapi.yaml -o lib/api/generated/polis-api.ts"
+  },
+  "dependencies": {
+    "@aether-os/design": "workspace:*",
+    "jose": "^6.2.17",
+    "next": "16.4.6",
+    "openid-client": "^6.9.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@aether-os/contracts": "workspace:*",
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "openapi-typescript": "^7.13.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5",
+    "vitest": "^4.1.12"
+  }
+}

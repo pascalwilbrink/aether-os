@@ -72,12 +72,22 @@ export type UpstreamProviderConfig = z.infer<typeof zUpstreamProvider>;
  */
 const DEV_IRIS_ORIGINS = ['http://localhost:3000', 'http://localhost:3010'];
 
-/** Iris on localhost, for development. */
+/** Where Atlas, the management UI, runs locally (`ATLAS_PORT` defaults to it too). */
+const DEV_ATLAS_ORIGINS = ['http://localhost:3012'];
+
+/** Iris and Atlas on localhost, for development. */
 const DEV_CLIENTS = [
   {
     client_id: 'iris',
     redirect_uris: DEV_IRIS_ORIGINS.map((origin) => `${origin}/auth/callback`),
     post_logout_redirect_uris: DEV_IRIS_ORIGINS.map((origin) => `${origin}/`),
+    grant_types: ['authorization_code', 'refresh_token'],
+    token_endpoint_auth_method: 'none',
+  },
+  {
+    client_id: 'atlas',
+    redirect_uris: DEV_ATLAS_ORIGINS.map((origin) => `${origin}/auth/callback`),
+    post_logout_redirect_uris: DEV_ATLAS_ORIGINS.map((origin) => `${origin}/`),
     grant_types: ['authorization_code', 'refresh_token'],
     token_endpoint_auth_method: 'none',
   },
