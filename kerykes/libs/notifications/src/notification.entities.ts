@@ -13,7 +13,7 @@ export type NotificationType = ApiTypes.NotificationType;
 @Entity('notifications')
 @Check(
   'ck_notifications_type',
-  `type IN ('review_requested', 'task_failed', 'task_succeeded', 'task_paused', 'budget_threshold', 'membership_granted')`,
+  `type IN ('review_requested', 'task_failed', 'task_succeeded', 'task_paused', 'budget_threshold', 'membership_granted', 'plan_review_requested')`,
 )
 @Index(
   'uq_notifications_organization_id_recipient_group_key',

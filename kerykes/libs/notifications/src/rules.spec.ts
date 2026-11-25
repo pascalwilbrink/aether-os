@@ -58,6 +58,40 @@ describe('notification rules', () => {
     );
   });
 
+  it("asks the session's person to review a council's plan, without its title", () => {
+    const plan = planFor(
+      event('council-plan.proposed', {
+        sessionId: SUBTASK,
+        councilId: TASK,
+        councilVersionId: TASK,
+        planId: TASK,
+        number: 1,
+        title: 'Anything the facilitator wrote',
+        entries: 1,
+        startedBy: 'u1',
+      }),
+      'hephaestus',
+    )!;
+    expect(plan).toMatchObject({
+      type: 'plan_review_requested',
+      audience: { kind: 'user', sub: 'u1' },
+      requires: { project: 'session:use' },
+      link: `/orgs/${ORG}/projects/${PROJECT}/sessions/${SUBTASK}`,
+      groupKey: `plan:${TASK}`,
+      email: true,
+    });
+    expect(plan.render('Website')).toEqual({
+      title: 'A plan is waiting for your review',
+      body: "A council in Website proposed a plan of 1 task (plan 1 of your session). Approve it, ask for changes or reject it on the session's page.",
+    });
+    expect(
+      planFor(
+        event('council-plan.proposed', {}, { projectId: null }),
+        'hephaestus',
+      ),
+    ).toBeNull();
+  });
+
   it('tells the requester about a failed or finished task tree, not each subtask', () => {
     const failed = planFor(
       event('task.failed', {

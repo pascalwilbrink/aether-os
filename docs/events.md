@@ -112,7 +112,7 @@ Kairos sends `task.create` commands to Hephaestus when an automation fires (belo
 
 ### Hephaestus (`hephaestus.events`)
 
-Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created` (with `taskTemplateId` and `taskTemplateVersion`), `task.status-changed`, `task.succeeded` (with `primaryArtifactId` and `artifactIds`), `task.failed`, `task.cancelled`, `task.awaiting-review`, `task.verified`, `artifact.created`, `artifact.status-changed`, `session.started`, `session.ended`, `deliberation-round.concluded` and `council-plan.proposed`, with the payloads in that spec (without costs, partial artifact IDs or automations, which don't exist yet). The rest come with the parts of the lifecycle that produce them. **Consumed by Kerykes** (`kerykes.hephaestus-events`): `task.awaiting-review`, `task.failed`, `task.succeeded`, `task.paused` and `budget.threshold-reached`; and Polis's `membership.*` and `project-membership.*` (`kerykes.polis-events`).
+Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created` (with `taskTemplateId` and `taskTemplateVersion`), `task.status-changed`, `task.succeeded` (with `primaryArtifactId` and `artifactIds`), `task.failed`, `task.cancelled`, `task.awaiting-review`, `task.verified`, `artifact.created`, `artifact.status-changed`, `session.started`, `session.ended`, `deliberation-round.concluded` and `council-plan.proposed`, with the payloads in that spec (without costs, partial artifact IDs or automations, which don't exist yet). The rest come with the parts of the lifecycle that produce them. **Consumed by Kerykes** (`kerykes.hephaestus-events`): `task.awaiting-review`, `task.failed`, `task.succeeded`, `task.paused`, `council-plan.proposed` and `budget.threshold-reached`; and Polis's `membership.*` and `project-membership.*` (`kerykes.polis-events`).
 
 | Event | Payload | Consumers |
 |---|---|---|
@@ -131,7 +131,7 @@ Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created` (with
 | `session.started` | `sessionId`, `agentId` (a council session's facilitator), `agentVersionId`, `councilId`, `councilVersionId` (`councils.md`), `startedBy` (`interaction.md`) | later Iris |
 | `session.ended` | the same, and `reason` (`closed`, `idle`); usage is Pylon's, per session | later Iris |
 | `deliberation-round.concluded` | `sessionId`, `councilId`, `councilVersionId`, `roundId`, `number`, `question`, `participants` (in order), `conclusion` (null when the next round closed it without one) (`councils.md`) | later Seshat (decisions), Kriterion |
-| `council-plan.proposed` | `sessionId`, `councilId`, `councilVersionId`, `planId`, `number`, `title`, `entries` (how many tasks it would make), `startedBy` (who reviews it) (`councils.md`) | later Kerykes (a plan to review) |
+| `council-plan.proposed` | `sessionId`, `councilId`, `councilVersionId`, `planId`, `number`, `title`, `entries` (how many tasks it would make), `startedBy` (who reviews it) (`councils.md`) | Kerykes (a plan to review) |
 | `document.version-published` | document reference (`documentId`, `version`, `objectKey`, `sha256`) | Seshat (index), Iris |
 | `document.deleted` | `documentId` | Seshat, Loculus cleanup |
 
