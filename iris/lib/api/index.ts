@@ -33,6 +33,8 @@ export type AgentSessionMessage = ApiSchema<"SessionMessage">;
 export type SessionAuthor = ApiSchema<"SessionMessageAuthor">;
 export type SessionMember = ApiSchema<"SessionMember">;
 export type DeliberationRound = ApiSchema<"DeliberationRound">;
+/** What a council's facilitator wrote to close a discussion (docs/councils.md, Synthesis). */
+export type SessionSynthesis = ApiSchema<"SessionSynthesis">;
 /** A council's plan, proposed by its facilitator and reviewed by the session's person (docs/councils.md). */
 export type CouncilPlan = ApiSchema<"CouncilPlan">;
 export type CouncilPlanEntry = ApiSchema<"CouncilPlanEntry">;
