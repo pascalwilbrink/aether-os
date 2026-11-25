@@ -11,11 +11,15 @@ import {
   listCouncilPlans,
   listDeliberationRounds,
   listSessionMessages,
+  listSessionSyntheses,
   listTasks,
 } from "@/lib/api/hephaestus";
+import { orUnavailable } from "@/lib/api/http";
 import { listServiceAccounts } from "@/lib/api/pistis";
+import { listKnowledgeItems } from "@/lib/api/seshat";
 import { listProjectMemberships } from "@/lib/api/polis";
 import { requireOrganization } from "@/lib/auth/current";
+import { knowledgeStatus } from "@/lib/knowledge";
 import { runnableServiceAccounts } from "@/lib/members";
 import { tasksByEntry } from "@/lib/plans";
 import {
@@ -51,7 +55,7 @@ async function Session({ params }: Props) {
     getSession(token, organizationId, projectId, sessionId),
     listSessionMessages(token, organizationId, projectId, sessionId),
   ]);
-  const [agent, council, rounds, councilVersions, plans] = await Promise.all([
+  const [agent, council, rounds, councilVersions, plans, syntheses, decisions] = await Promise.all([
     getAgent(token, organizationId, session.agentId).catch(() => null),
     session.councilId
       ? getCouncil(token, organizationId, session.councilId).catch(() => null)
@@ -65,7 +69,18 @@ async function Session({ params }: Props) {
     session.councilId
       ? listCouncilPlans(token, organizationId, projectId, sessionId)
       : Promise.resolve([]),
+    session.councilId
+      ? listSessionSyntheses(token, organizationId, projectId, sessionId)
+      : Promise.resolve([]),
+    // The council's decisions are Seshat's items; the page works without it.
+    session.councilId
+      ? orUnavailable(
+          listKnowledgeItems(token, organizationId, projectId, { sessionId }),
+        )
+      : Promise.resolve({ items: [], unavailable: false }),
   ]);
+  const roundNumber = (roundId: string) =>
+    rounds.find((round) => round.id === roundId)?.number;
   const [planWork, serviceAccounts] = await Promise.all([
     Promise.all(
       plans.map((plan) => planTasks(token, organizationId, projectId, plan)),
@@ -176,6 +191,74 @@ async function Session({ params }: Props) {
                     {round.conclusion}
                   </p>
                 )}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      {(decisions.items.length > 0 || decisions.unavailable) && (
+        <section className="space-y-2">
+          <h2 className="font-medium">Decisions</h2>
+          {decisions.unavailable ? (
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              The project&apos;s knowledge is unavailable, so its decisions can&apos;t be shown.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {decisions.items.map((item) => {
+                const status = knowledgeStatus(item.status);
+                return (
+                  <li
+                    key={item.id}
+                    className="flex flex-wrap items-center gap-2 rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800"
+                  >
+                    <Link
+                      href={`/orgs/${organizationId}/projects/${projectId}/knowledge/${item.id}`}
+                      className="font-medium underline"
+                    >
+                      {item.title}
+                    </Link>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.classes}`}>
+                      {status.label}
+                    </span>
+                    {item.status === "proposed" && (
+                      <span className="text-xs text-zinc-600 dark:text-zinc-400">
+                        An approver accepts it in Knowledge.
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {syntheses.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="font-medium">Syntheses</h2>
+          <ol className="space-y-2">
+            {syntheses.map((synthesis) => (
+              <li
+                key={synthesis.id}
+                className="rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800"
+              >
+                <p className="font-medium">
+                  Synthesis {synthesis.number}
+                  <span className="font-normal text-zinc-600 dark:text-zinc-400">
+                    {" "}
+                    · {formatTime(synthesis.writtenAt)}
+                    {synthesis.roundIds.length > 0
+                      ? ` · ${synthesis.roundIds
+                          .map((id) => roundNumber(id))
+                          .filter((number) => number !== undefined)
+                          .map((number) => `round ${number}`)
+                          .join(", ")}`
+                      : ""}
+                  </span>
+                </p>
+                <p className="mt-1 whitespace-pre-wrap">{synthesis.content}</p>
               </li>
             ))}
           </ol>

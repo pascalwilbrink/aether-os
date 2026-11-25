@@ -6,7 +6,9 @@ import type { ApiTypes } from '@hephaestus/core';
 import { CouncilPlanEntity } from './council-plan.entity.js';
 import { DeliberationRoundEntity } from './deliberation-round.entity.js';
 import type { ProposedPlan } from './plans.js';
+import type { WrittenSynthesis } from './decisions.js';
 import type { Round } from './deliberation.js';
+import { SessionSynthesisEntity } from './session-synthesis.entity.js';
 import type { SessionHistoryMessage } from './session-agent.js';
 import {
   SessionMessageEntity,
@@ -171,6 +173,33 @@ export class SessionMapper {
   }
 
   /** A plan the facilitator proposed in a run, to keep. */
+  toSynthesisEntity(
+    sessionId: string,
+    synthesis: WrittenSynthesis,
+  ): SessionSynthesisEntity {
+    return Object.assign(new SessionSynthesisEntity(), {
+      id: synthesis.id,
+      sessionId,
+      number: synthesis.number,
+      content: synthesis.content,
+      roundIds: synthesis.roundIds,
+      writtenAt: synthesis.writtenAt,
+    } satisfies SessionSynthesisEntity);
+  }
+
+  toSynthesisResponse(
+    entity: SessionSynthesisEntity,
+  ): ApiTypes.SessionSynthesis {
+    return {
+      id: entity.id,
+      sessionId: entity.sessionId,
+      number: entity.number,
+      content: entity.content,
+      roundIds: entity.roundIds,
+      writtenAt: entity.writtenAt.toISOString(),
+    };
+  }
+
   toPlanEntity(sessionId: string, plan: ProposedPlan): CouncilPlanEntity {
     return Object.assign(new CouncilPlanEntity(), {
       id: plan.id,

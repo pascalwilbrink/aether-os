@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { createAgent, publishedAgent, publishedCouncil } from './agora.js';
 import { createApp } from './app.js';
 import { asMember, type Client } from './auth.js';
+import type { FakeKnowledgeBase } from './fake-knowledge.js';
 import type { ScriptedPylonModels } from './fake-models.js';
 import type { FakePolis } from './fake-polis.js';
 import type { FakeSessionTokens } from './fake-session-tokens.js';
@@ -47,6 +48,7 @@ describe('Council sessions (e2e)', () => {
   let polis: FakePolis;
   let models: ScriptedPylonModels;
   let sessionTokens: FakeSessionTokens;
+  let knowledgeBase: FakeKnowledgeBase;
   let orgId: string;
   let projectId: string;
   let facilitatorId: string;
@@ -56,7 +58,7 @@ describe('Council sessions (e2e)', () => {
   let base: string;
 
   beforeEach(async () => {
-    ({ app, polis, models, sessionTokens } = await createApp());
+    ({ app, polis, models, sessionTokens, knowledgeBase } = await createApp());
     orgId = polis.organization();
     projectId = polis.project(orgId);
     ({ agentId: facilitatorId } = await publishedAgent(app, orgId, {
@@ -775,6 +777,155 @@ describe('Council sessions (e2e)', () => {
       expect(JSON.stringify(models.calls.at(-1)?.prompt)).toContain(
         'Mode: discussion.',
       );
+    });
+  });
+
+  describe('decisions and syntheses', () => {
+    const toolResults = (events: AguiEvent[]) =>
+      events
+        .filter((event) => event.type === 'TOOL_CALL_RESULT')
+        .map(
+          (event) =>
+            JSON.parse(event.content as string) as Record<string, unknown>,
+        );
+
+    it("proposes the council's decision to Seshat with the facilitator's token, and keeps its synthesis", async () => {
+      knowledgeBase.available = true;
+      const { councilId } = await council();
+      const session = await start(councilId);
+      models.replies = [
+        {
+          toolCall: {
+            tool: 'start_round',
+            input: { question: 'Which queue?', participants: [] },
+          },
+        },
+        { text: 'RabbitMQ: we run it already.' },
+        {
+          toolCall: {
+            tool: 'conclude_round',
+            input: { conclusion: 'RabbitMQ.' },
+          },
+        },
+        {
+          toolCall: {
+            tool: 'record_decision',
+            input: {
+              title: 'Use RabbitMQ for events',
+              decision: 'Services publish their events to RabbitMQ.',
+              rationale: 'We run it already.',
+              alternatives: [
+                { option: 'Kafka', reason: 'Another system to run.' },
+              ],
+              round: 1,
+            },
+          },
+        },
+        {
+          toolCall: {
+            tool: 'record_decision',
+            input: {
+              title: 'From nowhere',
+              decision: 'Nothing.',
+              rationale: 'None.',
+              round: 7,
+            },
+          },
+        },
+        {
+          toolCall: {
+            tool: 'write_synthesis',
+            input: {
+              content:
+                'Asked: which queue. Decided: RabbitMQ. Open: retention.',
+              rounds: [1],
+            },
+          },
+        },
+        { text: 'Recorded; accept it in Knowledge.' },
+      ];
+      const events = await run(session.id, 'Which queue should we use?');
+
+      // The facilitator is told about both, and the council requires a synthesis.
+      expect(JSON.stringify(models.calls[0].prompt)).toContain(
+        'This council requires a synthesis',
+      );
+      const proposal = knowledgeBase.calls.find(
+        (call) => call.method === 'propose',
+      );
+      // The facilitator's own session token (the first one issued).
+      expect(proposal?.scope).toEqual({
+        organizationId: orgId,
+        projectId,
+        token: 'session-token-1',
+      });
+      const rounds = (await person.get(`${base}/${session.id}/rounds`)).body
+        .items as { id: string }[];
+      expect(proposal?.input).toEqual({
+        type: 'decision',
+        title: 'Use RabbitMQ for events',
+        body: 'Services publish their events to RabbitMQ.',
+        rationale: 'We run it already.',
+        alternatives: [{ option: 'Kafka', reason: 'Another system to run.' }],
+        references: [
+          { kind: 'session', id: session.id, title: 'Council session' },
+          { kind: 'round', id: rounds[0].id, title: 'Round 1' },
+        ],
+      });
+      const results = toolResults(events);
+      expect(results.find((result) => 'decision' in result)).toMatchObject({
+        status: 'proposed',
+      });
+      expect(
+        results.find(
+          (result) =>
+            typeof result.refused === 'string' &&
+            result.refused.includes('round 7'),
+        ),
+      ).toBeDefined();
+      expect(
+        events
+          .filter((event) => event.type === 'CUSTOM')
+          .map((event) => event.name),
+      ).toEqual(
+        expect.arrayContaining(['decision-recorded', 'synthesis-written']),
+      );
+
+      const syntheses = (
+        await person.get(`${base}/${session.id}/syntheses`).expect(200)
+      ).body.items;
+      expect(syntheses).toEqual([
+        expect.objectContaining({
+          number: 1,
+          content: 'Asked: which queue. Decided: RabbitMQ. Open: retention.',
+          roundIds: [rounds[0].id],
+        }),
+      ]);
+      // The next turn knows there's one.
+      models.replies = [{ text: 'Anything else?' }];
+      await run(session.id, 'Thanks.');
+      expect(JSON.stringify(models.calls.at(-1)?.prompt)).toContain(
+        'The session has 1 so far.',
+      );
+    });
+
+    it('offers no record_decision without Seshat, and tells Seshat refusing', async () => {
+      const { councilId } = await council();
+      const session = await start(councilId);
+      models.replies = [{ text: 'Hello.' }];
+      await run(session.id, 'Hi.');
+      const offered = (models.calls[0].tools ?? []).map((tool) => tool.name);
+      expect(offered).not.toContain('record_decision');
+      expect(offered).toContain('write_synthesis');
+      // Another person's session: a 404.
+      const other = await asMember(
+        app,
+        orgId,
+        ['member'],
+        { [projectId]: 'viewer' },
+        'user-2',
+      );
+      await other.get(`${base}/${session.id}/syntheses`).expect(404);
     });
   });
 });

@@ -53,6 +53,12 @@ describe("knowledge", () => {
       sourceLabel({ source: { kind: "task", taskId: null }, createdBy: "sa-1" }),
     ).toBe("Proposed by an agent");
     expect(
+      sourceLabel({
+        source: { kind: "session", taskId: null, sessionId: "s-1", agentId: "a-1" },
+        createdBy: "ada",
+      }),
+    ).toBe("Proposed in a council session");
+    expect(
       sourceLabel({ source: { kind: "person", taskId: null }, createdBy: "ada" }),
     ).toBe("Written by ada");
     expect(

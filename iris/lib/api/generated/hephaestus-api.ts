@@ -879,6 +879,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/syntheses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * @description A council session's syntheses (docs/councils.md, Synthesis): what
+         *     the facilitator wrote after a discussion (what was asked, concluded,
+         *     decided, and what's open), oldest first; none in an agent session.
+         *     Its decisions are Seshat's items (`GET …/knowledge/items?sessionId=`).
+         */
+        get: operations["listSessionSyntheses"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/mode": {
         parameters: {
             query?: never;
@@ -2222,6 +2248,23 @@ export interface components {
         };
         DeliberationRoundPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["DeliberationRound"][];
+        };
+        /** @description What the facilitator wrote to close a discussion (docs/councils.md, Synthesis). */
+        SessionSynthesis: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            sessionId: string;
+            /** @description Within the session: 1, 2, … */
+            number: number;
+            /** @description Markdown. */
+            content: string;
+            /** @description The deliberation rounds it sums up. */
+            roundIds: string[];
+            writtenAt: components["schemas"]["Timestamp"];
+        };
+        SessionSynthesisPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["SessionSynthesis"][];
         };
         SessionMessagePage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["SessionMessage"][];
@@ -3899,6 +3942,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeliberationRoundPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listSessionSyntheses: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Oldest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionSynthesisPage"];
                 };
             };
             400: components["responses"]["BadRequest"];
