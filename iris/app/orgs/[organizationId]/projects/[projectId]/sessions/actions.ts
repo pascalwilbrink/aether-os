@@ -4,10 +4,18 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import type { ActionState } from "@/app/components/action-forms";
-import { createSession, endSession, setSessionMode } from "@/lib/api/hephaestus";
+import {
+  createSession,
+  decideCouncilPlan,
+  endSession,
+  getSession,
+  setSessionMode,
+  type PlanDecision,
+} from "@/lib/api/hephaestus";
 import { messageOf } from "@/lib/api/messages";
 import { requireOrganization } from "@/lib/auth/current";
 import { valuesOf } from "@/lib/forms";
+import { changedAssignments } from "@/lib/plans";
 
 import type { FormState, ProjectRef } from "../actions";
 
@@ -78,6 +86,84 @@ export async function setSessionModeAction(
     );
   } catch (error) {
     return { error: sessionMessageOf(error) };
+  }
+  refresh();
+  return {};
+}
+
+/**
+ * Decides on a council's proposed plan (`decision` from the button):
+ * approving takes the service account its tasks run as and the entries the
+ * person gave to other members (`agent:<entry key>`); requesting changes
+ * needs a comment.
+ */
+export async function decidePlanAction(
+  ref: ProjectRef & {
+    sessionId: string;
+    planId: string;
+    entries: { key: string; agentId: string }[];
+  },
+  _state: FormState,
+  form: FormData,
+): Promise<FormState> {
+  const session = await requireOrganization(
+    ref.organizationId,
+    `${sessionsPath(ref)}/${ref.sessionId}`,
+  );
+  const values = valuesOf(form);
+  const decision = values.decision as PlanDecision;
+  if (!["approve", "reject", "request-changes"].includes(decision)) {
+    return { error: "Choose what to do with the plan.", values };
+  }
+  const comment = values.comment?.trim() ?? "";
+  if (decision === "request-changes" && !comment) {
+    return { error: "Say what should change.", values };
+  }
+  const serviceAccountId = values.serviceAccountId ?? "";
+  try {
+    let body: Parameters<typeof decideCouncilPlan>[6];
+    if (decision === "approve") {
+      if (!serviceAccountId) {
+        return { error: "Choose the service account its tasks run as.", values };
+      }
+      // Members of the session only: Hephaestus checks again.
+      const { members } = await getSession(
+        session.accessToken,
+        ref.organizationId,
+        ref.projectId,
+        ref.sessionId,
+      );
+      const assignments = changedAssignments(
+        { entries: ref.entries },
+        members.map((member) => member.agentId),
+        values,
+      );
+      body = { serviceAccountId, ...(assignments.length > 0 ? { assignments } : {}) };
+    } else {
+      body = comment ? { comment } : {};
+    }
+    await decideCouncilPlan(
+      session.accessToken,
+      ref.organizationId,
+      ref.projectId,
+      ref.sessionId,
+      ref.planId,
+      decision,
+      body,
+    );
+  } catch (error) {
+    return {
+      error: messageOf(error, {
+        FORBIDDEN: "Deciding on plans needs the approver or admin role in this project.",
+        PLAN_NOT_PROPOSED: "This plan has been decided on, or replaced by a newer one.",
+        PLAN_ASSIGNMENT_INVALID: "An entry can only go to a member of the council.",
+        AGENT_NOT_PUBLISHED: "One of the plan's agents has no published version now.",
+        AGENT_ARCHIVED: "One of the plan's agents is archived.",
+        PROJECT_ARCHIVED: "The project is archived.",
+        ORGANIZATION_SUSPENDED: "The organization is suspended.",
+      }),
+      values,
+    };
   }
   refresh();
   return {};

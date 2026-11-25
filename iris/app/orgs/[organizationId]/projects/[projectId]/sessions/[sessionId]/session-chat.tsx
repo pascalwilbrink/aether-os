@@ -231,7 +231,11 @@ const TOOL_RENDERERS = [
                 ? "Started a round"
                 : name === "conclude_round"
                   ? "Concluded the round"
-                  : `Used ${name}`}
+                  : name === "propose_plan"
+                    ? "Proposed a plan"
+                    : name === "set_mode"
+                      ? "Changed the way of working"
+                      : `Used ${name}`}
           {status === "complete" ? "" : "…"}
         </summary>
         <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all">

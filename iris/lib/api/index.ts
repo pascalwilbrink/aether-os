@@ -33,6 +33,11 @@ export type AgentSessionMessage = ApiSchema<"SessionMessage">;
 export type SessionAuthor = ApiSchema<"SessionMessageAuthor">;
 export type SessionMember = ApiSchema<"SessionMember">;
 export type DeliberationRound = ApiSchema<"DeliberationRound">;
+/** A council's plan, proposed by its facilitator and reviewed by the session's person (docs/councils.md). */
+export type CouncilPlan = ApiSchema<"CouncilPlan">;
+export type CouncilPlanEntry = ApiSchema<"CouncilPlanEntry">;
+/** Where a task came from (a council's plan), when not from a person or an automation. */
+export type TaskOrigin = ApiSchema<"TaskOrigin">;
 export type ExecutionEvent = ApiSchema<"ExecutionEvent">;
 export type ExecutionEventPage = ApiSchema<"ExecutionEventPage">;
 export type Artifact = ApiSchema<"ArtifactResponse">;
