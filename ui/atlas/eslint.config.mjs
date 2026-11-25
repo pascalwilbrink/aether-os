@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated from ../../contracts by `pnpm generate:api`.
+    "lib/api/generated/**",
   ]),
 ]);
 

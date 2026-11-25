@@ -1,23 +1,45 @@
-import { LogoIcon, ThemeSwitch } from "@aether-os/design";
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
-import { THEME_KEY } from "@/lib/theme";
+import { currentSession } from "@/lib/auth/current";
 
-export default function Home() {
+import { Notice } from "./components/notice";
+import { PublicShell } from "./components/public-shell";
+
+/** Signed out: a way in. Signed in: straight to the organization (or choosing one). */
+export default function Home({ searchParams }: PageProps<"/">) {
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 sm:px-6">
-      <header className="flex items-center justify-between py-6">
-        <span className="flex items-center gap-2 font-semibold">
-          <LogoIcon className="size-6 text-indigo-600 dark:text-indigo-400" />
-          Atlas
-        </span>
-        <ThemeSwitch storageKey={THEME_KEY} />
-      </header>
-      <main className="flex-1 space-y-4 py-12">
-        <h1 className="text-2xl font-semibold">Atlas</h1>
-        <p className="text-zinc-600 dark:text-zinc-400">
-          A new Aether-os interface, built on its design system.
-        </p>
-      </main>
-    </div>
+    <PublicShell>
+      <Suspense fallback={<p>Loading…</p>}>
+        <Landing searchParams={searchParams} />
+      </Suspense>
+    </PublicShell>
+  );
+}
+
+async function Landing({ searchParams }: Pick<PageProps<"/">, "searchParams">) {
+  const session = await currentSession();
+  if (session) {
+    redirect(
+      session.organizationId ? `/orgs/${session.organizationId}` : "/orgs",
+    );
+  }
+  const { error } = await searchParams;
+
+  return (
+    <section className="space-y-6">
+      <Notice error={typeof error === "string" ? error : undefined} />
+      <h1 className="text-2xl font-semibold">Atlas</h1>
+      <p className="text-zinc-600 dark:text-zinc-400">
+        Manage your organization: its departments, teams and people. For an
+        organization&apos;s owners and admins.
+      </p>
+      <a
+        href="/auth/sign-in?returnTo=/orgs"
+        className="inline-block rounded-md bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-500"
+      >
+        Sign in
+      </a>
+    </section>
   );
 }

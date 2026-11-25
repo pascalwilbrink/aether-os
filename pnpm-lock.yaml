@@ -1560,16 +1560,28 @@ importers:
       '@aether-os/design':
         specifier: workspace:*
         version: link:../design
+      jose:
+        specifier: ^6.2.17
+        version: 6.2.17
       next:
         specifier: 16.4.6
         version: 16.4.6(@babel/core@7.29.13)(@opentelemetry/api@1.10.0)(@types/node@20.19.43)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      openid-client:
+        specifier: ^6.9.0
+        version: 6.9.0
       react:
         specifier: 19.3.0
         version: 19.3.0
       react-dom:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
+      server-only:
+        specifier: ^0.0.1
+        version: 0.0.1
     devDependencies:
+      '@aether-os/contracts':
+        specifier: workspace:*
+        version: link:../../contracts
       '@tailwindcss/turbopack':
         specifier: 4.3.3
         version: 4.3.3
@@ -1588,6 +1600,9 @@ importers:
       eslint-config-next:
         specifier: 16.4.6
         version: 16.4.6(@typescript-eslint/parser@8.72.2(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+      openapi-typescript:
+        specifier: ^7.13.0
+        version: 7.13.0(typescript@5.9.3)
       tailwindcss:
         specifier: 4.3.3
         version: 4.3.3

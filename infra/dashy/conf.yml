@@ -34,7 +34,7 @@ sections:
         icon: 🌈
         statusCheckUrl: http://host.docker.internal:3010/health/live
       - title: Atlas
-        description: The second interface (pnpm start:dev)
+        description: Manage organizations (pnpm start:dev)
         url: http://localhost:3012
         icon: 🗺️
         statusCheckUrl: http://host.docker.internal:3012/health/live

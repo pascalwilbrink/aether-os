@@ -14,7 +14,7 @@ Aether OS is a set of independently deployable services, each owning its own dom
 | Service | Port | Responsibility | Status |
 |---|---|---|---|
 | **Iris** | 3000 (3010 with `pnpm start:dev`) | The web interface for operating Aether OS (Next.js): agents, tasks, reviews, knowledge, connections, budgets, automations, the inbox | Active |
-| **Atlas** | 3012 | A second web interface (Next.js), built on the same design system as Iris | New (the shell) |
+| **Atlas** | 3012 | The management interface (Next.js), for an organization's owners and admins: its departments, teams and people | Active |
 | **Polis** | 3001 | Tenancy: organizations, projects, and memberships (who belongs where, with what role) | Active |
 | **Hephaestus** | 3002 | Runs agents: tasks and subtasks, executions in sandboxes, artifacts, reviews, verification, task templates, tool servers (MCP), and sessions with agents and councils | Active |
 | **Pistis** | 3003 | Authentication: an OpenID Connect provider and the only token issuer. Users and their linked identities, password and external sign-in, service accounts and API keys, task and session tokens | Active |

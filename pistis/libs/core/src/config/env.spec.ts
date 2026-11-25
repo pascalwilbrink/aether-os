@@ -17,9 +17,10 @@ describe('zEnv', () => {
       PISTIS_ISSUER: 'http://localhost:3003/oidc',
       ACCESS_TOKEN_TTL_SECONDS: 600,
     });
-    // Iris; Hephaestus, Proxenos, Kairos, Kerykes, Agora and Seshat as platform services; operators.
+    // Iris and Atlas; Hephaestus, Proxenos, Kairos, Kerykes, Agora and Seshat as platform services; operators.
     expect(env.PISTIS_CLIENTS.map((client) => client.client_id)).toEqual([
       'iris',
+      'atlas',
       'hephaestus',
       'proxenos',
       'kairos',
@@ -45,6 +46,18 @@ describe('zEnv', () => {
       'http://localhost:3000/',
       'http://localhost:3010/',
     ]);
+  });
+
+  it('lets Atlas sign in on its port', () => {
+    const atlas = zEnv
+      .parse(base)
+      .PISTIS_CLIENTS.find((client) => client.client_id === 'atlas');
+
+    expect(atlas).toMatchObject({
+      redirect_uris: ['http://localhost:3012/auth/callback'],
+      post_logout_redirect_uris: ['http://localhost:3012/'],
+      token_endpoint_auth_method: 'none',
+    });
   });
 
   it('parses keys and clients from JSON', () => {
