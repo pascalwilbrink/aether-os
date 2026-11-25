@@ -8,6 +8,9 @@ import {
   authorsOf,
   isRefusal,
   participationLabel,
+  roundEvent,
+  roundsOfMessages,
+  roundStatus,
   runFailureMessage,
   sessionEventOf,
   sessionRunBody,
@@ -52,6 +55,7 @@ const stored: AgentSessionMessage[] = [
     content: "Hi",
     toolCalls: [],
     toolCallId: null,
+    roundId: null,
     createdAt: "2026-11-24T10:00:00Z",
   },
   {
@@ -61,6 +65,7 @@ const stored: AgentSessionMessage[] = [
     content: "",
     toolCalls: [{ id: "c-1", name: "search_knowledge", arguments: "{}" }],
     toolCallId: null,
+    roundId: null,
     createdAt: "2026-11-24T10:00:01Z",
   },
   {
@@ -70,6 +75,7 @@ const stored: AgentSessionMessage[] = [
     content: '{"results":[]}',
     toolCalls: [],
     toolCallId: "c-1",
+    roundId: null,
     createdAt: "2026-11-24T10:00:02Z",
   },
 ];
@@ -107,9 +113,45 @@ describe("authors announced in a run", () => {
   it("reads message-author events and ignores other custom events", () => {
     expect(
       authorEvent({ name: "message-author", value: { messageId: "m", author: architect } }),
-    ).toEqual({ messageId: "m", author: architect });
+    ).toEqual({ messageId: "m", author: architect, roundId: null });
+    expect(
+      authorEvent({
+        name: "message-author",
+        value: { messageId: "m", author: architect, roundId: "r-1" },
+      }),
+    ).toEqual({ messageId: "m", author: architect, roundId: "r-1" });
     expect(authorEvent({ name: "other", value: { messageId: "m", author: architect } })).toBeNull();
     expect(authorEvent({ name: "message-author", value: {} })).toBeNull();
+  });
+});
+
+describe("deliberation rounds", () => {
+  it("knows each stored answer's round", () => {
+    expect(
+      roundsOfMessages([
+        stored[0],
+        { ...stored[1], id: "m-r", roundId: "r-1" },
+      ]),
+    ).toEqual(new Map([["m-r", "r-1"]]));
+  });
+
+  it("reads rounds starting and concluding, and nothing else", () => {
+    expect(
+      roundEvent({ name: "round-started", value: { roundId: "r-1", number: 1, question: "Q?" } }),
+    ).toEqual({ roundId: "r-1", number: 1 });
+    expect(
+      roundEvent({ name: "round-concluded", value: { roundId: "r-1", number: 1, conclusion: "Yes." } }),
+    ).toEqual({ roundId: "r-1", number: 1 });
+    expect(roundEvent({ name: "message-author", value: { roundId: "r-1", number: 1 } })).toBeNull();
+    expect(roundEvent({ name: "round-started", value: {} })).toBeNull();
+  });
+
+  it("says how a round ended", () => {
+    expect(roundStatus({ status: "open", conclusion: null })).toBe("Under way");
+    expect(roundStatus({ status: "concluded", conclusion: "Yes." })).toBe("Concluded");
+    expect(roundStatus({ status: "concluded", conclusion: null })).toBe(
+      "Closed without a conclusion",
+    );
   });
 });
 

@@ -7,6 +7,7 @@ import type { SessionAuthor } from "@/lib/api";
 import {
   authorEvent,
   isRefusal,
+  roundEvent,
   runFailureMessage,
   sessionEventOf,
 } from "@/lib/sessions";
@@ -14,14 +15,16 @@ import {
 /**
  * What a session's runs say beyond the chat (inside a `CopilotKitProvider`
  * whose runtime is Iris's, `lib/copilotkit.ts`): who wrote each message,
- * the copilot's session starting or being gone, why a run failed (a refused
+ * the rounds of a council's discussion, the copilot's session starting or
+ * being gone, why a run failed (a refused
  * one takes the person's message back: Hephaestus kept nothing), and a
  * run's end.
  */
 export function useSessionRunEvents(
   agentId: string,
   handlers: {
-    onAuthor?: (messageId: string, author: SessionAuthor) => void;
+    onAuthor?: (messageId: string, author: SessionAuthor, roundId: string | null) => void;
+    onRound?: (roundId: string, number: number) => void;
     onSession?: (sessionId: string | null) => void;
     onFailure: (message: string | null) => void;
     onFinalized?: () => void;
@@ -46,7 +49,11 @@ export function useSessionRunEvents(
       onRunInitialized: () => latest.current.onFailure(null),
       onCustomEvent: ({ event }) => {
         const author = authorEvent(event);
-        if (author) latest.current.onAuthor?.(author.messageId, author.author);
+        if (author) {
+          latest.current.onAuthor?.(author.messageId, author.author, author.roundId);
+        }
+        const round = roundEvent(event);
+        if (round) latest.current.onRound?.(round.roundId, round.number);
         const session = sessionEventOf(event);
         if (session) latest.current.onSession?.(session.sessionId);
       },

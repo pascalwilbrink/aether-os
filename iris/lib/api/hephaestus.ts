@@ -4,6 +4,7 @@ import { config } from "../config";
 import type {
   AgentSession,
   AgentSessionMessage,
+  DeliberationRound,
   ApiSchema,
   Artifact,
   Execution,
@@ -426,6 +427,20 @@ export async function listSessionMessages(
     cursor = page.nextCursor;
   } while (cursor && messages.length < max);
   return messages;
+}
+
+/** A council session's deliberation rounds, oldest first (at most 10 a session). */
+export async function listDeliberationRounds(
+  token: string,
+  organizationId: string,
+  projectId: string,
+  sessionId: string,
+): Promise<DeliberationRound[]> {
+  const page: Page<DeliberationRound> = await hephaestus(
+    `${sessionsOf(organizationId, projectId)}/${sessionId}/rounds?limit=100`,
+    token,
+  );
+  return page.items;
 }
 
 export const endSession = (
