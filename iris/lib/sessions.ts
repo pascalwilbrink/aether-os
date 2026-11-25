@@ -12,6 +12,73 @@ import type {
  * the browser.
  */
 
+/** CopilotKit's runtime for a project's sessions (`…/copilotkit/[[...path]]/route.ts`). */
+export const copilotKitPath = (project: { organizationId: string; projectId: string }) =>
+  `/orgs/${project.organizationId}/projects/${project.projectId}/copilotkit`;
+
+/** The headers that tell Iris's runtime which session a request is for. */
+export const SESSION_HEADER = "x-iris-session";
+/** …and, for the copilot, which agent a new session is with. */
+export const AGENT_HEADER = "x-iris-agent";
+
+/**
+ * The run as Hephaestus takes it (docs/interaction.md): the session as
+ * `threadId`, and only what Hephaestus reads: `messages`, `tools`,
+ * `context`, `state`, and `memberAgentId` of `forwardedProps`
+ * (CopilotKit's own properties stay in Iris).
+ */
+export function sessionRunBody(
+  input: {
+    runId?: unknown;
+    messages?: unknown;
+    tools?: unknown;
+    context?: unknown;
+    state?: unknown;
+    forwardedProps?: unknown;
+  },
+  sessionId: string,
+): Record<string, unknown> {
+  const memberAgentId = (input.forwardedProps as { memberAgentId?: unknown } | null | undefined)
+    ?.memberAgentId;
+  return {
+    threadId: sessionId,
+    runId: typeof input.runId === "string" && input.runId ? input.runId : crypto.randomUUID(),
+    messages: Array.isArray(input.messages) ? input.messages : [],
+    ...(Array.isArray(input.tools) ? { tools: input.tools } : {}),
+    ...(Array.isArray(input.context) ? { context: input.context } : {}),
+    ...(input.state !== undefined && input.state !== null ? { state: input.state } : {}),
+    ...(typeof memberAgentId === "string" && memberAgentId
+      ? { forwardedProps: { memberAgentId } }
+      : {}),
+  };
+}
+
+/** The custom event Iris's runtime sends when the copilot's session starts (or is gone: null). */
+export const SESSION_EVENT = "iris-session";
+
+/** A `SESSION_EVENT`'s session, or undefined for any other custom event. */
+export function sessionEventOf(event: {
+  name?: string;
+  value?: unknown;
+}): { sessionId: string | null } | undefined {
+  if (event.name !== SESSION_EVENT) return undefined;
+  const sessionId = (event.value as { sessionId?: unknown } | undefined)?.sessionId;
+  return { sessionId: typeof sessionId === "string" ? sessionId : null };
+}
+
+/** Whether a failed run was refused before it started (problem details), so nothing was kept. */
+export function isRefusal(message: string | undefined): boolean {
+  const text = message ?? "";
+  const body = text.indexOf("{");
+  if (body === -1) return false;
+  try {
+    const problem = JSON.parse(text.slice(body)) as { code?: unknown; detail?: unknown };
+    return typeof problem.code === "string" || typeof problem.detail === "string";
+  } catch {
+    return false;
+  }
+}
+
 /** An AG-UI message, as CopilotKit's agent keeps the conversation. */
 export type AguiMessage =
   | { id: string; role: "user"; content: string }

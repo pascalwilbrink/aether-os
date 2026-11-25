@@ -27,6 +27,7 @@ import {
   orUnavailable,
 } from "@/lib/api/proxenos";
 import { requireOrganization } from "@/lib/auth/current";
+import { taskDraftParam } from "@/lib/copilot";
 import { automationStatus, triggerSummary } from "@/lib/automations";
 import { linkableRepositories, repositoryChoices } from "@/lib/github";
 import {
@@ -56,6 +57,7 @@ import {
   unlinkRepositoryAction,
 } from "./actions";
 import { LinkRepositoryForm } from "./link-repository-form";
+import { CopilotPageContext } from "@/app/components/page-context";
 import { NewTaskForm } from "./new-task-form";
 
 type Props = PageProps<"/orgs/[organizationId]/projects/[projectId]">;
@@ -71,7 +73,7 @@ export default function ProjectPage(props: Props) {
 
 async function Project({ params, searchParams }: Props) {
   const { organizationId, projectId } = await params;
-  const { status: statusParam } = await searchParams;
+  const { status: statusParam, draft } = await searchParams;
   const status = isTaskStatus(statusParam) ? statusParam : undefined;
   const path = `/orgs/${organizationId}/projects/${projectId}`;
   const session = await requireOrganization(organizationId, path);
@@ -151,6 +153,15 @@ async function Project({ params, searchParams }: Props) {
 
   return (
     <div className="space-y-10">
+      <CopilotPageContext
+        description="The project the person is looking at, with its latest tasks"
+        value={{
+          name: project.name,
+          slug: project.slug,
+          ...(project.description ? { description: project.description } : {}),
+          tasks: tasks.items.slice(0, 20).map(({ id, title, status }) => ({ id, title, status })),
+        }}
+      />
       <div>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           <Link href={`/orgs/${organizationId}`} className="underline">
@@ -508,9 +519,14 @@ async function Project({ params, searchParams }: Props) {
         )}
       </section>
 
-      <section className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+      <section
+        id="new-task"
+        className="scroll-mt-4 space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+      >
         <h2 className="font-medium">New task</h2>
         <NewTaskForm
+          key={typeof draft === "string" ? draft : ""}
+          initial={taskDraftParam(draft)}
           project={{ organizationId, projectId }}
           agents={runnable.map(({ id, name }) => ({ id, name }))}
           serviceAccounts={accounts.map(({ id, name }) => ({ id, name }))}

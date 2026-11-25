@@ -7,66 +7,19 @@ import {
   CopilotChatAssistantMessage,
   CopilotKitProvider,
   defineToolCallRenderer,
-  EventType,
-  HttpAgent,
-  type BaseEvent,
   type CopilotChatAssistantMessageProps,
-  type HttpAgentConfig,
-  type Message,
-  type RunAgentInput,
 } from "@copilotkit/react-core/v2";
 import { useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { Observable } from "rxjs";
+import { createContext, useContext, useState } from "react";
 
+import { useSessionRunEvents } from "@/app/components/session-run-events";
 import type { AgentSessionMessage, SessionAuthor, SessionMember } from "@/lib/api";
-import {
-  aguiMessagesOf,
-  authorEvent,
-  authorLabel,
-  authorsOf,
-  runFailureMessage,
-} from "@/lib/sessions";
+import { authorLabel, authorsOf, copilotKitPath, SESSION_HEADER } from "@/lib/sessions";
 
 import type { ProjectRef } from "../../actions";
 
 /** The one agent CopilotKit talks to on this page: the session. */
 const AGENT_ID = "session";
-
-/**
- * The session's agent. CopilotKit empties an agent's conversation when it
- * first connects to a thread and asks the agent to restore it (`connect`),
- * which `HttpAgent` can't: this one replays the stored messages as a
- * snapshot. Every run then carries them with Hephaestus's IDs, so it
- * stores only what's new.
- */
-class SessionAgent extends HttpAgent {
-  constructor(
-    config: HttpAgentConfig,
-    private readonly stored: Message[],
-  ) {
-    super(config);
-  }
-
-  protected override connect(input: RunAgentInput): Observable<BaseEvent> {
-    const { threadId, runId } = input;
-    return new Observable<BaseEvent>((subscriber) => {
-      subscriber.next({ type: EventType.RUN_STARTED, threadId, runId } as BaseEvent);
-      subscriber.next({
-        type: EventType.MESSAGES_SNAPSHOT,
-        messages: this.stored,
-      } as BaseEvent);
-      subscriber.next({ type: EventType.RUN_FINISHED, threadId, runId } as BaseEvent);
-      subscriber.complete();
-    });
-  }
-
-  override clone(): SessionAgent {
-    const copy = super.clone() as SessionAgent;
-    Object.assign(copy, { stored: this.stored });
-    return copy;
-  }
-}
 
 /** Who wrote each message, and how to name them. */
 const Authors = createContext<{
@@ -75,14 +28,14 @@ const Authors = createContext<{
 }>({ authors: new Map(), label: () => "" });
 
 /**
- * The conversation, on CopilotKit (`docs/interaction.md`): its agent is an
- * AG-UI `HttpAgent` on Iris's route (`runs/route.ts`), which calls the
- * session's endpoint in Hephaestus with the person's token, so the browser
- * never sees a token or Hephaestus. It starts from the stored messages
- * (Hephaestus's IDs, so they're never sent as new), and each message shows
- * who wrote it: Hephaestus announces them with `message-author` events. In
- * a council session the person can address a member directly
- * (`forwardedProps.memberAgentId`, through the provider's `properties`).
+ * The conversation, on CopilotKit (`docs/interaction.md`): its runtime is
+ * Iris's (`lib/copilotkit.ts`, at `…/copilotkit`), which reads the stored
+ * conversation from Hephaestus and runs the session's endpoint there with the
+ * person's token, so the browser never sees a token or Hephaestus. Each
+ * message shows who wrote it: Hephaestus announces them with
+ * `message-author` events. In a council session the person can address a
+ * member directly (`forwardedProps.memberAgentId`, through the provider's
+ * `properties`).
  */
 export function SessionChat({
   project,
@@ -99,87 +52,28 @@ export function SessionChat({
   members: SessionMember[];
   ended: boolean;
 }) {
-  const router = useRouter();
-  const [agent] = useState(() => {
-    const stored = aguiMessagesOf(initial) as Message[];
-    return new SessionAgent(
-      {
-        agentId: AGENT_ID,
-        url: `/orgs/${project.organizationId}/projects/${project.projectId}/sessions/${sessionId}/runs`,
-        threadId: sessionId,
-        initialMessages: stored,
-      },
-      stored,
-    );
-  });
-  const [authors, setAuthors] = useState(() => authorsOf(initial));
   const [addressed, setAddressed] = useState("");
   const [failure, setFailure] = useState<string | null>(null);
-
-  useEffect(() => {
-    const { unsubscribe } = agent.subscribe({
-      onRunInitialized: () => setFailure(null),
-      onCustomEvent: ({ event }) => {
-        const announced = authorEvent(event);
-        if (announced) {
-          setAuthors((current) =>
-            new Map(current).set(announced.messageId, announced.author),
-          );
-        }
-      },
-      onRunErrorEvent: ({ event }) =>
-        setFailure(runFailureMessage({ message: event.message, code: event.code })),
-      onRunFailed: ({ error }) => {
-        setFailure(runFailureMessage(error));
-        // Refused before it started: Hephaestus kept nothing, so neither do we.
-        const last = agent.messages.at(-1);
-        if ("status" in error && last?.role === "user") {
-          agent.setMessages(agent.messages.slice(0, -1));
-        }
-      },
-      // The stored conversation and the session's state (members invited).
-      onRunFinalized: () => router.refresh(),
-    });
-    return unsubscribe;
-  }, [agent, router]);
-
-  const context = useMemo(
-    () => ({
-      authors,
-      label: (author: SessionAuthor) => authorLabel(author, { agent: agentName, members }),
-    }),
-    [authors, agentName, members],
-  );
-  const properties = useMemo(
-    () => (addressed ? { memberAgentId: addressed } : {}),
-    [addressed],
-  );
 
   return (
     <section className="space-y-3">
       <CopilotKitProvider
-        selfManagedAgents={{ [AGENT_ID]: agent }}
+        runtimeUrl={copilotKitPath(project)}
+        headers={{ [SESSION_HEADER]: sessionId }}
         agentId={AGENT_ID}
-        properties={properties}
+        properties={addressed ? { memberAgentId: addressed } : {}}
         renderToolCalls={TOOL_RENDERERS}
         showDevConsole={false}
         enableInspector={false}
       >
-        <Authors.Provider value={context}>
-          <div className="h-[60vh] min-h-96 overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800">
-            <CopilotChat
-              agentId={AGENT_ID}
-              threadId={sessionId}
-              messageView={{ assistantMessage: AuthoredAssistant }}
-              labels={{
-                chatInputPlaceholder: ended
-                  ? "This session has ended."
-                  : "Write a message",
-              }}
-              {...(ended ? { input: Ended } : {})}
-            />
-          </div>
-        </Authors.Provider>
+        <Conversation
+          sessionId={sessionId}
+          initial={initial}
+          agentName={agentName}
+          members={members}
+          ended={ended}
+          onFailure={setFailure}
+        />
       </CopilotKitProvider>
       {failure && (
         <p role="alert" className="text-sm text-red-700 dark:text-red-300">
@@ -204,6 +98,52 @@ export function SessionChat({
         </label>
       )}
     </section>
+  );
+}
+
+/** The chat, and who wrote each message (inside the provider). */
+function Conversation({
+  sessionId,
+  initial,
+  agentName,
+  members,
+  ended,
+  onFailure,
+}: {
+  sessionId: string;
+  initial: AgentSessionMessage[];
+  agentName: string;
+  members: SessionMember[];
+  ended: boolean;
+  onFailure: (message: string | null) => void;
+}) {
+  const router = useRouter();
+  const [authors, setAuthors] = useState(() => authorsOf(initial));
+  useSessionRunEvents(AGENT_ID, {
+    onAuthor: (messageId, author) =>
+      setAuthors((current) => new Map(current).set(messageId, author)),
+    onFailure,
+    // The stored conversation and the session's state (members invited).
+    onFinalized: () => router.refresh(),
+  });
+  const context = {
+    authors,
+    label: (author: SessionAuthor) => authorLabel(author, { agent: agentName, members }),
+  };
+  return (
+    <Authors.Provider value={context}>
+      <div className="h-[60vh] min-h-96 overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800">
+        <CopilotChat
+          agentId={AGENT_ID}
+          threadId={sessionId}
+          messageView={{ assistantMessage: AuthoredAssistant }}
+          labels={{
+            chatInputPlaceholder: ended ? "This session has ended." : "Write a message",
+          }}
+          {...(ended ? { input: Ended } : {})}
+        />
+      </div>
+    </Authors.Provider>
   );
 }
 

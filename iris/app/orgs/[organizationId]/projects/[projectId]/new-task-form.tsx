@@ -26,6 +26,7 @@ export function NewTaskForm({
   repositories,
   knowledge,
   idempotencyKey,
+  initial,
 }: {
   project: ProjectRef;
   agents: Option[];
@@ -35,10 +36,12 @@ export function NewTaskForm({
   /** The project's accepted knowledge, to pin on the task. */
   knowledge: KnowledgeOption[];
   idempotencyKey: string;
+  /** A draft to start from (the copilot's, `?draft=`). */
+  initial?: Record<string, string>;
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(
     createTaskAction.bind(null, project),
-    {},
+    initial ? { values: initial } : {},
   );
   if (agents.length === 0 || serviceAccounts.length === 0) {
     return (

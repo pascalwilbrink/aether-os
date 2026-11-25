@@ -22,6 +22,8 @@ import { formatTime } from "@/lib/tasks";
 import { decideKnowledgeItemAction } from "../actions";
 import { EditKnowledgeItemForm } from "../knowledge-forms";
 
+import { CopilotPageContext } from "@/app/components/page-context";
+
 type Props =
   PageProps<"/orgs/[organizationId]/projects/[projectId]/knowledge/[itemId]">;
 
@@ -65,6 +67,16 @@ async function KnowledgeItemDetails({ params }: Props) {
 
   return (
     <div className="space-y-10">
+      <CopilotPageContext
+        description="The knowledge item the person is looking at"
+        value={{
+          itemId: item.id,
+          type: item.type,
+          title: item.title,
+          status: item.status,
+          ...(item.body ? { body: item.body.slice(0, 4000) } : {}),
+        }}
+      />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
