@@ -8,8 +8,11 @@ import { DocumentFileError, DocumentIndexer } from '@seshat/knowledge';
 import {
   asMember,
   asService,
+  asSession,
   asTask,
   createApp,
+  SESSION_AGENT_ID,
+  SESSION_ID,
   TASK_ID,
   type Client,
 } from './app.js';
@@ -227,6 +230,111 @@ describe('Knowledge (e2e)', () => {
       'knowledge-item.indexed',
       'knowledge-item.superseded',
     ]);
+  });
+
+  it("keeps a session's decision as a proposal, with its rationale, alternatives and session", async () => {
+    // A person's token in a session (an agent acting for them) only proposes.
+    const session = await asSession(app, orgId, projectId);
+    const proposed = await session
+      .post(`${base}/items`)
+      .send({
+        ...decision,
+        rationale: 'One engine to run, back up and tune.',
+        alternatives: [
+          {
+            option: 'A separate vector database',
+            reason: 'Another system to run.',
+          },
+        ],
+        references: [{ kind: 'round', id: MISSING_ID, title: 'Round 1' }],
+      })
+      .expect(201);
+    expect(proposed.body).toMatchObject({
+      status: 'proposed',
+      acceptedBy: null,
+      rationale: 'One engine to run, back up and tune.',
+      alternatives: [
+        {
+          option: 'A separate vector database',
+          reason: 'Another system to run.',
+        },
+      ],
+      source: {
+        kind: 'session',
+        taskId: null,
+        sessionId: SESSION_ID,
+        agentId: SESSION_AGENT_ID,
+      },
+    });
+    expect(
+      (await outboxEvents(app))
+        .filter((event) => event.eventType === 'knowledge-item.proposed')
+        .map((event) => (event.payload as { sourceKind: string }).sourceKind),
+    ).toEqual(['session']);
+
+    // The session's items, for the session's page.
+    await admin.post(`${base}/items`).send(decision).expect(201);
+    const listed = await admin
+      .get(`${base}/items`)
+      .query({ sessionId: SESSION_ID })
+      .expect(200);
+    expect(listed.body.items.map((item: { id: string }) => item.id)).toEqual([
+      proposed.body.id,
+    ]);
+
+    // Its reasons are searchable.
+    const found = await search(admin, {
+      query: 'vector database',
+      includeProposed: true,
+    });
+    expect(found.map((result) => result.item.id)).toContain(proposed.body.id);
+
+    // A session neither edits, accepts nor writes documents.
+    await session
+      .put(`${base}/items/${proposed.body.id}`)
+      .send({ title: 'Changed', body: 'Changed.' })
+      .expect(403);
+    await session.post(`${base}/items/${proposed.body.id}/accept`).expect(403);
+    // A viewer's session can't propose either.
+    await (
+      await asSession(app, orgId, projectId, 'viewer')
+    )
+      .post(`${base}/items`)
+      .send(decision)
+      .expect(403);
+
+    // A person accepts it, reasons and all; and edits the rationale.
+    await admin.post(`${base}/items/${proposed.body.id}/accept`).expect(200);
+    const edited = await admin
+      .put(`${base}/items/${proposed.body.id}`)
+      .send({
+        title: decision.title,
+        body: decision.body,
+        rationale: 'Simpler.',
+      })
+      .expect(200);
+    expect(edited.body).toMatchObject({
+      rationale: 'Simpler.',
+      alternatives: [
+        {
+          option: 'A separate vector database',
+          reason: 'Another system to run.',
+        },
+      ],
+    });
+  });
+
+  it('refuses a rationale on anything but a decision', async () => {
+    const refused = await admin
+      .post(`${base}/items`)
+      .send({
+        type: 'fact',
+        title: 'A fact',
+        body: 'It is so.',
+        rationale: 'Because.',
+      })
+      .expect(409);
+    expect(refused.body.code).toBe('KNOWLEDGE_ITEM_INVALID');
   });
 
   it('rejects proposals and retires accepted items', async () => {

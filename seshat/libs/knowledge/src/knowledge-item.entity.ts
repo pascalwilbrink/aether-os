@@ -24,7 +24,7 @@ export type IndexingStatus = ApiTypes.DocumentIndexing['status'];
 )
 @Check(
   'ck_knowledge_items_source_kind',
-  `source_kind IN ('person', 'task', 'repository')`,
+  `source_kind IN ('person', 'task', 'session', 'repository')`,
 )
 // One current document per file of an indexed repository (a retired one
 // stays, and a file added back is a new item).
@@ -94,11 +94,27 @@ export class KnowledgeItemEntity {
   @Column({ type: 'jsonb' })
   references: ApiTypes.KnowledgeReference[];
 
+  /** A decision's rationale (Markdown); null for anything else. */
+  @Column({ type: 'text', nullable: true })
+  rationale: string | null;
+
+  /** What a decision considered instead; empty for anything else. */
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  alternatives: ApiTypes.DecisionAlternative[];
+
   @Column({ type: 'text' })
-  sourceKind: 'person' | 'task' | 'repository';
+  sourceKind: 'person' | 'task' | 'session' | 'repository';
 
   @Column({ type: 'uuid', nullable: true })
   sourceTaskId: string | null;
+
+  /** The session an agent proposed it in (`source.kind: session`). */
+  @Column({ type: 'uuid', nullable: true })
+  sourceSessionId: string | null;
+
+  /** The agent that proposed it in that session. */
+  @Column({ type: 'uuid', nullable: true })
+  sourceAgentId: string | null;
 
   @Column({ type: 'uuid', nullable: true })
   supersedes: string | null;

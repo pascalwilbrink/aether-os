@@ -115,6 +115,33 @@ export const asTask = async (
     }),
   );
 
+/** A session token, as Pistis exchanges it for Hephaestus (docs/interaction.md). */
+export const SESSION_ID = '0193a1b2-c3d4-7e5f-8a9b-00000000bbbb';
+export const SESSION_AGENT_ID = '0193a1b2-c3d4-7e5f-8a9b-00000000cccc';
+
+export const asSession = async (
+  app: INestApplication<App>,
+  organizationId: string,
+  projectId: string,
+  role: ProjectRole = 'editor',
+) =>
+  client(
+    app,
+    await tokens.sign({
+      sub: 'user-1',
+      sub_type: 'user',
+      org_id: organizationId,
+      org_roles: ['member'],
+      project_roles: { [projectId]: role },
+      project_id: projectId,
+      session_id: SESSION_ID,
+      agent_id: SESSION_AGENT_ID,
+      agent_version_id: SESSION_AGENT_ID,
+      act: { sub: 'hephaestus', sub_type: 'service' },
+      scope: 'api',
+    }),
+  );
+
 /** A platform service with its own token (Hephaestus pinning items on tasks). */
 export const asService = async (
   app: INestApplication<App>,

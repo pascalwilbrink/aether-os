@@ -20,7 +20,10 @@ export interface paths {
         /**
          * @description A decision, fact, convention, architecture note or lesson. A person's
          *     item is `accepted` at once; one from a service account (an agent's task
-         *     token) is `proposed`, for someone with `knowledge:approve` to accept.
+         *     token) or a session (an agent in a person's session, e.g. a council's
+         *     facilitator; `source.kind: session`) is `proposed`, for someone with
+         *     `knowledge:approve` to accept. A decision can carry its `rationale`
+         *     and the `alternatives` considered; other types can't.
          *     `supersedes` names an accepted item this one replaces: it becomes
          *     `superseded` when this one is accepted.
          */
@@ -384,8 +387,11 @@ export interface components {
         Tag: string;
         /** @description Something an item points at, e.g. the task or the document it came from. */
         KnowledgeReference: {
-            /** @enum {string} */
-            kind: "item" | "document" | "file" | "task" | "artifact" | "url";
+            /**
+             * @description `session` and `round`: a session (e.g. a council's) and one of its deliberation rounds, in Hephaestus.
+             * @enum {string}
+             */
+            kind: "item" | "document" | "file" | "task" | "artifact" | "url" | "session" | "round";
             /** @description An ID, or for `url` the URL. */
             id: string;
             title?: string;
@@ -393,14 +399,23 @@ export interface components {
         /**
          * @description Where the item came from, set by Seshat from the token: `person`
          *     (a person wrote it), `task` (an agent proposed it, with `taskId`),
-         *     or `repository` (a document indexed from a repository linked to the
-         *     project, with `repository`; read-only: change it with a commit).
+         *     `session` (an agent in a person's session proposed it, e.g. a
+         *     council's facilitator: `sessionId`, `agentId`), or `repository` (a
+         *     document indexed from a repository linked to the project, with
+         *     `repository`; read-only: change it with a commit).
          */
         KnowledgeSource: {
             /** @enum {string} */
-            kind: "person" | "task" | "repository";
+            kind: "person" | "task" | "session" | "repository";
             /** Format: uuid */
             taskId?: string | null;
+            /** Format: uuid */
+            sessionId?: string | null;
+            /**
+             * Format: uuid
+             * @description The agent that proposed it in the session.
+             */
+            agentId?: string | null;
             repository?: components["schemas"]["KnowledgeRepositoryFile"] | null;
         };
         /** @description A file in a repository linked to the project, at a commit of its default branch. */
@@ -450,11 +465,21 @@ export interface components {
         KnowledgeDocument: components["schemas"]["KnowledgeDocumentFile"] & {
             indexing: components["schemas"]["DocumentIndexing"];
         };
+        DecisionAlternative: {
+            /** @description What was considered. */
+            option: string;
+            /** @description Why it wasn't chosen. */
+            reason: string;
+        };
         CreateKnowledgeItemRequest: {
             type: components["schemas"]["WritableKnowledgeItemType"];
             title: string;
             /** @description Markdown. For a decision, its context, the decision and its consequences. */
             body: string;
+            /** @description A decision's rationale (Markdown); only on a `decision`. */
+            rationale?: string | null;
+            /** @description What else a decision considered, and why not; only on a `decision`. */
+            alternatives?: components["schemas"]["DecisionAlternative"][];
             tags?: components["schemas"]["Tag"][];
             references?: components["schemas"]["KnowledgeReference"][];
             /**
@@ -471,6 +496,10 @@ export interface components {
         UpdateKnowledgeItemRequest: {
             title: string;
             body: string;
+            /** @description A decision's rationale (Markdown); only on a `decision`. Left out, it's kept. */
+            rationale?: string | null;
+            /** @description What else a decision considered, and why not; only on a `decision`. Left out, they're kept. */
+            alternatives?: components["schemas"]["DecisionAlternative"][];
             tags?: components["schemas"]["Tag"][];
             references?: components["schemas"]["KnowledgeReference"][];
             /** Format: date */
@@ -503,6 +532,9 @@ export interface components {
             title: string;
             /** @description Markdown; for a document, empty (its text is in its chunks). */
             body: string;
+            /** @description A decision's rationale; null for anything else, or none given. */
+            rationale: string | null;
+            alternatives: components["schemas"]["DecisionAlternative"][];
             status: components["schemas"]["KnowledgeItemStatus"];
             version: number;
             tags: string[];
@@ -532,6 +564,9 @@ export interface components {
             version: number;
             title: string;
             body: string;
+            /** @description A decision's rationale; null for anything else, or none given. */
+            rationale: string | null;
+            alternatives: components["schemas"]["DecisionAlternative"][];
             tags: string[];
             references: components["schemas"]["KnowledgeReference"][];
             document: components["schemas"]["KnowledgeDocumentFile"] | null;
@@ -736,6 +771,8 @@ export interface operations {
                 cursor?: components["parameters"]["Cursor"];
                 type?: components["schemas"]["KnowledgeItemType"];
                 status?: components["schemas"]["KnowledgeItemStatus"];
+                /** @description Only items proposed in this session (`source.sessionId`). */
+                sessionId?: string;
             };
             header?: never;
             path: {

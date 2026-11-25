@@ -49,7 +49,8 @@ export class KnowledgeController {
   ) {}
 
   @Post('items')
-  @RequirePermission('knowledge:write', IN_PROJECT)
+  // Everyone who writes, and session tokens, which only propose.
+  @RequirePermission('knowledge:propose', IN_PROJECT)
   @ZodSerializerDto(KnowledgeItemResponse)
   create(
     @Param() { organizationId, projectId }: ProjectParams,
@@ -63,9 +64,14 @@ export class KnowledgeController {
   @ZodSerializerDto(KnowledgeItemPage)
   list(
     @Param() { organizationId, projectId }: ProjectParams,
-    @Query() { type, status, ...page }: ListKnowledgeItemsQuery,
+    @Query() { type, status, sessionId, ...page }: ListKnowledgeItemsQuery,
   ) {
-    return this.items.list(organizationId, projectId, { type, status }, page);
+    return this.items.list(
+      organizationId,
+      projectId,
+      { type, status, sessionId },
+      page,
+    );
   }
 
   @Get('items/:itemId')

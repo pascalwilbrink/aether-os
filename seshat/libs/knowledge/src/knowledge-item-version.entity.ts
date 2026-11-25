@@ -27,6 +27,12 @@ export class KnowledgeItemVersionEntity {
   @Column({ type: 'text' })
   body: string;
 
+  @Column({ type: 'text', nullable: true })
+  rationale: string | null;
+
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  alternatives: ApiTypes.DecisionAlternative[];
+
   @Column({ type: 'jsonb' })
   tags: string[];
 

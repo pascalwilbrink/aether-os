@@ -14,7 +14,7 @@ export interface KnowledgeItemAccepted {
    * The item's content version (its text, or a document's file).
    */
   version: number;
-  sourceKind: 'person' | 'task' | 'repository';
+  sourceKind: 'person' | 'task' | 'session' | 'repository';
   supersededBy: string | null;
 }
 
@@ -44,7 +44,7 @@ export interface KnowledgeItemProposed {
    * The item's content version (its text, or a document's file).
    */
   version: number;
-  sourceKind: 'person' | 'task' | 'repository';
+  sourceKind: 'person' | 'task' | 'session' | 'repository';
   supersededBy: string | null;
 }
 
@@ -61,7 +61,7 @@ export interface KnowledgeItemRejected {
    * The item's content version (its text, or a document's file).
    */
   version: number;
-  sourceKind: 'person' | 'task' | 'repository';
+  sourceKind: 'person' | 'task' | 'session' | 'repository';
   supersededBy: string | null;
 }
 
@@ -78,7 +78,7 @@ export interface KnowledgeItemRetired {
    * The item's content version (its text, or a document's file).
    */
   version: number;
-  sourceKind: 'person' | 'task' | 'repository';
+  sourceKind: 'person' | 'task' | 'session' | 'repository';
   supersededBy: string | null;
 }
 
@@ -95,7 +95,7 @@ export interface KnowledgeItemSuperseded {
    * The item's content version (its text, or a document's file).
    */
   version: number;
-  sourceKind: 'person' | 'task' | 'repository';
+  sourceKind: 'person' | 'task' | 'session' | 'repository';
   supersededBy: string | null;
 }
 
@@ -112,7 +112,7 @@ export interface KnowledgeItemUpdated {
    * The item's content version (its text, or a document's file).
    */
   version: number;
-  sourceKind: 'person' | 'task' | 'repository';
+  sourceKind: 'person' | 'task' | 'session' | 'repository';
   supersededBy: string | null;
 }
 

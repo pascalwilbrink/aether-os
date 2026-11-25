@@ -147,6 +147,7 @@ The organization-wide variants carry an `org:` prefix in code, so every permissi
 | `repository:token` (a short-lived token for one of the project's linked repositories, from Proxenos; only with a task token, `../docs/git.md`) | project | ✓ | ✓ | ✓ | |
 | `knowledge:read` (project knowledge in Seshat, `knowledge.md`) | project | ✓ | ✓ | ✓ | ✓ |
 | `knowledge:write` (creating and editing items, uploading documents) | project | ✓ | ✓ | ✓ | |
+| `knowledge:propose` (proposing an item, `POST …/items`: what writers may do, and the one write a session token may make, always as a proposal, `interaction.md`) | project | ✓ | ✓ | ✓ | |
 | `knowledge:approve` (accepting or rejecting proposals; only people) | project | ✓ | ✓ | | |
 | `model:invoke` (model calls and embeddings through Pylon, `pylon.md`; used by task tokens) | project | ✓ | ✓ | ✓ | |
 | `session:use` (copilot, voice and council sessions, `interaction.md`, `councils.md`) | project | ✓ | ✓ | ✓ | ✓ |

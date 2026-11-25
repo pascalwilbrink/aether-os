@@ -36,11 +36,14 @@ paths:
     post:
       tags: [knowledge]
       operationId: createKnowledgeItem
-      x-permission: '`knowledge:write` in the project'
+      x-permission: '`knowledge:propose` in the project (everyone with `knowledge:write`, and session tokens)'
       description: |
         A decision, fact, convention, architecture note or lesson. A person's
         item is `accepted` at once; one from a service account (an agent's task
-        token) is `proposed`, for someone with `knowledge:approve` to accept.
+        token) or a session (an agent in a person's session, e.g. a council's
+        facilitator; `source.kind: session`) is `proposed`, for someone with
+        `knowledge:approve` to accept. A decision can carry its `rationale`
+        and the `alternatives` considered; other types can't.
         `supersedes` names an accepted item this one replaces: it becomes
         `superseded` when this one is accepted.
       requestBody:
@@ -71,6 +74,10 @@ paths:
         - $ref: '#/components/parameters/Cursor'
         - { name: type, in: query, schema: { $ref: '#/components/schemas/KnowledgeItemType' } }
         - { name: status, in: query, schema: { $ref: '#/components/schemas/KnowledgeItemStatus' } }
+        - name: sessionId
+          in: query
+          description: Only items proposed in this session (`source.sessionId`).
+          schema: { type: string, format: uuid }
       responses:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -542,7 +549,10 @@ components:
       required: [kind, id]
       description: Something an item points at, e.g. the task or the document it came from.
       properties:
-        kind: { type: string, enum: [item, document, file, task, artifact, url] }
+        kind:
+          type: string
+          enum: [item, document, file, task, artifact, url, session, round]
+          description: '`session` and `round`: a session (e.g. a council''s) and one of its deliberation rounds, in Hephaestus.'
         id:
           type: string
           minLength: 1
@@ -555,13 +565,22 @@ components:
       description: |
         Where the item came from, set by Seshat from the token: `person`
         (a person wrote it), `task` (an agent proposed it, with `taskId`),
-        or `repository` (a document indexed from a repository linked to the
-        project, with `repository`; read-only: change it with a commit).
+        `session` (an agent in a person's session proposed it, e.g. a
+        council's facilitator: `sessionId`, `agentId`), or `repository` (a
+        document indexed from a repository linked to the project, with
+        `repository`; read-only: change it with a commit).
       properties:
-        kind: { type: string, enum: [person, task, repository] }
+        kind: { type: string, enum: [person, task, session, repository] }
         taskId:
           type: [string, 'null']
           format: uuid
+        sessionId:
+          type: [string, 'null']
+          format: uuid
+        agentId:
+          type: [string, 'null']
+          format: uuid
+          description: The agent that proposed it in the session.
         repository:
           oneOf:
             - $ref: '#/components/schemas/KnowledgeRepositoryFile'
@@ -617,6 +636,13 @@ components:
           properties:
             indexing: { $ref: '#/components/schemas/DocumentIndexing' }
 
+    DecisionAlternative:
+      type: object
+      additionalProperties: false
+      required: [option, reason]
+      properties:
+        option: { type: string, minLength: 1, maxLength: 500, description: What was considered. }
+        reason: { type: string, minLength: 1, maxLength: 2000, description: Why it wasn't chosen. }
     CreateKnowledgeItemRequest:
       type: object
       additionalProperties: false
@@ -629,6 +655,15 @@ components:
           minLength: 1
           maxLength: 20000
           description: Markdown. For a decision, its context, the decision and its consequences.
+        rationale:
+          type: [string, 'null']
+          maxLength: 5000
+          description: A decision's rationale (Markdown); only on a `decision`.
+        alternatives:
+          type: array
+          maxItems: 10
+          description: What else a decision considered, and why not; only on a `decision`.
+          items: { $ref: '#/components/schemas/DecisionAlternative' }
         tags:
           type: array
           maxItems: 20
@@ -653,6 +688,15 @@ components:
       properties:
         title: { type: string, minLength: 1, maxLength: 200 }
         body: { type: string, minLength: 1, maxLength: 20000 }
+        rationale:
+          type: [string, 'null']
+          maxLength: 5000
+          description: "A decision's rationale (Markdown); only on a `decision`. Left out, it's kept."
+        alternatives:
+          type: array
+          maxItems: 10
+          description: What else a decision considered, and why not; only on a `decision`. Left out, they're kept.
+          items: { $ref: '#/components/schemas/DecisionAlternative' }
         tags:
           type: array
           maxItems: 20
@@ -699,7 +743,7 @@ components:
 
     KnowledgeItemResponse:
       type: object
-      required: [id, organizationId, projectId, type, title, body, status, version, tags, references, source, supersedes, supersededBy, reviewBy, document, createdBy, updatedBy, acceptedBy, acceptedAt, createdAt, updatedAt]
+      required: [id, organizationId, projectId, type, title, body, rationale, alternatives, status, version, tags, references, source, supersedes, supersededBy, reviewBy, document, createdBy, updatedBy, acceptedBy, acceptedAt, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -709,6 +753,12 @@ components:
         body:
           type: string
           description: Markdown; for a document, empty (its text is in its chunks).
+        rationale:
+          type: [string, 'null']
+          description: A decision's rationale; null for anything else, or none given.
+        alternatives:
+          type: array
+          items: { $ref: '#/components/schemas/DecisionAlternative' }
         status: { $ref: '#/components/schemas/KnowledgeItemStatus' }
         version: { type: integer, minimum: 1 }
         tags:
@@ -750,12 +800,18 @@ components:
               items: { $ref: '#/components/schemas/KnowledgeItemResponse' }
     KnowledgeItemVersionResponse:
       type: object
-      required: [itemId, version, title, body, tags, references, document, createdBy, createdAt]
+      required: [itemId, version, title, body, rationale, alternatives, tags, references, document, createdBy, createdAt]
       properties:
         itemId: { type: string, format: uuid }
         version: { type: integer, minimum: 1 }
         title: { type: string }
         body: { type: string }
+        rationale:
+          type: [string, 'null']
+          description: A decision's rationale; null for anything else, or none given.
+        alternatives:
+          type: array
+          items: { $ref: '#/components/schemas/DecisionAlternative' }
         tags:
           type: array
           items: { type: string }
