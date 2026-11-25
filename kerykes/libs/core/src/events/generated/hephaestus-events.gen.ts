@@ -46,6 +46,26 @@ export interface ArtifactStatusChanged {
 }
 
 /**
+ * Payload of `deliberation-round.concluded`.
+ */
+export interface DeliberationRoundConcluded {
+  sessionId: string;
+  councilId: string;
+  councilVersionId: string;
+  roundId: string;
+  number: number;
+  question: string;
+  /**
+   * The members who answered, in order (agent IDs).
+   */
+  participants: string[];
+  /**
+   * The facilitator's conclusion; null for a round the next one closed without one.
+   */
+  conclusion: string | null;
+}
+
+/**
  * Payload of `session.ended`.
  */
 export interface SessionEnded {
@@ -274,6 +294,7 @@ export interface TaskVerified {
 export interface HephaestusEventPayloads {
   'artifact.created': ArtifactCreated;
   'artifact.status-changed': ArtifactStatusChanged;
+  'deliberation-round.concluded': DeliberationRoundConcluded;
   'session.ended': SessionEnded;
   'session.started': SessionStarted;
   'task.awaiting-review': TaskAwaitingReview;
@@ -294,6 +315,7 @@ export type HephaestusEventType = keyof HephaestusEventPayloads;
 export const HEPHAESTUS_EVENT_TYPES = [
   'artifact.created',
   'artifact.status-changed',
+  'deliberation-round.concluded',
   'session.ended',
   'session.started',
   'task.awaiting-review',
