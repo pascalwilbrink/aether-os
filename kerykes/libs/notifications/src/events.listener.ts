@@ -17,6 +17,7 @@ export class EventsListener {
   @OnDomainEvent('hephaestus.task.failed')
   @OnDomainEvent('hephaestus.task.succeeded')
   @OnDomainEvent('hephaestus.task.paused')
+  @OnDomainEvent('hephaestus.council-plan.proposed')
   async onHephaestusEvent(event: DomainEvent<unknown>): Promise<void> {
     await this.notifications.notify('hephaestus', event);
   }

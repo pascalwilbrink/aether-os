@@ -29,6 +29,7 @@ export const HEPHAESTUS_SUBSCRIPTIONS = [
   'task.failed',
   'task.succeeded',
   'task.paused',
+  'council-plan.proposed',
 ] as const;
 
 /** Pylon's budget events that need people (docs/pylon.md, Events). */

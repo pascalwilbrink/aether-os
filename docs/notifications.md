@@ -42,6 +42,7 @@ What the first form decided where this document left room:
 | `task.paused` | Work paused, budget ran out | Project admins (task tree or project budget), organization admins (organization budget) | In-app, email |
 | `budget.threshold-reached` | Budget nearly used | Admins of the budget's scope | In-app, email |
 | `membership.granted` | You were added to an organization or project | That user | In-app, email |
+| `council-plan.proposed` | A council's plan waiting for review (`councils.md`), linking to the session, without the plan's title (the facilitator wrote it) | The person who started the session, the only one who can decide on it | In-app, email |
 
 Further types are added by adding a row: an event, a rule for recipients, default channels.
 

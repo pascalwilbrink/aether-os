@@ -11,6 +11,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   task_paused: "Paused",
   budget_threshold: "Budget",
   membership_granted: "Access",
+  plan_review_requested: "Plan",
 };
 
 const SAFE_PATH = /^\/orgs\/[0-9a-f-]{36}(\/[A-Za-z0-9-]+)*(#[a-z-]+)?$/;

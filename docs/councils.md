@@ -206,7 +206,7 @@ Refusals are explained to the facilitator (a mode that isn't allowed, a member t
   - plus the usual task and artifact events for the work they lead to.
 - **Seshat:** `knowledge-item.proposed` for decisions, as now.
 
-Kerykes tells people when a session waits for them: a plan to review, a question from the facilitator, decisions to accept.
+Kerykes tells people when a session waits for them: a plan to review (built: `plan_review_requested`, for the person who started the session), later a question from the facilitator and decisions to accept.
 
 ## Building it
 

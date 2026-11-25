@@ -123,7 +123,9 @@ export class NotificationsService {
           ? 'task:approve'
           : notification.type === 'membership_granted'
             ? 'project:read'
-            : 'task:read',
+            : notification.type === 'plan_review_requested'
+              ? 'session:use'
+              : 'task:read',
       );
     }
     return this.memberships.holdsOrganizationPermission(

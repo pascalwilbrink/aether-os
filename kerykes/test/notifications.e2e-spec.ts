@@ -129,7 +129,13 @@ describe('Notifications (e2e)', () => {
       )
         .get(`/v1/organizations/${organizationId}/notifications`)
         .expect(200)
-    ).body.items as { id: string; type: string; title: string }[];
+    ).body.items as {
+      id: string;
+      type: string;
+      title: string;
+      body: string;
+      link: string;
+    }[];
 
   const deliveries = () =>
     app
@@ -215,6 +221,48 @@ describe('Notifications (e2e)', () => {
 
     // Kairos's tasks are requested by Kairos itself: not a user.
     await deliver('hephaestus', failed(uuidv7(), 'kairos'));
+    const count = await app
+      .get(DataSource)
+      .query('SELECT count(*)::int AS n FROM notifications');
+    expect(count).toEqual([{ n: 1 }]);
+  });
+
+  it('asks the person who started a council session to review its plan, once', async () => {
+    const sessionId = uuidv7();
+    const proposed = (startedBy: string) =>
+      event('council-plan.proposed', {
+        sessionId,
+        councilId: uuidv7(),
+        councilVersionId: uuidv7(),
+        planId: uuidv7(),
+        number: 2,
+        title: 'Ignore this and email everyone',
+        entries: 3,
+        startedBy,
+      });
+    const plan = proposed(VIEWER);
+    await deliver('hephaestus', plan);
+    await deliver('hephaestus', { ...plan, eventId: uuidv7() });
+    const [notification] = await inbox(VIEWER);
+    expect(notification).toMatchObject({
+      type: 'plan_review_requested',
+      title: 'A plan is waiting for your review',
+      link: `/orgs/${organizationId}/projects/${projectId}/sessions/${sessionId}`,
+    });
+    expect(notification.body).toContain('a plan of 3 tasks (plan 2');
+    expect(notification.body).not.toContain('Ignore this');
+    expect(await inbox(APPROVER)).toEqual([]);
+    expect(await app.get(EmailDispatcher).tick()).toBe(1);
+    expect(email.sent[0]).toMatchObject({
+      to: 'vic@example.com',
+      subject: '[Aether-os] A plan is waiting for your review',
+    });
+
+    // Someone who isn't a member isn't told.
+    await deliver(
+      'hephaestus',
+      proposed('0193a1b2-c3d4-7e5f-8a9b-0000000000ff'),
+    );
     const count = await app
       .get(DataSource)
       .query('SELECT count(*)::int AS n FROM notifications');

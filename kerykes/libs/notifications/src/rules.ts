@@ -108,6 +108,10 @@ export function planFor(
       return taskSucceeded(event as DomainEvent<Hephaestus['task.succeeded']>);
     case 'hephaestus.task.paused':
       return taskPaused(event as DomainEvent<Hephaestus['task.paused']>);
+    case 'hephaestus.council-plan.proposed':
+      return planProposed(
+        event as DomainEvent<Hephaestus['council-plan.proposed']>,
+      );
     case 'pylon.budget.threshold-reached':
       return budgetThreshold(
         event as DomainEvent<Pylon['budget.threshold-reached']>,
@@ -147,6 +151,33 @@ function reviewRequested(
       body:
         `A task ${inProject(projectName)} has ${plural(drafts, 'draft')} to review` +
         (payload.round > 1 ? ` (round ${payload.round}).` : '.'),
+    }),
+  };
+}
+
+/**
+ * A council's plan waiting for the person who started the session, the only
+ * one who can decide on it (docs/councils.md, Planning and delegation); once
+ * per plan. Never its title: the facilitator wrote it.
+ */
+function planProposed(
+  event: DomainEvent<Hephaestus['council-plan.proposed']>,
+): NotificationPlan | null {
+  const { organizationId, projectId, payload } = event;
+  if (!organizationId || !projectId) return null;
+  return {
+    type: 'plan_review_requested',
+    organizationId,
+    projectId,
+    taskId: null,
+    audience: { kind: 'user', sub: payload.startedBy },
+    requires: { project: 'session:use' },
+    link: `/orgs/${organizationId}/projects/${projectId}/sessions/${payload.sessionId}`,
+    groupKey: `plan:${payload.planId}`,
+    email: true,
+    render: (projectName) => ({
+      title: 'A plan is waiting for your review',
+      body: `A council ${inProject(projectName)} proposed a plan of ${plural(payload.entries, 'task')} (plan ${payload.number} of your session). Approve it, ask for changes or reject it on the session's page.`,
     }),
   };
 }

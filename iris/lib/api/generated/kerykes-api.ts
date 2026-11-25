@@ -141,10 +141,12 @@ export interface components {
          *     `review_requested` (`task.awaiting-review`), `task_failed`,
          *     `task_succeeded` (tasks started by hand), `task_paused` (a budget ran
          *     out), `budget_threshold` (80% of a budget used) and
-         *     `membership_granted` (added to the organization or a project).
+         *     `membership_granted` (added to the organization or a project) and
+         *     `plan_review_requested` (a council's plan waiting for the person who
+         *     started the session, `council-plan.proposed`).
          * @enum {string}
          */
-        NotificationType: "review_requested" | "task_failed" | "task_succeeded" | "task_paused" | "budget_threshold" | "membership_granted";
+        NotificationType: "review_requested" | "task_failed" | "task_succeeded" | "task_paused" | "budget_threshold" | "membership_granted" | "plan_review_requested";
         NotificationResponse: {
             /** Format: uuid */
             id: string;
