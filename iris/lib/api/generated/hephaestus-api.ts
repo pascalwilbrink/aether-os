@@ -792,6 +792,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Switches a council session's mode, among those its council allows (`direct` with `allowDirectInteraction`, `facilitated` always, `discussion` with `allowDiscussion`; `planning` and `delegation` come with plans). Refused for an agent session, a mode the council doesn't allow (`SESSION_MODE_INVALID`), an ended session (`SESSION_ENDED`) or one answering (`SESSION_BUSY`). Setting the mode it's in returns it unchanged. */
+        post: operations["setSessionMode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/end": {
         parameters: {
             query?: never;
@@ -906,7 +927,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "TASK_CONTEXT_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_FIELDS_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "SESSION_BUSY" | "SESSION_ENDED" | "SESSION_MEMBER_INVALID" | "COUNCIL_UNAVAILABLE" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "TASK_CONTEXT_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_FIELDS_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "SESSION_BUSY" | "SESSION_ENDED" | "SESSION_MEMBER_INVALID" | "SESSION_MODE_INVALID" | "COUNCIL_UNAVAILABLE" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -1886,6 +1907,14 @@ export interface components {
         };
         /** @enum {string} */
         SessionStatus: "active" | "ended";
+        /**
+         * @description How a council works in a session: `direct` (the person addresses members), `facilitated` (the facilitator answers, asks members, holds rounds), `discussion` (deliberation rounds on the person's questions), `planning` and `delegation` (plans and the tasks they become).
+         * @enum {string}
+         */
+        SessionMode: "direct" | "facilitated" | "discussion" | "planning" | "delegation";
+        SetSessionModeRequest: {
+            mode: components["schemas"]["SessionMode"];
+        };
         /** @description Exactly one of `agentId` and `councilId`. */
         CreateSessionRequest: {
             /** Format: uuid */
@@ -1948,6 +1977,8 @@ export interface components {
             councilVersionId: string | null;
             /** @description A council session's members; empty otherwise. */
             members: components["schemas"]["SessionMember"][];
+            /** @description A council session's current way of working (docs/councils.md, Collaboration modes); null in an agent session. */
+            mode: components["schemas"]["SessionMode"] | null;
             /** @description The person's `sub`. */
             startedBy: string;
             title: string | null;
@@ -3554,6 +3585,39 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    setSessionMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetSessionModeRequest"];
+            };
+        };
+        responses: {
+            /** @description The session, in its mode */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
         };
     };
     endSession: {

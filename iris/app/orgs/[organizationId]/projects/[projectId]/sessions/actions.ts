@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import type { ActionState } from "@/app/components/action-forms";
-import { createSession, endSession } from "@/lib/api/hephaestus";
+import { createSession, endSession, setSessionMode } from "@/lib/api/hephaestus";
 import { messageOf } from "@/lib/api/messages";
 import { requireOrganization } from "@/lib/auth/current";
 import { valuesOf } from "@/lib/forms";
@@ -21,6 +21,8 @@ const sessionMessageOf = (error: unknown) =>
       "That agent (or one of the council's agents) has no published version yet.",
     AGENT_ARCHIVED: "That agent (or one of the council's agents) is archived.",
     COUNCIL_UNAVAILABLE: "That council is archived or has no published version.",
+    SESSION_BUSY: "The council is answering: switch when it's done.",
+    SESSION_ENDED: "This session has ended.",
     PROJECT_ARCHIVED: "The project is archived.",
     ORGANIZATION_SUSPENDED: "The organization is suspended.",
   });
@@ -50,6 +52,35 @@ export async function createSessionAction(
     return { error: sessionMessageOf(error), values };
   }
   redirect(`${sessionsPath(ref)}/${sessionId}`);
+}
+
+/** Switches a council session's mode (`role` in the picker's form). */
+export async function setSessionModeAction(
+  ref: ProjectRef & { sessionId: string },
+  _state: ActionState,
+  form: FormData,
+): Promise<ActionState> {
+  const session = await requireOrganization(
+    ref.organizationId,
+    `${sessionsPath(ref)}/${ref.sessionId}`,
+  );
+  const mode = String(form.get("role") ?? "");
+  if (!["direct", "facilitated", "discussion", "planning", "delegation"].includes(mode)) {
+    return { error: "Choose a way of working." };
+  }
+  try {
+    await setSessionMode(
+      session.accessToken,
+      ref.organizationId,
+      ref.projectId,
+      ref.sessionId,
+      mode as Parameters<typeof setSessionMode>[4],
+    );
+  } catch (error) {
+    return { error: sessionMessageOf(error) };
+  }
+  refresh();
+  return {};
 }
 
 /** Ends the session; its conversation stays. */

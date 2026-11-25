@@ -137,6 +137,9 @@ import type {
   RunSessionErrors,
   RunSessionResponse,
   RunSessionResponses,
+  SetSessionModeData,
+  SetSessionModeErrors,
+  SetSessionModeResponses,
   SetTaskTreeBudgetData,
   SetTaskTreeBudgetErrors,
   SetTaskTreeBudgetResponses,
@@ -1082,6 +1085,26 @@ export const listDeliberationRounds = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/rounds',
     ...options,
+  });
+
+/**
+ * Switches a council session's mode, among those its council allows (`direct` with `allowDirectInteraction`, `facilitated` always, `discussion` with `allowDiscussion`; `planning` and `delegation` come with plans). Refused for an agent session, a mode the council doesn't allow (`SESSION_MODE_INVALID`), an ended session (`SESSION_ENDED`) or one answering (`SESSION_BUSY`). Setting the mode it's in returns it unchanged.
+ */
+export const setSessionMode = <ThrowOnError extends boolean = false>(
+  options: Options<SetSessionModeData, ThrowOnError>,
+): RequestResult<SetSessionModeResponses, SetSessionModeErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    SetSessionModeResponses,
+    SetSessionModeErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/mode',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   });
 
 /**

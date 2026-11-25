@@ -26,6 +26,7 @@ export const zDomainErrorCode = z.enum([
     'SESSION_BUSY',
     'SESSION_ENDED',
     'SESSION_MEMBER_INVALID',
+    'SESSION_MODE_INVALID',
     'COUNCIL_UNAVAILABLE',
     'WORKSPACE_INVALID_EXPIRY',
     'WORKSPACE_INVALID_TRANSITION'
@@ -855,6 +856,21 @@ export const zToolList = z.object({
 export const zSessionStatus = z.enum(['active', 'ended']);
 
 /**
+ * How a council works in a session: `direct` (the person addresses members), `facilitated` (the facilitator answers, asks members, holds rounds), `discussion` (deliberation rounds on the person's questions), `planning` and `delegation` (plans and the tasks they become).
+ */
+export const zSessionMode = z.enum([
+    'direct',
+    'facilitated',
+    'discussion',
+    'planning',
+    'delegation'
+]);
+
+export const zSetSessionModeRequest = z.object({
+    mode: zSessionMode
+});
+
+/**
  * Exactly one of `agentId` and `councilId`.
  */
 export const zCreateSessionRequest = z.object({
@@ -897,6 +913,7 @@ export const zSessionResponse = z.object({
     councilId: z.uuid().nullable(),
     councilVersionId: z.uuid().nullable(),
     members: z.array(zSessionMember),
+    mode: zSessionMode.nullable(),
     startedBy: z.string(),
     title: z.string().nullable(),
     status: zSessionStatus,
@@ -1665,6 +1682,19 @@ export const zListDeliberationRoundsQuery = z.object({
  * Oldest first
  */
 export const zListDeliberationRoundsResponse = zDeliberationRoundPage;
+
+export const zSetSessionModeBody = zSetSessionModeRequest;
+
+export const zSetSessionModePath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    sessionId: z.uuid()
+});
+
+/**
+ * The session, in its mode
+ */
+export const zSetSessionModeResponse = zSessionResponse;
 
 export const zEndSessionPath = z.object({
     organizationId: z.uuid(),

@@ -1,18 +1,24 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { ActionButton } from "@/app/components/action-forms";
-import { getAgent, getCouncil } from "@/lib/api/agora";
+import { ActionButton, RoleForm } from "@/app/components/action-forms";
+import { getAgent, getCouncil, listCouncilVersions } from "@/lib/api/agora";
 import {
   getSession,
   listDeliberationRounds,
   listSessionMessages,
 } from "@/lib/api/hephaestus";
 import { requireOrganization } from "@/lib/auth/current";
-import { participationLabel, roundStatus, sessionStatus } from "@/lib/sessions";
+import {
+  participationLabel,
+  roundStatus,
+  sessionModeChoices,
+  sessionModeLabel,
+  sessionStatus,
+} from "@/lib/sessions";
 import { formatTime } from "@/lib/tasks";
 
-import { endSessionAction } from "../actions";
+import { endSessionAction, setSessionModeAction } from "../actions";
 import { SessionChat } from "./session-chat";
 
 type Props = PageProps<"/orgs/[organizationId]/projects/[projectId]/sessions/[sessionId]">;
@@ -35,7 +41,7 @@ async function Session({ params }: Props) {
     getSession(token, organizationId, projectId, sessionId),
     listSessionMessages(token, organizationId, projectId, sessionId),
   ]);
-  const [agent, council, rounds] = await Promise.all([
+  const [agent, council, rounds, councilVersions] = await Promise.all([
     getAgent(token, organizationId, session.agentId).catch(() => null),
     session.councilId
       ? getCouncil(token, organizationId, session.councilId).catch(() => null)
@@ -43,7 +49,14 @@ async function Session({ params }: Props) {
     session.councilId
       ? listDeliberationRounds(token, organizationId, projectId, sessionId)
       : Promise.resolve([]),
+    session.councilId
+      ? listCouncilVersions(token, organizationId, session.councilId).catch(() => null)
+      : Promise.resolve(null),
   ]);
+  const councilVersion = councilVersions?.items.find(
+    (version) => version.id === session.councilVersionId,
+  );
+  const modes = councilVersion ? sessionModeChoices(councilVersion.settings) : [];
   const memberName = (agentId: string) =>
     session.members.find((member) => member.agentId === agentId)?.name ?? "A member";
   const agentName = agent?.name ?? "The agent";
@@ -82,6 +95,23 @@ async function Session({ params }: Props) {
           />
         )}
       </div>
+
+      {session.mode && (
+        <section className="flex flex-wrap items-center gap-3 text-sm">
+          <span>
+            <span className="font-medium">Working:</span> {sessionModeLabel(session.mode)}
+          </span>
+          {!ended && modes.length > 1 && (
+            <RoleForm
+              action={setSessionModeAction.bind(null, { organizationId, projectId, sessionId })}
+              roles={modes}
+              current={session.mode}
+              label="Switch"
+              ariaLabel="Way of working"
+            />
+          )}
+        </section>
+      )}
 
       {session.members.length > 0 && (
         <section className="space-y-2">

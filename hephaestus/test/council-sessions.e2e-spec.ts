@@ -647,4 +647,131 @@ describe('Council sessions (e2e)', () => {
       );
     });
   });
+
+  describe('modes', () => {
+    const modeCouncil = (
+      fields: {
+        defaultMode?: 'direct' | 'facilitated' | 'discussion' | 'planning';
+        allowDiscussion?: boolean;
+      } = {},
+    ) =>
+      publishedCouncil(app, orgId, {
+        facilitatorId,
+        ...fields,
+        members: [{ agentId: architectId, participation: 'required' }],
+      });
+
+    it("starts in the council's default mode, and the person can switch among those it allows", async () => {
+      const { councilId } = await modeCouncil({ defaultMode: 'discussion' });
+      const session = (await person.post(base).send({ councilId }).expect(201))
+        .body as { id: string; mode: string };
+      expect(session.mode).toBe('discussion');
+
+      const switched = await person
+        .post(`${base}/${session.id}/mode`)
+        .send({ mode: 'direct' })
+        .expect(200);
+      expect(switched.body.mode).toBe('direct');
+      // The same mode again: unchanged.
+      await person
+        .post(`${base}/${session.id}/mode`)
+        .send({ mode: 'direct' })
+        .expect(200);
+
+      const planning = await person
+        .post(`${base}/${session.id}/mode`)
+        .send({ mode: 'planning' })
+        .expect(409);
+      expect(planning.body).toMatchObject({ code: 'SESSION_MODE_INVALID' });
+      expect(planning.body.detail).toContain('comes with plans');
+      await person
+        .post(`${base}/${session.id}/mode`)
+        .send({ mode: 'chatting' })
+        .expect(400);
+
+      // An agent session has no modes; a mode the council doesn't allow is refused.
+      const agentSession = (
+        await person.post(base).send({ agentId: facilitatorId }).expect(201)
+      ).body as { id: string; mode: string | null };
+      expect(agentSession.mode).toBeNull();
+      await person
+        .post(`${base}/${agentSession.id}/mode`)
+        .send({ mode: 'facilitated' })
+        .expect(409);
+      const { councilId: quiet } = await modeCouncil({
+        allowDiscussion: false,
+      });
+      const other = (
+        await person.post(base).send({ councilId: quiet }).expect(201)
+      ).body as {
+        id: string;
+        mode: string;
+      };
+      expect(other.mode).toBe('facilitated');
+      const refused = await person
+        .post(`${base}/${other.id}/mode`)
+        .send({ mode: 'discussion' })
+        .expect(409);
+      expect(refused.body.detail).toContain(
+        "doesn't allow the discussion mode",
+      );
+    });
+
+    it('a council whose default comes with plans starts facilitated', async () => {
+      const { councilId } = await modeCouncil({ defaultMode: 'planning' });
+      const session = (await person.post(base).send({ councilId }).expect(201))
+        .body as {
+        mode: string;
+      };
+      expect(session.mode).toBe('facilitated');
+    });
+
+    it('lets the facilitator switch modes, and keeps the switch', async () => {
+      const { councilId } = await modeCouncil();
+      const session = await start(councilId);
+      models.replies = [
+        {
+          toolCall: {
+            tool: 'set_mode',
+            input: { mode: 'planning', reason: 'Plan it.' },
+          },
+        },
+        {
+          toolCall: {
+            tool: 'set_mode',
+            input: { mode: 'discussion', reason: 'This needs the council.' },
+          },
+        },
+        { text: 'Switched to a discussion.' },
+      ];
+      const events = await run(session.id, 'Let us discuss.');
+      expect(JSON.stringify(models.calls[0].prompt)).toContain(
+        'Mode: facilitated.',
+      );
+      const results = events
+        .filter((event) => event.type === 'TOOL_CALL_RESULT')
+        .map(
+          (event) =>
+            JSON.parse(event.content as string) as Record<string, unknown>,
+        );
+      expect(results[0].refused).toContain("can't be in the planning mode");
+      expect(results[1]).toMatchObject({ mode: 'discussion' });
+      expect(
+        events.find(
+          (event) => event.type === 'CUSTOM' && event.name === 'mode-changed',
+        )?.value,
+      ).toEqual({ mode: 'discussion', reason: 'This needs the council.' });
+      const after = (await person.get(`${base}/${session.id}`)).body as {
+        mode: string;
+      };
+      expect(after.mode).toBe('discussion');
+
+      // The next turn starts in it.
+      models.replies = [{ text: 'Go on.' }];
+      await run(session.id, 'Next.');
+      expect(JSON.stringify(models.calls.at(-1)?.prompt)).toContain(
+        'Mode: discussion.',
+      );
+    });
+  });
 });

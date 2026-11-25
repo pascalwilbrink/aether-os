@@ -20,10 +20,15 @@ import {
 import { ProjectsService } from '@hephaestus/tenancy';
 
 import type { Round } from './deliberation.js';
+import type { SessionMode } from './modes.js';
 import type { SessionHistoryMessage } from './session-agent.js';
 import { SessionMessagesService } from './session-messages.service.js';
 import { SessionSubjects } from './session-subjects.js';
-import { SessionBusyError, SessionEndedError } from './session.errors.js';
+import {
+  SessionBusyError,
+  SessionEndedError,
+  SessionModeInvalidError,
+} from './session.errors.js';
 import { SessionEntity, type SessionEndedReason } from './session.entity.js';
 import { SessionMapper } from './session.mapper.js';
 
@@ -134,6 +139,42 @@ export class SessionsService {
     return this.messages.page(sessionId, page);
   }
 
+  /**
+   * Switches a council session's mode (the person's choice), among those
+   * its council allows; not while it answers.
+   */
+  @Transactional()
+  async setMode(
+    organizationId: string,
+    projectId: string,
+    sessionId: string,
+    mode: SessionMode,
+  ): Promise<ApiTypes.SessionResponse> {
+    const session = await this.load(organizationId, projectId, sessionId, true);
+    if (!session.councilVersionId) {
+      throw new SessionModeInvalidError('Only a council session has modes.');
+    }
+    if (session.status === 'ended') {
+      throw new SessionEndedError(sessionId);
+    }
+    if (session.mode === mode) {
+      return this.mapper.toResponse(session);
+    }
+    if (this.mapper.running(session)) {
+      throw new SessionBusyError(sessionId);
+    }
+    const problem = await this.subjects.modeProblem(
+      organizationId,
+      session.councilVersionId,
+      mode,
+    );
+    if (problem) {
+      throw new SessionModeInvalidError(problem);
+    }
+    session.mode = mode;
+    return this.mapper.toResponse(await this.sessions.save(session));
+  }
+
   /** A council session's deliberation rounds, oldest first. */
   async roundsOf(
     organizationId: string,
@@ -222,6 +263,7 @@ export class SessionsService {
     produced: readonly SessionHistoryMessage[],
     invited: ReadonlySet<string> = new Set(),
     rounds: readonly Round[] = [],
+    mode: SessionMode | null = null,
   ): Promise<void> {
     const session = await this.sessions.findOne({
       where: { id: sessionId },
@@ -246,6 +288,9 @@ export class SessionsService {
       session.members = session.members.map((member) =>
         invited.has(member.agentId) ? { ...member, invited: true } : member,
       );
+    }
+    if (mode && session.councilId) {
+      session.mode = mode;
     }
     session.runningSince = null;
     session.lastActivityAt = now;

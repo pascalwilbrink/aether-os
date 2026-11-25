@@ -443,6 +443,19 @@ export async function listDeliberationRounds(
   return page.items;
 }
 
+export const setSessionMode = (
+  token: string,
+  organizationId: string,
+  projectId: string,
+  sessionId: string,
+  mode: NonNullable<AgentSession["mode"]>,
+) =>
+  hephaestus<AgentSession>(
+    `${sessionsOf(organizationId, projectId)}/${sessionId}/mode`,
+    token,
+    { method: "POST", body: { mode } },
+  );
+
 export const endSession = (
   token: string,
   organizationId: string,

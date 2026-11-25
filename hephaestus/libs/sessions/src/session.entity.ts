@@ -7,6 +7,8 @@ import {
   VersionColumn,
 } from 'typeorm';
 
+import type { SessionMode } from './modes.js';
+
 export type SessionStatus = 'active' | 'ended';
 export type SessionEndedReason = 'closed' | 'idle';
 
@@ -29,6 +31,10 @@ export interface SessionMemberState {
  */
 @Entity({ name: 'sessions' })
 @Check('ck_sessions_status', `status IN ('active', 'ended')`)
+@Check(
+  'ck_sessions_mode',
+  `mode IS NULL OR mode IN ('direct', 'facilitated', 'discussion', 'planning', 'delegation')`,
+)
 @Check(
   'ck_sessions_ended_reason',
   `ended_reason IS NULL OR ended_reason IN ('closed', 'idle')`,
@@ -67,6 +73,10 @@ export class SessionEntity {
 
   @Column({ type: 'jsonb', default: () => `'[]'` })
   members: SessionMemberState[];
+
+  /** A council session's current way of working; null in an agent session. */
+  @Column({ type: 'text', nullable: true })
+  mode: SessionMode | null;
 
   /** The person's `sub`. */
   @Column({ type: 'text' })
