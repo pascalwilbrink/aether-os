@@ -18,6 +18,8 @@ import { sse } from './agui.js';
 import { CreateSessionRequest } from './dto/create-session.request.js';
 import { ListSessionsQuery } from './dto/list-sessions.query.js';
 import { RunAgentInput } from './dto/run-agent-input.js';
+import { DeliberationRoundPage } from './dto/deliberation-round-page.response.js';
+import { DeliberationRoundsQuery } from './dto/deliberation-rounds.query.js';
 import { SessionMessagePage } from './dto/session-message-page.response.js';
 import { SessionMessagesQuery } from './dto/session-messages.query.js';
 import { SessionPage } from './dto/session-page.response.js';
@@ -77,6 +79,16 @@ export class SessionsController {
       sessionId,
       query,
     );
+  }
+
+  @Get(':sessionId/rounds')
+  @RequirePermission('session:use', IN_PROJECT)
+  @ZodSerializerDto(DeliberationRoundPage)
+  rounds(
+    @Param() { organizationId, projectId, sessionId }: SessionParams,
+    @Query() query: DeliberationRoundsQuery,
+  ) {
+    return this.sessions.roundsOf(organizationId, projectId, sessionId, query);
   }
 
   @Post(':sessionId/end')

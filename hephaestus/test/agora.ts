@@ -264,6 +264,12 @@ export async function publishedCouncil(
     facilitatorId: string;
     members: TestCouncilMember[];
     allowDirectInteraction?: boolean;
+    allowDiscussion?: boolean;
+    discussion?: Partial<{
+      maxRounds: number;
+      allowAgentResponses: boolean;
+      requireFacilitatorConclusion: boolean;
+    }>;
   },
 ): Promise<{ councilId: string; versionId: string }> {
   const councilId = uuidv7();
@@ -302,7 +308,7 @@ export async function publishedCouncil(
         settings: {
           defaultMode: 'facilitated',
           allowDirectInteraction: fields.allowDirectInteraction ?? true,
-          allowDiscussion: true,
+          allowDiscussion: fields.allowDiscussion ?? true,
           allowPlanning: true,
           allowDelegation: false,
           requireSynthesis: true,
@@ -311,6 +317,7 @@ export async function publishedCouncil(
           maxRounds: 3,
           allowAgentResponses: true,
           requireFacilitatorConclusion: true,
+          ...fields.discussion,
         },
         createdBy: 'user-1',
         createdAt: new Date().toISOString(),

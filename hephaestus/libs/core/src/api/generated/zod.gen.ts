@@ -924,7 +924,23 @@ export const zSessionMessage = z.object({
     content: z.string(),
     toolCalls: z.array(zSessionToolCall),
     toolCallId: z.string().nullable(),
+    roundId: z.uuid().nullable(),
     createdAt: zTimestamp
+});
+
+/**
+ * One round of a council's discussion (docs/councils.md, Deliberation rounds), opened and concluded by the facilitator.
+ */
+export const zDeliberationRound = z.object({
+    id: z.uuid(),
+    sessionId: z.uuid(),
+    number: z.int().gte(1),
+    question: z.string(),
+    participants: z.array(z.uuid()),
+    status: z.enum(['open', 'concluded']),
+    conclusion: z.string().nullable(),
+    openedAt: zTimestamp,
+    concludedAt: z.iso.datetime().nullable()
 });
 
 export const zAguiMessage = z.object({
@@ -1008,6 +1024,10 @@ export const zExecutionPage = zPageMeta.and(z.object({
 
 export const zSessionPage = zPageMeta.and(z.object({
     items: z.array(zSessionResponse)
+}));
+
+export const zDeliberationRoundPage = zPageMeta.and(z.object({
+    items: z.array(zDeliberationRound)
 }));
 
 export const zSessionMessagePage = zPageMeta.and(z.object({
@@ -1629,6 +1649,22 @@ export const zListSessionMessagesQuery = z.object({
  * Oldest first
  */
 export const zListSessionMessagesResponse = zSessionMessagePage;
+
+export const zListDeliberationRoundsPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    sessionId: z.uuid()
+});
+
+export const zListDeliberationRoundsQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Oldest first
+ */
+export const zListDeliberationRoundsResponse = zDeliberationRoundPage;
 
 export const zEndSessionPath = z.object({
     organizationId: z.uuid(),

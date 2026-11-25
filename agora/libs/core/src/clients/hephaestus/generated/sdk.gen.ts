@@ -82,6 +82,9 @@ import type {
   GetWorkspaceData,
   GetWorkspaceErrors,
   GetWorkspaceResponses,
+  ListDeliberationRoundsData,
+  ListDeliberationRoundsErrors,
+  ListDeliberationRoundsResponses,
   ListExecutionEventsData,
   ListExecutionEventsErrors,
   ListExecutionEventsResponses,
@@ -1058,6 +1061,26 @@ export const listSessionMessages = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/messages',
+    ...options,
+  });
+
+/**
+ * A council session's deliberation rounds (docs/councils.md), oldest first; none in an agent session.
+ */
+export const listDeliberationRounds = <ThrowOnError extends boolean = false>(
+  options: Options<ListDeliberationRoundsData, ThrowOnError>,
+): RequestResult<
+  ListDeliberationRoundsResponses,
+  ListDeliberationRoundsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListDeliberationRoundsResponses,
+    ListDeliberationRoundsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/rounds',
     ...options,
   });
 

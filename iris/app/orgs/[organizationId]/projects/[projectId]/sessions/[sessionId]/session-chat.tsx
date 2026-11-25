@@ -13,19 +13,31 @@ import { useRouter } from "next/navigation";
 import { createContext, useContext, useState } from "react";
 
 import { useSessionRunEvents } from "@/app/components/session-run-events";
-import type { AgentSessionMessage, SessionAuthor, SessionMember } from "@/lib/api";
-import { authorLabel, authorsOf, copilotKitPath, SESSION_HEADER } from "@/lib/sessions";
+import type {
+  AgentSessionMessage,
+  DeliberationRound,
+  SessionAuthor,
+  SessionMember,
+} from "@/lib/api";
+import {
+  authorLabel,
+  authorsOf,
+  copilotKitPath,
+  roundsOfMessages,
+  SESSION_HEADER,
+} from "@/lib/sessions";
 
 import type { ProjectRef } from "../../actions";
 
 /** The one agent CopilotKit talks to on this page: the session. */
 const AGENT_ID = "session";
 
-/** Who wrote each message, and how to name them. */
+/** Who wrote each message, how to name them, and the round an answer is in. */
 const Authors = createContext<{
   authors: ReadonlyMap<string, SessionAuthor>;
   label: (author: SessionAuthor) => string;
-}>({ authors: new Map(), label: () => "" });
+  roundOf: (messageId: string) => number | null;
+}>({ authors: new Map(), label: () => "", roundOf: () => null });
 
 /**
  * The conversation, on CopilotKit (`docs/interaction.md`): its runtime is
@@ -41,6 +53,7 @@ export function SessionChat({
   project,
   sessionId,
   initial,
+  rounds = [],
   agentName,
   members,
   ended,
@@ -48,6 +61,8 @@ export function SessionChat({
   project: ProjectRef;
   sessionId: string;
   initial: AgentSessionMessage[];
+  /** A council session's rounds so far. */
+  rounds?: DeliberationRound[];
   agentName: string;
   members: SessionMember[];
   ended: boolean;
@@ -69,6 +84,7 @@ export function SessionChat({
         <Conversation
           sessionId={sessionId}
           initial={initial}
+          rounds={rounds}
           agentName={agentName}
           members={members}
           ended={ended}
@@ -105,6 +121,7 @@ export function SessionChat({
 function Conversation({
   sessionId,
   initial,
+  rounds,
   agentName,
   members,
   ended,
@@ -112,6 +129,7 @@ function Conversation({
 }: {
   sessionId: string;
   initial: AgentSessionMessage[];
+  rounds: DeliberationRound[];
   agentName: string;
   members: SessionMember[];
   ended: boolean;
@@ -119,9 +137,19 @@ function Conversation({
 }) {
   const router = useRouter();
   const [authors, setAuthors] = useState(() => authorsOf(initial));
+  const [messageRounds, setMessageRounds] = useState(() => roundsOfMessages(initial));
+  const [roundNumbers, setRoundNumbers] = useState(
+    () => new Map(rounds.map((round) => [round.id, round.number])),
+  );
   useSessionRunEvents(AGENT_ID, {
-    onAuthor: (messageId, author) =>
-      setAuthors((current) => new Map(current).set(messageId, author)),
+    onAuthor: (messageId, author, roundId) => {
+      setAuthors((current) => new Map(current).set(messageId, author));
+      if (roundId) {
+        setMessageRounds((current) => new Map(current).set(messageId, roundId));
+      }
+    },
+    onRound: (roundId, number) =>
+      setRoundNumbers((current) => new Map(current).set(roundId, number)),
     onFailure,
     // The stored conversation and the session's state (members invited).
     onFinalized: () => router.refresh(),
@@ -129,6 +157,10 @@ function Conversation({
   const context = {
     authors,
     label: (author: SessionAuthor) => authorLabel(author, { agent: agentName, members }),
+    roundOf: (messageId: string) => {
+      const roundId = messageRounds.get(messageId);
+      return roundId ? (roundNumbers.get(roundId) ?? null) : null;
+    },
   };
   return (
     <Authors.Provider value={context}>
@@ -149,8 +181,9 @@ function Conversation({
 
 /** An assistant message, with who wrote it above it; members' stand out. */
 function AuthoredAssistantMessage(props: CopilotChatAssistantMessageProps) {
-  const { authors, label } = useContext(Authors);
+  const { authors, label, roundOf } = useContext(Authors);
   const author = authors.get(props.message.id);
+  const round = roundOf(props.message.id);
   return (
     <div
       className={
@@ -160,7 +193,10 @@ function AuthoredAssistantMessage(props: CopilotChatAssistantMessageProps) {
       }
     >
       {author && (
-        <p className="mb-1 text-xs font-medium text-zinc-500">{label(author)}</p>
+        <p className="mb-1 text-xs font-medium text-zinc-500">
+          {round ? `Round ${round} · ` : ""}
+          {label(author)}
+        </p>
       )}
       <CopilotChatAssistantMessage {...props} />
     </div>
@@ -191,7 +227,11 @@ const TOOL_RENDERERS = [
             ? "Asked a member"
             : name === "invite_members"
               ? "Invited members"
-              : `Used ${name}`}
+              : name === "start_round"
+                ? "Started a round"
+                : name === "conclude_round"
+                  ? "Concluded the round"
+                  : `Used ${name}`}
           {status === "complete" ? "" : "…"}
         </summary>
         <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all">

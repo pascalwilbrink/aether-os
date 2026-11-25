@@ -13,6 +13,7 @@ import {
   type SessionHistoryMessage,
   type SessionTurn,
 } from './session-agent.js';
+import { Deliberation } from './deliberation.js';
 import { SessionMemberInvalidError } from './session.errors.js';
 import { SessionTokens } from './session-tokens.js';
 import { SESSION_OPTIONS, type SessionOptions } from './session.options.js';
@@ -59,7 +60,7 @@ export class SessionRunsService {
       sessionId,
       input.forwardedProps?.memberAgentId,
     );
-    const { session, history } = await this.sessions.startRun(
+    const { session, history, rounds } = await this.sessions.startRun(
       organizationId,
       projectId,
       sessionId,
@@ -91,7 +92,11 @@ export class SessionRunsService {
         session.agentId,
         session.agentVersionId,
       );
-      if (session.councilId) {
+      if (session.councilId && session.councilVersionId) {
+        const councilVersion = await this.councils.version(
+          organizationId,
+          session.councilVersionId,
+        );
         const members: CouncilMemberForRun[] = [];
         for (const member of session.members) {
           members.push({
@@ -103,7 +108,21 @@ export class SessionRunsService {
             ),
           });
         }
-        council = { members, addressed };
+        council = {
+          members,
+          addressed,
+          deliberation: new Deliberation(
+            {
+              allowed: councilVersion.settings.allowDiscussion,
+              maxRounds: councilVersion.discussion.maxRounds,
+              allowAgentResponses:
+                councilVersion.discussion.allowAgentResponses,
+              requireConclusion:
+                councilVersion.discussion.requireFacilitatorConclusion,
+            },
+            rounds,
+          ),
+        };
       }
       const first = addressed
         ? (council?.members.find((member) => member.agentId === addressed)
@@ -167,7 +186,12 @@ export class SessionRunsService {
           });
         } finally {
           clearTimeout(timer);
-          await this.sessions.finishRun(sessionId, produced, invited);
+          await this.sessions.finishRun(
+            sessionId,
+            produced,
+            invited,
+            council?.deliberation.changed() ?? [],
+          );
         }
       },
     };

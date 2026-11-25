@@ -26,6 +26,7 @@ import { ExecutionEventEntity } from '../libs/runner/src/execution-event.entity.
 import { CouncilVersionEntity } from '../libs/councils/src/council-version.entity.js';
 import { CouncilEntity } from '../libs/councils/src/council.entity.js';
 import { SessionMessageEntity } from '../libs/sessions/src/session-message.entity.js';
+import { DeliberationRoundEntity } from '../libs/sessions/src/deliberation-round.entity.js';
 import { SessionEntity } from '../libs/sessions/src/session.entity.js';
 import { TaskEntity } from '../libs/tasks/src/task.entity.js';
 import { WorkspaceEntity } from '../libs/workspaces/src/workspace.entity.js';
@@ -73,6 +74,7 @@ export default async function setup(project: TestProject) {
         CouncilVersionEntity,
         SessionEntity,
         SessionMessageEntity,
+        DeliberationRoundEntity,
       ],
     }),
   );

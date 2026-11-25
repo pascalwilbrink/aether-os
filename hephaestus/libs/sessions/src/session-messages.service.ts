@@ -11,6 +11,8 @@ import {
 } from '@hephaestus/core';
 
 import type { SessionHistoryMessage } from './session-agent.js';
+import { DeliberationRoundEntity } from './deliberation-round.entity.js';
+import type { Round } from './deliberation.js';
 import { SessionMessageEntity } from './session-message.entity.js';
 import { SessionMapper } from './session.mapper.js';
 
@@ -23,8 +25,41 @@ export class SessionMessagesService {
   constructor(
     @InjectRepository(SessionMessageEntity)
     private readonly messages: Repository<SessionMessageEntity>,
+    @InjectRepository(DeliberationRoundEntity)
+    private readonly rounds: Repository<DeliberationRoundEntity>,
     private readonly mapper: SessionMapper,
   ) {}
+
+  /** A council session's deliberation rounds, oldest first. */
+  async roundsPage(
+    sessionId: string,
+    page: PageRequest,
+  ): Promise<Page<ApiTypes.DeliberationRound>> {
+    const entities = await findPage(
+      this.rounds,
+      { where: { sessionId }, sortBy: 'number', direction: 'ASC' },
+      page,
+    );
+    return mapPage(entities, (entity) => this.mapper.toRoundResponse(entity));
+  }
+
+  /** Every round of the session, for a run. */
+  async roundsOf(sessionId: string): Promise<Round[]> {
+    const entities = await this.rounds.find({
+      where: { sessionId },
+      order: { number: 'ASC' },
+    });
+    return entities.map((entity) => this.mapper.toRound(entity));
+  }
+
+  /** Keeps the rounds a run opened or concluded (before its messages, which name them). */
+  async saveRounds(sessionId: string, rounds: readonly Round[]): Promise<void> {
+    if (rounds.length > 0) {
+      await this.rounds.save(
+        rounds.map((round) => this.mapper.toRoundEntity(sessionId, round)),
+      );
+    }
+  }
 
   async page(
     sessionId: string,

@@ -4,7 +4,7 @@ A **council** is a persistent, configurable virtual team: a facilitator, special
 
 Councils are one of Agora's central concepts, next to agents. They aren't a kind of agent, and they aren't a wrapper around a Mastra workflow.
 
-Status: **proposal**, steps 1 and 2 built (Building it, below): councils and their versions in Agora, Hephaestus's copy and Iris's Councils page; council sessions in Hephaestus (the facilitator, `ask_member`, `invite_members`, members addressed directly, messages with authors). Iris's session page, discussion, planning and decisions are still to come.
+Status: **proposal**, steps 1 and 2 and the deliberation rounds of step 3 built (Building it, below): councils and their versions in Agora, Hephaestus's copy and Iris's Councils page; council sessions in Hephaestus (the facilitator, `ask_member`, `invite_members`, members addressed directly, messages with authors) and Iris's session page; deliberation rounds (`start_round`, `conclude_round`). Modes, synthesis, planning and decisions are still to come.
 
 ## Principles
 
@@ -216,7 +216,9 @@ Kerykes tells people when a session waits for them: a plan to review, a question
    - **Direct:** with `allowDirectInteraction`, a run with `forwardedProps.memberAgentId` is answered by that member (who is then taking part); otherwise, or for an agent that isn't a member, `SESSION_MEMBER_INVALID` before anything is kept.
    - **What members see:** the conversation as a transcript (who said what, without tool calls; the most recent 40,000 characters, earlier parts left out with a note), then the question. A summary by the facilitator for long sessions is still to come. The facilitator's history keeps members' answers to its calls in the calls' results, and shows answers to the person's direct questions as what the member said.
    - Frontend tools are offered to the facilitator, not to members. Modes beyond these two, and a session's current `mode`, come with discussion (step 3); automations don't start council sessions yet.
-3. **Discussion:** deliberation rounds and conclusions, synthesis.
+3. **Discussion:** deliberation rounds and conclusions (built), synthesis and modes (to come).
+   - **Rounds (built):** with `allowDiscussion`, the facilitator also gets `start_round(question, participants, reason?)` and `conclude_round(conclusion)`. `start_round` takes the required members and the ones named (conditional and optional ones are invited by naming them; anyone who isn't a member is refused), announces the round (AG-UI `CUSTOM` `round-started`: round, number, question, participants), and runs each participant's turn in that order, as `ask_member` does (their own instructions, model, tools and session token), with the round's question and a note that it's a round: with `allowAgentResponses` each sees the earlier answers (the transcript includes them) and is asked to respond to them; without, each answers from the conversation as it was when the round started. Their messages carry the round (`roundId`, also in `message-author`), and the result is every answer (or why one failed), the rounds left and what to do next. `conclude_round` records the conclusion (`round-concluded`). Refused, with the reason told to the facilitator: a round while one is open when `requireFacilitatorConclusion` (otherwise the open one is closed without a conclusion), a round past `discussion.maxRounds` in the session, concluding with no round open. The facilitator's instructions say how rounds work, how many are left and which is open; on later turns its history has a round's answers only in `start_round`'s result. Rounds are kept with the run's messages (`deliberation_rounds`: number, question, participants in order, `open` / `concluded`, conclusion; `GET …/sessions/{id}/rounds`), and a concluded one publishes `deliberation-round.concluded`. Iris's session page shows each answer's round in the conversation and lists the rounds with their conclusions.
+   - **Still to come:** modes (`set_mode`, a session's current `mode`), `write_synthesis` and `requireSynthesis`, the person asking for another round or stopping the discussion from Iris (they can already ask in words), and members answering in parallel when `allowAgentResponses` is off (they answer in turn for now: below).
 4. **Planning and delegation:** milestones in `task_plan`, `propose_plan`, review and approval creating tasks, assignment provenance, following tasks in the session.
 5. **Decisions:** `record_decision`, Seshat's `rationale`, `alternatives` and `council` source.
 
@@ -224,7 +226,7 @@ Each step is usable on its own; sessions (step 2) depend on Hephaestus's session
 
 ## Open questions
 
-- Should members answer in parallel when `allowAgentResponses` is off (faster and cheaper), or always in turn so the transcript reads naturally?
+- Should members answer in parallel when `allowAgentResponses` is off (faster, the same cost), or always in turn so the transcript reads naturally? Built: in turn, since a member's answer streams into the conversation as it's written.
 - How much of the session's history does each member see? Built: everything, as a transcript, cut to the most recent part when long; a summary by the facilitator once it gets long is still to come.
 - Can a council be scoped to projects (only usable in some), or is organization-wide enough?
 - Should a session be startable by an automation (Kairos), e.g. "convene the architecture council on issues labelled `rfc`", with a person reviewing its plan? Not before planning and delegation (step 4).

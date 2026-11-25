@@ -53,6 +53,21 @@ export function memberSection(
   ].join('\n');
 }
 
+/** What a member answering in a deliberation round is told. */
+export function roundSection(
+  round: { number: number },
+  independent: boolean,
+): string {
+  return [
+    `### Round ${round.number} of the council's discussion`,
+    '',
+    "The facilitator has put the question below to the council. Give your view from your area of expertise: what you'd do and why, and what worries you.",
+    independent
+      ? "Answer on your own: you don't see the other members' answers in this round."
+      : "Earlier answers in this round are in the transcript: say where you agree, where you don't and why, and what they missed. Don't just repeat them.",
+  ].join('\n');
+}
+
 /**
  * The conversation as a transcript for a member: who said what, without
  * tool calls, the most recent `TRANSCRIPT_MAX_CHARS` of it.

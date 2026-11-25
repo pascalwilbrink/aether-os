@@ -19,6 +19,7 @@ import {
 } from '@hephaestus/core';
 import { ProjectsService } from '@hephaestus/tenancy';
 
+import type { Round } from './deliberation.js';
 import type { SessionHistoryMessage } from './session-agent.js';
 import { SessionMessagesService } from './session-messages.service.js';
 import { SessionSubjects } from './session-subjects.js';
@@ -30,6 +31,8 @@ import { SessionMapper } from './session.mapper.js';
 export interface StartedRun {
   session: SessionEntity;
   history: SessionHistoryMessage[];
+  /** A council session's deliberation rounds so far. */
+  rounds: Round[];
 }
 
 /**
@@ -131,6 +134,17 @@ export class SessionsService {
     return this.messages.page(sessionId, page);
   }
 
+  /** A council session's deliberation rounds, oldest first. */
+  async roundsOf(
+    organizationId: string,
+    projectId: string,
+    sessionId: string,
+    page: PageRequest,
+  ): Promise<Page<ApiTypes.DeliberationRound>> {
+    await this.load(organizationId, projectId, sessionId);
+    return this.messages.roundsPage(sessionId, page);
+  }
+
   /** Ends it (`closed`); an ended session is returned as it is. */
   @Transactional()
   async end(
@@ -192,7 +206,10 @@ export class SessionsService {
     session.runningSince = now;
     session.lastActivityAt = now;
     await this.sessions.save(session);
-    return { session, history: [...history, ...added] };
+    const rounds = session.councilId
+      ? await this.messages.roundsOf(sessionId)
+      : [];
+    return { session, history: [...history, ...added], rounds };
   }
 
   /**
@@ -204,6 +221,7 @@ export class SessionsService {
     sessionId: string,
     produced: readonly SessionHistoryMessage[],
     invited: ReadonlySet<string> = new Set(),
+    rounds: readonly Round[] = [],
   ): Promise<void> {
     const session = await this.sessions.findOne({
       where: { id: sessionId },
@@ -213,6 +231,7 @@ export class SessionsService {
       return;
     }
     const now = new Date();
+    await this.messages.saveRounds(sessionId, rounds);
     await this.messages.append(
       sessionId,
       produced.filter(
@@ -231,6 +250,31 @@ export class SessionsService {
     session.runningSince = null;
     session.lastActivityAt = now;
     await this.sessions.save(session);
+    for (const round of rounds) {
+      if (
+        round.status === 'concluded' &&
+        session.councilId &&
+        session.councilVersionId
+      ) {
+        await this.events.emit({
+          eventType: 'deliberation-round.concluded',
+          aggregateId: session.id,
+          aggregateVersion: session.version,
+          organizationId: session.organizationId,
+          projectId: session.projectId,
+          payload: {
+            sessionId: session.id,
+            councilId: session.councilId,
+            councilVersionId: session.councilVersionId,
+            roundId: round.id,
+            number: round.number,
+            question: round.question,
+            participants: round.participants,
+            conclusion: round.conclusion,
+          },
+        });
+      }
+    }
   }
 
   /**

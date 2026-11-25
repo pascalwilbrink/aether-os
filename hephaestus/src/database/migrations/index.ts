@@ -35,6 +35,7 @@ import { UntrustedInputs1795440000000 } from './1795440000000-UntrustedInputs.js
 import { Councils1795450000000 } from './1795450000000-Councils.js';
 import { Sessions1795460000000 } from './1795460000000-Sessions.js';
 import { CouncilSessions1795470000000 } from './1795470000000-CouncilSessions.js';
+import { DeliberationRounds1795480000000 } from './1795480000000-DeliberationRounds.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -80,4 +81,5 @@ export const migrations = [
   Councils1795450000000,
   Sessions1795460000000,
   CouncilSessions1795470000000,
+  DeliberationRounds1795480000000,
 ];

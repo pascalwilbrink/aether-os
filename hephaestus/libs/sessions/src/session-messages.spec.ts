@@ -180,6 +180,36 @@ describe('a council session', () => {
     expect(history[5].content).toContain('It fits.');
   });
 
+  it("leaves a round's answers in start_round's result, also when the turn didn't end with it", () => {
+    const round = [
+      message({ messageId: 'u-r', role: 'user', content: 'Discuss.' }),
+      message({
+        messageId: 'f-r',
+        role: 'assistant',
+        author: facilitator,
+        toolCalls: [{ id: 'round-1', name: 'start_round', arguments: '{}' }],
+      }),
+      message({
+        messageId: 'm-r',
+        role: 'assistant',
+        author: architect,
+        content: 'Postgres, in round one.',
+        roundId: 'r-1',
+      }),
+      message({
+        messageId: 't-r',
+        role: 'tool',
+        author: facilitator,
+        toolCallId: 'round-1',
+        toolName: 'start_round',
+        content: '{"round":1,"answers":[]}',
+      }),
+    ];
+    const history = JSON.stringify(modelMessages(round, members));
+    expect(history).not.toContain('answered the person');
+    expect(history).not.toContain('Postgres, in round one.');
+  });
+
   it('gives members a transcript of who said what', () => {
     const text = transcript(conversation, members);
     expect(text).toContain('Person: Which database?');

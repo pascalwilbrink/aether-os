@@ -32,6 +32,7 @@ export type AgentSession = ApiSchema<"SessionResponse">;
 export type AgentSessionMessage = ApiSchema<"SessionMessage">;
 export type SessionAuthor = ApiSchema<"SessionMessageAuthor">;
 export type SessionMember = ApiSchema<"SessionMember">;
+export type DeliberationRound = ApiSchema<"DeliberationRound">;
 export type ExecutionEvent = ApiSchema<"ExecutionEvent">;
 export type ExecutionEventPage = ApiSchema<"ExecutionEventPage">;
 export type Artifact = ApiSchema<"ArtifactResponse">;

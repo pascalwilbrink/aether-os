@@ -347,4 +347,304 @@ describe('Council sessions (e2e)', () => {
     // Nothing was kept for the refused run.
     expect(await messages(other.id)).toEqual([]);
   });
+
+  describe('deliberation rounds', () => {
+    const roundCouncil = (
+      discussion?: Parameters<typeof publishedCouncil>[2]['discussion'],
+      allowDiscussion = true,
+    ) =>
+      publishedCouncil(app, orgId, {
+        facilitatorId,
+        allowDiscussion,
+        discussion,
+        members: [
+          { agentId: architectId, participation: 'required', role: 'design' },
+          {
+            agentId: securityId,
+            participation: 'conditional',
+            when: 'Anything touching authentication',
+          },
+        ],
+      });
+
+    const results = (events: AguiEvent[]) =>
+      events
+        .filter((event) => event.type === 'TOOL_CALL_RESULT')
+        .map(
+          (event) =>
+            JSON.parse(event.content as string) as Record<string, unknown>,
+        );
+
+    it('puts a question to the members in turn, and keeps the round with its conclusion', async () => {
+      const { councilId, versionId } = await roundCouncil();
+      const session = await start(councilId);
+      models.replies = [
+        {
+          toolCall: {
+            tool: 'start_round',
+            input: {
+              question: 'How should people sign in?',
+              participants: [securityId],
+              reason: 'It touches authentication.',
+            },
+          },
+        },
+        { text: 'Passkeys, with a password fallback.' },
+        { text: 'Agreed on passkeys; rate-limit the fallback.' },
+        {
+          toolCall: {
+            tool: 'conclude_round',
+            input: {
+              conclusion: 'Passkeys first; a rate-limited password fallback.',
+            },
+          },
+        },
+        { text: 'The council recommends passkeys.' },
+      ];
+      const events = await run(session.id, 'Decide how people sign in.');
+
+      const custom = events.filter((event) => event.type === 'CUSTOM');
+      const started = custom.find((event) => event.name === 'round-started');
+      expect(started?.value).toMatchObject({
+        number: 1,
+        question: 'How should people sign in?',
+        // The required member first, then the one named.
+        participants: [architectId, securityId],
+      });
+      const roundId = ((started as AguiEvent).value as { roundId: string })
+        .roundId;
+      // Members' answers are announced as the round's.
+      const memberAuthors = custom
+        .filter(
+          (event) =>
+            event.name === 'message-author' &&
+            (event.value as { author: { kind: string } }).author.kind ===
+              'member',
+        )
+        .map((event) => (event.value as { roundId?: string }).roundId);
+      expect(memberAuthors).toEqual([roundId, roundId]);
+      expect(
+        custom.find((event) => event.name === 'round-concluded')?.value,
+      ).toEqual({
+        roundId,
+        number: 1,
+        conclusion: 'Passkeys first; a rate-limited password fallback.',
+      });
+      const [round, concluded] = results(events);
+      expect(round).toMatchObject({
+        round: 1,
+        roundsLeft: 2,
+        answers: [
+          {
+            member: 'Architect',
+            answer: 'Passkeys, with a password fallback.',
+          },
+          {
+            member: 'Security',
+            answer: 'Agreed on passkeys; rate-limit the fallback.',
+          },
+        ],
+      });
+      expect(concluded).toEqual({ round: 1, concluded: true, roundsLeft: 2 });
+
+      // The facilitator was told how rounds work; the second member saw the
+      // first's answer (members respond to each other by default).
+      expect(JSON.stringify(models.calls[0].prompt)).toContain(
+        'Deliberation rounds',
+      );
+      expect(models.calls[0].tools?.map((tool) => tool.name)).toEqual(
+        expect.arrayContaining(['start_round', 'conclude_round']),
+      );
+      expect(JSON.stringify(models.calls[2].prompt)).toContain(
+        'Passkeys, with a password fallback.',
+      );
+      expect(JSON.stringify(models.calls[2].prompt)).toContain(
+        "Round 1 of the council's discussion",
+      );
+
+      // Kept: the round, the members' answers in it, the event, and the
+      // conditional member taking part from now on.
+      const rounds = (
+        await person.get(`${base}/${session.id}/rounds`).expect(200)
+      ).body.items as Record<string, unknown>[];
+      expect(rounds).toEqual([
+        expect.objectContaining({
+          id: roundId,
+          sessionId: session.id,
+          number: 1,
+          question: 'How should people sign in?',
+          participants: [architectId, securityId],
+          status: 'concluded',
+          conclusion: 'Passkeys first; a rate-limited password fallback.',
+          concludedAt: expect.any(String),
+        }),
+      ]);
+      const kept = (await person.get(`${base}/${session.id}/messages`)).body
+        .items as { author: { kind: string }; roundId: string | null }[];
+      expect(
+        kept
+          .filter((message) => message.author.kind === 'member')
+          .map((message) => message.roundId),
+      ).toEqual([roundId, roundId]);
+      expect(
+        kept
+          .filter((message) => message.author.kind !== 'member')
+          .every((message) => message.roundId === null),
+      ).toBe(true);
+      const [event] = (
+        (await app
+          .get(DataSource)
+          .query(
+            `SELECT message->'payload' AS payload FROM outbox WHERE routing_key = 'deliberation-round.concluded'`,
+          )) as { payload: Record<string, unknown> }[]
+      ).map((row) => row.payload);
+      expect(event).toEqual({
+        sessionId: session.id,
+        councilId,
+        councilVersionId: versionId,
+        roundId,
+        number: 1,
+        question: 'How should people sign in?',
+        participants: [architectId, securityId],
+        conclusion: 'Passkeys first; a rate-limited password fallback.',
+      });
+      const after = (await person.get(`${base}/${session.id}`)).body as {
+        members: { agentId: string; invited: boolean }[];
+      };
+      expect(
+        after.members.find((member) => member.agentId === securityId)?.invited,
+      ).toBe(true);
+    });
+
+    it('keeps members apart when they answer independently', async () => {
+      const { councilId } = await roundCouncil({ allowAgentResponses: false });
+      const session = await start(councilId);
+      models.replies = [
+        {
+          toolCall: {
+            tool: 'start_round',
+            input: { question: 'Which queue?', participants: [securityId] },
+          },
+        },
+        { text: 'RabbitMQ, it is already there.' },
+        { text: 'Whichever supports TLS.' },
+        { text: 'Two views.' },
+      ];
+      await run(session.id, 'Pick a queue.');
+      const second = JSON.stringify(models.calls[2].prompt);
+      expect(second).not.toContain('RabbitMQ, it is already there.');
+      expect(second).toContain("you don't see the other members' answers");
+    });
+
+    it('refuses rounds the council does not allow', async () => {
+      const { councilId } = await roundCouncil({ maxRounds: 1 });
+      const session = await start(councilId);
+      models.replies = [
+        {
+          toolCall: {
+            tool: 'start_round',
+            input: { question: 'First?', participants: [] },
+          },
+        },
+        { text: 'Yes.' },
+        {
+          toolCall: {
+            tool: 'start_round',
+            input: { question: 'Second?', participants: [] },
+          },
+        },
+        {
+          toolCall: {
+            tool: 'conclude_round',
+            input: { conclusion: 'Yes to the first.' },
+          },
+        },
+        {
+          toolCall: {
+            tool: 'start_round',
+            input: { question: 'Third?', participants: [] },
+          },
+        },
+        {
+          toolCall: {
+            tool: 'conclude_round',
+            input: { conclusion: 'Again.' },
+          },
+        },
+        {
+          toolCall: {
+            tool: 'start_round',
+            input: { question: 'Who?', participants: [facilitatorId] },
+          },
+        },
+        { text: 'Done.' },
+      ];
+      const events = await run(session.id, 'Discuss.');
+      const [, unconcluded, , pastMax, nothingOpen, notMember] =
+        results(events);
+      expect(unconcluded.refused).toContain('Round 1 is still open');
+      expect(pastMax.refused).toContain('has had its 1 rounds');
+      expect(nothingOpen.refused).toContain('No round is open');
+      expect(notMember.refused).toContain('Not members of this council');
+      const rounds = (await person.get(`${base}/${session.id}/rounds`)).body
+        .items as unknown[];
+      expect(rounds).toHaveLength(1);
+
+      // Without discussion, the facilitator has no round tools.
+      const { councilId: quiet } = await roundCouncil(undefined, false);
+      const other = await start(quiet);
+      models.replies = [{ text: 'Hello.' }];
+      await run(other.id, 'Hi.');
+      expect(
+        (models.calls.at(-1)?.tools ?? []).map((tool) => tool.name),
+      ).not.toContain('start_round');
+    });
+
+    it('closes an open round without a conclusion when the council does not require one', async () => {
+      const { councilId } = await roundCouncil({
+        requireFacilitatorConclusion: false,
+      });
+      const session = await start(councilId);
+      models.replies = [
+        {
+          toolCall: {
+            tool: 'start_round',
+            input: { question: 'One?', participants: [] },
+          },
+        },
+        { text: 'A.' },
+        {
+          toolCall: {
+            tool: 'start_round',
+            input: { question: 'Two?', participants: [] },
+          },
+        },
+        { text: 'B.' },
+        { text: 'Done.' },
+      ];
+      await run(session.id, 'Discuss.');
+      const rounds = (await person.get(`${base}/${session.id}/rounds`)).body
+        .items as {
+        number: number;
+        status: string;
+        conclusion: string | null;
+      }[];
+      expect(
+        rounds.map(({ number, status, conclusion }) => ({
+          number,
+          status,
+          conclusion,
+        })),
+      ).toEqual([
+        { number: 1, status: 'concluded', conclusion: null },
+        { number: 2, status: 'open', conclusion: null },
+      ]);
+      // A round left open is still open on the next turn.
+      models.replies = [{ text: 'Carrying on.' }];
+      await run(session.id, 'Go on.');
+      expect(JSON.stringify(models.calls.at(-1)?.prompt)).toContain(
+        'Round 2 is open',
+      );
+    });
+  });
 });

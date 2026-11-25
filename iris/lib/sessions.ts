@@ -1,6 +1,7 @@
 import type {
   AgentSession,
   AgentSessionMessage,
+  DeliberationRound,
   SessionAuthor,
   SessionMember,
 } from "./api";
@@ -137,6 +138,17 @@ export function aguiMessagesOf(
   });
 }
 
+/** The round each stored member's answer belongs to, by message ID. */
+export function roundsOfMessages(
+  stored: readonly AgentSessionMessage[],
+): Map<string, string> {
+  return new Map(
+    stored.flatMap((message) =>
+      message.roundId ? [[message.id, message.roundId] as const] : [],
+    ),
+  );
+}
+
 /** Who wrote each stored message, by its ID. */
 export function authorsOf(
   stored: readonly AgentSessionMessage[],
@@ -152,15 +164,41 @@ export function authorsOf(
 export function authorEvent(event: {
   name?: string;
   value?: unknown;
-}): { messageId: string; author: SessionAuthor } | null {
+}): { messageId: string; author: SessionAuthor; roundId: string | null } | null {
   const value = event.value as
-    | { messageId?: unknown; author?: SessionAuthor }
+    | { messageId?: unknown; author?: SessionAuthor; roundId?: unknown }
     | undefined;
   return event.name === "message-author" &&
     typeof value?.messageId === "string" &&
     value.author
-    ? { messageId: value.messageId, author: value.author }
+    ? {
+        messageId: value.messageId,
+        author: value.author,
+        roundId: typeof value.roundId === "string" ? value.roundId : null,
+      }
     : null;
+}
+
+/**
+ * A round starting or concluding in a run (Hephaestus's `round-started` and
+ * `round-concluded` events), or null for any other custom event.
+ */
+export function roundEvent(event: {
+  name?: string;
+  value?: unknown;
+}): { roundId: string; number: number } | null {
+  const value = event.value as { roundId?: unknown; number?: unknown } | undefined;
+  return (event.name === "round-started" || event.name === "round-concluded") &&
+    typeof value?.roundId === "string" &&
+    typeof value.number === "number"
+    ? { roundId: value.roundId, number: value.number }
+    : null;
+}
+
+/** A round's status, in words. */
+export function roundStatus(round: Pick<DeliberationRound, "status" | "conclusion">): string {
+  if (round.status === "open") return "Under way";
+  return round.conclusion ? "Concluded" : "Closed without a conclusion";
 }
 
 /**

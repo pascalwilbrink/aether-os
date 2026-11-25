@@ -3,9 +3,13 @@ import { Suspense } from "react";
 
 import { ActionButton } from "@/app/components/action-forms";
 import { getAgent, getCouncil } from "@/lib/api/agora";
-import { getSession, listSessionMessages } from "@/lib/api/hephaestus";
+import {
+  getSession,
+  listDeliberationRounds,
+  listSessionMessages,
+} from "@/lib/api/hephaestus";
 import { requireOrganization } from "@/lib/auth/current";
-import { participationLabel, sessionStatus } from "@/lib/sessions";
+import { participationLabel, roundStatus, sessionStatus } from "@/lib/sessions";
 import { formatTime } from "@/lib/tasks";
 
 import { endSessionAction } from "../actions";
@@ -31,12 +35,17 @@ async function Session({ params }: Props) {
     getSession(token, organizationId, projectId, sessionId),
     listSessionMessages(token, organizationId, projectId, sessionId),
   ]);
-  const [agent, council] = await Promise.all([
+  const [agent, council, rounds] = await Promise.all([
     getAgent(token, organizationId, session.agentId).catch(() => null),
     session.councilId
       ? getCouncil(token, organizationId, session.councilId).catch(() => null)
       : Promise.resolve(null),
+    session.councilId
+      ? listDeliberationRounds(token, organizationId, projectId, sessionId)
+      : Promise.resolve([]),
   ]);
+  const memberName = (agentId: string) =>
+    session.members.find((member) => member.agentId === agentId)?.name ?? "A member";
   const agentName = agent?.name ?? "The agent";
   const status = sessionStatus(session);
   const ended = session.status === "ended";
@@ -94,10 +103,39 @@ async function Session({ params }: Props) {
         </section>
       )}
 
+      {rounds.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="font-medium">Rounds</h2>
+          <ol className="space-y-2">
+            {rounds.map((round) => (
+              <li
+                key={round.id}
+                className="rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800"
+              >
+                <p>
+                  <span className="font-medium">Round {round.number}</span>
+                  <span className="text-zinc-600 dark:text-zinc-400">
+                    {" "}
+                    · {roundStatus(round)} · {round.participants.map(memberName).join(", ")}
+                  </span>
+                </p>
+                <p className="mt-1">{round.question}</p>
+                {round.conclusion && (
+                  <p className="mt-2 whitespace-pre-wrap border-l-4 border-indigo-300 pl-2 text-zinc-700 dark:border-indigo-700 dark:text-zinc-300">
+                    {round.conclusion}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
       <SessionChat
         project={{ organizationId, projectId }}
         sessionId={sessionId}
         initial={messages}
+        rounds={rounds}
         agentName={agentName}
         members={session.members}
         ended={ended}

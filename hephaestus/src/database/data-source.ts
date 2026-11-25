@@ -23,6 +23,7 @@ import { ToolServerEntity } from '../../libs/tools/src/tool-server.entity.js';
 import { ExecutionEntity } from '../../libs/runner/src/execution.entity.js';
 import { ExecutionEventEntity } from '../../libs/runner/src/execution-event.entity.js';
 import { SessionMessageEntity } from '../../libs/sessions/src/session-message.entity.js';
+import { DeliberationRoundEntity } from '../../libs/sessions/src/deliberation-round.entity.js';
 import { SessionEntity } from '../../libs/sessions/src/session.entity.js';
 import { TaskEntity } from '../../libs/tasks/src/task.entity.js';
 import { WorkspaceEntity } from '../../libs/workspaces/src/workspace.entity.js';
@@ -69,6 +70,7 @@ export default new DataSource(
       TaskTemplateVersionEntity,
       SessionEntity,
       SessionMessageEntity,
+      DeliberationRoundEntity,
     ],
   }),
 );
