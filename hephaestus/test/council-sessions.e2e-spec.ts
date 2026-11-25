@@ -797,7 +797,7 @@ describe('Council sessions (e2e)', () => {
         {
           toolCall: {
             tool: 'start_round',
-            input: { question: 'Which queue?' },
+            input: { question: 'Which queue?', participants: [] },
           },
         },
         { text: 'RabbitMQ: we run it already.' },
