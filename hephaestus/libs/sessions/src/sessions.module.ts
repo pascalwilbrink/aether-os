@@ -19,6 +19,7 @@ import { ToolServersService, ToolsModule } from '@hephaestus/tools';
 
 import { SessionAgent } from './session-agent.js';
 import { CouncilPlanEntity } from './council-plan.entity.js';
+import { SessionSynthesisEntity } from './session-synthesis.entity.js';
 import { CouncilPlansService } from './council-plans.service.js';
 import { DeliberationRoundEntity } from './deliberation-round.entity.js';
 import { SessionMessageEntity } from './session-message.entity.js';
@@ -45,6 +46,7 @@ import { SessionSubjects } from './session-subjects.js';
       SessionMessageEntity,
       DeliberationRoundEntity,
       CouncilPlanEntity,
+      SessionSynthesisEntity,
     ]),
     TenancyModule,
     AgentsModule,

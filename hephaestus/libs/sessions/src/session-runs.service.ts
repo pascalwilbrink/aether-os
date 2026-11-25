@@ -65,12 +65,8 @@ export class SessionRunsService {
       sessionId,
       input.forwardedProps?.memberAgentId,
     );
-    const { session, history, rounds, plans } = await this.sessions.startRun(
-      organizationId,
-      projectId,
-      sessionId,
-      input,
-    );
+    const { session, history, rounds, plans, syntheses } =
+      await this.sessions.startRun(organizationId, projectId, sessionId, input);
     // One session token per agent that speaks (Pylon meters each to its
     // agent), the first one now, so Pistis refusing is a 403.
     const tokens = new Map<string, Promise<string>>();
@@ -143,6 +139,11 @@ export class SessionRunsService {
             count: plans.length,
             proposed: [],
           },
+          synthesis: {
+            required: councilVersion.settings.requireSynthesis,
+            count: syntheses,
+            written: [],
+          },
         };
       }
       const first = addressed
@@ -207,14 +208,13 @@ export class SessionRunsService {
           });
         } finally {
           clearTimeout(timer);
-          await this.sessions.finishRun(
-            sessionId,
-            produced,
+          await this.sessions.finishRun(sessionId, produced, {
             invited,
-            council?.deliberation.changed() ?? [],
-            council?.modes.changed ? council.modes.current : null,
-            council?.planning.proposed ?? [],
-          );
+            rounds: council?.deliberation.changed() ?? [],
+            mode: council?.modes.changed ? council.modes.current : null,
+            plans: council?.planning.proposed ?? [],
+            syntheses: council?.synthesis.written ?? [],
+          });
         }
       },
     };

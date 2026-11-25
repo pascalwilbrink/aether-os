@@ -29,6 +29,8 @@ import { CouncilPlan, CouncilPlanPage } from './dto/council-plan.response.js';
 import { CouncilPlansQuery } from './dto/council-plans.query.js';
 import { PlanParams } from './dto/plan.params.js';
 import { SessionMessagePage } from './dto/session-message-page.response.js';
+import { SessionSynthesesQuery } from './dto/session-syntheses.query.js';
+import { SessionSynthesisPage } from './dto/session-synthesis-page.response.js';
 import { SetSessionModeRequest } from './dto/set-session-mode.request.js';
 import { SessionMessagesQuery } from './dto/session-messages.query.js';
 import { SessionPage } from './dto/session-page.response.js';
@@ -100,6 +102,21 @@ export class SessionsController {
     @Query() query: DeliberationRoundsQuery,
   ) {
     return this.sessions.roundsOf(organizationId, projectId, sessionId, query);
+  }
+
+  @Get(':sessionId/syntheses')
+  @RequirePermission('session:use', IN_PROJECT)
+  @ZodSerializerDto(SessionSynthesisPage)
+  syntheses(
+    @Param() { organizationId, projectId, sessionId }: SessionParams,
+    @Query() query: SessionSynthesesQuery,
+  ) {
+    return this.sessions.synthesesOf(
+      organizationId,
+      projectId,
+      sessionId,
+      query,
+    );
   }
 
   @Get(':sessionId/plans')

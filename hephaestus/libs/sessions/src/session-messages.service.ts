@@ -12,6 +12,8 @@ import {
 
 import type { SessionHistoryMessage } from './session-agent.js';
 import { CouncilPlanEntity } from './council-plan.entity.js';
+import type { WrittenSynthesis } from './decisions.js';
+import { SessionSynthesisEntity } from './session-synthesis.entity.js';
 import { DeliberationRoundEntity } from './deliberation-round.entity.js';
 import type { Round } from './deliberation.js';
 import type { ProposedPlan } from './plans.js';
@@ -31,6 +33,8 @@ export class SessionMessagesService {
     private readonly rounds: Repository<DeliberationRoundEntity>,
     @InjectRepository(CouncilPlanEntity)
     private readonly plans: Repository<CouncilPlanEntity>,
+    @InjectRepository(SessionSynthesisEntity)
+    private readonly syntheses: Repository<SessionSynthesisEntity>,
     private readonly mapper: SessionMapper,
   ) {}
 
@@ -45,6 +49,40 @@ export class SessionMessagesService {
       page,
     );
     return mapPage(entities, (entity) => this.mapper.toRoundResponse(entity));
+  }
+
+  /** A council session's syntheses, oldest first. */
+  async synthesesPage(
+    sessionId: string,
+    page: PageRequest,
+  ): Promise<Page<ApiTypes.SessionSynthesis>> {
+    const entities = await findPage(
+      this.syntheses,
+      { where: { sessionId }, sortBy: 'number', direction: 'ASC' },
+      page,
+    );
+    return mapPage(entities, (entity) =>
+      this.mapper.toSynthesisResponse(entity),
+    );
+  }
+
+  /** How many syntheses the session has, for a run. */
+  synthesisCount(sessionId: string): Promise<number> {
+    return this.syntheses.count({ where: { sessionId } });
+  }
+
+  /** Keeps the syntheses a run wrote. */
+  async saveSyntheses(
+    sessionId: string,
+    written: readonly WrittenSynthesis[],
+  ): Promise<void> {
+    if (written.length > 0) {
+      await this.syntheses.insert(
+        written.map((synthesis) =>
+          this.mapper.toSynthesisEntity(sessionId, synthesis),
+        ),
+      );
+    }
   }
 
   /** Every plan of the session, oldest first, for a run. */
