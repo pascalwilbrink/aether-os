@@ -651,7 +651,8 @@ describe('Council sessions (e2e)', () => {
   describe('modes', () => {
     const modeCouncil = (
       fields: {
-        defaultMode?: 'direct' | 'facilitated' | 'discussion' | 'planning';
+        defaultMode?:
+          'direct' | 'facilitated' | 'discussion' | 'planning' | 'delegation';
         allowDiscussion?: boolean;
       } = {},
     ) =>
@@ -678,12 +679,14 @@ describe('Council sessions (e2e)', () => {
         .send({ mode: 'direct' })
         .expect(200);
 
-      const planning = await person
+      const delegation = await person
         .post(`${base}/${session.id}/mode`)
-        .send({ mode: 'planning' })
+        .send({ mode: 'delegation' })
         .expect(409);
-      expect(planning.body).toMatchObject({ code: 'SESSION_MODE_INVALID' });
-      expect(planning.body.detail).toContain('comes with plans');
+      expect(delegation.body).toMatchObject({ code: 'SESSION_MODE_INVALID' });
+      expect(delegation.body.detail).toContain(
+        "doesn't allow the delegation mode",
+      );
       await person
         .post(`${base}/${session.id}/mode`)
         .send({ mode: 'chatting' })
@@ -717,8 +720,8 @@ describe('Council sessions (e2e)', () => {
       );
     });
 
-    it('a council whose default comes with plans starts facilitated', async () => {
-      const { councilId } = await modeCouncil({ defaultMode: 'planning' });
+    it("a council whose default it doesn't allow starts facilitated", async () => {
+      const { councilId } = await modeCouncil({ defaultMode: 'delegation' });
       const session = (await person.post(base).send({ councilId }).expect(201))
         .body as {
         mode: string;
@@ -733,7 +736,7 @@ describe('Council sessions (e2e)', () => {
         {
           toolCall: {
             tool: 'set_mode',
-            input: { mode: 'planning', reason: 'Plan it.' },
+            input: { mode: 'delegation', reason: 'Delegate it.' },
           },
         },
         {
@@ -754,7 +757,7 @@ describe('Council sessions (e2e)', () => {
           (event) =>
             JSON.parse(event.content as string) as Record<string, unknown>,
         );
-      expect(results[0].refused).toContain("can't be in the planning mode");
+      expect(results[0].refused).toContain("can't be in the delegation mode");
       expect(results[1]).toMatchObject({ mode: 'discussion' });
       expect(
         events.find(

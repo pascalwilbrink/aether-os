@@ -3,7 +3,9 @@ import { v7 as uuidv7 } from 'uuid';
 
 import type { ApiTypes } from '@hephaestus/core';
 
+import { CouncilPlanEntity } from './council-plan.entity.js';
 import { DeliberationRoundEntity } from './deliberation-round.entity.js';
+import type { ProposedPlan } from './plans.js';
 import type { Round } from './deliberation.js';
 import type { SessionHistoryMessage } from './session-agent.js';
 import {
@@ -148,6 +150,37 @@ export class SessionMapper {
     return Object.assign(new DeliberationRoundEntity(), {
       ...round,
       sessionId,
+    });
+  }
+
+  toPlanResponse(entity: CouncilPlanEntity): ApiTypes.CouncilPlan {
+    return {
+      id: entity.id,
+      sessionId: entity.sessionId,
+      number: entity.number,
+      status: entity.status,
+      title: entity.title,
+      summary: entity.summary,
+      milestones: entity.milestones,
+      entries: entity.entries,
+      outcomeEntryKey: entity.outcomeEntryKey,
+      review: entity.review,
+      taskId: entity.taskId,
+      proposedAt: entity.proposedAt.toISOString(),
+    };
+  }
+
+  /** A plan the facilitator proposed in a run, to keep. */
+  toPlanEntity(sessionId: string, plan: ProposedPlan): CouncilPlanEntity {
+    return Object.assign(new CouncilPlanEntity(), {
+      id: plan.id,
+      sessionId,
+      number: plan.number,
+      status: 'proposed' as const,
+      ...plan.content,
+      review: null,
+      taskId: null,
+      proposedAt: plan.proposedAt,
     });
   }
 

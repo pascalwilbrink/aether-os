@@ -37,6 +37,8 @@ import { Sessions1795460000000 } from './1795460000000-Sessions.js';
 import { CouncilSessions1795470000000 } from './1795470000000-CouncilSessions.js';
 import { DeliberationRounds1795480000000 } from './1795480000000-DeliberationRounds.js';
 import { SessionModes1795490000000 } from './1795490000000-SessionModes.js';
+import { TaskOrigin1795500000000 } from './1795500000000-TaskOrigin.js';
+import { CouncilPlans1795510000000 } from './1795510000000-CouncilPlans.js';
 
 /**
  * Every migration, oldest first. Generate one with
@@ -84,4 +86,6 @@ export const migrations = [
   CouncilSessions1795470000000,
   DeliberationRounds1795480000000,
   SessionModes1795490000000,
+  TaskOrigin1795500000000,
+  CouncilPlans1795510000000,
 ];

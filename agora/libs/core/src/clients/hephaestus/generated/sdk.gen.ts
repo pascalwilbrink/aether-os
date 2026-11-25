@@ -16,6 +16,9 @@ import type {
   ApproveArtifactData,
   ApproveArtifactErrors,
   ApproveArtifactResponses,
+  ApproveCouncilPlanData,
+  ApproveCouncilPlanErrors,
+  ApproveCouncilPlanResponses,
   ArchiveTaskTemplateData,
   ArchiveTaskTemplateErrors,
   ArchiveTaskTemplateResponses,
@@ -82,6 +85,9 @@ import type {
   GetWorkspaceData,
   GetWorkspaceErrors,
   GetWorkspaceResponses,
+  ListCouncilPlansData,
+  ListCouncilPlansErrors,
+  ListCouncilPlansResponses,
   ListDeliberationRoundsData,
   ListDeliberationRoundsErrors,
   ListDeliberationRoundsResponses,
@@ -121,12 +127,18 @@ import type {
   RejectArtifactData,
   RejectArtifactErrors,
   RejectArtifactResponses,
+  RejectCouncilPlanData,
+  RejectCouncilPlanErrors,
+  RejectCouncilPlanResponses,
   ReleaseWorkspaceData,
   ReleaseWorkspaceErrors,
   ReleaseWorkspaceResponses,
   RequestArtifactChangesData,
   RequestArtifactChangesErrors,
   RequestArtifactChangesResponses,
+  RequestCouncilPlanChangesData,
+  RequestCouncilPlanChangesErrors,
+  RequestCouncilPlanChangesResponses,
   ResumeWorkspaceData,
   ResumeWorkspaceErrors,
   ResumeWorkspaceResponses,
@@ -1065,6 +1077,98 @@ export const listSessionMessages = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/messages',
     ...options,
+  });
+
+/**
+ * A council session's plans (docs/councils.md, Planning and delegation), oldest first.
+ */
+export const listCouncilPlans = <ThrowOnError extends boolean = false>(
+  options: Options<ListCouncilPlansData, ThrowOnError>,
+): RequestResult<
+  ListCouncilPlansResponses,
+  ListCouncilPlansErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListCouncilPlansResponses,
+    ListCouncilPlansErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans',
+    ...options,
+  });
+
+/**
+ * Approves a proposed plan. With the council's `allowDelegation` it becomes work: a top-level plan task (`waiting`) with each entry as a subtask, run as `serviceAccountId`, the entries' agents as assigned (the request's `assignments` change some, to other members); without it, the plan is recorded as agreed. Needs `task:approve` and `task:create` in the project. Refused for a plan that isn't `proposed` (`PLAN_NOT_PROPOSED`).
+ */
+export const approveCouncilPlan = <ThrowOnError extends boolean = false>(
+  options: Options<ApproveCouncilPlanData, ThrowOnError>,
+): RequestResult<
+  ApproveCouncilPlanResponses,
+  ApproveCouncilPlanErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    ApproveCouncilPlanResponses,
+    ApproveCouncilPlanErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans/{planId}/approve',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Rejects a proposed plan, with an optional comment for the facilitator. Refused for a plan that isn't `proposed` (`PLAN_NOT_PROPOSED`).
+ */
+export const rejectCouncilPlan = <ThrowOnError extends boolean = false>(
+  options: Options<RejectCouncilPlanData, ThrowOnError>,
+): RequestResult<
+  RejectCouncilPlanResponses,
+  RejectCouncilPlanErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    RejectCouncilPlanResponses,
+    RejectCouncilPlanErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans/{planId}/reject',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Sends a proposed plan back with a comment; the facilitator sees it on its next turn and can propose a revised plan. Refused for a plan that isn't `proposed` (`PLAN_NOT_PROPOSED`).
+ */
+export const requestCouncilPlanChanges = <ThrowOnError extends boolean = false>(
+  options: Options<RequestCouncilPlanChangesData, ThrowOnError>,
+): RequestResult<
+  RequestCouncilPlanChangesResponses,
+  RequestCouncilPlanChangesErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    RequestCouncilPlanChangesResponses,
+    RequestCouncilPlanChangesErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans/{planId}/request-changes',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   });
 
 /**

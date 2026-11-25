@@ -11,8 +11,10 @@ import {
 } from '@hephaestus/core';
 
 import type { SessionHistoryMessage } from './session-agent.js';
+import { CouncilPlanEntity } from './council-plan.entity.js';
 import { DeliberationRoundEntity } from './deliberation-round.entity.js';
 import type { Round } from './deliberation.js';
+import type { ProposedPlan } from './plans.js';
 import { SessionMessageEntity } from './session-message.entity.js';
 import { SessionMapper } from './session.mapper.js';
 
@@ -27,6 +29,8 @@ export class SessionMessagesService {
     private readonly messages: Repository<SessionMessageEntity>,
     @InjectRepository(DeliberationRoundEntity)
     private readonly rounds: Repository<DeliberationRoundEntity>,
+    @InjectRepository(CouncilPlanEntity)
+    private readonly plans: Repository<CouncilPlanEntity>,
     private readonly mapper: SessionMapper,
   ) {}
 
@@ -41,6 +45,37 @@ export class SessionMessagesService {
       page,
     );
     return mapPage(entities, (entity) => this.mapper.toRoundResponse(entity));
+  }
+
+  /** Every plan of the session, oldest first, for a run. */
+  plansOf(sessionId: string): Promise<CouncilPlanEntity[]> {
+    return this.plans.find({ where: { sessionId }, order: { number: 'ASC' } });
+  }
+
+  /**
+   * Keeps the plans a run proposed; a new one supersedes a proposal still
+   * waiting for a decision.
+   */
+  async savePlans(
+    sessionId: string,
+    proposed: readonly ProposedPlan[],
+  ): Promise<CouncilPlanEntity[]> {
+    if (proposed.length === 0) {
+      return [];
+    }
+    await this.plans.update(
+      { sessionId, status: 'proposed' },
+      { status: 'superseded' },
+    );
+    const entities = proposed.map((plan, index) => {
+      const entity = this.mapper.toPlanEntity(sessionId, plan);
+      // Only the run's last proposal still waits.
+      return index < proposed.length - 1
+        ? Object.assign(entity, { status: 'superseded' as const })
+        : entity;
+    });
+    await this.plans.insert(entities);
+    return entities;
   }
 
   /** Every round of the session, for a run. */

@@ -144,6 +144,11 @@ export class TasksService {
     template?: TaskTemplateOrigin,
     /** The knowledge pinned on it (`TaskContextSource`, before). */
     context: PinnedKnowledge[] = [],
+    /**
+     * A council plan's task: its origin, and for the plan task itself
+     * `waiting` from the start (nobody runs it; its subtasks are the work).
+     */
+    plan?: { origin: ApiTypes.TaskOrigin; waiting?: boolean },
   ): Promise<{ task: TaskResponse; created: boolean }> {
     const existing = await this.findByIdempotencyKey(
       organizationId,
@@ -209,11 +214,12 @@ export class TasksService {
         topLevelTaskId,
         requestedBy: this.access.principal().sub,
         idempotencyKey,
-        status: ready ? 'queued' : 'blocked',
+        status: plan?.waiting ? 'waiting' : ready ? 'queued' : 'blocked',
         repositoryLinkId,
         template,
         context,
         brief,
+        origin: plan?.origin ?? null,
       },
       new Date(),
     );
@@ -356,6 +362,7 @@ export class TasksService {
         cancelledBy,
       );
     }
+    await this.settleParent(task);
     return this.mapper.toResponse(task);
   }
 
@@ -373,6 +380,16 @@ export class TasksService {
     const task = await this.load(organizationId, projectId, taskId, true);
     if (!nextTaskStatus(task.status, 'retry')) {
       throw new InvalidTaskTransitionError(task.id, task.status, 'retry');
+    }
+    if (task.parentTaskId) {
+      const parent = await this.tasks.findOneBy({
+        organizationId,
+        id: task.parentTaskId,
+      });
+      // A plan task that failed with it: retry the plan instead.
+      if (parent && isTerminal(parent.status)) {
+        throw new TaskParentFinishedError(parent.id);
+      }
     }
     const ready = await this.dependenciesSucceeded(
       organizationId,
@@ -455,7 +472,75 @@ export class TasksService {
     if (next === 'succeeded') {
       await this.unblockDependents(task);
     }
+    if (isTerminal(next)) {
+      await this.settleParent(task);
+    }
     return this.mapper.toResponse(task);
+  }
+
+  /**
+   * A waiting parent (a council plan's task, docs/councils.md) finishes
+   * with its subtasks: when they've all succeeded it succeeds, its primary
+   * artifact the outcome entry's; when one fails or is cancelled (other
+   * than with it), it fails (`subtask_failed`) and its unfinished subtasks
+   * are cancelled, so nothing waits on a failed dependency for ever.
+   */
+  private async settleParent(child: TaskEntity): Promise<void> {
+    if (!child.parentTaskId || !isTerminal(child.status)) {
+      return;
+    }
+    const parent = await this.tasks.findOne({
+      where: { organizationId: child.organizationId, id: child.parentTaskId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!parent || parent.status !== 'waiting') {
+      return;
+    }
+    if (child.status !== 'succeeded') {
+      await this.apply(
+        parent,
+        'failed',
+        'subtask-failed',
+        'subtask_failed',
+        null,
+      );
+      for (const descendant of await this.unfinishedDescendants(parent)) {
+        await this.apply(
+          descendant,
+          'cancelled',
+          'cancelled-with-parent',
+          null,
+          null,
+        );
+      }
+      await this.settleParent(parent);
+      return;
+    }
+    const children = await this.tasks.find({
+      where: { organizationId: parent.organizationId, parentTaskId: parent.id },
+      order: { createdAt: 'ASC', id: 'ASC' },
+    });
+    if (children.some((sibling) => sibling.status !== 'succeeded')) {
+      return;
+    }
+    const outcomeKey = parent.origin?.outcomeEntryKey ?? null;
+    const outcome =
+      children.find((sibling) => sibling.origin?.entryKey === outcomeKey) ??
+      children.at(-1);
+    await this.apply(parent, 'delivering', 'subtasks-succeeded', null, null);
+    parent.primaryArtifactId = outcome?.primaryArtifactId ?? null;
+    await this.apply(
+      parent,
+      'succeeded',
+      'subtasks-succeeded',
+      null,
+      null,
+      children.flatMap((sibling) =>
+        sibling.primaryArtifactId ? [sibling.primaryArtifactId] : [],
+      ),
+    );
+    await this.unblockDependents(parent);
+    await this.settleParent(parent);
   }
 
   /**

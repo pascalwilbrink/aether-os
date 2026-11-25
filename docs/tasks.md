@@ -402,7 +402,7 @@ Later: when a spec changes after implementation, re-plan only the affected requi
 | `running` | The agent is working (including revisions after failed checks or request changes) | ✓ | ✓ |
 | `verifying` | Criterion checks are running (see Verification) | ✓ | ✓ |
 | `awaiting_review` | Drafts are waiting for someone with `task:approve` | | |
-| `waiting` | A planning task waiting for its subtasks | | |
+| `waiting` | A planning task waiting for its subtasks (built for a council's plan task, `councils.md`: it settles with its subtasks) | | |
 | `paused` | A budget ran out (see `models.md`); state is saved, resumes to `queued` when the budget is raised or renewed | | |
 | `delivering` | Approved or approval-free artifacts are being delivered (PR opened, comment posted) | | ✓ |
 | `succeeded` | Terminal. Every artifact is `final`; there is a primary artifact | | |

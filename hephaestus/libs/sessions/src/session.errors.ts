@@ -30,3 +30,20 @@ export class SessionMemberInvalidError extends DomainError {
     super(reason, 'SESSION_MEMBER_INVALID');
   }
 }
+
+/** Deciding on a plan that isn't waiting for a decision. */
+export class PlanNotProposedError extends DomainError {
+  constructor(planId: string, status: string) {
+    super(
+      `Plan ${planId} is ${status.replace('_', ' ')}, not proposed.`,
+      'PLAN_NOT_PROPOSED',
+    );
+  }
+}
+
+/** A reviewer's assignment the plan can't take. */
+export class PlanAssignmentInvalidError extends DomainError {
+  constructor(reason: string) {
+    super(reason, 'PLAN_ASSIGNMENT_INVALID');
+  }
+}

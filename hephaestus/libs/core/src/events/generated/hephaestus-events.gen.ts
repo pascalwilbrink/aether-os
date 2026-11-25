@@ -46,6 +46,26 @@ export interface ArtifactStatusChanged {
 }
 
 /**
+ * Payload of `council-plan.proposed`.
+ */
+export interface CouncilPlanProposed {
+  sessionId: string;
+  councilId: string;
+  councilVersionId: string;
+  planId: string;
+  number: number;
+  title: string;
+  /**
+   * How many tasks it would make.
+   */
+  entries: number;
+  /**
+   * The person who reviews it (the session's).
+   */
+  startedBy: string;
+}
+
+/**
  * Payload of `deliberation-round.concluded`.
  */
 export interface DeliberationRoundConcluded {
@@ -294,6 +314,7 @@ export interface TaskVerified {
 export interface HephaestusEventPayloads {
   'artifact.created': ArtifactCreated;
   'artifact.status-changed': ArtifactStatusChanged;
+  'council-plan.proposed': CouncilPlanProposed;
   'deliberation-round.concluded': DeliberationRoundConcluded;
   'session.ended': SessionEnded;
   'session.started': SessionStarted;
@@ -315,6 +336,7 @@ export type HephaestusEventType = keyof HephaestusEventPayloads;
 export const HEPHAESTUS_EVENT_TYPES = [
   'artifact.created',
   'artifact.status-changed',
+  'council-plan.proposed',
   'deliberation-round.concluded',
   'session.ended',
   'session.started',

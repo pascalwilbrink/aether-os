@@ -17,9 +17,6 @@ export const SESSION_MODES: readonly SessionMode[] = [
   'delegation',
 ];
 
-/** Modes that come with plans (step 4): not offered until then. */
-const NOT_YET: ReadonlySet<SessionMode> = new Set(['planning', 'delegation']);
-
 type Settings = Pick<
   CouncilVersion['settings'],
   | 'defaultMode'
@@ -29,7 +26,7 @@ type Settings = Pick<
   | 'allowDelegation'
 >;
 
-/** The modes the council's settings allow, that Hephaestus can run now. */
+/** The modes the council's settings allow. */
 export function allowedModes(settings: Settings): SessionMode[] {
   const allowed: Record<SessionMode, boolean> = {
     direct: settings.allowDirectInteraction,
@@ -38,10 +35,10 @@ export function allowedModes(settings: Settings): SessionMode[] {
     planning: settings.allowPlanning,
     delegation: settings.allowDelegation,
   };
-  return SESSION_MODES.filter((mode) => allowed[mode] && !NOT_YET.has(mode));
+  return SESSION_MODES.filter((mode) => allowed[mode]);
 }
 
-/** A new session's mode: the council's default when it can run it, else `facilitated`. */
+/** A new session's mode: the council's default when it allows it, else `facilitated`. */
 export function initialMode(settings: Settings): SessionMode {
   return allowedModes(settings).includes(settings.defaultMode)
     ? settings.defaultMode
@@ -56,9 +53,6 @@ export function modeProblem(
   if (allowedModes(settings).includes(mode)) {
     return null;
   }
-  if (NOT_YET.has(mode)) {
-    return `The ${mode} mode comes with plans, which aren't available yet.`;
-  }
   return `This council doesn't allow the ${mode} mode.`;
 }
 
@@ -69,8 +63,10 @@ const GUIDANCE: Record<SessionMode, string> = {
     "Answer the person yourself, ask members (ask_member) when they know more, and hold a round (start_round) when a question needs the council's views.",
   discussion:
     "Put the person's questions to the council as deliberation rounds (start_round), conclude each one, and answer the person with the conclusion. Answer yourself only for small clarifications.",
-  planning: '',
-  delegation: '',
+  planning:
+    'Work out a plan with the members (ask them, or hold a round), then propose it with propose_plan for the person to review.',
+  delegation:
+    "Follow the approved plan's tasks: tell the person how they're going, what finished, what failed or waits for review, and propose a revised plan when something failed.",
 };
 
 /** What the facilitator's instructions say about the session's mode. */

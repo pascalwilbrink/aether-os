@@ -185,6 +185,10 @@ export class TaskEntity {
   @Column({ type: 'integer', nullable: true })
   taskTemplateVersion: number | null;
 
+  /** Where it came from, when not from a request: a council's plan. */
+  @Column({ type: 'jsonb', nullable: true })
+  origin: ApiTypes.TaskOrigin | null;
+
   /** A succeeded task's outcome (docs/tasks.md, Primary artifact). */
   @Column({ type: 'uuid', nullable: true })
   primaryArtifactId: string | null;

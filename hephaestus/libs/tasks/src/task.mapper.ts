@@ -29,6 +29,8 @@ export interface NewTask {
   context: PinnedKnowledge[];
   /** Its brief, checked (`taskBriefOf`). */
   brief: TaskBrief;
+  /** A council plan's task. */
+  origin?: ApiTypes.TaskOrigin | null;
 }
 
 /** The template version a task comes from, and the criteria it brings. */
@@ -87,6 +89,7 @@ export class TaskMapper {
       contextContent: task.context,
       taskTemplateId: task.template?.templateId ?? null,
       taskTemplateVersion: task.template?.version ?? null,
+      origin: task.origin ?? null,
       attempt: 1,
       nextAttemptAt: null,
       deliveryAttempts: 0,
@@ -147,6 +150,7 @@ export class TaskMapper {
       context: entity.context,
       taskTemplateId: entity.taskTemplateId,
       taskTemplateVersion: entity.taskTemplateVersion,
+      origin: entity.origin,
       createdAt: entity.createdAt.toISOString(),
       updatedAt: entity.updatedAt.toISOString(),
       finishedAt: entity.finishedAt?.toISOString() ?? null,

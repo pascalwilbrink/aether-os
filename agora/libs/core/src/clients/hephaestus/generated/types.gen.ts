@@ -31,6 +31,8 @@ export type DomainErrorCode =
   | 'SESSION_ENDED'
   | 'SESSION_MEMBER_INVALID'
   | 'SESSION_MODE_INVALID'
+  | 'PLAN_NOT_PROPOSED'
+  | 'PLAN_ASSIGNMENT_INVALID'
   | 'COUNCIL_UNAVAILABLE'
   | 'WORKSPACE_INVALID_EXPIRY'
   | 'WORKSPACE_INVALID_TRANSITION';
@@ -733,6 +735,10 @@ export type TaskResponse = {
    * Pinned when it was created, like the agent version.
    */
   taskTemplateVersion: number | null;
+  /**
+   * Where it came from, when not from a request (a council's plan).
+   */
+  origin: TaskOrigin | null;
   createdAt: string;
   updatedAt: string;
   finishedAt: string | null;
@@ -1374,6 +1380,111 @@ export type SessionMessage = {
 };
 
 /**
+ * A task made from a council's plan (docs/councils.md, Planning and delegation).
+ */
+export type TaskOrigin = {
+  kind: 'council-plan';
+  sessionId: string;
+  planId: string;
+  /**
+   * The plan's entry; null for the plan task itself.
+   */
+  entryKey: string | null;
+  /**
+   * The plan task's outcome entry, whose primary artifact becomes the plan task's when all succeed; null for an entry.
+   */
+  outcomeEntryKey: string | null;
+  /**
+   * Who chose its agent: `facilitator`, or the `sub` of the person who changed it; null for the plan task.
+   */
+  assignedBy: string | null;
+  /**
+   * Why that agent.
+   */
+  reason: string | null;
+};
+
+export type CouncilPlanMilestone = {
+  key: string;
+  title: string;
+  description?: string;
+  dependsOn?: Array<string>;
+};
+
+export type CouncilPlanEntry = {
+  key: string;
+  title: string;
+  /**
+   * What to do and why.
+   */
+  description: string;
+  expectedOutcome?: string;
+  /**
+   * The member to do it.
+   */
+  agentId: string;
+  dependsOn?: Array<string>;
+  milestoneKey?: string;
+  /**
+   * Why this member.
+   */
+  reason?: string;
+};
+
+export type CouncilPlan = {
+  id: string;
+  sessionId: string;
+  number: number;
+  status:
+    'proposed' | 'approved' | 'rejected' | 'changes_requested' | 'superseded';
+  title: string;
+  summary: string;
+  milestones: Array<CouncilPlanMilestone>;
+  /**
+   * With their agents as approved (assignments applied).
+   */
+  entries: Array<CouncilPlanEntry>;
+  outcomeEntryKey: string;
+  review: {
+    decision: 'approved' | 'rejected' | 'changes_requested';
+    comment: string | null;
+    decidedBy: string;
+    decidedAt: string;
+  } | null;
+  /**
+   * The plan task an approved plan became (with `allowDelegation`).
+   */
+  taskId: string | null;
+  proposedAt: string;
+};
+
+export type CouncilPlanPage = PageMeta & {
+  items: Array<CouncilPlan>;
+};
+
+export type ApproveCouncilPlanRequest = {
+  /**
+   * The service account its tasks run as (a role in the project).
+   */
+  serviceAccountId: string;
+  /**
+   * Entries given to another member.
+   */
+  assignments?: Array<{
+    entryKey: string;
+    agentId: string;
+  }>;
+};
+
+export type RejectCouncilPlanRequest = {
+  comment?: string;
+};
+
+export type RequestCouncilPlanChangesRequest = {
+  comment: string;
+};
+
+/**
  * One round of a council's discussion (docs/councils.md, Deliberation rounds), opened and concluded by the facilitator.
  */
 export type DeliberationRound = {
@@ -1542,6 +1653,8 @@ export type TemplateId = string;
 export type ArtifactId = string;
 
 export type SessionId = string;
+
+export type PlanId = string;
 
 export type ToolServerId = string;
 
@@ -4000,6 +4113,233 @@ export type ListSessionMessagesResponses = {
 
 export type ListSessionMessagesResponse =
   ListSessionMessagesResponses[keyof ListSessionMessagesResponses];
+
+export type ListCouncilPlansData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    projectId: string;
+    sessionId: string;
+  };
+  query?: {
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+  };
+  url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans';
+};
+
+export type ListCouncilPlansErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type ListCouncilPlansError =
+  ListCouncilPlansErrors[keyof ListCouncilPlansErrors];
+
+export type ListCouncilPlansResponses = {
+  /**
+   * Oldest first
+   */
+  200: CouncilPlanPage;
+};
+
+export type ListCouncilPlansResponse =
+  ListCouncilPlansResponses[keyof ListCouncilPlansResponses];
+
+export type ApproveCouncilPlanData = {
+  body: ApproveCouncilPlanRequest;
+  path: {
+    organizationId: string;
+    projectId: string;
+    sessionId: string;
+    planId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans/{planId}/approve';
+};
+
+export type ApproveCouncilPlanErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+};
+
+export type ApproveCouncilPlanError =
+  ApproveCouncilPlanErrors[keyof ApproveCouncilPlanErrors];
+
+export type ApproveCouncilPlanResponses = {
+  /**
+   * The plan, decided
+   */
+  200: CouncilPlan;
+};
+
+export type ApproveCouncilPlanResponse =
+  ApproveCouncilPlanResponses[keyof ApproveCouncilPlanResponses];
+
+export type RejectCouncilPlanData = {
+  body: RejectCouncilPlanRequest;
+  path: {
+    organizationId: string;
+    projectId: string;
+    sessionId: string;
+    planId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans/{planId}/reject';
+};
+
+export type RejectCouncilPlanErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+};
+
+export type RejectCouncilPlanError =
+  RejectCouncilPlanErrors[keyof RejectCouncilPlanErrors];
+
+export type RejectCouncilPlanResponses = {
+  /**
+   * The plan, decided
+   */
+  200: CouncilPlan;
+};
+
+export type RejectCouncilPlanResponse =
+  RejectCouncilPlanResponses[keyof RejectCouncilPlanResponses];
+
+export type RequestCouncilPlanChangesData = {
+  body: RequestCouncilPlanChangesRequest;
+  path: {
+    organizationId: string;
+    projectId: string;
+    sessionId: string;
+    planId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans/{planId}/request-changes';
+};
+
+export type RequestCouncilPlanChangesErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+};
+
+export type RequestCouncilPlanChangesError =
+  RequestCouncilPlanChangesErrors[keyof RequestCouncilPlanChangesErrors];
+
+export type RequestCouncilPlanChangesResponses = {
+  /**
+   * The plan, decided
+   */
+  200: CouncilPlan;
+};
+
+export type RequestCouncilPlanChangesResponse =
+  RequestCouncilPlanChangesResponses[keyof RequestCouncilPlanChangesResponses];
 
 export type ListDeliberationRoundsData = {
   body?: never;

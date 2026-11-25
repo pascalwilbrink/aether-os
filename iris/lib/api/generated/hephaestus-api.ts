@@ -771,6 +771,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        /** @description A council session's plans (docs/councils.md, Planning and delegation), oldest first. */
+        get: operations["listCouncilPlans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans/{planId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+                planId: components["parameters"]["PlanId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Approves a proposed plan. With the council's `allowDelegation` it becomes work: a top-level plan task (`waiting`) with each entry as a subtask, run as `serviceAccountId`, the entries' agents as assigned (the request's `assignments` change some, to other members); without it, the plan is recorded as agreed. Needs `task:approve` and `task:create` in the project. Refused for a plan that isn't `proposed` (`PLAN_NOT_PROPOSED`). */
+        post: operations["approveCouncilPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans/{planId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+                planId: components["parameters"]["PlanId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Rejects a proposed plan, with an optional comment for the facilitator. Refused for a plan that isn't `proposed` (`PLAN_NOT_PROPOSED`). */
+        post: operations["rejectCouncilPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans/{planId}/request-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+                planId: components["parameters"]["PlanId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Sends a proposed plan back with a comment; the facilitator sees it on its next turn and can propose a revised plan. Refused for a plan that isn't `proposed` (`PLAN_NOT_PROPOSED`). */
+        post: operations["requestCouncilPlanChanges"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/rounds": {
         parameters: {
             query?: never;
@@ -927,7 +1014,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "TASK_CONTEXT_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_FIELDS_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "SESSION_BUSY" | "SESSION_ENDED" | "SESSION_MEMBER_INVALID" | "SESSION_MODE_INVALID" | "COUNCIL_UNAVAILABLE" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
+        DomainErrorCode: "AGENT_ARCHIVED" | "AGENT_NOT_PUBLISHED" | "ARTIFACT_NOT_DRAFT" | "TASK_BUDGET_INVALID" | "TASK_CONCURRENCY_INVALID" | "TASK_CONCURRENCY_SKIPPED" | "TASK_CONTEXT_INVALID" | "ORGANIZATION_SUSPENDED" | "PROJECT_ARCHIVED" | "TASK_CRITERIA_INVALID" | "TASK_FIELDS_INVALID" | "TASK_DEPENDENCY_INVALID" | "TASK_INVALID_TRANSITION" | "TASK_PARENT_FINISHED" | "TASK_REVIEW_ROUNDS_EXHAUSTED" | "TASK_TEMPLATE_ARCHIVED" | "TASK_TEMPLATE_INPUTS_INVALID" | "TASK_TEMPLATE_INVALID" | "TOOL_SERVER_ALREADY_EXISTS" | "TOOL_SERVER_INVALID" | "SESSION_BUSY" | "SESSION_ENDED" | "SESSION_MEMBER_INVALID" | "SESSION_MODE_INVALID" | "PLAN_NOT_PROPOSED" | "PLAN_ASSIGNMENT_INVALID" | "COUNCIL_UNAVAILABLE" | "WORKSPACE_INVALID_EXPIRY" | "WORKSPACE_INVALID_TRANSITION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -1480,6 +1567,8 @@ export interface components {
             taskTemplateId: string | null;
             /** @description Pinned when it was created, like the agent version. */
             taskTemplateVersion: number | null;
+            /** @description Where it came from, when not from a request (a council's plan). */
+            origin: components["schemas"]["TaskOrigin"] | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -2021,6 +2110,97 @@ export interface components {
             roundId: string | null;
             createdAt: components["schemas"]["Timestamp"];
         };
+        /** @description A task made from a council's plan (docs/councils.md, Planning and delegation). */
+        TaskOrigin: {
+            /** @enum {string} */
+            kind: "council-plan";
+            /** Format: uuid */
+            sessionId: string;
+            /** Format: uuid */
+            planId: string;
+            /** @description The plan's entry; null for the plan task itself. */
+            entryKey: string | null;
+            /** @description The plan task's outcome entry, whose primary artifact becomes the plan task's when all succeed; null for an entry. */
+            outcomeEntryKey: string | null;
+            /** @description Who chose its agent: `facilitator`, or the `sub` of the person who changed it; null for the plan task. */
+            assignedBy: string | null;
+            /** @description Why that agent. */
+            reason: string | null;
+        };
+        CouncilPlanMilestone: {
+            key: string;
+            title: string;
+            description?: string;
+            dependsOn?: string[];
+        };
+        CouncilPlanEntry: {
+            key: string;
+            title: string;
+            /** @description What to do and why. */
+            description: string;
+            expectedOutcome?: string;
+            /**
+             * Format: uuid
+             * @description The member to do it.
+             */
+            agentId: string;
+            dependsOn?: string[];
+            milestoneKey?: string;
+            /** @description Why this member. */
+            reason?: string;
+        };
+        CouncilPlan: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            sessionId: string;
+            number: number;
+            /** @enum {string} */
+            status: "proposed" | "approved" | "rejected" | "changes_requested" | "superseded";
+            title: string;
+            summary: string;
+            milestones: components["schemas"]["CouncilPlanMilestone"][];
+            /** @description With their agents as approved (assignments applied). */
+            entries: components["schemas"]["CouncilPlanEntry"][];
+            outcomeEntryKey: string;
+            review: {
+                /** @enum {string} */
+                decision: "approved" | "rejected" | "changes_requested";
+                comment: string | null;
+                decidedBy: string;
+                /** Format: date-time */
+                decidedAt: string;
+            } | null;
+            /**
+             * Format: uuid
+             * @description The plan task an approved plan became (with `allowDelegation`).
+             */
+            taskId: string | null;
+            /** Format: date-time */
+            proposedAt: string;
+        };
+        CouncilPlanPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["CouncilPlan"][];
+        };
+        ApproveCouncilPlanRequest: {
+            /**
+             * Format: uuid
+             * @description The service account its tasks run as (a role in the project).
+             */
+            serviceAccountId: string;
+            /** @description Entries given to another member. */
+            assignments?: {
+                entryKey: string;
+                /** Format: uuid */
+                agentId: string;
+            }[];
+        };
+        RejectCouncilPlanRequest: {
+            comment?: string;
+        };
+        RequestCouncilPlanChangesRequest: {
+            comment: string;
+        };
         /** @description One round of a council's discussion (docs/councils.md, Deliberation rounds), opened and concluded by the facilitator. */
         DeliberationRound: {
             /** Format: uuid */
@@ -2195,6 +2375,7 @@ export interface components {
         TemplateId: string;
         ArtifactId: string;
         SessionId: string;
+        PlanId: string;
         ToolServerId: string;
         /** @description Page size. */
         Limit: number;
@@ -3548,6 +3729,145 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listCouncilPlans: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Oldest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouncilPlanPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    approveCouncilPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+                planId: components["parameters"]["PlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApproveCouncilPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description The plan, decided */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouncilPlan"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    rejectCouncilPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+                planId: components["parameters"]["PlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectCouncilPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description The plan, decided */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouncilPlan"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    requestCouncilPlanChanges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+                planId: components["parameters"]["PlanId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestCouncilPlanChangesRequest"];
+            };
+        };
+        responses: {
+            /** @description The plan, decided */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouncilPlan"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
         };
     };
     listDeliberationRounds: {

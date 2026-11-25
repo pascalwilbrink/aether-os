@@ -1098,6 +1098,117 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/SessionId'
+    get:
+      tags: [sessions]
+      operationId: listCouncilPlans
+      x-permission: '`session:use` in the project; only the person who started it'
+      description: A council session's plans (docs/councils.md, Planning and delegation), oldest first.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouncilPlanPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans/{planId}/approve:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/PlanId'
+    post:
+      tags: [sessions]
+      operationId: approveCouncilPlan
+      x-permission: '`session:use` and `task:approve` in the project; only the person who started the session'
+      description: >-
+        Approves a proposed plan. With the council's `allowDelegation` it becomes work: a top-level plan task (`waiting`) with each entry as a subtask, run as `serviceAccountId`, the entries' agents as assigned (the request's `assignments` change some, to other members); without it, the plan is recorded as agreed. Needs `task:approve` and `task:create` in the project. Refused for a plan that isn't `proposed` (`PLAN_NOT_PROPOSED`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApproveCouncilPlanRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: The plan, decided
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouncilPlan' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans/{planId}/reject:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/PlanId'
+    post:
+      tags: [sessions]
+      operationId: rejectCouncilPlan
+      x-permission: '`session:use` and `task:approve` in the project; only the person who started the session'
+      description: >-
+        Rejects a proposed plan, with an optional comment for the facilitator. Refused for a plan that isn't `proposed` (`PLAN_NOT_PROPOSED`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RejectCouncilPlanRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: The plan, decided
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouncilPlan' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/plans/{planId}/request-changes:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/PlanId'
+    post:
+      tags: [sessions]
+      operationId: requestCouncilPlanChanges
+      x-permission: '`session:use` and `task:approve` in the project; only the person who started the session'
+      description: >-
+        Sends a proposed plan back with a comment; the facilitator sees it on its next turn and can propose a revised plan. Refused for a plan that isn't `proposed` (`PLAN_NOT_PROPOSED`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RequestCouncilPlanChangesRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: The plan, decided
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CouncilPlan' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
   /v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/rounds:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
@@ -1285,6 +1396,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    PlanId:
+      name: planId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     ToolServerId:
       name: toolServerId
       in: path
@@ -1346,6 +1462,8 @@ components:
         - SESSION_ENDED
         - SESSION_MEMBER_INVALID
         - SESSION_MODE_INVALID
+        - PLAN_NOT_PROPOSED
+        - PLAN_ASSIGNMENT_INVALID
         - COUNCIL_UNAVAILABLE
         - WORKSPACE_INVALID_EXPIRY
         - WORKSPACE_INVALID_TRANSITION
@@ -2052,7 +2170,7 @@ components:
           items: { type: string, minLength: 1, maxLength: 50 }
     TaskResponse:
       type: object
-      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, description, instructions, requirements, expectedOutcome, constraints, deliverables, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, pausedFor, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, concurrency, inputFiles, context, untrustedInputs, taskTemplateId, taskTemplateVersion, createdAt, updatedAt, finishedAt, version]
+      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, description, instructions, requirements, expectedOutcome, constraints, deliverables, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, pausedFor, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, concurrency, inputFiles, context, untrustedInputs, taskTemplateId, taskTemplateVersion, origin, createdAt, updatedAt, finishedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -2137,6 +2255,11 @@ components:
           type: [integer, 'null']
           minimum: 1
           description: Pinned when it was created, like the agent version.
+        origin:
+          oneOf:
+            - $ref: '#/components/schemas/TaskOrigin'
+            - type: 'null'
+          description: Where it came from, when not from a request (a council's plan).
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         finishedAt: { type: [string, 'null'], format: date-time }
@@ -2793,6 +2916,122 @@ components:
           format: uuid
           description: The deliberation round a member's answer belongs to.
         createdAt: { $ref: '#/components/schemas/Timestamp' }
+    TaskOrigin:
+      type: object
+      description: A task made from a council's plan (docs/councils.md, Planning and delegation).
+      required: [kind, sessionId, planId, entryKey, outcomeEntryKey, assignedBy, reason]
+      properties:
+        kind: { type: string, enum: [council-plan] }
+        sessionId: { type: string, format: uuid }
+        planId: { type: string, format: uuid }
+        entryKey:
+          type: [string, 'null']
+          description: The plan's entry; null for the plan task itself.
+        outcomeEntryKey:
+          type: [string, 'null']
+          description: The plan task's outcome entry, whose primary artifact becomes the plan task's when all succeed; null for an entry.
+        assignedBy:
+          type: [string, 'null']
+          description: 'Who chose its agent: `facilitator`, or the `sub` of the person who changed it; null for the plan task.'
+        reason: { type: [string, 'null'], description: Why that agent. }
+    CouncilPlanMilestone:
+      type: object
+      additionalProperties: false
+      required: [key, title]
+      properties:
+        key: { type: string, pattern: '^[a-z0-9][a-z0-9-]{0,62}$' }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 4000 }
+        dependsOn:
+          type: array
+          maxItems: 10
+          items: { type: string }
+    CouncilPlanEntry:
+      type: object
+      additionalProperties: false
+      required: [key, title, description, agentId]
+      properties:
+        key: { type: string, pattern: '^[a-z0-9][a-z0-9-]{0,62}$' }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, minLength: 1, maxLength: 20000, description: What to do and why. }
+        expectedOutcome: { type: string, maxLength: 5000 }
+        agentId: { type: string, format: uuid, description: The member to do it. }
+        dependsOn:
+          type: array
+          maxItems: 20
+          items: { type: string }
+        milestoneKey: { type: string }
+        reason: { type: string, maxLength: 1000, description: Why this member. }
+    CouncilPlan:
+      type: object
+      required: [id, sessionId, number, status, title, summary, milestones, entries, outcomeEntryKey, review, taskId, proposedAt]
+      properties:
+        id: { type: string, format: uuid }
+        sessionId: { type: string, format: uuid }
+        number: { type: integer, minimum: 1 }
+        status: { type: string, enum: [proposed, approved, rejected, changes_requested, superseded] }
+        title: { type: string }
+        summary: { type: string }
+        milestones:
+          type: array
+          items: { $ref: '#/components/schemas/CouncilPlanMilestone' }
+        entries:
+          type: array
+          description: With their agents as approved (assignments applied).
+          items: { $ref: '#/components/schemas/CouncilPlanEntry' }
+        outcomeEntryKey: { type: string }
+        review:
+          oneOf:
+            - type: object
+              required: [decision, comment, decidedBy, decidedAt]
+              properties:
+                decision: { type: string, enum: [approved, rejected, changes_requested] }
+                comment: { type: [string, 'null'] }
+                decidedBy: { type: string }
+                decidedAt: { type: string, format: date-time }
+            - type: 'null'
+        taskId:
+          type: [string, 'null']
+          format: uuid
+          description: The plan task an approved plan became (with `allowDelegation`).
+        proposedAt: { type: string, format: date-time }
+    CouncilPlanPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/CouncilPlan' }
+    ApproveCouncilPlanRequest:
+      type: object
+      additionalProperties: false
+      required: [serviceAccountId]
+      properties:
+        serviceAccountId: { type: string, format: uuid, description: 'The service account its tasks run as (a role in the project).' }
+        assignments:
+          type: array
+          maxItems: 20
+          description: Entries given to another member.
+          items:
+            type: object
+            additionalProperties: false
+            required: [entryKey, agentId]
+            properties:
+              entryKey: { type: string }
+              agentId: { type: string, format: uuid }
+    RejectCouncilPlanRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        comment: { type: string, maxLength: 4000 }
+    RequestCouncilPlanChangesRequest:
+      type: object
+      additionalProperties: false
+      required: [comment]
+      properties:
+        comment: { type: string, minLength: 1, maxLength: 4000 }
     DeliberationRound:
       type: object
       description: One round of a council's discussion (docs/councils.md, Deliberation rounds), opened and concluded by the facilitator.
