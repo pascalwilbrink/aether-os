@@ -1122,6 +1122,38 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/mode:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/SessionId'
+    post:
+      tags: [sessions]
+      operationId: setSessionMode
+      x-permission: '`session:use` in the project; only the person who started it'
+      description: >-
+        Switches a council session's mode, among those its council allows (`direct` with
+        `allowDirectInteraction`, `facilitated` always, `discussion` with `allowDiscussion`;
+        `planning` and `delegation` come with plans). Refused for an agent session, a mode the
+        council doesn't allow (`SESSION_MODE_INVALID`), an ended session (`SESSION_ENDED`) or one
+        answering (`SESSION_BUSY`). Setting the mode it's in returns it unchanged.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetSessionModeRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: The session, in its mode
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
   /v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/end:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
@@ -1313,6 +1345,7 @@ components:
         - SESSION_BUSY
         - SESSION_ENDED
         - SESSION_MEMBER_INVALID
+        - SESSION_MODE_INVALID
         - COUNCIL_UNAVAILABLE
         - WORKSPACE_INVALID_EXPIRY
         - WORKSPACE_INVALID_TRANSITION
@@ -2651,6 +2684,16 @@ components:
     SessionStatus:
       type: string
       enum: [active, ended]
+    SessionMode:
+      type: string
+      enum: [direct, facilitated, discussion, planning, delegation]
+      description: 'How a council works in a session: `direct` (the person addresses members), `facilitated` (the facilitator answers, asks members, holds rounds), `discussion` (deliberation rounds on the person''s questions), `planning` and `delegation` (plans and the tasks they become).'
+    SetSessionModeRequest:
+      type: object
+      additionalProperties: false
+      required: [mode]
+      properties:
+        mode: { $ref: '#/components/schemas/SessionMode' }
     CreateSessionRequest:
       type: object
       additionalProperties: false
@@ -2684,7 +2727,7 @@ components:
         agentVersionId: { type: [string, 'null'], format: uuid }
     SessionResponse:
       type: object
-      required: [id, organizationId, projectId, agentId, agentVersionId, councilId, councilVersionId, members, startedBy, title, status, endedReason, running, lastActivityAt, createdAt, endedAt]
+      required: [id, organizationId, projectId, agentId, agentVersionId, councilId, councilVersionId, members, mode, startedBy, title, status, endedReason, running, lastActivityAt, createdAt, endedAt]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -2697,6 +2740,11 @@ components:
           type: array
           description: A council session's members; empty otherwise.
           items: { $ref: '#/components/schemas/SessionMember' }
+        mode:
+          oneOf:
+            - $ref: '#/components/schemas/SessionMode'
+            - type: 'null'
+          description: A council session's current way of working (docs/councils.md, Collaboration modes); null in an agent session.
         startedBy: { type: string, description: 'The person''s `sub`.' }
         title: { type: [string, 'null'] }
         status: { $ref: '#/components/schemas/SessionStatus' }

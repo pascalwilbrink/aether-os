@@ -14,6 +14,7 @@ import {
   type SessionTurn,
 } from './session-agent.js';
 import { Deliberation } from './deliberation.js';
+import { allowedModes } from './modes.js';
 import { SessionMemberInvalidError } from './session.errors.js';
 import { SessionTokens } from './session-tokens.js';
 import { SESSION_OPTIONS, type SessionOptions } from './session.options.js';
@@ -122,6 +123,11 @@ export class SessionRunsService {
             },
             rounds,
           ),
+          modes: {
+            current: session.mode ?? 'facilitated',
+            allowed: allowedModes(councilVersion.settings),
+            changed: false,
+          },
         };
       }
       const first = addressed
@@ -191,6 +197,7 @@ export class SessionRunsService {
             produced,
             invited,
             council?.deliberation.changed() ?? [],
+            council?.modes.changed ? council.modes.current : null,
           );
         }
       },

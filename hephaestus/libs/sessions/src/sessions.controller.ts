@@ -21,6 +21,7 @@ import { RunAgentInput } from './dto/run-agent-input.js';
 import { DeliberationRoundPage } from './dto/deliberation-round-page.response.js';
 import { DeliberationRoundsQuery } from './dto/deliberation-rounds.query.js';
 import { SessionMessagePage } from './dto/session-message-page.response.js';
+import { SetSessionModeRequest } from './dto/set-session-mode.request.js';
 import { SessionMessagesQuery } from './dto/session-messages.query.js';
 import { SessionPage } from './dto/session-page.response.js';
 import { SessionResponse } from './dto/session.response.js';
@@ -89,6 +90,22 @@ export class SessionsController {
     @Query() query: DeliberationRoundsQuery,
   ) {
     return this.sessions.roundsOf(organizationId, projectId, sessionId, query);
+  }
+
+  @Post(':sessionId/mode')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermission('session:use', IN_PROJECT)
+  @ZodSerializerDto(SessionResponse)
+  setMode(
+    @Param() { organizationId, projectId, sessionId }: SessionParams,
+    @Body() body: SetSessionModeRequest,
+  ) {
+    return this.sessions.setMode(
+      organizationId,
+      projectId,
+      sessionId,
+      body.mode,
+    );
   }
 
   @Post(':sessionId/end')

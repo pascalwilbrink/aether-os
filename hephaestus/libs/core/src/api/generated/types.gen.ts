@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'ARTIFACT_NOT_DRAFT' | 'TASK_BUDGET_INVALID' | 'TASK_CONCURRENCY_INVALID' | 'TASK_CONCURRENCY_SKIPPED' | 'TASK_CONTEXT_INVALID' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_FIELDS_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'TASK_TEMPLATE_ARCHIVED' | 'TASK_TEMPLATE_INPUTS_INVALID' | 'TASK_TEMPLATE_INVALID' | 'TOOL_SERVER_ALREADY_EXISTS' | 'TOOL_SERVER_INVALID' | 'SESSION_BUSY' | 'SESSION_ENDED' | 'SESSION_MEMBER_INVALID' | 'COUNCIL_UNAVAILABLE' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
+export type DomainErrorCode = 'AGENT_ARCHIVED' | 'AGENT_NOT_PUBLISHED' | 'ARTIFACT_NOT_DRAFT' | 'TASK_BUDGET_INVALID' | 'TASK_CONCURRENCY_INVALID' | 'TASK_CONCURRENCY_SKIPPED' | 'TASK_CONTEXT_INVALID' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_ARCHIVED' | 'TASK_CRITERIA_INVALID' | 'TASK_FIELDS_INVALID' | 'TASK_DEPENDENCY_INVALID' | 'TASK_INVALID_TRANSITION' | 'TASK_PARENT_FINISHED' | 'TASK_REVIEW_ROUNDS_EXHAUSTED' | 'TASK_TEMPLATE_ARCHIVED' | 'TASK_TEMPLATE_INPUTS_INVALID' | 'TASK_TEMPLATE_INVALID' | 'TOOL_SERVER_ALREADY_EXISTS' | 'TOOL_SERVER_INVALID' | 'SESSION_BUSY' | 'SESSION_ENDED' | 'SESSION_MEMBER_INVALID' | 'SESSION_MODE_INVALID' | 'COUNCIL_UNAVAILABLE' | 'WORKSPACE_INVALID_EXPIRY' | 'WORKSPACE_INVALID_TRANSITION';
 
 /**
  * Problem details for a business-rule violation.
@@ -1178,6 +1178,15 @@ export type ToolList = {
 export type SessionStatus = 'active' | 'ended';
 
 /**
+ * How a council works in a session: `direct` (the person addresses members), `facilitated` (the facilitator answers, asks members, holds rounds), `discussion` (deliberation rounds on the person's questions), `planning` and `delegation` (plans and the tasks they become).
+ */
+export type SessionMode = 'direct' | 'facilitated' | 'discussion' | 'planning' | 'delegation';
+
+export type SetSessionModeRequest = {
+    mode: SessionMode;
+};
+
+/**
  * Exactly one of `agentId` and `councilId`.
  */
 export type CreateSessionRequest = {
@@ -1235,6 +1244,10 @@ export type SessionResponse = {
      * A council session's members; empty otherwise.
      */
     members: Array<SessionMember>;
+    /**
+     * A council session's current way of working (docs/councils.md, Collaboration modes); null in an agent session.
+     */
+    mode: SessionMode | null;
     /**
      * The person's `sub`.
      */
@@ -3904,6 +3917,58 @@ export type ListDeliberationRoundsResponses = {
 };
 
 export type ListDeliberationRoundsResponse = ListDeliberationRoundsResponses[keyof ListDeliberationRoundsResponses];
+
+export type SetSessionModeData = {
+    body: SetSessionModeRequest;
+    path: {
+        organizationId: string;
+        projectId: string;
+        sessionId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/mode';
+};
+
+export type SetSessionModeErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type SetSessionModeError = SetSessionModeErrors[keyof SetSessionModeErrors];
+
+export type SetSessionModeResponses = {
+    /**
+     * The session, in its mode
+     */
+    200: SessionResponse;
+};
+
+export type SetSessionModeResponse = SetSessionModeResponses[keyof SetSessionModeResponses];
 
 export type EndSessionData = {
     body?: never;

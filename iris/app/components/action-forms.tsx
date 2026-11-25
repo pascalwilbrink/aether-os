@@ -46,17 +46,19 @@ export function ActionButton({
   );
 }
 
-/** A role picker with a Save button; submits `role`. */
+/** A role picker (or another one-of choice) with a Save button; submits `role`. */
 export function RoleForm({
   action,
   roles,
   current,
   label = "Save",
+  ariaLabel = "Role",
 }: {
   action: Action;
   roles: { role: string; label: string; hint: string }[];
   current?: string;
   label?: string;
+  ariaLabel?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   return (
@@ -65,7 +67,7 @@ export function RoleForm({
         key={current}
         name="role"
         defaultValue={current ?? roles[0]?.role}
-        aria-label="Role"
+        aria-label={ariaLabel}
         className="rounded-md border border-zinc-300 bg-transparent px-2 py-1 dark:border-zinc-700"
       >
         {roles.map(({ role, label: roleLabel, hint }) => (

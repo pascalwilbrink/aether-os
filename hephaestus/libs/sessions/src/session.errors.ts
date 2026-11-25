@@ -17,6 +17,13 @@ export class SessionEndedError extends DomainError {
   }
 }
 
+/** A mode the session can't be in (an agent session, or one its council doesn't allow). */
+export class SessionModeInvalidError extends DomainError {
+  constructor(reason: string) {
+    super(reason, 'SESSION_MODE_INVALID');
+  }
+}
+
 /** Addressing a member directly that the session can't address. */
 export class SessionMemberInvalidError extends DomainError {
   constructor(reason: string) {

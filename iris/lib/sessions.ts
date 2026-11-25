@@ -5,6 +5,10 @@ import type {
   SessionAuthor,
   SessionMember,
 } from "./api";
+import type { CouncilVersion } from "./api";
+
+type SessionMode = NonNullable<AgentSession["mode"]>;
+type CouncilSettings = CouncilVersion["settings"];
 
 /**
  * Sessions in Iris (docs/interaction.md, docs/councils.md): the stored
@@ -289,6 +293,47 @@ export function sessionStatus(session: Pick<AgentSession, "status" | "endedReaso
   return session.running
     ? { label: "Answering", classes: "bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200" }
     : { label: "Active", classes: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200" };
+}
+
+/** How a council session can work, in words (docs/councils.md, Collaboration modes). */
+const SESSION_MODES: {
+  value: SessionMode;
+  label: string;
+  hint: string;
+  allowed: (settings: CouncilSettings) => boolean;
+}[] = [
+  {
+    value: "facilitated",
+    label: "Facilitated",
+    hint: "The facilitator answers, asks members and holds rounds",
+    allowed: () => true,
+  },
+  {
+    value: "direct",
+    label: "Direct",
+    hint: "You address members yourself",
+    allowed: (settings) => settings.allowDirectInteraction,
+  },
+  {
+    value: "discussion",
+    label: "Discussion",
+    hint: "Your questions go to the council as deliberation rounds",
+    allowed: (settings) => settings.allowDiscussion,
+  },
+];
+
+/** A session's mode in words. */
+export const sessionModeLabel = (mode: SessionMode) =>
+  SESSION_MODES.find((entry) => entry.value === mode)?.label ??
+  mode.charAt(0).toUpperCase() + mode.slice(1);
+
+/** The modes a council session can switch to (planning and delegation come with plans). */
+export function sessionModeChoices(
+  settings: CouncilSettings,
+): { role: SessionMode; label: string; hint: string }[] {
+  return SESSION_MODES.filter((mode) => mode.allowed(settings)).map(
+    ({ value, label, hint }) => ({ role: value, label, hint }),
+  );
 }
 
 /** A member's participation, in words. */

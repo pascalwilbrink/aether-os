@@ -11,6 +11,8 @@ import {
   roundEvent,
   roundsOfMessages,
   roundStatus,
+  sessionModeChoices,
+  sessionModeLabel,
   runFailureMessage,
   sessionEventOf,
   sessionRunBody,
@@ -152,6 +154,26 @@ describe("deliberation rounds", () => {
     expect(roundStatus({ status: "concluded", conclusion: null })).toBe(
       "Closed without a conclusion",
     );
+  });
+});
+
+describe("modes", () => {
+  const settings = {
+    defaultMode: "facilitated" as const,
+    allowDirectInteraction: true,
+    allowDiscussion: false,
+    allowPlanning: true,
+    allowDelegation: true,
+    requireSynthesis: true,
+  };
+
+  it("offers the modes the council allows, not those that come with plans", () => {
+    expect(sessionModeChoices(settings).map((mode) => mode.role)).toEqual([
+      "facilitated",
+      "direct",
+    ]);
+    expect(sessionModeLabel("discussion")).toBe("Discussion");
+    expect(sessionModeLabel("planning")).toBe("Planning");
   });
 });
 

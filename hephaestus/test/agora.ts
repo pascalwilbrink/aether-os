@@ -265,6 +265,8 @@ export async function publishedCouncil(
     members: TestCouncilMember[];
     allowDirectInteraction?: boolean;
     allowDiscussion?: boolean;
+    defaultMode?:
+      'direct' | 'facilitated' | 'discussion' | 'planning' | 'delegation';
     discussion?: Partial<{
       maxRounds: number;
       allowAgentResponses: boolean;
@@ -306,7 +308,7 @@ export async function publishedCouncil(
         facilitator: { agentId: fields.facilitatorId },
         members: fields.members,
         settings: {
-          defaultMode: 'facilitated',
+          defaultMode: fields.defaultMode ?? 'facilitated',
           allowDirectInteraction: fields.allowDirectInteraction ?? true,
           allowDiscussion: fields.allowDiscussion ?? true,
           allowPlanning: true,

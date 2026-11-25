@@ -24,6 +24,7 @@ import {
   roundSection,
   transcript,
 } from './council-prompts.js';
+import { modeSection, SESSION_MODES, type SessionMode } from './modes.js';
 import {
   isRefusal as isDeliberationRefusal,
   type Deliberation,
@@ -73,6 +74,8 @@ export interface SessionTurn {
     addressed: string | null;
     /** Its deliberation rounds, which the facilitator's tools open and conclude. */
     deliberation: Deliberation;
+    /** Its mode now (the facilitator may switch it: `changed`), and the modes it allows. */
+    modes: { current: SessionMode; allowed: SessionMode[]; changed: boolean };
   } | null;
   /** The session's messages, oldest first, the new ones included. */
   history: SessionHistoryMessage[];
@@ -206,6 +209,8 @@ export class SessionAgent {
               sessionInstructions(version.instructions, tools),
               '',
               facilitatorSection(council.members),
+              '',
+              modeSection(council.modes.current, council.modes.allowed),
               ...(council.deliberation.settings.allowed
                 ? ['', council.deliberation.describe()]
                 : []),
@@ -342,6 +347,49 @@ export class SessionAgent {
       ...(context.turn.council?.deliberation.settings.allowed
         ? this.roundTools(context, writer)
         : {}),
+      ...((context.turn.council?.modes.allowed.length ?? 0) > 1
+        ? this.modeTools(context)
+        : {}),
+    };
+  }
+
+  /**
+   * `set_mode`: the facilitator switches how the council works, among the
+   * modes it allows (../../../../docs/councils.md, Collaboration modes),
+   * announced with a `CUSTOM` `mode-changed` event and kept when the run ends.
+   */
+  private modeTools(context: TurnContext): ToolsInput {
+    const modes = (context.turn.council as NonNullable<SessionTurn['council']>)
+      .modes;
+    return {
+      set_mode: createTool({
+        id: 'set_mode',
+        description: `Switch how the council works in this session (${modes.allowed.join(', ')}), saying why. The person sees the change.`,
+        inputSchema: z.object({
+          mode: z.enum(SESSION_MODES as [SessionMode, ...SessionMode[]]),
+          reason: z.string().min(1).max(1000),
+        }),
+        execute: (input) => {
+          if (!modes.allowed.includes(input.mode)) {
+            return Promise.resolve({
+              refused: `This session can't be in the ${input.mode} mode; it can be in: ${modes.allowed.join(', ')}.`,
+            });
+          }
+          if (modes.current !== input.mode) {
+            modes.current = input.mode;
+            modes.changed = true;
+            context.emit({
+              type: 'CUSTOM',
+              name: 'mode-changed',
+              value: { mode: input.mode, reason: input.reason },
+            });
+          }
+          return Promise.resolve({
+            mode: input.mode,
+            next: modeSection(input.mode, modes.allowed),
+          });
+        },
+      }),
     };
   }
 

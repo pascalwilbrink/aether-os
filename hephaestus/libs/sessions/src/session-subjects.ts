@@ -4,6 +4,7 @@ import { ValidationProblemException } from '@hephaestus/core';
 import { AgentsService } from '@hephaestus/agents';
 import { CouncilsService } from '@hephaestus/councils';
 
+import { initialMode, modeProblem, type SessionMode } from './modes.js';
 import type { SessionMemberState } from './session.entity.js';
 
 /** What a session talks to, pinned when it starts. */
@@ -14,6 +15,8 @@ export interface SessionSubject {
   councilId: string | null;
   councilVersionId: string | null;
   members: SessionMemberState[];
+  /** A council session's first mode. */
+  mode: SessionMode | null;
 }
 
 /**
@@ -28,6 +31,19 @@ export class SessionSubjects {
     private readonly agents: AgentsService,
     private readonly councils: CouncilsService,
   ) {}
+
+  /** Why a council session can't be in `mode` (its pinned version's settings), or null. */
+  async modeProblem(
+    organizationId: string,
+    councilVersionId: string,
+    mode: SessionMode,
+  ): Promise<string | null> {
+    const version = await this.councils.version(
+      organizationId,
+      councilVersionId,
+    );
+    return modeProblem(mode, version.settings);
+  }
 
   async pin(
     organizationId: string,
@@ -53,6 +69,7 @@ export class SessionSubjects {
         councilId: null,
         councilVersionId: null,
         members: [],
+        mode: null,
       };
     }
     const council = await this.councils.publishedVersion(
@@ -89,6 +106,7 @@ export class SessionSubjects {
       councilId: council.councilId,
       councilVersionId: council.id,
       members,
+      mode: initialMode(council.settings),
     };
   }
 }
