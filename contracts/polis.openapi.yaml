@@ -1,10 +1,11 @@
 openapi: 3.1.0
 info:
   title: Polis API
-  version: 0.8.0
+  version: 0.9.0
   description: |
     Tenancy service for Aether-os: organizations, their optional
-    departments (which group projects), the projects inside them,
+    departments (which group projects), persons (the people in an
+    organization, in any of its departments), the projects inside them,
     memberships (which principal belongs to which organization, with which
     roles) and project memberships (a member's role in one project).
     Other services store organization and project IDs and resolve them here.
@@ -29,6 +30,7 @@ security:
 tags:
   - name: organizations
   - name: departments
+  - name: persons
   - name: projects
   - name: memberships
   - name: project-memberships
@@ -257,6 +259,124 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/DepartmentResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/persons:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [persons]
+      operationId: createPerson
+      x-permission: '`member:manage`'
+      description: |
+        Records a person of the organization, in any of its active
+        departments (`DEPARTMENT_ARCHIVED`; another organization's is `404`).
+        The email address is unique in the organization
+        (`PERSON_EMAIL_TAKEN`, compared case-insensitively). A person is
+        linked to the Pistis user with the same email address (`userId`),
+        when exactly one user has it and no other person of the organization
+        is linked to them; otherwise when such a user is created later.
+        Persons grant nothing: roles stay on memberships.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PersonRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PersonResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    get:
+      tags: [persons]
+      operationId: listPersons
+      x-permission: '`member:read`, or `platform:read`'
+      parameters:
+        - name: departmentId
+          in: query
+          required: false
+          description: Only the persons in this department.
+          schema: { type: string, format: uuid }
+        - name: userId
+          in: query
+          required: false
+          description: Only the person linked to this Pistis user.
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PersonPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/persons/{personId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - name: personId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [persons]
+      operationId: getPerson
+      x-permission: '`member:read`, or `platform:read`'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PersonResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [persons]
+      operationId: updatePerson
+      x-permission: '`member:manage`'
+      description: |
+        Replaces the person's fields and departments (departments it joins
+        must be active; one it stays in may be archived). A new email
+        address links the person anew: to the one user with that address,
+        else to no one. Unchanged → no new version and no event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PersonRequest' }
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PersonResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+    delete:
+      tags: [persons]
+      operationId: deletePerson
+      x-permission: '`member:manage`'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '204': { description: Deleted }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
@@ -706,6 +826,7 @@ components:
         - DEPARTMENT_SLUG_TAKEN
         - DEPARTMENT_ARCHIVED
         - DEPARTMENT_HAS_PROJECTS
+        - PERSON_EMAIL_TAKEN
     DomainProblem:
       description: Problem details for a business-rule violation.
       allOf:
@@ -810,6 +931,66 @@ components:
             items:
               type: array
               items: { $ref: '#/components/schemas/DepartmentResponse' }
+
+    # ---------- persons ----------
+    PersonRequest:
+      type: object
+      additionalProperties: false
+      required: [name, email]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        email:
+          type: string
+          format: email
+          maxLength: 320
+          description: Unique in the organization (case-insensitive); stored in lowercase. Links the person to the Pistis user with this address.
+        description: { type: string, maxLength: 2000, default: '' }
+        role:
+          type: [string, 'null']
+          maxLength: 200
+          description: Their job title, e.g. "Backend engineer". Informational; permissions stay on memberships.
+        gender:
+          type: [string, 'null']
+          maxLength: 100
+          description: As the person describes it; optional.
+        departmentIds:
+          type: array
+          maxItems: 50
+          uniqueItems: true
+          items: { type: string, format: uuid }
+          default: []
+          description: The organization's departments the person is in.
+    PersonResponse:
+      type: object
+      required: [id, organizationId, name, email, description, role, gender, departmentIds, userId, createdBy, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string }
+        description: { type: string }
+        role: { type: [string, 'null'] }
+        gender: { type: [string, 'null'] }
+        departmentIds:
+          type: array
+          items: { type: string, format: uuid }
+        userId:
+          type: [string, 'null']
+          format: uuid
+          description: The Pistis user (their `sub`) with the same email address, once linked.
+        createdBy: { type: string }
+        createdAt: { $ref: '#/components/schemas/Timestamp' }
+        updatedAt: { $ref: '#/components/schemas/Timestamp' }
+        version: { $ref: '#/components/schemas/Version' }
+    PersonPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: '#/components/schemas/PersonResponse' }
 
     # ---------- projects ----------
     ProjectStatus:

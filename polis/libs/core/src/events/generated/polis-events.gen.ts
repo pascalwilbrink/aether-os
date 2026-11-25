@@ -120,6 +120,37 @@ export interface OrganizationSuspended {
 }
 
 /**
+ * Payload of `person.created`.
+ */
+export interface PersonCreated {
+  personId: string;
+  /**
+   * The linked Pistis user, if any.
+   */
+  userId: string | null;
+  departmentIds: string[];
+}
+
+/**
+ * Payload of `person.deleted`.
+ */
+export interface PersonDeleted {
+  personId: string;
+}
+
+/**
+ * Payload of `person.updated`.
+ */
+export interface PersonUpdated {
+  personId: string;
+  /**
+   * The linked Pistis user, if any.
+   */
+  userId: string | null;
+  departmentIds: string[];
+}
+
+/**
  * Payload of `project-membership.granted`.
  */
 export interface ProjectMembershipGranted {
@@ -223,6 +254,9 @@ export interface PolisEventPayloads {
   'organization.created': OrganizationCreated;
   'organization.reactivated': OrganizationReactivated;
   'organization.suspended': OrganizationSuspended;
+  'person.created': PersonCreated;
+  'person.deleted': PersonDeleted;
+  'person.updated': PersonUpdated;
   'project-membership.granted': ProjectMembershipGranted;
   'project-membership.revoked': ProjectMembershipRevoked;
   'project-membership.role-changed': ProjectMembershipRoleChanged;
@@ -244,6 +278,9 @@ export const POLIS_EVENT_TYPES = [
   'organization.created',
   'organization.reactivated',
   'organization.suspended',
+  'person.created',
+  'person.deleted',
+  'person.updated',
   'project-membership.granted',
   'project-membership.revoked',
   'project-membership.role-changed',

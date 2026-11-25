@@ -6,7 +6,7 @@ export type ClientOptions = {
 
 export type Problem = CommonOpenapiProblem;
 
-export type DomainErrorCode = 'ORGANIZATION_SLUG_TAKEN' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_SLUG_TAKEN' | 'MEMBERSHIP_EXISTS' | 'PROJECT_ARCHIVED' | 'PROJECT_MEMBERSHIP_EXISTS' | 'PROJECT_MEMBER_NOT_IN_ORGANIZATION' | 'PROJECT_ROLE_EXCEEDS_CAP' | 'DEPARTMENT_SLUG_TAKEN' | 'DEPARTMENT_ARCHIVED' | 'DEPARTMENT_HAS_PROJECTS';
+export type DomainErrorCode = 'ORGANIZATION_SLUG_TAKEN' | 'ORGANIZATION_SUSPENDED' | 'PROJECT_SLUG_TAKEN' | 'MEMBERSHIP_EXISTS' | 'PROJECT_ARCHIVED' | 'PROJECT_MEMBERSHIP_EXISTS' | 'PROJECT_MEMBER_NOT_IN_ORGANIZATION' | 'PROJECT_ROLE_EXCEEDS_CAP' | 'DEPARTMENT_SLUG_TAKEN' | 'DEPARTMENT_ARCHIVED' | 'DEPARTMENT_HAS_PROJECTS' | 'PERSON_EMAIL_TAKEN';
 
 /**
  * Problem details for a business-rule violation.
@@ -83,6 +83,50 @@ export type DepartmentResponse = {
 
 export type DepartmentPage = PageMeta & {
     items: Array<DepartmentResponse>;
+};
+
+export type PersonRequest = {
+    name: string;
+    /**
+     * Unique in the organization (case-insensitive); stored in lowercase. Links the person to the Pistis user with this address.
+     */
+    email: string;
+    description?: string;
+    /**
+     * Their job title, e.g. "Backend engineer". Informational; permissions stay on memberships.
+     */
+    role?: string | null;
+    /**
+     * As the person describes it; optional.
+     */
+    gender?: string | null;
+    /**
+     * The organization's departments the person is in.
+     */
+    departmentIds?: Array<string>;
+};
+
+export type PersonResponse = {
+    id: string;
+    organizationId: string;
+    name: string;
+    email: string;
+    description: string;
+    role: string | null;
+    gender: string | null;
+    departmentIds: Array<string>;
+    /**
+     * The Pistis user (their `sub`) with the same email address, once linked.
+     */
+    userId: string | null;
+    createdBy: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+    version: Version;
+};
+
+export type PersonPage = PageMeta & {
+    items: Array<PersonResponse>;
 };
 
 export type ProjectStatus = 'active' | 'archived';
@@ -858,6 +902,271 @@ export type ArchiveDepartmentResponses = {
 };
 
 export type ArchiveDepartmentResponse = ArchiveDepartmentResponses[keyof ArchiveDepartmentResponses];
+
+export type ListPersonsData = {
+    body?: never;
+    path: {
+        organizationId: string;
+    };
+    query?: {
+        /**
+         * Only the persons in this department.
+         */
+        departmentId?: string;
+        /**
+         * Only the person linked to this Pistis user.
+         */
+        userId?: string;
+        /**
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Opaque cursor from the previous page's `nextCursor`; leave it out for
+         * the first page. A cursor only works with the filters it was made with
+         * (otherwise `400 INVALID_CURSOR`).
+         *
+         */
+        cursor?: string;
+    };
+    url: '/v1/organizations/{organizationId}/persons';
+};
+
+export type ListPersonsErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type ListPersonsError = ListPersonsErrors[keyof ListPersonsErrors];
+
+export type ListPersonsResponses = {
+    /**
+     * Newest first
+     */
+    200: PersonPage;
+};
+
+export type ListPersonsResponse = ListPersonsResponses[keyof ListPersonsResponses];
+
+export type CreatePersonData = {
+    body: PersonRequest;
+    path: {
+        organizationId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/persons';
+};
+
+export type CreatePersonErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type CreatePersonError = CreatePersonErrors[keyof CreatePersonErrors];
+
+export type CreatePersonResponses = {
+    /**
+     * Created
+     */
+    201: PersonResponse;
+};
+
+export type CreatePersonResponse = CreatePersonResponses[keyof CreatePersonResponses];
+
+export type DeletePersonData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        personId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/persons/{personId}';
+};
+
+export type DeletePersonErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type DeletePersonError = DeletePersonErrors[keyof DeletePersonErrors];
+
+export type DeletePersonResponses = {
+    /**
+     * Deleted
+     */
+    204: void;
+};
+
+export type DeletePersonResponse = DeletePersonResponses[keyof DeletePersonResponses];
+
+export type GetPersonData = {
+    body?: never;
+    path: {
+        organizationId: string;
+        personId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/persons/{personId}';
+};
+
+export type GetPersonErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+};
+
+export type GetPersonError = GetPersonErrors[keyof GetPersonErrors];
+
+export type GetPersonResponses = {
+    /**
+     * OK
+     */
+    200: PersonResponse;
+};
+
+export type GetPersonResponse = GetPersonResponses[keyof GetPersonResponses];
+
+export type UpdatePersonData = {
+    body: PersonRequest;
+    path: {
+        organizationId: string;
+        personId: string;
+    };
+    query?: never;
+    url: '/v1/organizations/{organizationId}/persons/{personId}';
+};
+
+export type UpdatePersonErrors = {
+    /**
+     * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+     * `INVALID_CURSOR`.
+     *
+     */
+    400: CommonOpenapiProblem;
+    /**
+     * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+     * access token (signature, issuer, audience, expiry).
+     *
+     */
+    401: CommonOpenapiProblem;
+    /**
+     * `FORBIDDEN`: the token is valid but lacks the permission
+     * (`x-permission` on the operation). Another organization's resources
+     * are 404, not 403.
+     *
+     */
+    403: CommonOpenapiProblem;
+    /**
+     * `NOT_FOUND`: the resource doesn't exist.
+     */
+    404: CommonOpenapiProblem;
+    /**
+     * A business rule forbids this (409, with a `DomainErrorCode`).
+     */
+    409: DomainProblem;
+};
+
+export type UpdatePersonError = UpdatePersonErrors[keyof UpdatePersonErrors];
+
+export type UpdatePersonResponses = {
+    /**
+     * Updated
+     */
+    200: PersonResponse;
+};
+
+export type UpdatePersonResponse = UpdatePersonResponses[keyof UpdatePersonResponses];
 
 export type ListProjectsData = {
     body?: never;

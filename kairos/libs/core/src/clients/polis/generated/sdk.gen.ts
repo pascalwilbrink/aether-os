@@ -27,6 +27,9 @@ import type {
   CreateOrganizationData,
   CreateOrganizationErrors,
   CreateOrganizationResponses,
+  CreatePersonData,
+  CreatePersonErrors,
+  CreatePersonResponses,
   CreateProjectData,
   CreateProjectErrors,
   CreateProjectMembershipData,
@@ -36,6 +39,9 @@ import type {
   DeleteMembershipData,
   DeleteMembershipErrors,
   DeleteMembershipResponses,
+  DeletePersonData,
+  DeletePersonErrors,
+  DeletePersonResponses,
   DeleteProjectMembershipData,
   DeleteProjectMembershipErrors,
   DeleteProjectMembershipResponses,
@@ -51,6 +57,9 @@ import type {
   GetOrganizationData,
   GetOrganizationErrors,
   GetOrganizationResponses,
+  GetPersonData,
+  GetPersonErrors,
+  GetPersonResponses,
   GetProjectData,
   GetProjectErrors,
   GetProjectMembershipData,
@@ -69,6 +78,9 @@ import type {
   ListOrganizationsData,
   ListOrganizationsErrors,
   ListOrganizationsResponses,
+  ListPersonsData,
+  ListPersonsErrors,
+  ListPersonsResponses,
   ListProjectMembershipsData,
   ListProjectMembershipsErrors,
   ListProjectMembershipsOfSubjectData,
@@ -90,6 +102,9 @@ import type {
   UpdateMembershipData,
   UpdateMembershipErrors,
   UpdateMembershipResponses,
+  UpdatePersonData,
+  UpdatePersonErrors,
+  UpdatePersonResponses,
   UpdateProjectMembershipData,
   UpdateProjectMembershipErrors,
   UpdateProjectMembershipResponses,
@@ -323,6 +338,97 @@ export const archiveDepartment = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/departments/{departmentId}/archive',
     ...options,
+  });
+
+export const listPersons = <ThrowOnError extends boolean = false>(
+  options: Options<ListPersonsData, ThrowOnError>,
+): RequestResult<ListPersonsResponses, ListPersonsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    ListPersonsResponses,
+    ListPersonsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/persons',
+    ...options,
+  });
+
+/**
+ * Records a person of the organization, in any of its active
+ * departments (`DEPARTMENT_ARCHIVED`; another organization's is `404`).
+ * The email address is unique in the organization
+ * (`PERSON_EMAIL_TAKEN`, compared case-insensitively). A person is
+ * linked to the Pistis user with the same email address (`userId`),
+ * when exactly one user has it and no other person of the organization
+ * is linked to them; otherwise when such a user is created later.
+ * Persons grant nothing: roles stay on memberships.
+ *
+ */
+export const createPerson = <ThrowOnError extends boolean = false>(
+  options: Options<CreatePersonData, ThrowOnError>,
+): RequestResult<CreatePersonResponses, CreatePersonErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreatePersonResponses,
+    CreatePersonErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/persons',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+export const deletePerson = <ThrowOnError extends boolean = false>(
+  options: Options<DeletePersonData, ThrowOnError>,
+): RequestResult<DeletePersonResponses, DeletePersonErrors, ThrowOnError> =>
+  (options.client ?? client).delete<
+    DeletePersonResponses,
+    DeletePersonErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/persons/{personId}',
+    ...options,
+  });
+
+export const getPerson = <ThrowOnError extends boolean = false>(
+  options: Options<GetPersonData, ThrowOnError>,
+): RequestResult<GetPersonResponses, GetPersonErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetPersonResponses,
+    GetPersonErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/persons/{personId}',
+    ...options,
+  });
+
+/**
+ * Replaces the person's fields and departments (departments it joins
+ * must be active; one it stays in may be archived). A new email
+ * address links the person anew: to the one user with that address,
+ * else to no one. Unchanged → no new version and no event.
+ *
+ */
+export const updatePerson = <ThrowOnError extends boolean = false>(
+  options: Options<UpdatePersonData, ThrowOnError>,
+): RequestResult<UpdatePersonResponses, UpdatePersonErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    UpdatePersonResponses,
+    UpdatePersonErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/persons/{personId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   });
 
 export const listProjects = <ThrowOnError extends boolean = false>(

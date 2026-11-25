@@ -13,7 +13,8 @@ export const zDomainErrorCode = z.enum([
     'PROJECT_ROLE_EXCEEDS_CAP',
     'DEPARTMENT_SLUG_TAKEN',
     'DEPARTMENT_ARCHIVED',
-    'DEPARTMENT_HAS_PROJECTS'
+    'DEPARTMENT_HAS_PROJECTS',
+    'PERSON_EMAIL_TAKEN'
 ]);
 
 /**
@@ -69,6 +70,31 @@ export const zDepartmentResponse = z.object({
     slug: z.string(),
     description: z.string(),
     status: zDepartmentStatus,
+    createdBy: z.string(),
+    createdAt: zTimestamp,
+    updatedAt: zTimestamp,
+    version: zVersion
+});
+
+export const zPersonRequest = z.object({
+    name: z.string().min(1).max(200),
+    email: z.email().max(320),
+    description: z.string().max(2000).optional().default(''),
+    role: z.string().max(200).nullish(),
+    gender: z.string().max(100).nullish(),
+    departmentIds: z.array(z.uuid()).max(50).optional().default([])
+});
+
+export const zPersonResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    name: z.string(),
+    email: z.string(),
+    description: z.string(),
+    role: z.string().nullable(),
+    gender: z.string().nullable(),
+    departmentIds: z.array(z.uuid()),
+    userId: z.uuid().nullable(),
     createdBy: z.string(),
     createdAt: zTimestamp,
     updatedAt: zTimestamp,
@@ -206,6 +232,10 @@ export const zOrganizationPage = zPageMeta.and(z.object({
 
 export const zDepartmentPage = zPageMeta.and(z.object({
     items: z.array(zDepartmentResponse)
+}));
+
+export const zPersonPage = zPageMeta.and(z.object({
+    items: z.array(zPersonResponse)
 }));
 
 export const zProjectPage = zPageMeta.and(z.object({
@@ -408,6 +438,65 @@ export const zArchiveDepartmentPath = z.object({
  * Archived (or already archived)
  */
 export const zArchiveDepartmentResponse = zDepartmentResponse;
+
+export const zListPersonsPath = z.object({
+    organizationId: z.uuid()
+});
+
+export const zListPersonsQuery = z.object({
+    departmentId: z.uuid().optional(),
+    userId: z.uuid().optional(),
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListPersonsResponse = zPersonPage;
+
+export const zCreatePersonBody = zPersonRequest;
+
+export const zCreatePersonPath = z.object({
+    organizationId: z.uuid()
+});
+
+/**
+ * Created
+ */
+export const zCreatePersonResponse = zPersonResponse;
+
+export const zDeletePersonPath = z.object({
+    organizationId: z.uuid(),
+    personId: z.uuid()
+});
+
+/**
+ * Deleted
+ */
+export const zDeletePersonResponse = z.void();
+
+export const zGetPersonPath = z.object({
+    organizationId: z.uuid(),
+    personId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetPersonResponse = zPersonResponse;
+
+export const zUpdatePersonBody = zPersonRequest;
+
+export const zUpdatePersonPath = z.object({
+    organizationId: z.uuid(),
+    personId: z.uuid()
+});
+
+/**
+ * Updated
+ */
+export const zUpdatePersonResponse = zPersonResponse;
 
 export const zListProjectsPath = z.object({
     organizationId: z.uuid()

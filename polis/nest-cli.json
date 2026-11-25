@@ -69,6 +69,15 @@
       "compilerOptions": {
         "tsConfigPath": "libs/users/tsconfig.lib.json"
       }
+    },
+    "persons": {
+      "type": "library",
+      "root": "libs/persons",
+      "entryFile": "index",
+      "sourceRoot": "libs/persons/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/persons/tsconfig.lib.json"
+      }
     }
   }
 }

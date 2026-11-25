@@ -160,6 +160,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/persons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listPersons"];
+        put?: never;
+        /**
+         * @description Records a person of the organization, in any of its active
+         *     departments (`DEPARTMENT_ARCHIVED`; another organization's is `404`).
+         *     The email address is unique in the organization
+         *     (`PERSON_EMAIL_TAKEN`, compared case-insensitively). A person is
+         *     linked to the Pistis user with the same email address (`userId`),
+         *     when exactly one user has it and no other person of the organization
+         *     is linked to them; otherwise when such a user is created later.
+         *     Persons grant nothing: roles stay on memberships.
+         */
+        post: operations["createPerson"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/persons/{personId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                personId: string;
+            };
+            cookie?: never;
+        };
+        get: operations["getPerson"];
+        /**
+         * @description Replaces the person's fields and departments (departments it joins
+         *     must be active; one it stays in may be archived). A new email
+         *     address links the person anew: to the one user with that address,
+         *     else to no one. Unchanged → no new version and no event.
+         */
+        put: operations["updatePerson"];
+        post?: never;
+        delete: operations["deletePerson"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/projects": {
         parameters: {
             query?: never;
@@ -415,7 +468,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "ORGANIZATION_SLUG_TAKEN" | "ORGANIZATION_SUSPENDED" | "PROJECT_SLUG_TAKEN" | "MEMBERSHIP_EXISTS" | "PROJECT_ARCHIVED" | "PROJECT_MEMBERSHIP_EXISTS" | "PROJECT_MEMBER_NOT_IN_ORGANIZATION" | "PROJECT_ROLE_EXCEEDS_CAP" | "DEPARTMENT_SLUG_TAKEN" | "DEPARTMENT_ARCHIVED" | "DEPARTMENT_HAS_PROJECTS";
+        DomainErrorCode: "ORGANIZATION_SLUG_TAKEN" | "ORGANIZATION_SUSPENDED" | "PROJECT_SLUG_TAKEN" | "MEMBERSHIP_EXISTS" | "PROJECT_ARCHIVED" | "PROJECT_MEMBERSHIP_EXISTS" | "PROJECT_MEMBER_NOT_IN_ORGANIZATION" | "PROJECT_ROLE_EXCEEDS_CAP" | "DEPARTMENT_SLUG_TAKEN" | "DEPARTMENT_ARCHIVED" | "DEPARTMENT_HAS_PROJECTS" | "PERSON_EMAIL_TAKEN";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -478,6 +531,49 @@ export interface components {
         };
         DepartmentPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["DepartmentResponse"][];
+        };
+        PersonRequest: {
+            name: string;
+            /**
+             * Format: email
+             * @description Unique in the organization (case-insensitive); stored in lowercase. Links the person to the Pistis user with this address.
+             */
+            email: string;
+            /** @default  */
+            description: string;
+            /** @description Their job title, e.g. "Backend engineer". Informational; permissions stay on memberships. */
+            role?: string | null;
+            /** @description As the person describes it; optional. */
+            gender?: string | null;
+            /**
+             * @description The organization's departments the person is in.
+             * @default []
+             */
+            departmentIds: string[];
+        };
+        PersonResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            name: string;
+            email: string;
+            description: string;
+            role: string | null;
+            gender: string | null;
+            departmentIds: string[];
+            /**
+             * Format: uuid
+             * @description The Pistis user (their `sub`) with the same email address, once linked.
+             */
+            userId: string | null;
+            createdBy: string;
+            createdAt: components["schemas"]["Timestamp"];
+            updatedAt: components["schemas"]["Timestamp"];
+            version: components["schemas"]["Version"];
+        };
+        PersonPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["PersonResponse"][];
         };
         /** @enum {string} */
         ProjectStatus: "active" | "archived";
@@ -1011,6 +1107,161 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["DepartmentResponse"];
                 };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    listPersons: {
+        parameters: {
+            query?: {
+                /** @description Only the persons in this department. */
+                departmentId?: string;
+                /** @description Only the person linked to this Pistis user. */
+                userId?: string;
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createPerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    getPerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updatePerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PersonRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    deletePerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                personId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];

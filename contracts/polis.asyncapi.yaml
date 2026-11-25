@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Polis events
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Events Polis publishes to the `polis.events` topic exchange on RabbitMQ;
     the routing key is the event type. Every message is the Krepis
@@ -54,6 +54,9 @@ channels:
       departmentUpdated: { $ref: '#/components/messages/departmentUpdated' }
       departmentArchived: { $ref: '#/components/messages/departmentArchived' }
       projectDepartmentChanged: { $ref: '#/components/messages/projectDepartmentChanged' }
+      personCreated: { $ref: '#/components/messages/personCreated' }
+      personUpdated: { $ref: '#/components/messages/personUpdated' }
+      personDeleted: { $ref: '#/components/messages/personDeleted' }
 
 operations:
   publishPolisEvents:
@@ -75,6 +78,9 @@ operations:
       - $ref: '#/channels/polisEvents/messages/departmentUpdated'
       - $ref: '#/channels/polisEvents/messages/departmentArchived'
       - $ref: '#/channels/polisEvents/messages/projectDepartmentChanged'
+      - $ref: '#/channels/polisEvents/messages/personCreated'
+      - $ref: '#/channels/polisEvents/messages/personUpdated'
+      - $ref: '#/channels/polisEvents/messages/personDeleted'
 
 components:
   messages:
@@ -231,6 +237,37 @@ components:
               eventType: { const: project.department-changed }
               payload: { $ref: '#/components/schemas/ProjectDepartmentChanged' }
 
+    personCreated:
+      name: person.created
+      summary: "A person was recorded in an organization."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: person.created }
+              payload: { $ref: '#/components/schemas/PersonCreated' }
+    personUpdated:
+      name: person.updated
+      summary: "A person's fields, departments or linked user changed (also when a user with their email address was created)."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: person.updated }
+              payload: { $ref: '#/components/schemas/PersonUpdated' }
+    personDeleted:
+      name: person.deleted
+      summary: "A person was deleted."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: person.deleted }
+              payload: { $ref: '#/components/schemas/PersonDeleted' }
+
   schemas:
     Uuid: { type: string, format: uuid }
     Envelope:
@@ -329,6 +366,29 @@ components:
       required: [projectId]
       properties:
         projectId: { $ref: '#/components/schemas/Uuid' }
+    PersonCreated: { $ref: '#/components/schemas/PersonChanged' }
+    PersonUpdated: { $ref: '#/components/schemas/PersonChanged' }
+    PersonChanged:
+      type: object
+      additionalProperties: false
+      description: IDs only; a person's name, email address and other fields are read from Polis's API.
+      required: [personId, userId, departmentIds]
+      properties:
+        personId: { $ref: '#/components/schemas/Uuid' }
+        userId:
+          description: The linked Pistis user, if any.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        departmentIds:
+          type: array
+          items: { $ref: '#/components/schemas/Uuid' }
+    PersonDeleted:
+      type: object
+      additionalProperties: false
+      required: [personId]
+      properties:
+        personId: { $ref: '#/components/schemas/Uuid' }
     MembershipGranted:
       type: object
       additionalProperties: false
