@@ -265,6 +265,7 @@ export async function publishedCouncil(
     members: TestCouncilMember[];
     allowDirectInteraction?: boolean;
     allowDiscussion?: boolean;
+    allowDelegation?: boolean;
     defaultMode?:
       'direct' | 'facilitated' | 'discussion' | 'planning' | 'delegation';
     discussion?: Partial<{
@@ -312,7 +313,7 @@ export async function publishedCouncil(
           allowDirectInteraction: fields.allowDirectInteraction ?? true,
           allowDiscussion: fields.allowDiscussion ?? true,
           allowPlanning: true,
-          allowDelegation: false,
+          allowDelegation: fields.allowDelegation ?? false,
           requireSynthesis: true,
         },
         discussion: {

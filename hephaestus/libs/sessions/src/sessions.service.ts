@@ -19,8 +19,10 @@ import {
 } from '@hephaestus/core';
 import { ProjectsService } from '@hephaestus/tenancy';
 
+import type { CouncilPlanEntity } from './council-plan.entity.js';
 import type { Round } from './deliberation.js';
 import type { SessionMode } from './modes.js';
+import type { ProposedPlan } from './plans.js';
 import type { SessionHistoryMessage } from './session-agent.js';
 import { SessionMessagesService } from './session-messages.service.js';
 import { SessionSubjects } from './session-subjects.js';
@@ -38,6 +40,8 @@ export interface StartedRun {
   history: SessionHistoryMessage[];
   /** A council session's deliberation rounds so far. */
   rounds: Round[];
+  /** A council session's plans so far. */
+  plans: CouncilPlanEntity[];
 }
 
 /**
@@ -250,7 +254,10 @@ export class SessionsService {
     const rounds = session.councilId
       ? await this.messages.roundsOf(sessionId)
       : [];
-    return { session, history: [...history, ...added], rounds };
+    const plans = session.councilId
+      ? await this.messages.plansOf(sessionId)
+      : [];
+    return { session, history: [...history, ...added], rounds, plans };
   }
 
   /**
@@ -264,6 +271,7 @@ export class SessionsService {
     invited: ReadonlySet<string> = new Set(),
     rounds: readonly Round[] = [],
     mode: SessionMode | null = null,
+    plans: readonly ProposedPlan[] = [],
   ): Promise<void> {
     const session = await this.sessions.findOne({
       where: { id: sessionId },
@@ -274,6 +282,7 @@ export class SessionsService {
     }
     const now = new Date();
     await this.messages.saveRounds(sessionId, rounds);
+    const savedPlans = await this.messages.savePlans(sessionId, plans);
     await this.messages.append(
       sessionId,
       produced.filter(
@@ -295,6 +304,31 @@ export class SessionsService {
     session.runningSince = null;
     session.lastActivityAt = now;
     await this.sessions.save(session);
+    for (const plan of savedPlans) {
+      if (
+        plan.status === 'proposed' &&
+        session.councilId &&
+        session.councilVersionId
+      ) {
+        await this.events.emit({
+          eventType: 'council-plan.proposed',
+          aggregateId: session.id,
+          aggregateVersion: session.version,
+          organizationId: session.organizationId,
+          projectId: session.projectId,
+          payload: {
+            sessionId: session.id,
+            councilId: session.councilId,
+            councilVersionId: session.councilVersionId,
+            planId: plan.id,
+            number: plan.number,
+            title: plan.title,
+            entries: plan.entries.length,
+            startedBy: session.startedBy,
+          },
+        });
+      }
+    }
     for (const round of rounds) {
       if (
         round.status === 'concluded' &&

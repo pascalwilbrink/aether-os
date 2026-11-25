@@ -27,6 +27,7 @@ import { CouncilVersionEntity } from '../libs/councils/src/council-version.entit
 import { CouncilEntity } from '../libs/councils/src/council.entity.js';
 import { SessionMessageEntity } from '../libs/sessions/src/session-message.entity.js';
 import { DeliberationRoundEntity } from '../libs/sessions/src/deliberation-round.entity.js';
+import { CouncilPlanEntity } from '../libs/sessions/src/council-plan.entity.js';
 import { SessionEntity } from '../libs/sessions/src/session.entity.js';
 import { TaskEntity } from '../libs/tasks/src/task.entity.js';
 import { WorkspaceEntity } from '../libs/workspaces/src/workspace.entity.js';
@@ -75,6 +76,7 @@ export default async function setup(project: TestProject) {
         SessionEntity,
         SessionMessageEntity,
         DeliberationRoundEntity,
+        CouncilPlanEntity,
       ],
     }),
   );

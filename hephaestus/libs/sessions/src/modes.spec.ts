@@ -14,17 +14,19 @@ const settings = {
 };
 
 describe('session modes', () => {
-  it('allows the modes the council allows, except those that come with plans', () => {
+  it('allows the modes the council allows', () => {
     expect(allowedModes(settings)).toEqual([
       'direct',
       'facilitated',
       'discussion',
+      'planning',
     ]);
     expect(
       allowedModes({
         ...settings,
         allowDirectInteraction: false,
         allowDiscussion: false,
+        allowPlanning: false,
       }),
     ).toEqual(['facilitated']);
   });
@@ -32,6 +34,9 @@ describe('session modes', () => {
   it("starts in the council's default when it can, else facilitated", () => {
     expect(initialMode(settings)).toBe('discussion');
     expect(initialMode({ ...settings, defaultMode: 'planning' })).toBe(
+      'planning',
+    );
+    expect(initialMode({ ...settings, defaultMode: 'delegation' })).toBe(
       'facilitated',
     );
     expect(
@@ -45,7 +50,9 @@ describe('session modes', () => {
 
   it('says why a mode is refused', () => {
     expect(modeProblem('facilitated', settings)).toBeNull();
-    expect(modeProblem('planning', settings)).toContain('comes with plans');
+    expect(modeProblem('delegation', settings)).toContain(
+      "doesn't allow the delegation mode",
+    );
     expect(
       modeProblem('direct', { ...settings, allowDirectInteraction: false }),
     ).toContain("doesn't allow the direct mode");

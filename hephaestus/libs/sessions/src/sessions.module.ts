@@ -13,10 +13,13 @@ import {
   NoKnowledgeBase,
 } from '@hephaestus/runner';
 import { SkillsModule, SkillsService } from '@hephaestus/skills';
+import { TasksModule } from '@hephaestus/tasks';
 import { TenancyModule } from '@hephaestus/tenancy';
 import { ToolServersService, ToolsModule } from '@hephaestus/tools';
 
 import { SessionAgent } from './session-agent.js';
+import { CouncilPlanEntity } from './council-plan.entity.js';
+import { CouncilPlansService } from './council-plans.service.js';
 import { DeliberationRoundEntity } from './deliberation-round.entity.js';
 import { SessionMessageEntity } from './session-message.entity.js';
 import { SessionMessagesService } from './session-messages.service.js';
@@ -41,6 +44,7 @@ import { SessionSubjects } from './session-subjects.js';
       SessionEntity,
       SessionMessageEntity,
       DeliberationRoundEntity,
+      CouncilPlanEntity,
     ]),
     TenancyModule,
     AgentsModule,
@@ -48,6 +52,7 @@ import { SessionSubjects } from './session-subjects.js';
     ModelsModule,
     ToolsModule,
     SkillsModule,
+    TasksModule,
   ],
   controllers: [SessionsController],
   providers: [
@@ -103,6 +108,7 @@ import { SessionSubjects } from './session-subjects.js';
     SessionMessagesService,
     SessionsService,
     SessionRunsService,
+    CouncilPlansService,
     SessionReaper,
   ],
   exports: [SessionsService, SessionReaper],

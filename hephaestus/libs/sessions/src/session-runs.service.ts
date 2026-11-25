@@ -3,6 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { AgentVersion, ApiTypes } from '@hephaestus/core';
 import { AgentVersionsService } from '@hephaestus/agents';
 import { CouncilsService } from '@hephaestus/councils';
+import { TasksService } from '@hephaestus/tasks';
 
 import type { AguiEvent } from './agui.js';
 import {
@@ -13,7 +14,9 @@ import {
   type SessionHistoryMessage,
   type SessionTurn,
 } from './session-agent.js';
+import type { CouncilPlanEntity } from './council-plan.entity.js';
 import { Deliberation } from './deliberation.js';
+import type { PlanForFacilitator } from './plans.js';
 import { allowedModes } from './modes.js';
 import { SessionMemberInvalidError } from './session.errors.js';
 import { SessionTokens } from './session-tokens.js';
@@ -45,6 +48,7 @@ export class SessionRunsService {
     private readonly councils: CouncilsService,
     private readonly tokens: SessionTokens,
     private readonly agent: SessionAgent,
+    private readonly tasks: TasksService,
     @Inject(SESSION_OPTIONS) private readonly options: SessionOptions,
   ) {}
 
@@ -61,7 +65,7 @@ export class SessionRunsService {
       sessionId,
       input.forwardedProps?.memberAgentId,
     );
-    const { session, history, rounds } = await this.sessions.startRun(
+    const { session, history, rounds, plans } = await this.sessions.startRun(
       organizationId,
       projectId,
       sessionId,
@@ -127,6 +131,17 @@ export class SessionRunsService {
             current: session.mode ?? 'facilitated',
             allowed: allowedModes(councilVersion.settings),
             changed: false,
+          },
+          planning: {
+            allowed: councilVersion.settings.allowPlanning,
+            delegation: councilVersion.settings.allowDelegation,
+            plans: await this.plansForFacilitator(
+              organizationId,
+              projectId,
+              plans,
+            ),
+            count: plans.length,
+            proposed: [],
           },
         };
       }
@@ -198,10 +213,50 @@ export class SessionRunsService {
             invited,
             council?.deliberation.changed() ?? [],
             council?.modes.changed ? council.modes.current : null,
+            council?.planning.proposed ?? [],
           );
         }
       },
     };
+  }
+
+  /** The session's plans as the facilitator sees them: an approved one with its tasks' status. */
+  private async plansForFacilitator(
+    organizationId: string,
+    projectId: string,
+    plans: readonly CouncilPlanEntity[],
+  ): Promise<PlanForFacilitator[]> {
+    const seen: PlanForFacilitator[] = [];
+    for (const plan of plans.filter(
+      (candidate) => candidate.status !== 'superseded',
+    )) {
+      let tasks: PlanForFacilitator['tasks'] = [];
+      let taskStatus: string | null = null;
+      if (plan.taskId) {
+        const [planTask, subtasks] = await Promise.all([
+          this.tasks.findById(organizationId, projectId, plan.taskId),
+          this.tasks.list(organizationId, projectId, {
+            parentTaskId: plan.taskId,
+            limit: 100,
+          }),
+        ]);
+        taskStatus = planTask.status;
+        tasks = subtasks.items.map((task) => ({
+          entryKey: task.origin?.entryKey ?? task.id,
+          title: task.title,
+          status: task.status,
+        }));
+      }
+      seen.push({
+        number: plan.number,
+        title: plan.title,
+        status: plan.status,
+        comment: plan.review?.comment ?? null,
+        tasks,
+        taskStatus,
+      });
+    }
+    return seen;
   }
 
   /**

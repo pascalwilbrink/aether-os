@@ -20,6 +20,14 @@ import { ListSessionsQuery } from './dto/list-sessions.query.js';
 import { RunAgentInput } from './dto/run-agent-input.js';
 import { DeliberationRoundPage } from './dto/deliberation-round-page.response.js';
 import { DeliberationRoundsQuery } from './dto/deliberation-rounds.query.js';
+import {
+  ApproveCouncilPlanRequest,
+  RejectCouncilPlanRequest,
+  RequestCouncilPlanChangesRequest,
+} from './dto/council-plan-decisions.request.js';
+import { CouncilPlan, CouncilPlanPage } from './dto/council-plan.response.js';
+import { CouncilPlansQuery } from './dto/council-plans.query.js';
+import { PlanParams } from './dto/plan.params.js';
 import { SessionMessagePage } from './dto/session-message-page.response.js';
 import { SetSessionModeRequest } from './dto/set-session-mode.request.js';
 import { SessionMessagesQuery } from './dto/session-messages.query.js';
@@ -29,6 +37,7 @@ import { SessionParams } from './dto/session.params.js';
 import { SessionsParams } from './dto/sessions.params.js';
 import { SessionRunError } from './session-agent.js';
 import { SessionRunsService } from './session-runs.service.js';
+import { CouncilPlansService } from './council-plans.service.js';
 import { SessionsService } from './sessions.service.js';
 
 const IN_PROJECT = { project: 'projectId' };
@@ -38,6 +47,7 @@ export class SessionsController {
   constructor(
     private readonly sessions: SessionsService,
     private readonly runs: SessionRunsService,
+    private readonly plans: CouncilPlansService,
   ) {}
 
   @Post()
@@ -90,6 +100,67 @@ export class SessionsController {
     @Query() query: DeliberationRoundsQuery,
   ) {
     return this.sessions.roundsOf(organizationId, projectId, sessionId, query);
+  }
+
+  @Get(':sessionId/plans')
+  @RequirePermission('session:use', IN_PROJECT)
+  @ZodSerializerDto(CouncilPlanPage)
+  plansOf(
+    @Param() { organizationId, projectId, sessionId }: SessionParams,
+    @Query() query: CouncilPlansQuery,
+  ) {
+    return this.plans.list(organizationId, projectId, sessionId, query);
+  }
+
+  @Post(':sessionId/plans/:planId/approve')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermission('session:use', IN_PROJECT)
+  @ZodSerializerDto(CouncilPlan)
+  approvePlan(
+    @Param() { organizationId, projectId, sessionId, planId }: PlanParams,
+    @Body() body: ApproveCouncilPlanRequest,
+  ) {
+    return this.plans.approve(
+      organizationId,
+      projectId,
+      sessionId,
+      planId,
+      body,
+    );
+  }
+
+  @Post(':sessionId/plans/:planId/reject')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermission('session:use', IN_PROJECT)
+  @ZodSerializerDto(CouncilPlan)
+  rejectPlan(
+    @Param() { organizationId, projectId, sessionId, planId }: PlanParams,
+    @Body() body: RejectCouncilPlanRequest,
+  ) {
+    return this.plans.reject(
+      organizationId,
+      projectId,
+      sessionId,
+      planId,
+      body,
+    );
+  }
+
+  @Post(':sessionId/plans/:planId/request-changes')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermission('session:use', IN_PROJECT)
+  @ZodSerializerDto(CouncilPlan)
+  requestPlanChanges(
+    @Param() { organizationId, projectId, sessionId, planId }: PlanParams,
+    @Body() body: RequestCouncilPlanChangesRequest,
+  ) {
+    return this.plans.requestChanges(
+      organizationId,
+      projectId,
+      sessionId,
+      planId,
+      body,
+    );
   }
 
   @Post(':sessionId/mode')

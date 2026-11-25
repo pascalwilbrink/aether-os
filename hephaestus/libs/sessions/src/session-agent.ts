@@ -26,6 +26,12 @@ import {
 } from './council-prompts.js';
 import { modeSection, SESSION_MODES, type SessionMode } from './modes.js';
 import {
+  checkedPlan,
+  plansSection,
+  type PlanForFacilitator,
+  type ProposedPlan,
+} from './plans.js';
+import {
   isRefusal as isDeliberationRefusal,
   type Deliberation,
   type Round,
@@ -76,6 +82,17 @@ export interface SessionTurn {
     deliberation: Deliberation;
     /** Its mode now (the facilitator may switch it: `changed`), and the modes it allows. */
     modes: { current: SessionMode; allowed: SessionMode[]; changed: boolean };
+    /**
+     * Planning (`allowPlanning`): the session's plans so far, and those the
+     * facilitator proposes in this run (`proposed`, kept when it ends).
+     */
+    planning: {
+      allowed: boolean;
+      delegation: boolean;
+      plans: PlanForFacilitator[];
+      count: number;
+      proposed: ProposedPlan[];
+    };
   } | null;
   /** The session's messages, oldest first, the new ones included. */
   history: SessionHistoryMessage[];
@@ -211,6 +228,15 @@ export class SessionAgent {
               facilitatorSection(council.members),
               '',
               modeSection(council.modes.current, council.modes.allowed),
+              ...(council.planning.allowed
+                ? [
+                    '',
+                    plansSection(
+                      council.planning.plans,
+                      council.planning.delegation,
+                    ),
+                  ]
+                : []),
               ...(council.deliberation.settings.allowed
                 ? ['', council.deliberation.describe()]
                 : []),
@@ -350,6 +376,106 @@ export class SessionAgent {
       ...((context.turn.council?.modes.allowed.length ?? 0) > 1
         ? this.modeTools(context)
         : {}),
+      ...(context.turn.council?.planning.allowed
+        ? this.planTools(context)
+        : {}),
+    };
+  }
+
+  /**
+   * `propose_plan` (../../../../docs/councils.md, Planning and
+   * delegation): a plan for the person to review, checked first (a plan
+   * that breaks the rules is refused with every reason, to fix), announced
+   * with a `CUSTOM` `plan-proposed` event and kept when the run ends.
+   */
+  private planTools(context: TurnContext): ToolsInput {
+    const council = context.turn.council as NonNullable<SessionTurn['council']>;
+    const { planning } = council;
+    const key = z.string().regex(/^[a-z0-9][a-z0-9-]{0,62}$/);
+    return {
+      propose_plan: createTool({
+        id: 'propose_plan',
+        description:
+          'Propose a plan for the person to review: entries are tasks, each assigned to a member of the council (agentId) with why, what it depends on, and optionally grouped in milestones. ' +
+          'The person approves it, asks for changes or rejects it.',
+        inputSchema: z.object({
+          title: z.string().min(1).max(200),
+          summary: z.string().min(1).max(4000),
+          milestones: z
+            .array(
+              z.object({
+                key,
+                title: z.string().min(1).max(200),
+                description: z.string().max(4000).optional(),
+                dependsOn: z.array(z.string()).max(10).optional(),
+              }),
+            )
+            .max(10)
+            .optional(),
+          entries: z
+            .array(
+              z.object({
+                key,
+                title: z.string().min(1).max(200),
+                description: z
+                  .string()
+                  .min(1)
+                  .max(20000)
+                  .describe('What to do and why'),
+                expectedOutcome: z.string().max(5000).optional(),
+                agentId: z.string().describe("The member's agentId"),
+                dependsOn: z.array(z.string()).max(20).optional(),
+                milestoneKey: z.string().optional(),
+                reason: z
+                  .string()
+                  .max(1000)
+                  .optional()
+                  .describe('Why this member'),
+              }),
+            )
+            .min(1)
+            .max(20),
+          outcomeEntryKey: z
+            .string()
+            .optional()
+            .describe(
+              "The entry whose result is the plan's outcome; the last by default",
+            ),
+        }),
+        execute: (input) => {
+          const checked = checkedPlan(
+            input,
+            council.members.map((member) => member.agentId),
+          );
+          if ('problems' in checked) {
+            return Promise.resolve({
+              refused: 'The plan needs fixing before it can be proposed.',
+              problems: checked.problems,
+            });
+          }
+          const plan: ProposedPlan = {
+            id: uuidv7(),
+            number: planning.count + planning.proposed.length + 1,
+            content: checked.plan,
+            proposedAt: new Date(),
+          };
+          planning.proposed.push(plan);
+          context.emit({
+            type: 'CUSTOM',
+            name: 'plan-proposed',
+            value: {
+              planId: plan.id,
+              number: plan.number,
+              title: plan.content.title,
+            },
+          });
+          return Promise.resolve({
+            plan: plan.number,
+            proposed: true,
+            next: 'Tell the person the plan is ready for them to review on the session page.',
+          });
+        },
+      }),
     };
   }
 

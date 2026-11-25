@@ -27,6 +27,8 @@ export const zDomainErrorCode = z.enum([
     'SESSION_ENDED',
     'SESSION_MEMBER_INVALID',
     'SESSION_MODE_INVALID',
+    'PLAN_NOT_PROPOSED',
+    'PLAN_ASSIGNMENT_INVALID',
     'COUNCIL_UNAVAILABLE',
     'WORKSPACE_INVALID_EXPIRY',
     'WORKSPACE_INVALID_TRANSITION'
@@ -701,45 +703,6 @@ export const zBudgetScope = z.enum([
     'task_tree'
 ]);
 
-export const zTaskResponse = z.object({
-    id: z.uuid(),
-    organizationId: z.uuid(),
-    projectId: z.uuid(),
-    parentTaskId: z.uuid().nullable(),
-    topLevelTaskId: z.uuid(),
-    title: z.string(),
-    description: z.string(),
-    instructions: z.string(),
-    requirements: z.array(zTaskItem),
-    expectedOutcome: z.string().nullable(),
-    constraints: z.array(zTaskItem),
-    deliverables: z.array(zTaskDeliverable),
-    agentId: z.uuid(),
-    agentVersionId: z.uuid(),
-    serviceAccountId: z.uuid(),
-    requestedBy: z.string(),
-    status: zTaskStatus,
-    pausedFor: zBudgetScope.nullable(),
-    failureReason: zTaskFailureReason.nullable(),
-    dependsOn: z.array(z.uuid()),
-    attempt: z.int().gte(1),
-    primaryArtifactId: z.uuid().nullable(),
-    review: zTaskReviewSettings,
-    reviewRound: z.int().gte(0),
-    acceptanceCriteria: z.array(zAcceptanceCriterion),
-    repository: zTaskRepository.nullable(),
-    concurrency: zTaskConcurrency.nullable(),
-    inputFiles: z.array(zTaskInputFile),
-    context: z.array(zPinnedTaskContext),
-    untrustedInputs: z.array(zUntrustedInput),
-    taskTemplateId: z.uuid().nullable(),
-    taskTemplateVersion: z.int().gte(1).nullable(),
-    createdAt: z.iso.datetime(),
-    updatedAt: z.iso.datetime(),
-    finishedAt: z.iso.datetime().nullable(),
-    version: z.int().gte(1)
-});
-
 export const zSetBudgetRequest = z.object({
     limitUsd: zUsd.nullable()
 });
@@ -946,6 +909,123 @@ export const zSessionMessage = z.object({
 });
 
 /**
+ * A task made from a council's plan (docs/councils.md, Planning and delegation).
+ */
+export const zTaskOrigin = z.object({
+    kind: z.enum(['council-plan']),
+    sessionId: z.uuid(),
+    planId: z.uuid(),
+    entryKey: z.string().nullable(),
+    outcomeEntryKey: z.string().nullable(),
+    assignedBy: z.string().nullable(),
+    reason: z.string().nullable()
+});
+
+export const zTaskResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    parentTaskId: z.uuid().nullable(),
+    topLevelTaskId: z.uuid(),
+    title: z.string(),
+    description: z.string(),
+    instructions: z.string(),
+    requirements: z.array(zTaskItem),
+    expectedOutcome: z.string().nullable(),
+    constraints: z.array(zTaskItem),
+    deliverables: z.array(zTaskDeliverable),
+    agentId: z.uuid(),
+    agentVersionId: z.uuid(),
+    serviceAccountId: z.uuid(),
+    requestedBy: z.string(),
+    status: zTaskStatus,
+    pausedFor: zBudgetScope.nullable(),
+    failureReason: zTaskFailureReason.nullable(),
+    dependsOn: z.array(z.uuid()),
+    attempt: z.int().gte(1),
+    primaryArtifactId: z.uuid().nullable(),
+    review: zTaskReviewSettings,
+    reviewRound: z.int().gte(0),
+    acceptanceCriteria: z.array(zAcceptanceCriterion),
+    repository: zTaskRepository.nullable(),
+    concurrency: zTaskConcurrency.nullable(),
+    inputFiles: z.array(zTaskInputFile),
+    context: z.array(zPinnedTaskContext),
+    untrustedInputs: z.array(zUntrustedInput),
+    taskTemplateId: z.uuid().nullable(),
+    taskTemplateVersion: z.int().gte(1).nullable(),
+    origin: zTaskOrigin.nullable(),
+    createdAt: z.iso.datetime(),
+    updatedAt: z.iso.datetime(),
+    finishedAt: z.iso.datetime().nullable(),
+    version: z.int().gte(1)
+});
+
+export const zCouncilPlanMilestone = z.object({
+    key: z.string().regex(/^[a-z0-9][a-z0-9-]{0,62}$/),
+    title: z.string().min(1).max(200),
+    description: z.string().max(4000).optional(),
+    dependsOn: z.array(z.string()).max(10).optional()
+});
+
+export const zCouncilPlanEntry = z.object({
+    key: z.string().regex(/^[a-z0-9][a-z0-9-]{0,62}$/),
+    title: z.string().min(1).max(200),
+    description: z.string().min(1).max(20000),
+    expectedOutcome: z.string().max(5000).optional(),
+    agentId: z.uuid(),
+    dependsOn: z.array(z.string()).max(20).optional(),
+    milestoneKey: z.string().optional(),
+    reason: z.string().max(1000).optional()
+});
+
+export const zCouncilPlan = z.object({
+    id: z.uuid(),
+    sessionId: z.uuid(),
+    number: z.int().gte(1),
+    status: z.enum([
+        'proposed',
+        'approved',
+        'rejected',
+        'changes_requested',
+        'superseded'
+    ]),
+    title: z.string(),
+    summary: z.string(),
+    milestones: z.array(zCouncilPlanMilestone),
+    entries: z.array(zCouncilPlanEntry),
+    outcomeEntryKey: z.string(),
+    review: z.object({
+        decision: z.enum([
+            'approved',
+            'rejected',
+            'changes_requested'
+        ]),
+        comment: z.string().nullable(),
+        decidedBy: z.string(),
+        decidedAt: z.iso.datetime()
+    }).nullable(),
+    taskId: z.uuid().nullable(),
+    proposedAt: z.iso.datetime()
+});
+
+export const zApproveCouncilPlanRequest = z.object({
+    serviceAccountId: z.uuid(),
+    assignments: z.array(z.object({
+        entryKey: z.string(),
+        agentId: z.uuid()
+    })).max(20).optional()
+});
+
+export const zRejectCouncilPlanRequest = z.object({
+    comment: z.string().max(4000).optional()
+});
+
+export const zRequestCouncilPlanChangesRequest = z.object({
+    comment: z.string().min(1).max(4000)
+});
+
+/**
  * One round of a council's discussion (docs/councils.md, Deliberation rounds), opened and concluded by the facilitator.
  */
 export const zDeliberationRound = z.object({
@@ -1043,6 +1123,10 @@ export const zSessionPage = zPageMeta.and(z.object({
     items: z.array(zSessionResponse)
 }));
 
+export const zCouncilPlanPage = zPageMeta.and(z.object({
+    items: z.array(zCouncilPlan)
+}));
+
 export const zDeliberationRoundPage = zPageMeta.and(z.object({
     items: z.array(zDeliberationRound)
 }));
@@ -1108,6 +1192,8 @@ export const zTemplateId = z.uuid();
 export const zArtifactId = z.uuid();
 
 export const zSessionId = z.uuid();
+
+export const zPlanId = z.uuid();
 
 export const zToolServerId = z.uuid();
 
@@ -1666,6 +1752,64 @@ export const zListSessionMessagesQuery = z.object({
  * Oldest first
  */
 export const zListSessionMessagesResponse = zSessionMessagePage;
+
+export const zListCouncilPlansPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    sessionId: z.uuid()
+});
+
+export const zListCouncilPlansQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Oldest first
+ */
+export const zListCouncilPlansResponse = zCouncilPlanPage;
+
+export const zApproveCouncilPlanBody = zApproveCouncilPlanRequest;
+
+export const zApproveCouncilPlanPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    sessionId: z.uuid(),
+    planId: z.uuid()
+});
+
+/**
+ * The plan, decided
+ */
+export const zApproveCouncilPlanResponse = zCouncilPlan;
+
+export const zRejectCouncilPlanBody = zRejectCouncilPlanRequest;
+
+export const zRejectCouncilPlanPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    sessionId: z.uuid(),
+    planId: z.uuid()
+});
+
+/**
+ * The plan, decided
+ */
+export const zRejectCouncilPlanResponse = zCouncilPlan;
+
+export const zRequestCouncilPlanChangesBody = zRequestCouncilPlanChangesRequest;
+
+export const zRequestCouncilPlanChangesPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid(),
+    sessionId: z.uuid(),
+    planId: z.uuid()
+});
+
+/**
+ * The plan, decided
+ */
+export const zRequestCouncilPlanChangesResponse = zCouncilPlan;
 
 export const zListDeliberationRoundsPath = z.object({
     organizationId: z.uuid(),

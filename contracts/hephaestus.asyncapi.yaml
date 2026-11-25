@@ -59,6 +59,7 @@ channels:
       sessionStarted: { $ref: '#/components/messages/sessionStarted' }
       sessionEnded: { $ref: '#/components/messages/sessionEnded' }
       deliberationRoundConcluded: { $ref: '#/components/messages/deliberationRoundConcluded' }
+      councilPlanProposed: { $ref: '#/components/messages/councilPlanProposed' }
 
   hephaestusCommands:
     address: hephaestus.commands
@@ -99,6 +100,7 @@ operations:
       - $ref: '#/channels/hephaestusEvents/messages/sessionStarted'
       - $ref: '#/channels/hephaestusEvents/messages/sessionEnded'
       - $ref: '#/channels/hephaestusEvents/messages/deliberationRoundConcluded'
+      - $ref: '#/channels/hephaestusEvents/messages/councilPlanProposed'
 
 components:
   messages:
@@ -183,6 +185,16 @@ components:
             properties:
               eventType: { const: deliberation-round.concluded }
               payload: { $ref: '#/components/schemas/DeliberationRoundConcluded' }
+    councilPlanProposed:
+      name: council-plan.proposed
+      summary: A council's facilitator proposed a plan in a session (docs/councils.md); it waits for the person's review.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: council-plan.proposed }
+              payload: { $ref: '#/components/schemas/CouncilPlanProposed' }
     taskVerified:
       name: task.verified
       summary: Hephaestus checked a run against the task's acceptance criteria (Kriterion tracks pass rates).
@@ -518,6 +530,19 @@ components:
         agentVersionId: { $ref: '#/components/schemas/Uuid' }
         startedBy: { type: string }
         reason: { enum: [closed, idle] }
+    CouncilPlanProposed:
+      type: object
+      additionalProperties: false
+      required: [sessionId, councilId, councilVersionId, planId, number, title, entries, startedBy]
+      properties:
+        sessionId: { $ref: '#/components/schemas/Uuid' }
+        councilId: { $ref: '#/components/schemas/Uuid' }
+        councilVersionId: { $ref: '#/components/schemas/Uuid' }
+        planId: { $ref: '#/components/schemas/Uuid' }
+        number: { type: integer, minimum: 1 }
+        title: { type: string }
+        entries: { type: integer, minimum: 1, description: How many tasks it would make. }
+        startedBy: { type: string, description: The person who reviews it (the session's). }
     DeliberationRoundConcluded:
       type: object
       additionalProperties: false
