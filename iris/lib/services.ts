@@ -36,6 +36,13 @@ export function serviceNameFor(
   );
 }
 
+/**
+ * How long `/health` and the proxy wait for a service's `/health/live`: the
+ * same, so the proxy never sends a page to wait for a service that the
+ * waiting page then finds up (and reloads, again and again).
+ */
+export const HEALTH_TIMEOUT_MS = 3000;
+
 /** Whether a service answers at all (its `/health/live`, within `timeoutMs`). */
 export async function isRunning(
   url: string,

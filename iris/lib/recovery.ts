@@ -36,3 +36,30 @@ export function shouldGiveUp(triesWhileUp: number[], now: number): boolean {
     MAX_TRIES_WHILE_UP
   );
 }
+
+/**
+ * The tries kept in this tab's `sessionStorage` (`TRIES_KEY`), by page, so
+ * they survive a reload: `/unavailable` reloads the page to try it again,
+ * which would otherwise forget them and reload forever.
+ */
+export const TRIES_KEY = "iris-recovery-tries";
+
+/** The stored tries, recent ones only, from their JSON (anything else is none). */
+export function storedTries(raw: string | null, now: number): Record<string, number[]> {
+  let parsed: unknown;
+  try {
+    parsed = raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+  const tries: Record<string, number[]> = {};
+  for (const [page, times] of Object.entries(parsed)) {
+    if (!Array.isArray(times)) continue;
+    const recent = times.filter(
+      (at): at is number => typeof at === "number" && now - at < GIVE_UP_WINDOW_MS,
+    );
+    if (recent.length > 0) tries[page] = recent;
+  }
+  return tries;
+}
