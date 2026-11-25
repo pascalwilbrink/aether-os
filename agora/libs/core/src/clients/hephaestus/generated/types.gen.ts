@@ -1351,7 +1351,39 @@ export type SessionMessage = {
    * A tool message's call; a member's answer, the facilitator's `ask_member` call it answers.
    */
   toolCallId: string | null;
+  /**
+   * The deliberation round a member's answer belongs to.
+   */
+  roundId: string | null;
   createdAt: Timestamp;
+};
+
+/**
+ * One round of a council's discussion (docs/councils.md, Deliberation rounds), opened and concluded by the facilitator.
+ */
+export type DeliberationRound = {
+  id: string;
+  sessionId: string;
+  /**
+   * Within the session: 1, 2, …
+   */
+  number: number;
+  question: string;
+  /**
+   * The members who answered, in the order they answered (agent IDs).
+   */
+  participants: Array<string>;
+  status: 'open' | 'concluded';
+  /**
+   * The facilitator's conclusion; null while open, and for a round closed by the next one without a conclusion.
+   */
+  conclusion: string | null;
+  openedAt: Timestamp;
+  concludedAt: string | null;
+};
+
+export type DeliberationRoundPage = PageMeta & {
+  items: Array<DeliberationRound>;
 };
 
 export type SessionMessagePage = PageMeta & {
@@ -3953,6 +3985,68 @@ export type ListSessionMessagesResponses = {
 
 export type ListSessionMessagesResponse =
   ListSessionMessagesResponses[keyof ListSessionMessagesResponses];
+
+export type ListDeliberationRoundsData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    projectId: string;
+    sessionId: string;
+  };
+  query?: {
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+  };
+  url: '/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/rounds';
+};
+
+export type ListDeliberationRoundsErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type ListDeliberationRoundsError =
+  ListDeliberationRoundsErrors[keyof ListDeliberationRoundsErrors];
+
+export type ListDeliberationRoundsResponses = {
+  /**
+   * Oldest first
+   */
+  200: DeliberationRoundPage;
+};
+
+export type ListDeliberationRoundsResponse =
+  ListDeliberationRoundsResponses[keyof ListDeliberationRoundsResponses];
 
 export type EndSessionData = {
   body?: never;

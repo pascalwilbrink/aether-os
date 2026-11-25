@@ -771,6 +771,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/rounds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        /** @description A council session's deliberation rounds (docs/councils.md), oldest first; none in an agent session. */
+        get: operations["listDeliberationRounds"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/projects/{projectId}/sessions/{sessionId}/end": {
         parameters: {
             query?: never;
@@ -1962,7 +1983,34 @@ export interface components {
             toolCalls: components["schemas"]["SessionToolCall"][];
             /** @description A tool message's call; a member's answer, the facilitator's `ask_member` call it answers. */
             toolCallId: string | null;
+            /**
+             * Format: uuid
+             * @description The deliberation round a member's answer belongs to.
+             */
+            roundId: string | null;
             createdAt: components["schemas"]["Timestamp"];
+        };
+        /** @description One round of a council's discussion (docs/councils.md, Deliberation rounds), opened and concluded by the facilitator. */
+        DeliberationRound: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            sessionId: string;
+            /** @description Within the session: 1, 2, … */
+            number: number;
+            question: string;
+            /** @description The members who answered, in the order they answered (agent IDs). */
+            participants: string[];
+            /** @enum {string} */
+            status: "open" | "concluded";
+            /** @description The facilitator's conclusion; null while open, and for a round closed by the next one without a conclusion. */
+            conclusion: string | null;
+            openedAt: components["schemas"]["Timestamp"];
+            /** Format: date-time */
+            concludedAt: string | null;
+        };
+        DeliberationRoundPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["DeliberationRound"][];
         };
         SessionMessagePage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["SessionMessage"][];
@@ -3463,6 +3511,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionMessagePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listDeliberationRounds: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+                sessionId: components["parameters"]["SessionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Oldest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliberationRoundPage"];
                 };
             };
             400: components["responses"]["BadRequest"];

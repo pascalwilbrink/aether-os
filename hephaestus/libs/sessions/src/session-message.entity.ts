@@ -74,6 +74,10 @@ export class SessionMessageEntity {
   @Column({ type: 'text', nullable: true })
   toolName: string | null;
 
+  /** The deliberation round a member's answer belongs to. */
+  @Column({ type: 'uuid', nullable: true })
+  roundId: string | null;
+
   @Column({ type: 'timestamptz' })
   createdAt: Date;
 }

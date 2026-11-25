@@ -17,6 +17,7 @@ import { TenancyModule } from '@hephaestus/tenancy';
 import { ToolServersService, ToolsModule } from '@hephaestus/tools';
 
 import { SessionAgent } from './session-agent.js';
+import { DeliberationRoundEntity } from './deliberation-round.entity.js';
 import { SessionMessageEntity } from './session-message.entity.js';
 import { SessionMessagesService } from './session-messages.service.js';
 import { SessionReaper } from './session-reaper.js';
@@ -36,7 +37,11 @@ import { SessionSubjects } from './session-subjects.js';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([SessionEntity, SessionMessageEntity]),
+    TypeOrmModule.forFeature([
+      SessionEntity,
+      SessionMessageEntity,
+      DeliberationRoundEntity,
+    ]),
     TenancyModule,
     AgentsModule,
     CouncilsModule,

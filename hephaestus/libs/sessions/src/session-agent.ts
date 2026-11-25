@@ -21,8 +21,14 @@ import type { AguiEvent } from './agui.js';
 import {
   facilitatorSection,
   memberSection,
+  roundSection,
   transcript,
 } from './council-prompts.js';
+import {
+  isRefusal as isDeliberationRefusal,
+  type Deliberation,
+  type Round,
+} from './deliberation.js';
 import type {
   SessionAuthor,
   SessionMessageRole,
@@ -45,6 +51,8 @@ export interface SessionHistoryMessage {
   toolCallId: string | null;
   toolName: string | null;
   author: SessionAuthor;
+  /** The deliberation round a member's answer belongs to. */
+  roundId?: string | null;
 }
 
 /** A council session's member, with its pinned version, for a run. */
@@ -63,6 +71,8 @@ export interface SessionTurn {
   council: {
     members: CouncilMemberForRun[];
     addressed: string | null;
+    /** Its deliberation rounds, which the facilitator's tools open and conclude. */
+    deliberation: Deliberation;
   } | null;
   /** The session's messages, oldest first, the new ones included. */
   history: SessionHistoryMessage[];
@@ -99,6 +109,8 @@ interface Speaker {
   tools?: (writer: TurnWriter) => ToolsInput;
   /** The frontend's tools: the agent session's agent and the facilitator get them. */
   frontendTools?: readonly ApiTypes.AguiTool[];
+  /** The round its messages belong to (a member answering in one). */
+  roundId?: string;
 }
 
 /** What every speaker of a turn shares. */
@@ -194,6 +206,9 @@ export class SessionAgent {
               sessionInstructions(version.instructions, tools),
               '',
               facilitatorSection(council.members),
+              ...(council.deliberation.settings.allowed
+                ? ['', council.deliberation.describe()]
+                : []),
             ].join('\n'),
           messages: [
             ...prefix,
@@ -211,13 +226,14 @@ export class SessionAgent {
     }
   }
 
-  /** A member answers (the facilitator's question, or the person's message). */
+  /** A member answers (the facilitator's question, a round's, or the person's message). */
   private answerAsMember(
     context: TurnContext,
     member: CouncilMemberForRun,
     before: readonly SessionHistoryMessage[],
     question: string,
     addressedByPerson: boolean,
+    round?: { round: Round; independent: boolean },
   ): Promise<string> {
     const members = context.turn.council?.members ?? [];
     return this.speak(context, {
@@ -232,12 +248,14 @@ export class SessionAgent {
           sessionInstructions(member.version.instructions, tools),
           '',
           memberSection(member, addressedByPerson),
+          ...(round ? ['', roundSection(round.round, round.independent)] : []),
         ].join('\n'),
       messages: [
         ...contextMessages(context.turn.context, context.turn.state),
         { role: 'system', content: transcript(before, members) },
         { role: 'user', content: question },
       ],
+      ...(round ? { roundId: round.round.id } : {}),
     });
   }
 
@@ -321,6 +339,149 @@ export class SessionAgent {
           return Promise.resolve({ invited, notMembers, reason: input.reason });
         },
       }),
+      ...(context.turn.council?.deliberation.settings.allowed
+        ? this.roundTools(context, writer)
+        : {}),
+    };
+  }
+
+  /**
+   * The facilitator's round tools (../../../../docs/councils.md,
+   * Deliberation rounds): `start_round` puts a question to the required
+   * members and the ones named, who answer in turn (seeing the earlier
+   * answers, or independently, as the council's settings say), and returns
+   * their answers; `conclude_round` records the conclusion. Each is
+   * announced with a `CUSTOM` event (`round-started`, `round-concluded`).
+   * Refusals are answers the facilitator can act on.
+   */
+  private roundTools(context: TurnContext, writer: TurnWriter): ToolsInput {
+    const council = context.turn.council as NonNullable<SessionTurn['council']>;
+    const { deliberation, members } = council;
+    return {
+      start_round: createTool({
+        id: 'start_round',
+        description:
+          'Hold a deliberation round: put a question to the required members and the members you name (conditional or optional ones are invited by naming them). ' +
+          'They answer in turn; their answers come back to you. Then conclude it with conclude_round.',
+        inputSchema: z.object({
+          question: z.string().min(1).max(4000),
+          participants: z
+            .array(z.string())
+            .max(12)
+            .describe(
+              'The agentIds of the conditional or optional members who should answer too; required members always do.',
+            ),
+          reason: z
+            .string()
+            .max(1000)
+            .optional()
+            .describe('Why those members, when you name conditional ones.'),
+        }),
+        execute: async (input, options) => {
+          const participants = deliberation.participantsFor(
+            input.participants,
+            members,
+          );
+          if (isDeliberationRefusal(participants)) {
+            return participants;
+          }
+          const round = deliberation.start(
+            input.question,
+            participants,
+            new Date(),
+          );
+          if (isDeliberationRefusal(round)) {
+            return round;
+          }
+          for (const member of participants) {
+            context.turn.invited.add(member.agentId);
+          }
+          // The facilitator's call goes before the members' answers.
+          const toolCallId = (options as { agent?: { toolCallId?: string } })
+            ?.agent?.toolCallId;
+          if (toolCallId) {
+            writer.toolCall(toolCallId, 'start_round', input);
+          }
+          writer.close();
+          context.emit({
+            type: 'CUSTOM',
+            name: 'round-started',
+            value: {
+              roundId: round.id,
+              number: round.number,
+              question: round.question,
+              participants: round.participants,
+            },
+          });
+          const before = [...context.turn.history, ...context.produced];
+          const answers: (
+            | { member: string; answer: string }
+            | { member: string; failed: string }
+          )[] = [];
+          for (const participant of participants) {
+            const member = members.find(
+              (candidate) => candidate.agentId === participant.agentId,
+            ) as CouncilMemberForRun;
+            const independent = !deliberation.settings.allowAgentResponses;
+            try {
+              const answer = await this.answerAsMember(
+                context,
+                member,
+                independent
+                  ? before
+                  : [...context.turn.history, ...context.produced],
+                input.question,
+                false,
+                { round, independent },
+              );
+              answers.push({ member: member.name, answer });
+            } catch (error) {
+              const failure = failureOf(error, context.signal);
+              if (FATAL.has(failure.code)) {
+                context.stop(failure);
+                throw failure;
+              }
+              answers.push({ member: member.name, failed: failure.message });
+            }
+          }
+          return {
+            round: round.number,
+            roundsLeft: deliberation.left,
+            answers,
+            next: deliberation.settings.requireConclusion
+              ? 'Conclude the round with conclude_round before anything else.'
+              : 'Conclude the round with conclude_round, or start another.',
+          };
+        },
+      }),
+      conclude_round: createTool({
+        id: 'conclude_round',
+        description:
+          "Conclude the open round: what the members agreed on, where they disagree, and what's still open. The person sees it as the round's conclusion.",
+        inputSchema: z.object({
+          conclusion: z.string().min(1).max(8000),
+        }),
+        execute: (input) => {
+          const round = deliberation.conclude(input.conclusion, new Date());
+          if (isDeliberationRefusal(round)) {
+            return Promise.resolve(round);
+          }
+          context.emit({
+            type: 'CUSTOM',
+            name: 'round-concluded',
+            value: {
+              roundId: round.id,
+              number: round.number,
+              conclusion: round.conclusion,
+            },
+          });
+          return Promise.resolve({
+            round: round.number,
+            concluded: true,
+            roundsLeft: deliberation.left,
+          });
+        },
+      }),
     };
   }
 
@@ -335,6 +496,7 @@ export class SessionAgent {
       context.emit,
       context.produced,
       speaker.author,
+      speaker.roundId ?? null,
     );
     try {
       const knowledge = this.knowledge.available
@@ -509,6 +671,8 @@ class TurnWriter {
     private readonly emit: (event: AguiEvent) => void,
     private readonly produced: SessionHistoryMessage[],
     private readonly author: SessionAuthor,
+    /** The round its messages belong to, if any. */
+    private readonly roundId: string | null = null,
   ) {}
 
   text(delta: string): void {
@@ -572,6 +736,7 @@ class TurnWriter {
       toolCallId,
       toolName,
       author: this.author,
+      roundId: this.roundId,
     });
     this.emit({
       type: 'TOOL_CALL_RESULT',
@@ -597,12 +762,17 @@ class TurnWriter {
         toolCallId: null,
         toolName: null,
         author: this.author,
+        roundId: this.roundId,
       };
       this.produced.push(this.assistant);
       this.emit({
         type: 'CUSTOM',
         name: 'message-author',
-        value: { messageId: this.assistant.messageId, author: this.author },
+        value: {
+          messageId: this.assistant.messageId,
+          author: this.author,
+          ...(this.roundId ? { roundId: this.roundId } : {}),
+        },
       });
     }
     return this.assistant;
@@ -729,7 +899,9 @@ export function modelMessages(
   const messages: unknown[] = [];
   for (const message of history) {
     if (message.author.kind === 'member') {
+      // A round's answers come back in start_round's result.
       if (
+        !message.roundId &&
         asking.size === 0 &&
         message.role === 'assistant' &&
         message.content

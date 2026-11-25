@@ -3,6 +3,8 @@ import { v7 as uuidv7 } from 'uuid';
 
 import type { ApiTypes } from '@hephaestus/core';
 
+import { DeliberationRoundEntity } from './deliberation-round.entity.js';
+import type { Round } from './deliberation.js';
 import type { SessionHistoryMessage } from './session-agent.js';
 import {
   SessionMessageEntity,
@@ -96,6 +98,7 @@ export class SessionMapper {
       toolCalls: message.toolCalls,
       toolCallId: message.toolCallId,
       toolName: message.toolName,
+      roundId: message.roundId ?? null,
       createdAt: now,
     });
   }
@@ -109,6 +112,7 @@ export class SessionMapper {
       toolCallId: entity.toolCallId,
       toolName: entity.toolName,
       author: authorOf(entity),
+      roundId: entity.roundId,
     };
   }
 
@@ -120,7 +124,42 @@ export class SessionMapper {
       content: entity.content,
       toolCalls: entity.toolCalls,
       toolCallId: entity.toolCallId,
+      roundId: entity.roundId,
       createdAt: entity.createdAt.toISOString(),
+    };
+  }
+
+  toRound(entity: DeliberationRoundEntity): Round {
+    return {
+      id: entity.id,
+      number: entity.number,
+      question: entity.question,
+      participants: entity.participants,
+      status: entity.status,
+      conclusion: entity.conclusion,
+      openedAt: entity.openedAt,
+      concludedAt: entity.concludedAt,
+    };
+  }
+
+  toRoundEntity(sessionId: string, round: Round): DeliberationRoundEntity {
+    return Object.assign(new DeliberationRoundEntity(), {
+      ...round,
+      sessionId,
+    });
+  }
+
+  toRoundResponse(entity: DeliberationRoundEntity): ApiTypes.DeliberationRound {
+    return {
+      id: entity.id,
+      sessionId: entity.sessionId,
+      number: entity.number,
+      question: entity.question,
+      participants: entity.participants,
+      status: entity.status,
+      conclusion: entity.conclusion,
+      openedAt: entity.openedAt.toISOString(),
+      concludedAt: entity.concludedAt?.toISOString() ?? null,
     };
   }
 }

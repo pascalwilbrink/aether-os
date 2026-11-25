@@ -58,6 +58,7 @@ channels:
       artifactStatusChanged: { $ref: '#/components/messages/artifactStatusChanged' }
       sessionStarted: { $ref: '#/components/messages/sessionStarted' }
       sessionEnded: { $ref: '#/components/messages/sessionEnded' }
+      deliberationRoundConcluded: { $ref: '#/components/messages/deliberationRoundConcluded' }
 
   hephaestusCommands:
     address: hephaestus.commands
@@ -97,6 +98,7 @@ operations:
       - $ref: '#/channels/hephaestusEvents/messages/artifactStatusChanged'
       - $ref: '#/channels/hephaestusEvents/messages/sessionStarted'
       - $ref: '#/channels/hephaestusEvents/messages/sessionEnded'
+      - $ref: '#/channels/hephaestusEvents/messages/deliberationRoundConcluded'
 
 components:
   messages:
@@ -171,6 +173,16 @@ components:
             properties:
               eventType: { const: session.ended }
               payload: { $ref: '#/components/schemas/SessionEnded' }
+    deliberationRoundConcluded:
+      name: deliberation-round.concluded
+      summary: A council session's deliberation round ended (docs/councils.md), with the facilitator's conclusion when it gave one.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: deliberation-round.concluded }
+              payload: { $ref: '#/components/schemas/DeliberationRoundConcluded' }
     taskVerified:
       name: task.verified
       summary: Hephaestus checked a run against the task's acceptance criteria (Kriterion tracks pass rates).
@@ -506,6 +518,24 @@ components:
         agentVersionId: { $ref: '#/components/schemas/Uuid' }
         startedBy: { type: string }
         reason: { enum: [closed, idle] }
+    DeliberationRoundConcluded:
+      type: object
+      additionalProperties: false
+      required: [sessionId, councilId, councilVersionId, roundId, number, question, participants, conclusion]
+      properties:
+        sessionId: { $ref: '#/components/schemas/Uuid' }
+        councilId: { $ref: '#/components/schemas/Uuid' }
+        councilVersionId: { $ref: '#/components/schemas/Uuid' }
+        roundId: { $ref: '#/components/schemas/Uuid' }
+        number: { type: integer, minimum: 1 }
+        question: { type: string }
+        participants:
+          type: array
+          description: The members who answered, in order (agent IDs).
+          items: { $ref: '#/components/schemas/Uuid' }
+        conclusion:
+          type: [string, 'null']
+          description: The facilitator's conclusion; null for a round the next one closed without one.
     TaskStatus:
       enum: [blocked, queued, provisioning, running, verifying, awaiting_review, waiting, paused, delivering, succeeded, failed, cancelled]
     TaskFailureReason:
