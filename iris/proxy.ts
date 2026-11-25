@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { config as iris } from "@/lib/config";
 import { isRefusal, refreshSession } from "@/lib/auth/oidc";
-import { isRunning } from "@/lib/services";
+import { HEALTH_TIMEOUT_MS, isRunning } from "@/lib/services";
 import {
   cookieOptions,
   needsRefresh,
@@ -39,7 +39,7 @@ export async function proxy(request: NextRequest) {
       // Pistis not answering (still starting, restarting) isn't the end of
       // the session: keep it. While its access token still works, the page
       // renders; once it's expired, a page that waits for Pistis and reloads.
-      if (!isRefusal(error) && !(await isRunning(iris.pistisUrl))) {
+      if (!isRefusal(error) && !(await isRunning(iris.pistisUrl, HEALTH_TIMEOUT_MS))) {
         return session.accessTokenExpiresAt > Date.now()
           ? NextResponse.next()
           : NextResponse.rewrite(new URL("/unavailable", request.url));

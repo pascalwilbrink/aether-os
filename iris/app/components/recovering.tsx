@@ -7,14 +7,34 @@ import {
   downServices,
   POLL_MS,
   shouldGiveUp,
+  storedTries,
+  TRIES_KEY,
   type HealthSnapshot,
 } from "@/lib/recovery";
 
 /**
- * When each page was tried again with every service up, in this tab: kept
- * outside the component, which remounts with every failed try.
+ * When each page was tried again with every service up, in this tab: in
+ * `sessionStorage`, since the component remounts with every failed try and
+ * `/unavailable` reloads the page; in memory when storage is blocked.
  */
-const triesWhileUp = new Map<string, number[]>();
+const inMemory: Record<string, number[]> = {};
+
+function readTries(now: number): Record<string, number[]> {
+  try {
+    return storedTries(sessionStorage.getItem(TRIES_KEY), now);
+  } catch {
+    return storedTries(JSON.stringify(inMemory), now);
+  }
+}
+
+function writeTries(tries: Record<string, number[]>): void {
+  try {
+    sessionStorage.setItem(TRIES_KEY, JSON.stringify(tries));
+  } catch {
+    for (const page of Object.keys(inMemory)) delete inMemory[page];
+    Object.assign(inMemory, tries);
+  }
+}
 
 type State =
   | { kind: "checking" }
@@ -70,12 +90,13 @@ export function Recovering({
         return;
       }
       const now = Date.now();
-      const tries = triesWhileUp.get(pathname) ?? [];
+      const all = readTries(now);
+      const tries = all[pathname] ?? [];
       if (shouldGiveUp(tries, now)) {
         setState({ kind: "failed" });
         return;
       }
-      triesWhileUp.set(pathname, [...tries, now]);
+      writeTries({ ...all, [pathname]: [...tries, now] });
       tryAgain();
     };
 
@@ -142,7 +163,11 @@ export function Recovering({
         <button
           type="button"
           onClick={() => {
-            triesWhileUp.delete(pathname);
+            writeTries(
+              Object.fromEntries(
+                Object.entries(readTries(Date.now())).filter(([page]) => page !== pathname),
+              ),
+            );
             tryAgain();
           }}
           className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500"

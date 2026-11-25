@@ -1,9 +1,7 @@
 import { connection, NextResponse } from "next/server";
 
 import { summarize, type DependencyCheck } from "@/lib/health";
-import { SERVICES } from "@/lib/services";
-
-const TIMEOUT_MS = 3000;
+import { HEALTH_TIMEOUT_MS as TIMEOUT_MS, SERVICES } from "@/lib/services";
 
 /**
  * Iris's health (`docs/engineering.md`, Health checks): whether each service
