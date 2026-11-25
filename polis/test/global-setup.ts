@@ -11,6 +11,8 @@ import { OrganizationEntity } from '../libs/organizations/src/organization.entit
 import { MembershipEntity } from '../libs/memberships/src/membership.entity.js';
 import { ProjectEntity } from '../libs/projects/src/project.entity.js';
 import { ProjectMembershipEntity } from '../libs/project-memberships/src/project-membership.entity.js';
+import { DepartmentEntity } from '../libs/departments/src/department.entity.js';
+import { DepartmentMemberEntity } from '../libs/departments/src/department-member.entity.js';
 import { migrations } from '../src/database/migrations/index.js';
 
 declare module 'vitest' {
@@ -40,6 +42,8 @@ export default async function setup(project: TestProject) {
         MembershipEntity,
         OutboxMessageEntity,
         ProjectMembershipEntity,
+        DepartmentEntity,
+        DepartmentMemberEntity,
       ],
     }),
   );

@@ -51,6 +51,15 @@
       "compilerOptions": {
         "tsConfigPath": "libs/project-memberships/tsconfig.lib.json"
       }
+    },
+    "departments": {
+      "type": "library",
+      "root": "libs/departments",
+      "entryFile": "index",
+      "sourceRoot": "libs/departments/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/departments/tsconfig.lib.json"
+      }
     }
   }
 }

@@ -90,6 +90,124 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organizationId}/departments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listDepartments"];
+        put?: never;
+        /**
+         * @description Creates an active department. Departments are optional: they group
+         *     an organization's projects (a project is in at most one) and people
+         *     (department members). They grant no permissions: roles stay on
+         *     organization and project memberships.
+         */
+        post: operations["createDepartment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/departments/{departmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                departmentId: components["parameters"]["DepartmentId"];
+            };
+            cookie?: never;
+        };
+        get: operations["getDepartment"];
+        /**
+         * @description Replaces the name and description (the slug stays). Unchanged → no
+         *     new version and no event. An archived department can't be changed
+         *     (`DEPARTMENT_ARCHIVED`).
+         */
+        put: operations["updateDepartment"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/departments/{departmentId}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                departmentId: components["parameters"]["DepartmentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Archives the department (final). Refused while an active project is
+         *     in it (`DEPARTMENT_HAS_PROJECTS`): move those projects out first.
+         *     Its members stay, for the record.
+         */
+        post: operations["archiveDepartment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/departments/{departmentId}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                departmentId: components["parameters"]["DepartmentId"];
+            };
+            cookie?: never;
+        };
+        get: operations["listDepartmentMembers"];
+        put?: never;
+        /**
+         * @description Adds a member of the organization to the department
+         *     (`DEPARTMENT_MEMBER_NOT_IN_ORGANIZATION` otherwise; once:
+         *     `DEPARTMENT_MEMBER_EXISTS`); the department must be active
+         *     (`DEPARTMENT_ARCHIVED`). Informational: it grants nothing. Leaving
+         *     the organization removes the principal from its departments.
+         */
+        post: operations["addDepartmentMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/departments/{departmentId}/members/{memberId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                departmentId: components["parameters"]["DepartmentId"];
+                memberId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["removeDepartmentMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/projects": {
         parameters: {
             query?: never;
@@ -105,7 +223,9 @@ export interface paths {
          * @description Creates an active project. Its creator gets the highest role their
          *     organization role allows in it (a `member` becomes `approver`, a
          *     service account `editor`), so they can open it; owners and admins get
-         *     none, being admins in every project already.
+         *     none, being admins in every project already. With a `departmentId`
+         *     it's in that department, which must be active (`DEPARTMENT_ARCHIVED`;
+         *     another organization's is `404`).
          */
         post: operations["createProject"];
         delete?: never;
@@ -146,6 +266,30 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["archiveProject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organizationId}/projects/{projectId}/department": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * @description Moves the project into a department, or out of one (`null`). The
+         *     department must be active (`DEPARTMENT_ARCHIVED`) and the project
+         *     too (`PROJECT_ARCHIVED`). Unchanged → no new version and no event.
+         */
+        put: operations["setProjectDepartment"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -319,7 +463,7 @@ export interface components {
             errors: components["schemas"]["ProblemFieldError"][];
         };
         /** @enum {string} */
-        DomainErrorCode: "ORGANIZATION_SLUG_TAKEN" | "ORGANIZATION_SUSPENDED" | "PROJECT_SLUG_TAKEN" | "MEMBERSHIP_EXISTS" | "PROJECT_ARCHIVED" | "PROJECT_MEMBERSHIP_EXISTS" | "PROJECT_MEMBER_NOT_IN_ORGANIZATION" | "PROJECT_ROLE_EXCEEDS_CAP";
+        DomainErrorCode: "ORGANIZATION_SLUG_TAKEN" | "ORGANIZATION_SUSPENDED" | "PROJECT_SLUG_TAKEN" | "MEMBERSHIP_EXISTS" | "PROJECT_ARCHIVED" | "PROJECT_MEMBERSHIP_EXISTS" | "PROJECT_MEMBER_NOT_IN_ORGANIZATION" | "PROJECT_ROLE_EXCEEDS_CAP" | "DEPARTMENT_SLUG_TAKEN" | "DEPARTMENT_ARCHIVED" | "DEPARTMENT_HAS_PROJECTS" | "DEPARTMENT_MEMBER_EXISTS" | "DEPARTMENT_MEMBER_NOT_IN_ORGANIZATION";
         /** @description Problem details for a business-rule violation. */
         DomainProblem: components["schemas"]["Problem"] & {
             code: components["schemas"]["DomainErrorCode"];
@@ -355,12 +499,72 @@ export interface components {
             items: components["schemas"]["OrganizationResponse"][];
         };
         /** @enum {string} */
+        DepartmentStatus: "active" | "archived";
+        CreateDepartmentRequest: {
+            name: string;
+            /** @description Unique within the organization. */
+            slug: components["schemas"]["Slug"];
+            description: string;
+        };
+        UpdateDepartmentRequest: {
+            name: string;
+            description: string;
+        };
+        DepartmentResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            name: string;
+            slug: string;
+            description: string;
+            status: components["schemas"]["DepartmentStatus"];
+            createdBy: string;
+            createdAt: components["schemas"]["Timestamp"];
+            updatedAt: components["schemas"]["Timestamp"];
+            version: components["schemas"]["Version"];
+        };
+        DepartmentPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["DepartmentResponse"][];
+        };
+        AddDepartmentMemberRequest: {
+            subjectType: components["schemas"]["SubjectType"];
+            subject: components["schemas"]["Subject"];
+        };
+        DepartmentMemberResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            organizationId: string;
+            /** Format: uuid */
+            departmentId: string;
+            subjectType: components["schemas"]["SubjectType"];
+            subject: string;
+            createdBy: string;
+            createdAt: components["schemas"]["Timestamp"];
+        };
+        DepartmentMemberPage: components["schemas"]["PageMeta"] & {
+            items: components["schemas"]["DepartmentMemberResponse"][];
+        };
+        /** @enum {string} */
         ProjectStatus: "active" | "archived";
         CreateProjectRequest: {
             name: string;
             /** @description Unique within the organization. */
             slug: components["schemas"]["Slug"];
             description: string;
+            /**
+             * Format: uuid
+             * @description The department it's in; none when left out.
+             */
+            departmentId?: string | null;
+        };
+        SetProjectDepartmentRequest: {
+            /**
+             * Format: uuid
+             * @description The department to move it into; `null` takes it out of its department.
+             */
+            departmentId: string | null;
         };
         ProjectResponse: {
             /** Format: uuid */
@@ -370,6 +574,11 @@ export interface components {
             name: string;
             slug: string;
             description: string;
+            /**
+             * Format: uuid
+             * @description The department it's in, if any.
+             */
+            departmentId: string | null;
             status: components["schemas"]["ProjectStatus"];
             createdBy: string;
             createdAt: components["schemas"]["Timestamp"];
@@ -542,6 +751,7 @@ export interface components {
     parameters: {
         OrganizationId: string;
         ProjectId: string;
+        DepartmentId: string;
         MembershipId: string;
         /** @description Page size. */
         Limit: number;
@@ -721,9 +931,261 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    listDepartments: {
+        parameters: {
+            query?: {
+                /** @description Only active, or only archived, departments. */
+                status?: components["schemas"]["DepartmentStatus"];
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepartmentPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createDepartment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDepartmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepartmentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    getDepartment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                departmentId: components["parameters"]["DepartmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepartmentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateDepartment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                departmentId: components["parameters"]["DepartmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDepartmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepartmentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    archiveDepartment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                departmentId: components["parameters"]["DepartmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archived (or already archived) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepartmentResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    listDepartmentMembers: {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: components["parameters"]["Limit"];
+                /**
+                 * @description Opaque cursor from the previous page's `nextCursor`; leave it out for
+                 *     the first page. A cursor only works with the filters it was made with
+                 *     (otherwise `400 INVALID_CURSOR`).
+                 */
+                cursor?: components["parameters"]["Cursor"];
+            };
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                departmentId: components["parameters"]["DepartmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepartmentMemberPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    addDepartmentMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                departmentId: components["parameters"]["DepartmentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddDepartmentMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description Added */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DepartmentMemberResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    removeDepartmentMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                departmentId: components["parameters"]["DepartmentId"];
+                memberId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
     listProjects: {
         parameters: {
             query?: {
+                /** @description Only the projects in this department. */
+                departmentId?: string;
                 /** @description Page size. */
                 limit?: components["parameters"]["Limit"];
                 /**
@@ -827,6 +1289,38 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Archived (or already archived) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["DomainError"];
+        };
+    };
+    setProjectDepartment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organizationId: components["parameters"]["OrganizationId"];
+                projectId: components["parameters"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetProjectDepartmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
             200: {
                 headers: {
                     [name: string]: unknown;

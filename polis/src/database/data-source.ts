@@ -8,6 +8,8 @@ import { OrganizationEntity } from '../../libs/organizations/src/organization.en
 import { MembershipEntity } from '../../libs/memberships/src/membership.entity.js';
 import { ProjectEntity } from '../../libs/projects/src/project.entity.js';
 import { ProjectMembershipEntity } from '../../libs/project-memberships/src/project-membership.entity.js';
+import { DepartmentEntity } from '../../libs/departments/src/department.entity.js';
+import { DepartmentMemberEntity } from '../../libs/departments/src/department-member.entity.js';
 import { migrations } from './migrations/index.js';
 
 /**
@@ -36,6 +38,8 @@ export default new DataSource(
       MembershipEntity,
       OutboxMessageEntity,
       ProjectMembershipEntity,
+      DepartmentEntity,
+      DepartmentMemberEntity,
     ],
   }),
 );

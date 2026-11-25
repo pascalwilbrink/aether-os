@@ -10,7 +10,12 @@ export const zDomainErrorCode = z.enum([
     'PROJECT_ARCHIVED',
     'PROJECT_MEMBERSHIP_EXISTS',
     'PROJECT_MEMBER_NOT_IN_ORGANIZATION',
-    'PROJECT_ROLE_EXCEEDS_CAP'
+    'PROJECT_ROLE_EXCEEDS_CAP',
+    'DEPARTMENT_SLUG_TAKEN',
+    'DEPARTMENT_ARCHIVED',
+    'DEPARTMENT_HAS_PROJECTS',
+    'DEPARTMENT_MEMBER_EXISTS',
+    'DEPARTMENT_MEMBER_NOT_IN_ORGANIZATION'
 ]);
 
 /**
@@ -46,12 +51,43 @@ export const zOrganizationResponse = z.object({
     version: zVersion
 });
 
+export const zDepartmentStatus = z.enum(['active', 'archived']);
+
+export const zCreateDepartmentRequest = z.object({
+    name: z.string().min(1).max(200),
+    slug: zSlug,
+    description: z.string().max(2000)
+});
+
+export const zUpdateDepartmentRequest = z.object({
+    name: z.string().min(1).max(200),
+    description: z.string().max(2000)
+});
+
+export const zDepartmentResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    name: z.string(),
+    slug: z.string(),
+    description: z.string(),
+    status: zDepartmentStatus,
+    createdBy: z.string(),
+    createdAt: zTimestamp,
+    updatedAt: zTimestamp,
+    version: zVersion
+});
+
 export const zProjectStatus = z.enum(['active', 'archived']);
 
 export const zCreateProjectRequest = z.object({
     name: z.string().min(1).max(200),
     slug: zSlug,
-    description: z.string().max(2000)
+    description: z.string().max(2000),
+    departmentId: z.uuid().nullish()
+});
+
+export const zSetProjectDepartmentRequest = z.object({
+    departmentId: z.uuid().nullable()
 });
 
 export const zProjectResponse = z.object({
@@ -60,6 +96,7 @@ export const zProjectResponse = z.object({
     name: z.string(),
     slug: z.string(),
     description: z.string(),
+    departmentId: z.uuid().nullable(),
     status: zProjectStatus,
     createdBy: z.string(),
     createdAt: zTimestamp,
@@ -72,10 +109,25 @@ export const zProjectResponse = z.object({
  */
 export const zSubjectType = z.enum(['user', 'service_account']);
 
+export const zDepartmentMemberResponse = z.object({
+    id: z.uuid(),
+    organizationId: z.uuid(),
+    departmentId: z.uuid(),
+    subjectType: zSubjectType,
+    subject: z.string(),
+    createdBy: z.string(),
+    createdAt: zTimestamp
+});
+
 /**
  * The principal's Pistis `sub`.
  */
 export const zSubject = z.string().min(1).max(255);
+
+export const zAddDepartmentMemberRequest = z.object({
+    subjectType: zSubjectType,
+    subject: zSubject
+});
 
 /**
  * A fixed organization role (see `docs/identity.md`).
@@ -169,6 +221,14 @@ export const zOrganizationPage = zPageMeta.and(z.object({
     items: z.array(zOrganizationResponse)
 }));
 
+export const zDepartmentPage = zPageMeta.and(z.object({
+    items: z.array(zDepartmentResponse)
+}));
+
+export const zDepartmentMemberPage = zPageMeta.and(z.object({
+    items: z.array(zDepartmentMemberResponse)
+}));
+
 export const zProjectPage = zPageMeta.and(z.object({
     items: z.array(zProjectResponse)
 }));
@@ -228,6 +288,8 @@ export const zDomainProblem = zCommonOpenapiProblem.and(z.object({
 export const zOrganizationId = z.uuid();
 
 export const zProjectId = z.uuid();
+
+export const zDepartmentId = z.uuid();
 
 export const zMembershipId = z.uuid();
 
@@ -310,11 +372,108 @@ export const zActivateOrganizationPath = z.object({
  */
 export const zActivateOrganizationResponse = zOrganizationResponse;
 
+export const zListDepartmentsPath = z.object({
+    organizationId: z.uuid()
+});
+
+export const zListDepartmentsQuery = z.object({
+    status: zDepartmentStatus.optional(),
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListDepartmentsResponse = zDepartmentPage;
+
+export const zCreateDepartmentBody = zCreateDepartmentRequest;
+
+export const zCreateDepartmentPath = z.object({
+    organizationId: z.uuid()
+});
+
+/**
+ * Created
+ */
+export const zCreateDepartmentResponse = zDepartmentResponse;
+
+export const zGetDepartmentPath = z.object({
+    organizationId: z.uuid(),
+    departmentId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetDepartmentResponse = zDepartmentResponse;
+
+export const zUpdateDepartmentBody = zUpdateDepartmentRequest;
+
+export const zUpdateDepartmentPath = z.object({
+    organizationId: z.uuid(),
+    departmentId: z.uuid()
+});
+
+/**
+ * Updated
+ */
+export const zUpdateDepartmentResponse = zDepartmentResponse;
+
+export const zArchiveDepartmentPath = z.object({
+    organizationId: z.uuid(),
+    departmentId: z.uuid()
+});
+
+/**
+ * Archived (or already archived)
+ */
+export const zArchiveDepartmentResponse = zDepartmentResponse;
+
+export const zListDepartmentMembersPath = z.object({
+    organizationId: z.uuid(),
+    departmentId: z.uuid()
+});
+
+export const zListDepartmentMembersQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    cursor: z.string().min(1).max(1024).optional()
+});
+
+/**
+ * Newest first
+ */
+export const zListDepartmentMembersResponse = zDepartmentMemberPage;
+
+export const zAddDepartmentMemberBody = zAddDepartmentMemberRequest;
+
+export const zAddDepartmentMemberPath = z.object({
+    organizationId: z.uuid(),
+    departmentId: z.uuid()
+});
+
+/**
+ * Added
+ */
+export const zAddDepartmentMemberResponse = zDepartmentMemberResponse;
+
+export const zRemoveDepartmentMemberPath = z.object({
+    organizationId: z.uuid(),
+    departmentId: z.uuid(),
+    memberId: z.uuid()
+});
+
+/**
+ * Removed
+ */
+export const zRemoveDepartmentMemberResponse = z.void();
+
 export const zListProjectsPath = z.object({
     organizationId: z.uuid()
 });
 
 export const zListProjectsQuery = z.object({
+    departmentId: z.uuid().optional(),
     limit: z.int().gte(1).lte(100).optional().default(50),
     cursor: z.string().min(1).max(1024).optional()
 });
@@ -354,6 +513,18 @@ export const zArchiveProjectPath = z.object({
  * Archived (or already archived)
  */
 export const zArchiveProjectResponse = zProjectResponse;
+
+export const zSetProjectDepartmentBody = zSetProjectDepartmentRequest;
+
+export const zSetProjectDepartmentPath = z.object({
+    organizationId: z.uuid(),
+    projectId: z.uuid()
+});
+
+/**
+ * Updated
+ */
+export const zSetProjectDepartmentResponse = zProjectResponse;
 
 export const zListMembershipsPath = z.object({
     organizationId: z.uuid()

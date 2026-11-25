@@ -12,9 +12,18 @@ import type {
   ActivateOrganizationData,
   ActivateOrganizationErrors,
   ActivateOrganizationResponses,
+  AddDepartmentMemberData,
+  AddDepartmentMemberErrors,
+  AddDepartmentMemberResponses,
+  ArchiveDepartmentData,
+  ArchiveDepartmentErrors,
+  ArchiveDepartmentResponses,
   ArchiveProjectData,
   ArchiveProjectErrors,
   ArchiveProjectResponses,
+  CreateDepartmentData,
+  CreateDepartmentErrors,
+  CreateDepartmentResponses,
   CreateMembershipData,
   CreateMembershipErrors,
   CreateMembershipResponses,
@@ -33,6 +42,9 @@ import type {
   DeleteProjectMembershipData,
   DeleteProjectMembershipErrors,
   DeleteProjectMembershipResponses,
+  GetDepartmentData,
+  GetDepartmentErrors,
+  GetDepartmentResponses,
   GetMembershipData,
   GetMembershipErrors,
   GetMembershipResponses,
@@ -48,6 +60,12 @@ import type {
   GetProjectMembershipErrors,
   GetProjectMembershipResponses,
   GetProjectResponses,
+  ListDepartmentMembersData,
+  ListDepartmentMembersErrors,
+  ListDepartmentMembersResponses,
+  ListDepartmentsData,
+  ListDepartmentsErrors,
+  ListDepartmentsResponses,
   ListMembershipsData,
   ListMembershipsErrors,
   ListMembershipsOfSubjectData,
@@ -66,9 +84,18 @@ import type {
   ListProjectsData,
   ListProjectsErrors,
   ListProjectsResponses,
+  RemoveDepartmentMemberData,
+  RemoveDepartmentMemberErrors,
+  RemoveDepartmentMemberResponses,
+  SetProjectDepartmentData,
+  SetProjectDepartmentErrors,
+  SetProjectDepartmentResponses,
   SuspendOrganizationData,
   SuspendOrganizationErrors,
   SuspendOrganizationResponses,
+  UpdateDepartmentData,
+  UpdateDepartmentErrors,
+  UpdateDepartmentResponses,
   UpdateMembershipData,
   UpdateMembershipErrors,
   UpdateMembershipResponses,
@@ -201,6 +228,177 @@ export const activateOrganization = <ThrowOnError extends boolean = false>(
     ...options,
   });
 
+export const listDepartments = <ThrowOnError extends boolean = false>(
+  options: Options<ListDepartmentsData, ThrowOnError>,
+): RequestResult<
+  ListDepartmentsResponses,
+  ListDepartmentsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListDepartmentsResponses,
+    ListDepartmentsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments',
+    ...options,
+  });
+
+/**
+ * Creates an active department. Departments are optional: they group
+ * an organization's projects (a project is in at most one) and people
+ * (department members). They grant no permissions: roles stay on
+ * organization and project memberships.
+ *
+ */
+export const createDepartment = <ThrowOnError extends boolean = false>(
+  options: Options<CreateDepartmentData, ThrowOnError>,
+): RequestResult<
+  CreateDepartmentResponses,
+  CreateDepartmentErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    CreateDepartmentResponses,
+    CreateDepartmentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+export const getDepartment = <ThrowOnError extends boolean = false>(
+  options: Options<GetDepartmentData, ThrowOnError>,
+): RequestResult<GetDepartmentResponses, GetDepartmentErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetDepartmentResponses,
+    GetDepartmentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments/{departmentId}',
+    ...options,
+  });
+
+/**
+ * Replaces the name and description (the slug stays). Unchanged → no
+ * new version and no event. An archived department can't be changed
+ * (`DEPARTMENT_ARCHIVED`).
+ *
+ */
+export const updateDepartment = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateDepartmentData, ThrowOnError>,
+): RequestResult<
+  UpdateDepartmentResponses,
+  UpdateDepartmentErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    UpdateDepartmentResponses,
+    UpdateDepartmentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments/{departmentId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Archives the department (final). Refused while an active project is
+ * in it (`DEPARTMENT_HAS_PROJECTS`): move those projects out first.
+ * Its members stay, for the record.
+ *
+ */
+export const archiveDepartment = <ThrowOnError extends boolean = false>(
+  options: Options<ArchiveDepartmentData, ThrowOnError>,
+): RequestResult<
+  ArchiveDepartmentResponses,
+  ArchiveDepartmentErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    ArchiveDepartmentResponses,
+    ArchiveDepartmentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments/{departmentId}/archive',
+    ...options,
+  });
+
+export const listDepartmentMembers = <ThrowOnError extends boolean = false>(
+  options: Options<ListDepartmentMembersData, ThrowOnError>,
+): RequestResult<
+  ListDepartmentMembersResponses,
+  ListDepartmentMembersErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListDepartmentMembersResponses,
+    ListDepartmentMembersErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments/{departmentId}/members',
+    ...options,
+  });
+
+/**
+ * Adds a member of the organization to the department
+ * (`DEPARTMENT_MEMBER_NOT_IN_ORGANIZATION` otherwise; once:
+ * `DEPARTMENT_MEMBER_EXISTS`); the department must be active
+ * (`DEPARTMENT_ARCHIVED`). Informational: it grants nothing. Leaving
+ * the organization removes the principal from its departments.
+ *
+ */
+export const addDepartmentMember = <ThrowOnError extends boolean = false>(
+  options: Options<AddDepartmentMemberData, ThrowOnError>,
+): RequestResult<
+  AddDepartmentMemberResponses,
+  AddDepartmentMemberErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    AddDepartmentMemberResponses,
+    AddDepartmentMemberErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments/{departmentId}/members',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+export const removeDepartmentMember = <ThrowOnError extends boolean = false>(
+  options: Options<RemoveDepartmentMemberData, ThrowOnError>,
+): RequestResult<
+  RemoveDepartmentMemberResponses,
+  RemoveDepartmentMemberErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).delete<
+    RemoveDepartmentMemberResponses,
+    RemoveDepartmentMemberErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/departments/{departmentId}/members/{memberId}',
+    ...options,
+  });
+
 export const listProjects = <ThrowOnError extends boolean = false>(
   options: Options<ListProjectsData, ThrowOnError>,
 ): RequestResult<ListProjectsResponses, ListProjectsErrors, ThrowOnError> =>
@@ -218,7 +416,9 @@ export const listProjects = <ThrowOnError extends boolean = false>(
  * Creates an active project. Its creator gets the highest role their
  * organization role allows in it (a `member` becomes `approver`, a
  * service account `editor`), so they can open it; owners and admins get
- * none, being admins in every project already.
+ * none, being admins in every project already. With a `departmentId`
+ * it's in that department, which must be active (`DEPARTMENT_ARCHIVED`;
+ * another organization's is `404`).
  *
  */
 export const createProject = <ThrowOnError extends boolean = false>(
@@ -262,6 +462,33 @@ export const archiveProject = <ThrowOnError extends boolean = false>(
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/projects/{projectId}/archive',
     ...options,
+  });
+
+/**
+ * Moves the project into a department, or out of one (`null`). The
+ * department must be active (`DEPARTMENT_ARCHIVED`) and the project
+ * too (`PROJECT_ARCHIVED`). Unchanged → no new version and no event.
+ *
+ */
+export const setProjectDepartment = <ThrowOnError extends boolean = false>(
+  options: Options<SetProjectDepartmentData, ThrowOnError>,
+): RequestResult<
+  SetProjectDepartmentResponses,
+  SetProjectDepartmentErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    SetProjectDepartmentResponses,
+    SetProjectDepartmentErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/projects/{projectId}/department',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   });
 
 export const listMemberships = <ThrowOnError extends boolean = false>(

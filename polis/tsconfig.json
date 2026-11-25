@@ -18,41 +18,20 @@
     "skipLibCheck": true,
     "strict": true,
     "strictPropertyInitialization": false,
-    "types": [
-      "vitest/globals",
-      "node"
-    ],
+    "types": ["vitest/globals", "node"],
     "paths": {
-      "@polis/core": [
-        "./libs/core/src/index.ts"
-      ],
-      "@polis/core/*": [
-        "./libs/core/src/*"
-      ],
-      "@polis/organizations": [
-        "./libs/organizations/src/index.ts"
-      ],
-      "@polis/organizations/*": [
-        "./libs/organizations/src/*"
-      ],
-      "@polis/projects": [
-        "./libs/projects/src/index.ts"
-      ],
-      "@polis/projects/*": [
-        "./libs/projects/src/*"
-      ],
-      "@polis/memberships": [
-        "./libs/memberships/src/index.ts"
-      ],
-      "@polis/memberships/*": [
-        "./libs/memberships/src/*"
-      ],
-      "@polis/project-memberships": [
-        "./libs/project-memberships/src/index.ts"
-      ],
-      "@polis/project-memberships/*": [
-        "./libs/project-memberships/src/*"
-      ]
+      "@polis/core": ["./libs/core/src/index.ts"],
+      "@polis/core/*": ["./libs/core/src/*"],
+      "@polis/organizations": ["./libs/organizations/src/index.ts"],
+      "@polis/organizations/*": ["./libs/organizations/src/*"],
+      "@polis/projects": ["./libs/projects/src/index.ts"],
+      "@polis/projects/*": ["./libs/projects/src/*"],
+      "@polis/memberships": ["./libs/memberships/src/index.ts"],
+      "@polis/memberships/*": ["./libs/memberships/src/*"],
+      "@polis/departments": ["./libs/departments/src/index.ts"],
+      "@polis/departments/*": ["./libs/departments/src/*"],
+      "@polis/project-memberships": ["./libs/project-memberships/src/index.ts"],
+      "@polis/project-memberships/*": ["./libs/project-memberships/src/*"]
     },
     "rewriteRelativeImportExtensions": true
   }

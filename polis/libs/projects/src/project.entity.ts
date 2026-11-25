@@ -11,6 +11,12 @@ import type { ProjectStatus } from './project-transitions.js';
   'createdAt',
   'id',
 ])
+// A department's projects, newest first.
+@Index('ix_projects_department_id_created_at_id', [
+  'departmentId',
+  'createdAt',
+  'id',
+])
 export class ProjectEntity {
   @PrimaryColumn({ type: 'uuid' })
   id: string;
@@ -26,6 +32,10 @@ export class ProjectEntity {
 
   @Column({ type: 'text' })
   description: string;
+
+  /** The department it's in, if any (a department of its organization). */
+  @Column({ type: 'uuid', nullable: true })
+  departmentId: string | null;
 
   @Column({ type: 'text' })
   status: ProjectStatus;

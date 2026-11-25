@@ -2,6 +2,58 @@
 // (@aether-os/contracts). Do not edit it by hand; run `pnpm generate:api`.
 
 /**
+ * Payload of `department-member.added`.
+ */
+export interface DepartmentMemberAdded {
+  memberId: string;
+  departmentId: string;
+  principal: {
+    /**
+     * The principal's Pistis `sub`.
+     */
+    sub: string;
+    sub_type: 'user' | 'service_account';
+  };
+}
+
+/**
+ * Payload of `department-member.removed`.
+ */
+export interface DepartmentMemberRemoved {
+  memberId: string;
+  departmentId: string;
+  principal: {
+    /**
+     * The principal's Pistis `sub`.
+     */
+    sub: string;
+    sub_type: 'user' | 'service_account';
+  };
+}
+
+/**
+ * Payload of `department.archived`.
+ */
+export interface DepartmentArchived {
+  departmentId: string;
+}
+
+/**
+ * Payload of `department.created`.
+ */
+export interface DepartmentCreated {
+  departmentId: string;
+  slug: string;
+}
+
+/**
+ * Payload of `department.updated`.
+ */
+export interface DepartmentUpdated {
+  departmentId: string;
+}
+
+/**
  * Payload of `membership.granted`.
  */
 export interface MembershipGranted {
@@ -169,10 +221,34 @@ export interface ProjectArchived {
  */
 export interface ProjectCreated {
   projectId: string;
+  /**
+   * The department it was created in, if any.
+   */
+  departmentId: string | null;
+}
+
+/**
+ * Payload of `project.department-changed`.
+ */
+export interface ProjectDepartmentChanged {
+  projectId: string;
+  /**
+   * The department it was in, if any.
+   */
+  from: string | null;
+  /**
+   * The department it's in now, if any.
+   */
+  to: string | null;
 }
 
 /** Every Polis event type, mapped to its payload. */
 export interface PolisEventPayloads {
+  'department-member.added': DepartmentMemberAdded;
+  'department-member.removed': DepartmentMemberRemoved;
+  'department.archived': DepartmentArchived;
+  'department.created': DepartmentCreated;
+  'department.updated': DepartmentUpdated;
   'membership.granted': MembershipGranted;
   'membership.revoked': MembershipRevoked;
   'membership.role-changed': MembershipRoleChanged;
@@ -184,12 +260,18 @@ export interface PolisEventPayloads {
   'project-membership.role-changed': ProjectMembershipRoleChanged;
   'project.archived': ProjectArchived;
   'project.created': ProjectCreated;
+  'project.department-changed': ProjectDepartmentChanged;
 }
 
 export type PolisEventType = keyof PolisEventPayloads;
 
 /** Every Polis event type in the spec. */
 export const POLIS_EVENT_TYPES = [
+  'department-member.added',
+  'department-member.removed',
+  'department.archived',
+  'department.created',
+  'department.updated',
   'membership.granted',
   'membership.revoked',
   'membership.role-changed',
@@ -201,4 +283,5 @@ export const POLIS_EVENT_TYPES = [
   'project-membership.role-changed',
   'project.archived',
   'project.created',
+  'project.department-changed',
 ] as const satisfies readonly PolisEventType[];

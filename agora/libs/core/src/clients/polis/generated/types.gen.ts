@@ -14,7 +14,12 @@ export type DomainErrorCode =
   | 'PROJECT_ARCHIVED'
   | 'PROJECT_MEMBERSHIP_EXISTS'
   | 'PROJECT_MEMBER_NOT_IN_ORGANIZATION'
-  | 'PROJECT_ROLE_EXCEEDS_CAP';
+  | 'PROJECT_ROLE_EXCEEDS_CAP'
+  | 'DEPARTMENT_SLUG_TAKEN'
+  | 'DEPARTMENT_ARCHIVED'
+  | 'DEPARTMENT_HAS_PROJECTS'
+  | 'DEPARTMENT_MEMBER_EXISTS'
+  | 'DEPARTMENT_MEMBER_NOT_IN_ORGANIZATION';
 
 /**
  * Problem details for a business-rule violation.
@@ -60,6 +65,58 @@ export type OrganizationPage = PageMeta & {
   items: Array<OrganizationResponse>;
 };
 
+export type DepartmentStatus = 'active' | 'archived';
+
+export type CreateDepartmentRequest = {
+  name: string;
+  /**
+   * Unique within the organization.
+   */
+  slug: Slug;
+  description: string;
+};
+
+export type UpdateDepartmentRequest = {
+  name: string;
+  description: string;
+};
+
+export type DepartmentResponse = {
+  id: string;
+  organizationId: string;
+  name: string;
+  slug: string;
+  description: string;
+  status: DepartmentStatus;
+  createdBy: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  version: Version;
+};
+
+export type DepartmentPage = PageMeta & {
+  items: Array<DepartmentResponse>;
+};
+
+export type AddDepartmentMemberRequest = {
+  subjectType: SubjectType;
+  subject: Subject;
+};
+
+export type DepartmentMemberResponse = {
+  id: string;
+  organizationId: string;
+  departmentId: string;
+  subjectType: SubjectType;
+  subject: string;
+  createdBy: string;
+  createdAt: Timestamp;
+};
+
+export type DepartmentMemberPage = PageMeta & {
+  items: Array<DepartmentMemberResponse>;
+};
+
 export type ProjectStatus = 'active' | 'archived';
 
 export type CreateProjectRequest = {
@@ -69,6 +126,17 @@ export type CreateProjectRequest = {
    */
   slug: Slug;
   description: string;
+  /**
+   * The department it's in; none when left out.
+   */
+  departmentId?: string | null;
+};
+
+export type SetProjectDepartmentRequest = {
+  /**
+   * The department to move it into; `null` takes it out of its department.
+   */
+  departmentId: string | null;
 };
 
 export type ProjectResponse = {
@@ -77,6 +145,10 @@ export type ProjectResponse = {
   name: string;
   slug: string;
   description: string;
+  /**
+   * The department it's in, if any.
+   */
+  departmentId: string | null;
   status: ProjectStatus;
   createdBy: string;
   createdAt: Timestamp;
@@ -253,6 +325,8 @@ export type ProblemFieldError = {
 export type OrganizationId = string;
 
 export type ProjectId = string;
+
+export type DepartmentId = string;
 
 export type MembershipId = string;
 
@@ -568,12 +642,454 @@ export type ActivateOrganizationResponses = {
 export type ActivateOrganizationResponse =
   ActivateOrganizationResponses[keyof ActivateOrganizationResponses];
 
+export type ListDepartmentsData = {
+  body?: never;
+  path: {
+    organizationId: string;
+  };
+  query?: {
+    /**
+     * Only active, or only archived, departments.
+     */
+    status?: DepartmentStatus;
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+  };
+  url: '/v1/organizations/{organizationId}/departments';
+};
+
+export type ListDepartmentsErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type ListDepartmentsError =
+  ListDepartmentsErrors[keyof ListDepartmentsErrors];
+
+export type ListDepartmentsResponses = {
+  /**
+   * Newest first
+   */
+  200: DepartmentPage;
+};
+
+export type ListDepartmentsResponse =
+  ListDepartmentsResponses[keyof ListDepartmentsResponses];
+
+export type CreateDepartmentData = {
+  body: CreateDepartmentRequest;
+  path: {
+    organizationId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/departments';
+};
+
+export type CreateDepartmentErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+};
+
+export type CreateDepartmentError =
+  CreateDepartmentErrors[keyof CreateDepartmentErrors];
+
+export type CreateDepartmentResponses = {
+  /**
+   * Created
+   */
+  201: DepartmentResponse;
+};
+
+export type CreateDepartmentResponse =
+  CreateDepartmentResponses[keyof CreateDepartmentResponses];
+
+export type GetDepartmentData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    departmentId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/departments/{departmentId}';
+};
+
+export type GetDepartmentErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type GetDepartmentError = GetDepartmentErrors[keyof GetDepartmentErrors];
+
+export type GetDepartmentResponses = {
+  /**
+   * OK
+   */
+  200: DepartmentResponse;
+};
+
+export type GetDepartmentResponse =
+  GetDepartmentResponses[keyof GetDepartmentResponses];
+
+export type UpdateDepartmentData = {
+  body: UpdateDepartmentRequest;
+  path: {
+    organizationId: string;
+    departmentId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/departments/{departmentId}';
+};
+
+export type UpdateDepartmentErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+};
+
+export type UpdateDepartmentError =
+  UpdateDepartmentErrors[keyof UpdateDepartmentErrors];
+
+export type UpdateDepartmentResponses = {
+  /**
+   * Updated
+   */
+  200: DepartmentResponse;
+};
+
+export type UpdateDepartmentResponse =
+  UpdateDepartmentResponses[keyof UpdateDepartmentResponses];
+
+export type ArchiveDepartmentData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    departmentId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/departments/{departmentId}/archive';
+};
+
+export type ArchiveDepartmentErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+};
+
+export type ArchiveDepartmentError =
+  ArchiveDepartmentErrors[keyof ArchiveDepartmentErrors];
+
+export type ArchiveDepartmentResponses = {
+  /**
+   * Archived (or already archived)
+   */
+  200: DepartmentResponse;
+};
+
+export type ArchiveDepartmentResponse =
+  ArchiveDepartmentResponses[keyof ArchiveDepartmentResponses];
+
+export type ListDepartmentMembersData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    departmentId: string;
+  };
+  query?: {
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+  };
+  url: '/v1/organizations/{organizationId}/departments/{departmentId}/members';
+};
+
+export type ListDepartmentMembersErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type ListDepartmentMembersError =
+  ListDepartmentMembersErrors[keyof ListDepartmentMembersErrors];
+
+export type ListDepartmentMembersResponses = {
+  /**
+   * Newest first
+   */
+  200: DepartmentMemberPage;
+};
+
+export type ListDepartmentMembersResponse =
+  ListDepartmentMembersResponses[keyof ListDepartmentMembersResponses];
+
+export type AddDepartmentMemberData = {
+  body: AddDepartmentMemberRequest;
+  path: {
+    organizationId: string;
+    departmentId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/departments/{departmentId}/members';
+};
+
+export type AddDepartmentMemberErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+};
+
+export type AddDepartmentMemberError =
+  AddDepartmentMemberErrors[keyof AddDepartmentMemberErrors];
+
+export type AddDepartmentMemberResponses = {
+  /**
+   * Added
+   */
+  201: DepartmentMemberResponse;
+};
+
+export type AddDepartmentMemberResponse =
+  AddDepartmentMemberResponses[keyof AddDepartmentMemberResponses];
+
+export type RemoveDepartmentMemberData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    departmentId: string;
+    memberId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/departments/{departmentId}/members/{memberId}';
+};
+
+export type RemoveDepartmentMemberErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+};
+
+export type RemoveDepartmentMemberError =
+  RemoveDepartmentMemberErrors[keyof RemoveDepartmentMemberErrors];
+
+export type RemoveDepartmentMemberResponses = {
+  /**
+   * Removed
+   */
+  204: void;
+};
+
+export type RemoveDepartmentMemberResponse =
+  RemoveDepartmentMemberResponses[keyof RemoveDepartmentMemberResponses];
+
 export type ListProjectsData = {
   body?: never;
   path: {
     organizationId: string;
   };
   query?: {
+    /**
+     * Only the projects in this department.
+     */
+    departmentId?: string;
     /**
      * Page size.
      */
@@ -777,6 +1293,59 @@ export type ArchiveProjectResponses = {
 
 export type ArchiveProjectResponse =
   ArchiveProjectResponses[keyof ArchiveProjectResponses];
+
+export type SetProjectDepartmentData = {
+  body: SetProjectDepartmentRequest;
+  path: {
+    organizationId: string;
+    projectId: string;
+  };
+  query?: never;
+  url: '/v1/organizations/{organizationId}/projects/{projectId}/department';
+};
+
+export type SetProjectDepartmentErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+  /**
+   * A business rule forbids this (409, with a `DomainErrorCode`).
+   */
+  409: DomainProblem;
+};
+
+export type SetProjectDepartmentError =
+  SetProjectDepartmentErrors[keyof SetProjectDepartmentErrors];
+
+export type SetProjectDepartmentResponses = {
+  /**
+   * Updated
+   */
+  200: ProjectResponse;
+};
+
+export type SetProjectDepartmentResponse =
+  SetProjectDepartmentResponses[keyof SetProjectDepartmentResponses];
 
 export type ListMembershipsData = {
   body?: never;
