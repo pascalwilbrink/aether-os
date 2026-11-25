@@ -110,6 +110,19 @@ async function KnowledgeItemDetails({ params }: Props) {
                 </Link>
                 )
               </>
+            ) : null}
+            {item.source.sessionId ? (
+              <>
+                {" "}
+                (
+                <Link
+                  href={`${projectPath}/sessions/${item.source.sessionId}`}
+                  className="underline"
+                >
+                  the session
+                </Link>
+                )
+              </>
             ) : null}{" "}
             · updated {formatTime(item.updatedAt)}
             {item.acceptedBy ? ` · accepted by ${item.acceptedBy}` : ""}
@@ -222,6 +235,29 @@ async function KnowledgeItemDetails({ params }: Props) {
           <div className="whitespace-pre-wrap rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800">
             {item.body}
           </div>
+          {item.rationale ? (
+            <>
+              <h3 className="text-sm font-medium">Why</h3>
+              <div className="whitespace-pre-wrap rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800">
+                {item.rationale}
+              </div>
+            </>
+          ) : null}
+          {item.alternatives.length > 0 ? (
+            <>
+              <h3 className="text-sm font-medium">Also considered</h3>
+              <ul className="space-y-1 text-sm">
+                {item.alternatives.map((alternative) => (
+                  <li key={alternative.option}>
+                    <span className="font-medium">{alternative.option}</span>
+                    <span className="text-zinc-600 dark:text-zinc-400">
+                      : {alternative.reason}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
         </section>
       )}
 

@@ -6,6 +6,7 @@ import type {
   AgentSessionMessage,
   CouncilPlan,
   DeliberationRound,
+  SessionSynthesis,
   ApiSchema,
   Artifact,
   Execution,
@@ -440,6 +441,20 @@ export async function listDeliberationRounds(
 ): Promise<DeliberationRound[]> {
   const page: Page<DeliberationRound> = await hephaestus(
     `${sessionsOf(organizationId, projectId)}/${sessionId}/rounds?limit=100`,
+    token,
+  );
+  return page.items;
+}
+
+/** A council session's syntheses, oldest first. */
+export async function listSessionSyntheses(
+  token: string,
+  organizationId: string,
+  projectId: string,
+  sessionId: string,
+): Promise<SessionSynthesis[]> {
+  const page: Page<SessionSynthesis> = await hephaestus(
+    `${sessionsOf(organizationId, projectId)}/${sessionId}/syntheses?limit=100`,
     token,
   );
   return page.items;

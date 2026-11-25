@@ -235,7 +235,11 @@ const TOOL_RENDERERS = [
                     ? "Proposed a plan"
                     : name === "set_mode"
                       ? "Changed the way of working"
-                      : `Used ${name}`}
+                      : name === "record_decision"
+                        ? "Recorded a decision"
+                        : name === "write_synthesis"
+                          ? "Wrote a synthesis"
+                          : `Used ${name}`}
           {status === "complete" ? "" : "…"}
         </summary>
         <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all">

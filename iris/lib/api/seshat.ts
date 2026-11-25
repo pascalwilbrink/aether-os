@@ -31,11 +31,17 @@ export function listKnowledgeItems(
   token: string,
   organizationId: string,
   projectId: string,
-  filter: { type?: KnowledgeItemType; status?: KnowledgeItemStatus } = {},
+  filter: {
+    type?: KnowledgeItemType;
+    status?: KnowledgeItemStatus;
+    /** Only items proposed in this session (a council's decisions). */
+    sessionId?: string;
+  } = {},
 ) {
   const query = new URLSearchParams({ limit: "100" });
   if (filter.type) query.set("type", filter.type);
   if (filter.status) query.set("status", filter.status);
+  if (filter.sessionId) query.set("sessionId", filter.sessionId);
   return seshat<Page<KnowledgeItem>>(
     `${knowledgeOf(organizationId, projectId)}/items?${query}`,
     token,

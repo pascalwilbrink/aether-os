@@ -78,6 +78,7 @@ export function sourceLabel(item: Pick<KnowledgeItem, "source" | "createdBy">) {
   if (item.source.kind === "repository") {
     return `From ${item.source.repository?.fullName ?? "a repository"}`;
   }
+  if (item.source.kind === "session") return "Proposed in a council session";
   return item.source.kind === "task"
     ? "Proposed by an agent"
     : `Written by ${item.createdBy}`;
