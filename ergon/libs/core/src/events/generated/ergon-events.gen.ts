@@ -42,6 +42,38 @@ export interface WorkDependencyRemoved {
 }
 
 /**
+ * Payload of `work-execution.completed`.
+ */
+export interface WorkExecutionCompleted {
+  executionId: string;
+  workItemId: string;
+  taskId: string;
+  agentId: string;
+  /**
+   * The task's status in Hephaestus.
+   */
+  status: string;
+  failureReason: string | null;
+  primaryArtifactId: string | null;
+}
+
+/**
+ * Payload of `work-execution.started`.
+ */
+export interface WorkExecutionStarted {
+  executionId: string;
+  workItemId: string;
+  taskId: string;
+  agentId: string;
+  /**
+   * The task's status in Hephaestus.
+   */
+  status: string;
+  failureReason: string | null;
+  primaryArtifactId: string | null;
+}
+
+/**
  * Payload of `work-item.created`.
  */
 export interface WorkItemCreated {
@@ -141,6 +173,8 @@ export interface ErgonEventPayloads {
   'work-assignment.changed': WorkAssignmentChanged;
   'work-dependency.created': WorkDependencyCreated;
   'work-dependency.removed': WorkDependencyRemoved;
+  'work-execution.completed': WorkExecutionCompleted;
+  'work-execution.started': WorkExecutionStarted;
   'work-item.created': WorkItemCreated;
   'work-item.status-changed': WorkItemStatusChanged;
   'work-item.updated': WorkItemUpdated;
@@ -153,6 +187,8 @@ export const ERGON_EVENT_TYPES = [
   'work-assignment.changed',
   'work-dependency.created',
   'work-dependency.removed',
+  'work-execution.completed',
+  'work-execution.started',
   'work-item.created',
   'work-item.status-changed',
   'work-item.updated',

@@ -33,6 +33,9 @@ import type {
   ListWorkAssignmentsData,
   ListWorkAssignmentsErrors,
   ListWorkAssignmentsResponses,
+  ListWorkExecutionsData,
+  ListWorkExecutionsErrors,
+  ListWorkExecutionsResponses,
   ListWorkItemDependenciesData,
   ListWorkItemDependenciesErrors,
   ListWorkItemDependenciesResponses,
@@ -186,6 +189,29 @@ export const listWorkActivity = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/work-items/{workItemId}/activity',
+    ...options,
+  });
+
+/**
+ * The attempts at the work: each Hephaestus task started for it (a
+ * task whose `workContext` names it), with its status as Hephaestus
+ * last announced it. Hephaestus stays the source of truth.
+ *
+ */
+export const listWorkExecutions = <ThrowOnError extends boolean = false>(
+  options: Options<ListWorkExecutionsData, ThrowOnError>,
+): RequestResult<
+  ListWorkExecutionsResponses,
+  ListWorkExecutionsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListWorkExecutionsResponses,
+    ListWorkExecutionsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/organizations/{organizationId}/work-items/{workItemId}/executions',
     ...options,
   });
 

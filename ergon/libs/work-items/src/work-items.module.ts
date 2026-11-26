@@ -8,6 +8,7 @@ import {
   WorkActivityEntity,
   WorkAssignmentEntity,
   WorkDependencyEntity,
+  WorkExecutionEntity,
   WorkItemEntity,
 } from './entities/index.js';
 import { AssigneeEventsListener } from './assignee-events.listener.js';
@@ -17,6 +18,7 @@ import { WorkAssignmentsController } from './work-assignments.controller.js';
 import { WorkAssignmentsService } from './work-assignments.service.js';
 import { WorkDependenciesController } from './work-dependencies.controller.js';
 import { WorkDependenciesService } from './work-dependencies.service.js';
+import { WorkExecutionsService } from './work-executions.service.js';
 import { WorkItemMapper } from './work-item.mapper.js';
 import { WorkItemStore } from './work-item.store.js';
 import { WorkItemsController } from './work-items.controller.js';
@@ -30,6 +32,7 @@ import { WorkItemsService } from './work-items.service.js';
       WorkAssignmentEntity,
       WorkDependencyEntity,
       WorkActivityEntity,
+      WorkExecutionEntity,
     ]),
     TenancyModule,
     AssigneesModule,
@@ -45,6 +48,7 @@ import { WorkItemsService } from './work-items.service.js';
     WorkActivityService,
     WorkAssignmentsService,
     WorkDependenciesService,
+    WorkExecutionsService,
     WorkItemMapper,
     WorkItemStore,
     WorkItemsService,

@@ -127,14 +127,14 @@ Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created` (with
 
 | Event | Payload | Consumers |
 |---|---|---|
-| `task.created` | `taskId`, `parentTaskId`, `topLevelTaskId`, `automationId`, `agentVersionId`, `taskTemplateVersion`, `idempotencyKey`, `workContext` (the Ergon work item it's done for, or null) | Kairos (correlate its command), Iris; later Ergon (link the work to its tasks) |
+| `task.created` | `taskId`, `parentTaskId`, `topLevelTaskId`, `automationId`, `agentVersionId`, `taskTemplateVersion`, `idempotencyKey`, `workContext` (the Ergon work item it's done for, or null) | Kairos (correlate its command), Iris, Ergon (a task with a `workContext` becomes an execution of its work item) |
 | `task.create-rejected` | `idempotencyKey`, `code`, `message` | Kairos |
-| `task.status-changed` | `taskId`, `from`, `to`, `reason` | Iris |
+| `task.status-changed` | `taskId`, `from`, `to`, `reason` | Iris, Ergon (its executions' status) |
 | `task.awaiting-review` | `taskId`, `topLevelTaskId`, `requestedBy`, draft artifact IDs, `round` | Kerykes, Iris |
 | `task.verified` | `taskId`, `executionId`, `round`, per-criterion `key` and `outcome` | Kriterion |
-| `task.succeeded` | `taskId`, `requestedBy`, `primaryArtifactId`, `artifactIds`, `costUsd` | Kriterion, Kairos, Iris, Kerykes |
-| `task.failed` | `taskId`, `topLevelTaskId`, `requestedBy`, `automationId`, `failureReason`, `partialArtifactIds` | Kriterion, Kairos, Iris, Kerykes |
-| `task.cancelled` | `taskId`, `cancelledBy` | Kairos, Iris |
+| `task.succeeded` | `taskId`, `requestedBy`, `primaryArtifactId`, `artifactIds`, `costUsd` | Kriterion, Kairos, Iris, Kerykes, Ergon (its work item to `in_review`) |
+| `task.failed` | `taskId`, `topLevelTaskId`, `requestedBy`, `automationId`, `failureReason`, `partialArtifactIds` | Kriterion, Kairos, Iris, Kerykes, Ergon |
+| `task.cancelled` | `taskId`, `cancelledBy` | Kairos, Iris, Ergon |
 | `task.paused` / `task.resumed` | `taskId`, `topLevelTaskId`, the budget `scope` that ran out | Kerykes, Iris |
 | `artifact.created` | `artifactId`, `taskId`, `kind`, `status`, `primary` | Iris, Kriterion |
 | `artifact.status-changed` | `artifactId`, `from`, `to`, `revisionOf` | Iris, Kriterion |
@@ -175,6 +175,7 @@ Work management (`../ergon/CLAUDE.md`, `../contracts/ergon.asyncapi.yaml`). `wor
 | `work-item.status-changed` | `workItem`, `from`, `to`, `action`, `reason` (done and cancelled included) | later Kerykes, Kairos |
 | `work-assignment.changed` | `change` (`started` / `ended`), `assignmentId`, `workItemId`, `workItemTitle`, `assignee` (`kind`, `id`, `versionId`), `role`, `reason` | Kairos (`ergon.work-assigned` automations start the agent made responsible); later Kerykes |
 | `work-dependency.created` / `.removed` | `dependencyId`, `kind`, `fromWorkItemId`, `toWorkItemId` | later Iris |
+| `work-execution.started` / `.completed` | `executionId`, `workItemId`, `taskId`, `agentId`, `status`, `failureReason`, `primaryArtifactId`; the execution as aggregate (1 started, one more per ending) | later Kerykes, Iris |
 
 ### Learning, council sessions and meetings (Proposal)
 

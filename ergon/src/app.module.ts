@@ -24,6 +24,15 @@ export const POLIS_SUBSCRIPTIONS = [
 /** Agora's agents, which work can be assigned to. */
 export const AGORA_SUBSCRIPTIONS = ['agent.created', 'agent.archived'] as const;
 
+/** Hephaestus's tasks, which Ergon follows for the work items they're done for. */
+export const HEPHAESTUS_SUBSCRIPTIONS = [
+  'task.created',
+  'task.status-changed',
+  'task.succeeded',
+  'task.failed',
+  'task.cancelled',
+] as const;
+
 // Validation, the /v1 prefix and problem details: configureHttpApp (main.ts).
 @Module({
   imports: [
@@ -38,13 +47,18 @@ export const AGORA_SUBSCRIPTIONS = ['agent.created', 'agent.archived'] as const;
         serviceCheck('polis', config.get('POLIS_URL', { infer: true })),
       ],
     }),
-    // Consumes Polis's persons and Agora's agents (ergon.polis-events,
-    // ergon.agora-events: inbox, retries, dead-lettering); publishes its own
-    // events to ergon.events through the outbox.
+    // Consumes Polis's persons, Agora's agents and Hephaestus's tasks
+    // (ergon.polis-events, ergon.agora-events, ergon.hephaestus-events:
+    // inbox, retries, dead-lettering); publishes its own events to
+    // ergon.events through the outbox.
     EventsModule.forRoot({
       service: 'ergon',
       publish: ERGON_PUBLISHED_EVENTS,
-      subscribe: { polis: POLIS_SUBSCRIPTIONS, agora: AGORA_SUBSCRIPTIONS },
+      subscribe: {
+        polis: POLIS_SUBSCRIPTIONS,
+        agora: AGORA_SUBSCRIPTIONS,
+        hephaestus: HEPHAESTUS_SUBSCRIPTIONS,
+      },
       rabbitmq: {
         inject: [ConfigService],
         useFactory: (config: ConfigService<Env, true>) => ({
