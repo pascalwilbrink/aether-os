@@ -32,6 +32,6 @@ export class DepartmentArchivedError extends DomainError {
 /** Polis couldn't be asked (503). */
 export class PolisUnavailableError extends ServiceUnavailableException {
   constructor(reason: string) {
-    super(`Polis can't be reached right now (${reason}). Try again.`);
+    super(`Seshat: Polis can't be reached right now (${reason}). Try again.`);
   }
 }

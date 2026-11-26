@@ -23,6 +23,6 @@ export class ProjectArchivedError extends DomainError {
 /** Polis couldn't be asked (503). */
 export class PolisUnavailableError extends ServiceUnavailableException {
   constructor(reason: string) {
-    super(`Polis can't be reached right now (${reason}). Try again.`);
+    super(`Proxenos: Polis can't be reached right now (${reason}). Try again.`);
   }
 }
