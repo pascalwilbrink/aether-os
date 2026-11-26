@@ -41,6 +41,10 @@ const ORGANIZATION_PERMISSIONS = {
   'org:secret:write': ['owner', 'admin'],
   // Organization-wide project knowledge in Seshat (docs/knowledge.md).
   'org:knowledge:write': ['owner', 'admin'],
+  // Work outside any project in Ergon (ergon/CLAUDE.md): reading it, and
+  // creating, changing, assigning and transitioning it.
+  'org:work:read': ['owner', 'admin', 'member', 'viewer'],
+  'org:work:write': ['owner', 'admin', 'member'],
 } as const satisfies Record<string, readonly OrganizationRole[]>;
 
 const PROJECT_PERMISSIONS = {
@@ -78,6 +82,10 @@ const PROJECT_PERMISSIONS = {
   // Starting and using sessions with agents (copilot, voice, councils:
   // docs/interaction.md); a session token's model calls rest on it.
   'session:use': ['admin', 'approver', 'editor', 'viewer'],
+  // A project's work items in Ergon (ergon/CLAUDE.md): reading them, and
+  // creating, changing, assigning and transitioning them.
+  'work:read': ['admin', 'approver', 'editor', 'viewer'],
+  'work:write': ['admin', 'approver', 'editor'],
 } as const satisfies Record<string, readonly ProjectRole[]>;
 
 /**

@@ -60,7 +60,7 @@ Rules:
 | `organization.suspended` / `organization.reactivated` | `organizationId`, `reason` | Every service (reject writes / resume) |
 | `organization.deleted` | `organizationId` | Every service (delete tenant data) |
 | `project.created` / `project.archived` / `project.deleted` | `projectId` (and on `project.created` its `departmentId`, or null) | Hephaestus, Kairos, Themis, Seshat |
-| `person.created` / `person.updated` / `person.deleted` | `personId`, and `userId` (the linked Pistis user, or null) and `departmentIds` on created and updated; IDs only, no personal data | later Kerykes, Seshat |
+| `person.created` / `person.updated` / `person.deleted` | `personId`, and `userId` (the linked Pistis user, or null) and `departmentIds` on created and updated; IDs only, no personal data | Ergon (whom work can be assigned to); later Kerykes, Seshat |
 | `team.created` / `team.updated` / `team.archived` | `teamId`, `departmentIds` | later Kerykes, Iris |
 | `team-member.added` / `team-member.removed` | `teamId`, `personId`; removed also when the person was deleted | later Kerykes, Iris |
 | `project.department-changed` | `projectId`, `from`, `to` (department IDs or null) | Seshat (which department's knowledge a project sees) |
@@ -78,8 +78,8 @@ Agents' events have the agent as their aggregate, skills' the skill; its version
 
 | Event | Payload | Consumers |
 |---|---|---|
-| `agent.created` | `agentId`, `name`, `description`, `createdBy`, `createdAt` | Hephaestus (its copy of agents) |
-| `agent.archived` | `agentId` | Hephaestus (no new tasks), Kairos |
+| `agent.created` | `agentId`, `name`, `description`, `createdBy`, `createdAt` | Hephaestus (its copy of agents), Ergon (agents work can be assigned to) |
+| `agent.archived` | `agentId` | Hephaestus (no new tasks), Kairos, Ergon (ends the agent's assignments) |
 | `agent-version.published` | `agentId`, `agentVersionId`, `policySetVersionId` (null until Themis), `previousVersionId`, `version` (the whole version) | Hephaestus (its copy: new tasks pin it), Kairos, Kriterion |
 | `agent-version.deprecated` | `agentId`, `agentVersionId` | Kairos (warn about automations still using it) |
 | `skill.created` | `skillId`, `name`, `createdBy`, `createdAt` (its first version follows) | Hephaestus (its copy of skills) |
@@ -164,6 +164,17 @@ Every event has the knowledge item as its aggregate; the item's `revision` grows
 |---|---|---|
 | `knowledge-item.proposed` / `.accepted` / `.rejected` / `.updated` / `.superseded` / `.retired` | `itemId`, `projectId` and `departmentId` (one of them, the other null), `type`, `status`, `version`, `sourceKind`, `supersededBy` | later Kerykes (proposals to review), Iris |
 | `knowledge-item.indexed` | `itemId`, `projectId`, `departmentId`, `version`, `chunkCount` | later Iris |
+
+### Ergon (`ergon.events`)
+
+Work management (`../ergon/CLAUDE.md`, `../contracts/ergon.asyncapi.yaml`). `work-item.*` have the work item as aggregate (its `version`), `work-assignment.changed` the assignment (1 started, 2 ended), `work-dependency.*` the dependency (1 created, 2 removed). `projectId` is null for work outside any project. Blocked is derived and has no event.
+
+| Event | Payload | Consumers |
+|---|---|---|
+| `work-item.created` / `.updated` | `workItem` (`id`, `parentId`, `type`, `title`, `status`, `priority`, `needsReview`, `dueAt`, `source`); `.updated` adds `changedFields` | later Iris, Seshat |
+| `work-item.status-changed` | `workItem`, `from`, `to`, `action`, `reason` (done and cancelled included) | later Kerykes, Kairos |
+| `work-assignment.changed` | `change` (`started` / `ended`), `assignmentId`, `workItemId`, `workItemTitle`, `assignee` (`kind`, `id`, `versionId`), `role`, `reason` | later Kairos (starts an agent on work assigned to it), Kerykes |
+| `work-dependency.created` / `.removed` | `dependencyId`, `kind`, `fromWorkItemId`, `toWorkItemId` | later Iris |
 
 ### Learning, council sessions and meetings (Proposal)
 

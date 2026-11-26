@@ -25,10 +25,10 @@ Aether OS is a set of independently deployable services, each owning its own dom
 | **Agora** | 3008 | Agent management: agents and their immutable versions, skills, and councils (teams of agents) | Active |
 | **Seshat** | 3009 | Project knowledge: documents, decisions, facts, conventions and lessons, with hybrid search (keywords and meaning) | Active |
 | **Pylon** | 3011 | The model gateway: every model call and embedding goes through it, with the model catalogue, provider keys, metering and budgets | Active |
+| **Ergon** | 3013 | Work management: work items that people and agents do together, who is assigned, what blocks what, and what happened | Active (first slice) |
 | **Krepis** | – | `@aether-os/krepis`, the shared foundation library for the NestJS services: tokens and permissions, events and the outbox, transactions, pagination, HTTP conventions, telemetry and logging | Active (library) |
 | **Themis** | – | Policies: versioned Rego policy sets per organization and project, served to OPA, enforced with the Agent Policy Specification | Planned |
 | **Echo** | – | Voice: talking to agents over WebRTC, in the same session as the chat | Proposed |
-| **Ergon** | – | Work management and coordination for people, teams, agents and councils | Proposed (design only) |
 | **Kriterion** | – | Evaluation of agent quality, per agent and skill version | Separate project |
 
 The API of each service is specified in [`contracts/`](contracts/) (OpenAPI and AsyncAPI). Every service serves `/health/live` and `/health`.

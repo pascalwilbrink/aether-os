@@ -11,6 +11,7 @@ packages:
   - agora
   - seshat
   - pylon
+  - ergon
   - ui/iris
   - ui/atlas
   - ui/design

@@ -120,6 +120,29 @@ describe('FixedPermissionEvaluator', () => {
     ).toBe(true);
   });
 
+  it('lets writers change work and everyone read it (Ergon)', () => {
+    const member = principal({
+      organizationRoles: ['member'],
+      projectRoles: { [PROJECT]: 'viewer' },
+    });
+    expect(evaluator.hasProjectPermission(member, PROJECT, 'work:read')).toBe(
+      true,
+    );
+    expect(evaluator.hasProjectPermission(member, PROJECT, 'work:write')).toBe(
+      false,
+    );
+    expect(evaluator.hasOrganizationPermission(member, 'org:work:write')).toBe(
+      true,
+    );
+    const viewer = principal({ organizationRoles: ['viewer'] });
+    expect(evaluator.hasOrganizationPermission(viewer, 'org:work:read')).toBe(
+      true,
+    );
+    expect(evaluator.hasOrganizationPermission(viewer, 'org:work:write')).toBe(
+      false,
+    );
+  });
+
   it('limits task tokens to their project', () => {
     const task = principal({
       subType: 'service_account',
@@ -210,6 +233,19 @@ describe('FixedPermissionEvaluator', () => {
       false,
     );
     expect(evaluator.hasOrganizationPermission(admin, 'agent:read')).toBe(true);
+    // Work in Ergon: read, never changed from a session.
+    expect(evaluator.hasProjectPermission(editor, PROJECT, 'work:read')).toBe(
+      true,
+    );
+    expect(evaluator.hasProjectPermission(editor, PROJECT, 'work:write')).toBe(
+      false,
+    );
+    expect(evaluator.hasOrganizationPermission(admin, 'org:work:read')).toBe(
+      true,
+    );
+    expect(evaluator.hasOrganizationPermission(admin, 'org:work:write')).toBe(
+      false,
+    );
     // Model calls rest on session:use, which viewers have too.
     const viewer = session('viewer');
     expect(

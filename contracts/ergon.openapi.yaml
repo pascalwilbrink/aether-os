@@ -1,0 +1,802 @@
+openapi: 3.1.0
+info:
+  title: Ergon API
+  version: 0.2.0
+  description: |
+    Work management (`../ergon/CLAUDE.md`): **work items** that people and
+    agents do together, who is **assigned** to them, the **dependencies**
+    between them, and the **activity** that records what happened.
+
+    A work item belongs to an organization and, optionally, a project. Work
+    in a project needs `work:read` / `work:write` there; work outside any
+    project needs `org:work:read` / `org:work:write` in the organization (and
+    a token that isn't limited to one project). Another organization's work,
+    or work in a project the caller can't see, is 404.
+
+    An Ergon work item is the organizational unit of work. A Hephaestus task
+    is the runtime unit: one agent doing a work item, or part of one. Ergon
+    never runs agents; an automation in Kairos reacts to an assignment and
+    starts one.
+
+    **Blocked** is derived, not a status: a work item is `blocked` while an
+    item that `blocks` it is neither `done` nor `cancelled`.
+
+    Follows `../docs/api.md`: paths under `/v1`, errors as problem details,
+    cursor pagination, UUIDs. `PUT` and the transitions accept `If-Match`
+    with the work item's `version` (`412 VERSION_MISMATCH` when it changed).
+
+security:
+  - pistis: []
+
+tags:
+  - name: work-items
+  - name: assignments
+  - name: dependencies
+  - name: activity
+
+paths:
+  /v1/organizations/{organizationId}/work-items:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [work-items]
+      operationId: listWorkItems
+      x-permission: '`work:read` in `projectId`, or `org:work:read` without it'
+      description: |
+        A project's work items with `projectId`, otherwise the
+        organization's work outside any project. Newest first.
+      parameters:
+        - name: projectId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/WorkItemStatus' }
+        - name: parentId
+          in: query
+          required: false
+          description: Only the children of this work item.
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkItemPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [work-items]
+      operationId: createWorkItem
+      x-permission: '`work:write` in `projectId`, or `org:work:write` without it'
+      description: |
+        A work item, `backlog` unless `status` says `todo`. A child
+        (`parentId`) is in its parent's project, so `projectId` must match
+        the parent's (or be left out).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkItemRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/work-items/{workItemId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/WorkItemId'
+    get:
+      tags: [work-items]
+      operationId: getWorkItem
+      x-permission: '`work:read` (`org:work:read` outside a project)'
+      responses:
+        '200':
+          description: The work item
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [work-items]
+      operationId: updateWorkItem
+      x-permission: '`work:write` (`org:work:write` outside a project)'
+      description: |
+        Replaces the work item's content (the full representation; the
+        status changes only through transitions). Not for a `cancelled` work
+        item (`WORK_ITEM_CLOSED`).
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkItemUpdate' }
+      responses:
+        '200':
+          description: The changed work item
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '412': { $ref: '#/components/responses/VersionMismatch' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/work-items/{workItemId}/transitions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/WorkItemId'
+    post:
+      tags: [work-items]
+      operationId: transitionWorkItem
+      x-permission: '`work:write` (`org:work:write` outside a project)'
+      description: |
+        Moves the work item through its lifecycle (`WorkItemAction`). An
+        action the status doesn't allow is `INVALID_TRANSITION`; `complete`
+        on a work item that needs review is `REVIEW_REQUIRED` (it goes
+        through `submit` and `approve`); `complete` and `approve` while a
+        child is open are `CHILDREN_OPEN`.
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkItemTransitionRequest' }
+      responses:
+        '200':
+          description: The work item in its new status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkItemResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '412': { $ref: '#/components/responses/VersionMismatch' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/work-items/{workItemId}/activity:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/WorkItemId'
+    get:
+      tags: [activity]
+      operationId: listWorkActivity
+      x-permission: '`work:read` (`org:work:read` outside a project)'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkActivityPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/work-items/{workItemId}/assignments:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/WorkItemId'
+    get:
+      tags: [assignments]
+      operationId: listWorkAssignments
+      x-permission: '`work:read` (`org:work:read` outside a project)'
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/WorkAssignmentStatus' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Newest first, ended ones too unless `status` says otherwise
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkAssignmentPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [assignments]
+      operationId: createWorkAssignment
+      x-permission: '`work:write` (`org:work:write` outside a project)'
+      description: |
+        Assigns someone a role on the work item. A work item has at most one
+        active `responsible` assignment: a new one ends the old one (a
+        reassignment). The same assignee can't hold the same role twice
+        (`ALREADY_ASSIGNED`). Not for a `done` or `cancelled` work item
+        (`WORK_ITEM_CLOSED`), a person or agent Ergon doesn't know in the
+        organization (`UNKNOWN_ASSIGNEE`), or an archived agent
+        (`AGENT_ARCHIVED`). Deleting the person in Polis or archiving the
+        agent in Agora ends their assignments. An assignment grants no access
+        to anything.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkAssignmentRequest' }
+      responses:
+        '201':
+          description: The new assignment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkAssignmentResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/work-items/{workItemId}/assignments/{assignmentId}/end:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/WorkItemId'
+      - $ref: '#/components/parameters/AssignmentId'
+    post:
+      tags: [assignments]
+      operationId: endWorkAssignment
+      x-permission: '`work:write` (`org:work:write` outside a project)'
+      description: Ends an active assignment; ending an ended one returns it unchanged.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkAssignmentEndRequest' }
+      responses:
+        '200':
+          description: The ended assignment
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkAssignmentResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/work-items/{workItemId}/dependencies:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/WorkItemId'
+    get:
+      tags: [dependencies]
+      operationId: listWorkItemDependencies
+      x-permission: '`work:read` (`org:work:read` outside a project)'
+      description: |
+        Every dependency the work item is on either side of (at most
+        `200`), oldest first.
+      responses:
+        '200':
+          description: The work item's dependencies
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkDependencyList' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/work-dependencies:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    post:
+      tags: [dependencies]
+      operationId: createWorkDependency
+      x-permission: '`work:write` on both work items'
+      description: |
+        `from` `blocks` `to` (stored once; "blocked by" is the same edge from
+        the other side), or the two `relates_to` each other. Both work items
+        are in the organization, in any of its projects. A `blocks` edge that
+        would close a cycle is `DEPENDENCY_CYCLE`; a work item can't depend
+        on itself (`SELF_DEPENDENCY`), the same edge can't exist twice
+        (`DEPENDENCY_EXISTS`), and a work item has at most 200 dependencies
+        (`DEPENDENCY_LIMIT`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkDependencyRequest' }
+      responses:
+        '201':
+          description: The new dependency
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkDependencyResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/work-dependencies/{dependencyId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/DependencyId'
+    delete:
+      tags: [dependencies]
+      operationId: deleteWorkDependency
+      x-permission: '`work:write` on both work items'
+      responses:
+        '204': { description: Removed }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+components:
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    WorkItemId:
+      name: workItemId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    AssignmentId:
+      name: assignmentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    DependencyId:
+      name: dependencyId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: The work item's `version` as read (`"3"` or `3`); leave it out to skip the check.
+      schema: { type: string, maxLength: 32 }
+    Limit: { $ref: './common.openapi.yaml#/components/parameters/Limit' }
+    Cursor: { $ref: './common.openapi.yaml#/components/parameters/Cursor' }
+
+  securitySchemes:
+    pistis:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A Pistis access token (`../docs/identity.md`).
+
+  responses:
+    Unauthorized: { $ref: './common.openapi.yaml#/components/responses/Unauthorized' }
+    Forbidden: { $ref: './common.openapi.yaml#/components/responses/Forbidden' }
+    ValidationError: { $ref: './common.openapi.yaml#/components/responses/BadRequest' }
+    NotFound: { $ref: './common.openapi.yaml#/components/responses/NotFound' }
+    Unavailable: { $ref: './common.openapi.yaml#/components/responses/Unavailable' }
+    VersionMismatch:
+      description: '`VERSION_MISMATCH`: `If-Match` isn''t the work item''s current version.'
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    DomainError:
+      description: A business rule forbids this (409, with a `DomainErrorCode`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/DomainProblem' }
+
+  schemas:
+    # ---------- errors ----------
+    Problem: { $ref: './common.openapi.yaml#/components/schemas/Problem' }
+    DomainErrorCode:
+      type: string
+      enum:
+        - ORGANIZATION_SUSPENDED
+        - PROJECT_ARCHIVED
+        - INVALID_TRANSITION
+        - REVIEW_REQUIRED
+        - CHILDREN_OPEN
+        - WORK_ITEM_CLOSED
+        - ALREADY_ASSIGNED
+        - UNKNOWN_ASSIGNEE
+        - AGENT_ARCHIVED
+        - SELF_DEPENDENCY
+        - DEPENDENCY_EXISTS
+        - DEPENDENCY_CYCLE
+        - DEPENDENCY_LIMIT
+    DomainProblem:
+      description: Problem details for a business-rule violation.
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          required: [code]
+          properties:
+            code: { $ref: '#/components/schemas/DomainErrorCode' }
+    NextCursor: { $ref: './common.openapi.yaml#/components/schemas/NextCursor' }
+
+    # ---------- shared ----------
+    Actor:
+      type: object
+      description: |
+        Who did it, from their token: a person (`user`), a service account
+        (an agent's task, with `agentId`, `agentVersionId` and `taskId`), or a
+        platform service.
+      required: [sub, subType, agentId, agentVersionId, taskId]
+      properties:
+        sub: { type: string }
+        subType: { type: string, enum: [user, service_account, service] }
+        agentId: { type: [string, 'null'], format: uuid }
+        agentVersionId: { type: [string, 'null'], format: uuid }
+        taskId: { type: [string, 'null'] }
+
+    # ---------- work items ----------
+    WorkItemType:
+      type: string
+      description: A fixed set for now; configurable per organization later.
+      enum: [task, bug, feature, incident, research, improvement, review, initiative]
+    WorkItemStatus:
+      type: string
+      enum: [backlog, todo, in_progress, in_review, done, cancelled]
+    WorkItemPriority:
+      type: string
+      enum: [low, medium, high, urgent]
+    WorkItemAction:
+      type: string
+      description: |
+        `plan` backlog → todo; `defer` todo → backlog; `start` todo →
+        in_progress; `stop` in_progress → todo; `submit` in_progress →
+        in_review; `request_changes` in_review → in_progress; `approve`
+        in_review → done; `complete` in_progress → done (only without
+        `needsReview`); `cancel` any open status → cancelled; `reopen` done →
+        in_progress, cancelled → todo.
+      enum: [plan, defer, start, stop, submit, request_changes, approve, complete, cancel, reopen]
+    WorkItemSourceKind:
+      type: string
+      description: How the work came to exist.
+      enum: [person, agent, automation, external]
+    WorkItemSource:
+      type: object
+      additionalProperties: false
+      required: [kind]
+      properties:
+        kind: { $ref: '#/components/schemas/WorkItemSourceKind' }
+        reference:
+          type: [string, 'null']
+          maxLength: 2000
+          description: E.g. a Kairos run ID, or a GitHub issue's URL.
+    WorkBriefItem:
+      type: object
+      description: A requirement, constraint or acceptance criterion, as Hephaestus's task brief has them.
+      additionalProperties: false
+      required: [key, description]
+      properties:
+        key: { type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$' }
+        description: { type: string, minLength: 1, maxLength: 4000 }
+    WorkItemUpdate:
+      type: object
+      additionalProperties: false
+      required: [type, title]
+      properties:
+        type: { $ref: '#/components/schemas/WorkItemType' }
+        title: { type: string, minLength: 1, maxLength: 300 }
+        description:
+          type: string
+          maxLength: 65536
+          description: What and why (Markdown).
+        priority: { $ref: '#/components/schemas/WorkItemPriority' }
+        needsReview:
+          type: boolean
+          description: Whether it reaches `done` only through `in_review` (default false).
+        requirements:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/WorkBriefItem' }
+        expectedOutcome: { type: [string, 'null'], maxLength: 65536 }
+        constraints:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/WorkBriefItem' }
+        acceptanceCriteria:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/WorkBriefItem' }
+        dueAt: { type: [string, 'null'], format: date-time }
+    WorkItemRequest:
+      type: object
+      additionalProperties: false
+      required: [type, title]
+      properties:
+        projectId: { type: [string, 'null'], format: uuid }
+        parentId: { type: [string, 'null'], format: uuid }
+        status:
+          type: string
+          enum: [backlog, todo]
+          description: Where it starts (default `backlog`).
+        source: { $ref: '#/components/schemas/WorkItemSource' }
+        type: { $ref: '#/components/schemas/WorkItemType' }
+        title: { type: string, minLength: 1, maxLength: 300 }
+        description: { type: string, maxLength: 65536 }
+        priority: { $ref: '#/components/schemas/WorkItemPriority' }
+        needsReview: { type: boolean }
+        requirements:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/WorkBriefItem' }
+        expectedOutcome: { type: [string, 'null'], maxLength: 65536 }
+        constraints:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/WorkBriefItem' }
+        acceptanceCriteria:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/WorkBriefItem' }
+        dueAt: { type: [string, 'null'], format: date-time }
+    WorkItemTransitionRequest:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties:
+        action: { $ref: '#/components/schemas/WorkItemAction' }
+        reason: { type: string, maxLength: 2000 }
+    WorkItemResponse:
+      type: object
+      required:
+        - id
+        - organizationId
+        - projectId
+        - parentId
+        - type
+        - title
+        - description
+        - status
+        - blocked
+        - priority
+        - needsReview
+        - requirements
+        - expectedOutcome
+        - constraints
+        - acceptanceCriteria
+        - dueAt
+        - startedAt
+        - completedAt
+        - source
+        - responsible
+        - createdBy
+        - createdAt
+        - updatedAt
+        - version
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        projectId: { type: [string, 'null'], format: uuid }
+        parentId: { type: [string, 'null'], format: uuid }
+        type: { $ref: '#/components/schemas/WorkItemType' }
+        title: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/WorkItemStatus' }
+        blocked:
+          type: boolean
+          description: Derived; an item that `blocks` this one is neither `done` nor `cancelled`.
+        priority: { $ref: '#/components/schemas/WorkItemPriority' }
+        needsReview: { type: boolean }
+        requirements:
+          type: array
+          items: { $ref: '#/components/schemas/WorkBriefItem' }
+        expectedOutcome: { type: [string, 'null'] }
+        constraints:
+          type: array
+          items: { $ref: '#/components/schemas/WorkBriefItem' }
+        acceptanceCriteria:
+          type: array
+          items: { $ref: '#/components/schemas/WorkBriefItem' }
+        dueAt: { type: [string, 'null'], format: date-time }
+        startedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When it was first started.
+        completedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When it reached `done`; cleared when reopened.
+        source:
+          type: object
+          required: [kind, reference]
+          properties:
+            kind: { $ref: '#/components/schemas/WorkItemSourceKind' }
+            reference: { type: [string, 'null'] }
+        responsible:
+          description: The active `responsible` assignee, if any.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/Assignee'
+        createdBy: { $ref: '#/components/schemas/Actor' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, minimum: 1 }
+    WorkItemPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WorkItemResponse' }
+        nextCursor: { $ref: '#/components/schemas/NextCursor' }
+
+    # ---------- assignments ----------
+    AssigneeKind:
+      type: string
+      description: |
+        `person` (a person of the organization, Polis's ID) or `agent`
+        (Agora's ID). Ergon knows them from Polis's `person.*` and Agora's
+        `agent.*` events; anyone else is `UNKNOWN_ASSIGNEE`. Teams and
+        councils come later.
+      enum: [person, agent]
+    Assignee:
+      type: object
+      additionalProperties: false
+      required: [kind, id]
+      properties:
+        kind: { $ref: '#/components/schemas/AssigneeKind' }
+        id: { type: string, format: uuid }
+        versionId:
+          type: [string, 'null']
+          format: uuid
+          description: The agent's version, when the assignment is pinned to one.
+    WorkAssignmentRole:
+      type: string
+      description: At most one active `responsible`; any number of the others.
+      enum: [responsible, contributor, reviewer, observer]
+    WorkAssignmentStatus:
+      type: string
+      enum: [active, ended]
+    WorkAssignmentRequest:
+      type: object
+      additionalProperties: false
+      required: [assignee, role]
+      properties:
+        assignee: { $ref: '#/components/schemas/Assignee' }
+        role: { $ref: '#/components/schemas/WorkAssignmentRole' }
+        reason: { type: string, maxLength: 2000 }
+    WorkAssignmentEndRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        reason: { type: string, maxLength: 2000 }
+    WorkAssignmentResponse:
+      type: object
+      required: [id, workItemId, assignee, role, status, reason, assignedBy, startedAt, endedAt, endedBy, endReason]
+      properties:
+        id: { type: string, format: uuid }
+        workItemId: { type: string, format: uuid }
+        assignee:
+          type: object
+          required: [kind, id, versionId]
+          properties:
+            kind: { $ref: '#/components/schemas/AssigneeKind' }
+            id: { type: string, format: uuid }
+            versionId: { type: [string, 'null'], format: uuid }
+        role: { $ref: '#/components/schemas/WorkAssignmentRole' }
+        status: { $ref: '#/components/schemas/WorkAssignmentStatus' }
+        reason: { type: [string, 'null'] }
+        assignedBy: { $ref: '#/components/schemas/Actor' }
+        startedAt: { type: string, format: date-time }
+        endedAt: { type: [string, 'null'], format: date-time }
+        endedBy:
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/Actor'
+        endReason: { type: [string, 'null'] }
+    WorkAssignmentPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WorkAssignmentResponse' }
+        nextCursor: { $ref: '#/components/schemas/NextCursor' }
+
+    # ---------- dependencies ----------
+    WorkDependencyKind:
+      type: string
+      enum: [blocks, relates_to]
+    WorkDependencyRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, fromWorkItemId, toWorkItemId]
+      properties:
+        kind: { $ref: '#/components/schemas/WorkDependencyKind' }
+        fromWorkItemId:
+          type: string
+          format: uuid
+          description: For `blocks`, the work that must be finished first.
+        toWorkItemId:
+          type: string
+          format: uuid
+          description: For `blocks`, the work that waits.
+    WorkDependencyResponse:
+      type: object
+      required: [id, kind, fromWorkItemId, toWorkItemId, createdBy, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: '#/components/schemas/WorkDependencyKind' }
+        fromWorkItemId: { type: string, format: uuid }
+        toWorkItemId: { type: string, format: uuid }
+        createdBy: { $ref: '#/components/schemas/Actor' }
+        createdAt: { type: string, format: date-time }
+    WorkDependencyList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WorkDependencyResponse' }
+
+    # ---------- activity ----------
+    WorkActivityKind:
+      type: string
+      enum:
+        - created
+        - updated
+        - status_changed
+        - assignment_started
+        - assignment_ended
+        - dependency_added
+        - dependency_removed
+    WorkActivityResponse:
+      type: object
+      description: |
+        One entry of the work item's record, append-only. `details` depends
+        on `kind`: `updated` lists the changed `fields`; `status_changed` has
+        `from`, `to`, `action` and `reason`; `assignment_*` the
+        `assignmentId`, `assignee`, `role` and `reason`; `dependency_*` the
+        `dependencyId`, `kind`, `fromWorkItemId` and `toWorkItemId`.
+      required: [id, workItemId, kind, actor, details, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        workItemId: { type: string, format: uuid }
+        kind: { $ref: '#/components/schemas/WorkActivityKind' }
+        actor:
+          description: Null for Ergon's own work.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/Actor'
+        details:
+          type: object
+          additionalProperties: true
+        createdAt: { type: string, format: date-time }
+    WorkActivityPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WorkActivityResponse' }
+        nextCursor: { $ref: '#/components/schemas/NextCursor' }

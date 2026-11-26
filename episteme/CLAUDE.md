@@ -526,7 +526,7 @@ The pages are the UIs' to design. Episteme's job is an API that makes them simpl
 ### Proposed
 
 - Libraries under `libs/`: `core`, `resources`, `versions`, `reviews`, `stewardship`, `scopes`, `taxonomy`, `relationships`, `provenance`, `indexing`, `audit`, `tenancy` (Polis's copy). Each has its pure domain in a `domain/` folder.
-- Port `3013` (the next free one after Atlas's `3012`), a database `episteme` in `../infra/postgres/init/`, and a Pistis platform client `episteme` (to call Polis, Loculus and Seshat with its own token).
+- Port `3014` (the next free one after Ergon's `3013`), a database `episteme` in `../infra/postgres/init/`, and a Pistis platform client `episteme` (to call Polis, Loculus and Seshat with its own token).
 - An Episteme MCP tool server (drafting, proposing, reading a resource's currency) that agent versions can choose, beside Seshat's retrieval tools.
 
 ## Open questions
