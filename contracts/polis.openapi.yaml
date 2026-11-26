@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Polis API
-  version: 0.10.0
+  version: 0.11.0
   description: |
     Tenancy service for Aether-os: organizations, their optional
     departments (which group projects), persons (the people in an
@@ -263,6 +263,28 @@ paths:
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/persons/announce:
+    post:
+      tags: [persons]
+      operationId: announcePersons
+      x-permission: '`platform:manage` (platform operators)'
+      description: |
+        Publishes every person of every organization again as `person.updated`,
+        at their current version (no new version): the backfill for services
+        that keep a copy of the persons (Ergon) and missed ones created before
+        they subscribed. Deleted persons are gone and aren't announced.
+
+        Consumers keep what they have when it's as new, so running it again
+        is harmless.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: The events are in the outbox
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnnouncementResponse' }
 
   /v1/organizations/{organizationId}/persons:
     parameters:
@@ -1190,6 +1212,14 @@ components:
         createdAt: { $ref: '#/components/schemas/Timestamp' }
         updatedAt: { $ref: '#/components/schemas/Timestamp' }
         version: { $ref: '#/components/schemas/Version' }
+    AnnouncementResponse:
+      type: object
+      required: [announced]
+      properties:
+        announced:
+          type: integer
+          minimum: 0
+          description: How many were published.
     PersonPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'

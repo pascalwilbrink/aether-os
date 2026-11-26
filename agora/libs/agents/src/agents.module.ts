@@ -13,6 +13,7 @@ import { AgentVersionsController } from './agent-versions.controller.js';
 import { AgentVersionsService } from './agent-versions.service.js';
 import { AgentEntity } from './agent.entity.js';
 import { AgentMapper } from './agent.mapper.js';
+import { AgentsAnnounceController } from './agents-announce.controller.js';
 import { AgentsController } from './agents.controller.js';
 import { AgentsService } from './agents.service.js';
 import {
@@ -29,7 +30,11 @@ import { HttpModelChecker } from './http-model-checker.js';
     TenancyModule,
     SkillsModule,
   ],
-  controllers: [AgentsController, AgentVersionsController],
+  controllers: [
+    AgentsController,
+    AgentsAnnounceController,
+    AgentVersionsController,
+  ],
   providers: [
     AgentsService,
     AgentMapper,

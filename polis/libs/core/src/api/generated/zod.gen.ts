@@ -105,6 +105,10 @@ export const zPersonResponse = z.object({
     version: zVersion
 });
 
+export const zAnnouncementResponse = z.object({
+    announced: z.int().gte(0)
+});
+
 export const zTeamStatus = z.enum(['active', 'archived']);
 
 /**
@@ -497,6 +501,11 @@ export const zArchiveDepartmentPath = z.object({
  * Archived (or already archived)
  */
 export const zArchiveDepartmentResponse = zDepartmentResponse;
+
+/**
+ * The events are in the outbox
+ */
+export const zAnnouncePersonsResponse = zAnnouncementResponse;
 
 export const zListPersonsPath = z.object({
     organizationId: z.uuid()

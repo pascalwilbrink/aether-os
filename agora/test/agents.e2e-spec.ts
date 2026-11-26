@@ -6,6 +6,7 @@ import { asMember, createApp, type Client } from './app.js';
 import type { FakeHephaestus } from './fake-hephaestus.js';
 import type { FakePolis } from './fake-polis.js';
 import { outboxEvents } from './outbox.js';
+import { tokens } from './tokens.js';
 
 const MISSING_ID = '0193a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
 
@@ -311,5 +312,34 @@ describe('Agents (e2e)', () => {
     await http().post(versions).send(versionBody).expect(503);
     const list = await http().get(versions).expect(200);
     expect(list.body.items).toHaveLength(3);
+  });
+
+  it('announces every agent again, replaying its events (the backfill)', async () => {
+    const active = await createAgent();
+    const archived = await createAgent();
+    await http().post(`${base}/${archived}/archive`).expect(200);
+    const before = (await outboxEvents(app)).length;
+
+    const operator = request
+      .agent(app.getHttpServer())
+      .set(
+        'authorization',
+        `Bearer ${await tokens.service('operator', ['platform:read', 'platform:manage'])}`,
+      );
+    const res = await operator.post('/v1/agents/announce').expect(200);
+    expect(res.body).toEqual({ announced: 2 });
+    const announced = (await outboxEvents(app))
+      .slice(before)
+      .map((e) => [e.eventType, e.aggregateId, e.aggregateVersion]);
+    expect(announced).toEqual(
+      expect.arrayContaining([
+        ['agent.created', active, 1],
+        ['agent.created', archived, 1],
+        ['agent.archived', archived, 2],
+      ]),
+    );
+    expect(announced).toHaveLength(3);
+
+    await http().post('/v1/agents/announce').expect(403);
   });
 });

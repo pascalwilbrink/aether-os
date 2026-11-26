@@ -51,6 +51,10 @@ export const zAgentResponse = z.object({
   updatedAt: zTimestamp,
 });
 
+export const zAnnouncementResponse = z.object({
+  announced: z.int().gte(0),
+});
+
 export const zAgentVersionStatus = z.enum(['draft', 'published', 'deprecated']);
 
 export const zAgentModelConfiguration = z.object({
@@ -429,6 +433,11 @@ export const zCommonOpenapiCursor = z.string().min(1).max(1024);
  * Page size.
  */
 export const zCommonOpenapiLimit = z.int().gte(1).lte(100).default(50);
+
+/**
+ * The events are in the outbox
+ */
+export const zAnnounceAgentsResponse = zAnnouncementResponse;
 
 export const zListAgentsPath = z.object({
   organizationId: z.uuid(),

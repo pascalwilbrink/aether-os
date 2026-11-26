@@ -9,6 +9,7 @@ import { PersonDepartmentEntity } from './person-department.entity.js';
 import { PersonDepartmentsService } from './person-departments.service.js';
 import { PersonEntity } from './person.entity.js';
 import { PersonMapper } from './person.mapper.js';
+import { PersonsAnnounceController } from './persons-announce.controller.js';
 import { PersonsController } from './persons.controller.js';
 import { PersonsService } from './persons.service.js';
 
@@ -19,7 +20,7 @@ import { PersonsService } from './persons.service.js';
     DepartmentsModule,
     UsersModule,
   ],
-  controllers: [PersonsController],
+  controllers: [PersonsController, PersonsAnnounceController],
   providers: [PersonsService, PersonMapper, PersonDepartmentsService],
   exports: [PersonsService],
 })

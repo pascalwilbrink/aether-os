@@ -4,6 +4,33 @@
  */
 
 export interface paths {
+    "/v1/agents/announce": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Publishes every agent of every organization again, replaying its
+         *     events at their versions (no new version): `agent.created` at
+         *     version 1, then, for an archived agent, `agent.archived` at its
+         *     current version. The backfill for services that keep a copy of the
+         *     agents (Ergon, Pylon, Hephaestus) and missed ones created before they
+         *     subscribed; agent versions aren't announced.
+         *
+         *     Consumers keep what they have when it's as new, so running it again
+         *     is harmless.
+         */
+        post: operations["announceAgents"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/agents": {
         parameters: {
             query?: never;
@@ -454,6 +481,10 @@ export interface components {
             createdAt: components["schemas"]["Timestamp"];
             updatedAt: components["schemas"]["Timestamp"];
         };
+        AnnouncementResponse: {
+            /** @description How many were published. */
+            announced: number;
+        };
         AgentPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["AgentResponse"][];
         };
@@ -720,8 +751,6 @@ export interface components {
         CouncilVersionPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["CouncilVersionResponse"][];
         };
-        /** @description Pass as `cursor` to get the next page; `null` on the last page. */
-        NextCursor: string | null;
         /** @description One invalid input. Exactly one of `pointer` and `parameter` is set. */
         ProblemFieldError: {
             /** @description JSON Pointer (RFC 6901) into the request body, e.g. `/name`. */
@@ -732,6 +761,8 @@ export interface components {
             code: "REQUIRED" | "UNKNOWN_FIELD" | "INVALID";
             detail: string;
         };
+        /** @description Pass as `cursor` to get the next page; `null` on the last page. */
+        NextCursor: string | null;
     };
     responses: {
         /**
@@ -829,6 +860,28 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    announceAgents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The events are in the outbox */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnouncementResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     listAgents: {
         parameters: {
             query?: {
