@@ -41,6 +41,7 @@ import {
   InvalidTaskTransitionError,
   TaskConcurrencyInvalidError,
   TaskConcurrencySkippedError,
+  TaskFieldsInvalidError,
   TaskParentFinishedError,
 } from './task.errors.js';
 import { TaskMapper, type TaskTemplateOrigin } from './task.mapper.js';
@@ -159,6 +160,15 @@ export class TasksService {
     }
 
     await this.projects.assertAcceptsWrites(organizationId, projectId);
+    if (
+      dto.workContext &&
+      (dto.workContext.organizationId !== organizationId ||
+        dto.workContext.agentId !== dto.agentId)
+    ) {
+      throw new TaskFieldsInvalidError(
+        "A task's work context is its own organization's, and its agent the task's",
+      );
+    }
     const agentVersionId = await this.agents.publishedVersion(
       organizationId,
       dto.agentId,
@@ -254,6 +264,7 @@ export class TasksService {
         status: entity.status,
         taskTemplateId: entity.taskTemplateId,
         taskTemplateVersion: entity.taskTemplateVersion,
+        workContext: entity.workContext,
       },
     });
 

@@ -26,6 +26,29 @@ export class TenancyService {
     }
   }
 
+  /**
+   * Which of a work item's owners Polis doesn't have as an active
+   * department or team of the organization (for a validation problem).
+   */
+  async unknownOwners(
+    organizationId: string,
+    owners: { departmentId: string | null; teamId: string | null },
+  ): Promise<('departmentId' | 'teamId')[]> {
+    const unknown: ('departmentId' | 'teamId')[] = [];
+    if (owners.departmentId) {
+      const department = await this.polis.getDepartment(
+        organizationId,
+        owners.departmentId,
+      );
+      if (department?.status !== 'active') unknown.push('departmentId');
+    }
+    if (owners.teamId) {
+      const team = await this.polis.getTeam(organizationId, owners.teamId);
+      if (team?.status !== 'active') unknown.push('teamId');
+    }
+    return unknown;
+  }
+
   /** The organization's checks, then 404 for an unknown project and `PROJECT_ARCHIVED`. */
   async assertProjectAcceptsWrites(
     organizationId: string,

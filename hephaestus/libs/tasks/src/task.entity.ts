@@ -13,6 +13,9 @@ import type { TaskFailureReason, TaskStatus } from './task-transitions.js';
  */
 export type ConcurrencyPolicy = ApiTypes.TaskConcurrency['policy'];
 
+/** A task's work context as stored: the optional owners filled in. */
+export type StoredWorkContext = Required<ApiTypes.TaskWorkContext>;
+
 @Entity({ name: 'tasks' })
 @Unique('uq_tasks_organization_id_idempotency_key', [
   'organizationId',
@@ -188,6 +191,13 @@ export class TaskEntity {
   /** Where it came from, when not from a request: a council's plan. */
   @Column({ type: 'jsonb', nullable: true })
   origin: ApiTypes.TaskOrigin | null;
+
+  /**
+   * The Ergon work item it's done for (Kairos's `ergon.work-assigned`), with
+   * every field set; fixed at creation.
+   */
+  @Column({ type: 'jsonb', nullable: true })
+  workContext: StoredWorkContext | null;
 
   /** A succeeded task's outcome (docs/tasks.md, Primary artifact). */
   @Column({ type: 'uuid', nullable: true })

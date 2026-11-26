@@ -21,6 +21,9 @@ export const PROXENOS_SUBSCRIPTIONS = [
   'github.issue-comment.created',
 ] as const;
 
+/** Ergon's assignments, which `ergon.work-assigned` automations fire on. */
+export const ERGON_SUBSCRIPTIONS = ['work-assignment.changed'] as const;
+
 /** Hephaestus's answers to Kairos's `task.create` commands. */
 export const HEPHAESTUS_SUBSCRIPTIONS = [
   'task.created',
@@ -39,10 +42,12 @@ export const HEPHAESTUS_SUBSCRIPTIONS = [
       checks: (config: ConfigService<Env, true>) => [
         serviceCheck('pistis', config.get('PISTIS_ISSUER', { infer: true })),
         serviceCheck('polis', config.get('POLIS_URL', { infer: true })),
+        serviceCheck('ergon', config.get('ERGON_URL', { infer: true })),
       ],
     }),
-    // Consumes Proxenos's and Hephaestus's events (kairos.proxenos-events,
-    // kairos.hephaestus-events: inbox, retries, dead-lettering); publishes
+    // Consumes Proxenos's, Ergon's and Hephaestus's events
+    // (kairos.proxenos-events, kairos.ergon-events, kairos.hephaestus-events:
+    // inbox, retries, dead-lettering); publishes
     // its own to kairos.events and sends task.create to hephaestus.commands,
     // both through the outbox.
     EventsModule.forRoot({
@@ -50,6 +55,7 @@ export const HEPHAESTUS_SUBSCRIPTIONS = [
       publish: KAIROS_PUBLISHED_EVENTS,
       subscribe: {
         proxenos: PROXENOS_SUBSCRIPTIONS,
+        ergon: ERGON_SUBSCRIPTIONS,
         hephaestus: HEPHAESTUS_SUBSCRIPTIONS,
       },
       send: { hephaestus: ['task.create'] },

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ergon API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Work management (`../ergon/CLAUDE.md`): **work items** that people and
     agents do together, who is **assigned** to them, the **dependencies**
@@ -78,7 +78,8 @@ paths:
       description: |
         A work item, `backlog` unless `status` says `todo`. A child
         (`parentId`) is in its parent's project, so `projectId` must match
-        the parent's (or be left out).
+        the parent's (or be left out). `departmentId` and `teamId` must be
+        active ones of the organization in Polis (`400` otherwise).
       requestBody:
         required: true
         content:
@@ -104,7 +105,7 @@ paths:
     get:
       tags: [work-items]
       operationId: getWorkItem
-      x-permission: '`work:read` (`org:work:read` outside a project)'
+      x-permission: '`work:read` (`org:work:read` outside a project), or `platform:read` for work in a project (Kairos)'
       responses:
         '200':
           description: The work item
@@ -528,6 +529,14 @@ components:
           maxItems: 50
           items: { $ref: '#/components/schemas/WorkBriefItem' }
         dueAt: { type: [string, 'null'], format: date-time }
+        departmentId:
+          type: [string, 'null']
+          format: uuid
+          description: The department that owns the work (Polis's, active, in the organization); set by the UI, e.g. from the project's department.
+        teamId:
+          type: [string, 'null']
+          format: uuid
+          description: The team that owns the work (Polis's, active, in the organization).
     WorkItemRequest:
       type: object
       additionalProperties: false
@@ -559,6 +568,14 @@ components:
           maxItems: 50
           items: { $ref: '#/components/schemas/WorkBriefItem' }
         dueAt: { type: [string, 'null'], format: date-time }
+        departmentId:
+          type: [string, 'null']
+          format: uuid
+          description: The department that owns the work (Polis's, active, in the organization); set by the UI, e.g. from the project's department.
+        teamId:
+          type: [string, 'null']
+          format: uuid
+          description: The team that owns the work (Polis's, active, in the organization).
     WorkItemTransitionRequest:
       type: object
       additionalProperties: false
@@ -573,6 +590,8 @@ components:
         - organizationId
         - projectId
         - parentId
+        - departmentId
+        - teamId
         - type
         - title
         - description
@@ -598,6 +617,8 @@ components:
         organizationId: { type: string, format: uuid }
         projectId: { type: [string, 'null'], format: uuid }
         parentId: { type: [string, 'null'], format: uuid }
+        departmentId: { type: [string, 'null'], format: uuid }
+        teamId: { type: [string, 'null'], format: uuid }
         type: { $ref: '#/components/schemas/WorkItemType' }
         title: { type: string }
         description: { type: string }

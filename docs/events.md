@@ -127,7 +127,7 @@ Published so far (`../contracts/hephaestus.asyncapi.yaml`): `task.created` (with
 
 | Event | Payload | Consumers |
 |---|---|---|
-| `task.created` | `taskId`, `parentTaskId`, `topLevelTaskId`, `automationId`, `agentVersionId`, `taskTemplateVersion`, `idempotencyKey` | Kairos (correlate its command), Iris |
+| `task.created` | `taskId`, `parentTaskId`, `topLevelTaskId`, `automationId`, `agentVersionId`, `taskTemplateVersion`, `idempotencyKey`, `workContext` (the Ergon work item it's done for, or null) | Kairos (correlate its command), Iris; later Ergon (link the work to its tasks) |
 | `task.create-rejected` | `idempotencyKey`, `code`, `message` | Kairos |
 | `task.status-changed` | `taskId`, `from`, `to`, `reason` | Iris |
 | `task.awaiting-review` | `taskId`, `topLevelTaskId`, `requestedBy`, draft artifact IDs, `round` | Kerykes, Iris |
@@ -173,7 +173,7 @@ Work management (`../ergon/CLAUDE.md`, `../contracts/ergon.asyncapi.yaml`). `wor
 |---|---|---|
 | `work-item.created` / `.updated` | `workItem` (`id`, `parentId`, `type`, `title`, `status`, `priority`, `needsReview`, `dueAt`, `source`); `.updated` adds `changedFields` | later Iris, Seshat |
 | `work-item.status-changed` | `workItem`, `from`, `to`, `action`, `reason` (done and cancelled included) | later Kerykes, Kairos |
-| `work-assignment.changed` | `change` (`started` / `ended`), `assignmentId`, `workItemId`, `workItemTitle`, `assignee` (`kind`, `id`, `versionId`), `role`, `reason` | later Kairos (starts an agent on work assigned to it), Kerykes |
+| `work-assignment.changed` | `change` (`started` / `ended`), `assignmentId`, `workItemId`, `workItemTitle`, `assignee` (`kind`, `id`, `versionId`), `role`, `reason` | Kairos (`ergon.work-assigned` automations start the agent made responsible); later Kerykes |
 | `work-dependency.created` / `.removed` | `dependencyId`, `kind`, `fromWorkItemId`, `toWorkItemId` | later Iris |
 
 ### Learning, council sessions and meetings (Proposal)

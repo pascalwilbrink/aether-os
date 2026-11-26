@@ -114,6 +114,10 @@ export class WorkItemsService {
     }
     this.access.assertCan(projectId, 'write');
     await this.access.assertAcceptsWrites({ organizationId, projectId });
+    await this.access.assertOwners(organizationId, {
+      departmentId: request.departmentId ?? null,
+      teamId: request.teamId ?? null,
+    });
     const actor = this.access.actor();
     const now = new Date();
     const entity = this.mapper.toEntity(
@@ -164,6 +168,14 @@ export class WorkItemsService {
     if (changedFields.length === 0) {
       return this.presentOne(entity);
     }
+    // Only a new department or team is checked: one archived since can stay.
+    await this.access.assertOwners(organizationId, {
+      departmentId:
+        content.departmentId !== entity.departmentId
+          ? content.departmentId
+          : null,
+      teamId: content.teamId !== entity.teamId ? content.teamId : null,
+    });
     Object.assign(entity, content);
     const actor = this.access.actor();
     const now = this.touch(entity);

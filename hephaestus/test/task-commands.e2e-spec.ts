@@ -128,6 +128,41 @@ describe('task.create commands (e2e)', () => {
     ).toEqual([created.id, created.id, created.id]);
   });
 
+  it('keeps the work context of an Ergon work item', async () => {
+    const workContext = {
+      workItemId: uuidv7(),
+      organizationId: orgId,
+      agentId,
+      departmentId: uuidv7(),
+    };
+    const sent = command(task({ workContext }));
+    await deliver(sent);
+    const [created] = await tasks();
+    expect(created.workContext).toEqual({ ...workContext, teamId: null });
+    expect(await published('task.created')).toEqual([
+      expect.objectContaining({
+        taskId: created.id,
+        workContext: { ...workContext, teamId: null },
+      }),
+    ]);
+
+    // Another organization's work, or another agent's, is refused.
+    for (const wrong of [
+      { ...workContext, organizationId: uuidv7() },
+      { ...workContext, agentId: uuidv7() },
+    ]) {
+      await deliver(command(task({ workContext: wrong })));
+    }
+    expect(
+      (await published('task.create-rejected')).map((event) => event.code),
+    ).toEqual(['TASK_FIELDS_INVALID', 'TASK_FIELDS_INVALID']);
+    // Tasks without work have none.
+    await deliver(command(task({ title: 'Other' })));
+    expect((await tasks()).find((t) => t.title === 'Other')?.workContext).toBe(
+      null,
+    );
+  });
+
   it('creates a task from a template', async () => {
     const template = (
       await owner

@@ -40,7 +40,34 @@ export type GitHubIssueEventType =
 export type RepositoryPermission =
   'admin' | 'maintain' | 'write' | 'triage' | 'read' | 'any';
 
-export type AutomationTrigger = {
+/**
+ * What fires it; `type` says which kind.
+ */
+export type AutomationTrigger = GitHubIssueTrigger | WorkAssignedTrigger;
+
+/**
+ * An agent became `responsible` for a work item of the automation's
+ * project in Ergon (`work-assignment.changed`). The task is the work
+ * item's: its title, description, requirements, expected outcome,
+ * constraints and acceptance criteria (as `manual` checks), run by the
+ * assigned agent with the work item's `workContext`; the action gives
+ * neither `task` nor `template`. Work that is done or cancelled by the
+ * time Kairos reads it is skipped.
+ *
+ */
+export type WorkAssignedTrigger = {
+  type: 'ergon.work-assigned';
+  /**
+   * Only for this agent; null or left out for any agent assigned work in the project.
+   */
+  agentId?: string | null;
+  /**
+   * One of the project's repository links (Proxenos) the task works in; null or left out for none.
+   */
+  repositoryLinkId?: string | null;
+};
+
+export type GitHubIssueTrigger = {
   type: 'github.issue';
   event: GitHubIssueEventType;
   /**
@@ -98,7 +125,11 @@ export type AutomationTemplateAction = {
 };
 
 /**
- * The task to start; exactly one of `task` and `template`.
+ * The task to start: exactly one of `task` and `template` for a
+ * `github.issue` trigger, neither for `ergon.work-assigned` (the task
+ * is the work item's). `workInRepository` is for `github.issue` only;
+ * a work trigger names its repository link itself.
+ *
  */
 export type AutomationAction = {
   task?: AutomationTaskAction;
@@ -183,15 +214,27 @@ export type AutomationRunResponse = {
   /**
    * What fired it.
    */
-  event: {
-    eventId: string;
-    type: GitHubIssueEventType;
-    webhookDeliveryId: string;
-    repository: string;
-    issueNumber: number;
-    url: string;
-    author: string;
-  };
+  event:
+    | {
+        eventId: string;
+        type: GitHubIssueEventType;
+        webhookDeliveryId: string;
+        repository: string;
+        issueNumber: number;
+        url: string;
+        author: string;
+      }
+    | {
+        eventId: string;
+        type: 'ergon.work-assigned';
+        workItemId: string;
+        assignmentId: string;
+        agentId: string;
+        /**
+         * The work item's title when it fired.
+         */
+        title: string;
+      };
   taskId: string | null;
   /**
    * Hephaestus's reason, for a `rejected` or `skipped` run.

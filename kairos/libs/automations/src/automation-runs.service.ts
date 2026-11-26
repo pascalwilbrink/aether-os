@@ -10,22 +10,31 @@ import {
   OnDomainEvent,
   type ApiTypes,
   type DomainEvent,
+  type ErgonEvents,
   type HephaestusEvents,
   type Page,
   type PageRequest,
   type ProxenosEvents,
 } from '@kairos/core';
 
-import { AutomationRunEntity } from './automation-run.entity.js';
-import type { AutomationEntity } from './automation.entity.js';
+import { AutomationRunEntity, type RunEvent } from './automation-run.entity.js';
+import type {
+  AutomationEntity,
+  StoredWorkTrigger,
+} from './automation.entity.js';
+import { ErgonClient } from './ergon-client.js';
 import { AutomationMapper } from './automation.mapper.js';
 import { AutomationsService } from './automations.service.js';
 import {
   concurrencyKey,
   fieldsOf,
   match,
+  matchesWork,
   renderForTask,
   untrustedInputsOf,
+  workFieldsOf,
+  workSkipReason,
+  workTaskOf,
 } from './triggers.js';
 
 type IssueEvent = ProxenosEvents.GithubIssueOpened;
@@ -50,6 +59,7 @@ export class AutomationRunsService {
     private readonly mapper: AutomationMapper,
     private readonly domainEvents: DomainEvents,
     private readonly events: KairosEvents,
+    private readonly ergon: ErgonClient,
   ) {}
 
   async list(
@@ -84,6 +94,93 @@ export class AutomationRunsService {
   @OnDomainEvent('proxenos.github.issue-comment.created')
   onIssueCommentCreated(event: DomainEvent<IssueEvent>): Promise<void> {
     return this.fire('github.issue-comment.created', event);
+  }
+
+  /**
+   * An agent became responsible for work in Ergon: each active work
+   * automation of the work's project (for that agent, or any) gets a run
+   * and sends a `task.create` for the work item as Ergon has it now, read
+   * with Kairos's own token; work that's gone, finished or reassigned
+   * meanwhile makes the run `skipped`. Ergon not answering throws, so the
+   * event is retried.
+   */
+  @OnDomainEvent('ergon.work-assignment.changed')
+  async onWorkAssignmentChanged(
+    event: DomainEvent<ErgonEvents.WorkAssignmentChanged>,
+  ): Promise<void> {
+    const organizationId = event.organizationId;
+    if (!organizationId || !event.projectId) return;
+    const automations = (
+      await this.automations.activeForWork(organizationId)
+    ).filter((automation) =>
+      matchesWork(
+        automation.trigger,
+        event.payload,
+        event.projectId,
+        automation.projectId,
+      ),
+    );
+    if (automations.length === 0) return;
+    const { workItemId, assignmentId, assignee, workItemTitle } = event.payload;
+    const workItem = await this.ergon.getWorkItem(organizationId, workItemId);
+    const skip = workSkipReason(workItem, assignee.id);
+    for (const automation of automations) {
+      const run = await this.insertRun(automation, event.eventId, {
+        eventId: event.eventId,
+        type: 'ergon.work-assigned',
+        workItemId,
+        assignmentId,
+        agentId: assignee.id,
+        title: workItem?.title ?? workItemTitle,
+      });
+      if (!run) continue;
+      if (skip || !workItem) {
+        await this.runs.update(
+          { id: run.id },
+          { status: 'skipped', rejection: skip, updatedAt: new Date() },
+        );
+        continue;
+      }
+      const trigger = automation.trigger as StoredWorkTrigger;
+      const { action } = automation;
+      const fields = workFieldsOf(workItem, assignee.id);
+      await this.sendTaskCreate(automation, run.id, {
+        automationId: automation.id,
+        task: {
+          ...workTaskOf(workItem, assignee.id),
+          serviceAccountId: action.serviceAccountId,
+          ...(trigger.repositoryLinkId
+            ? { repository: { linkId: trigger.repositoryLinkId } }
+            : {}),
+          ...(action.reviewArtifactKinds.length > 0
+            ? { review: { artifactKinds: action.reviewArtifactKinds } }
+            : {}),
+          ...(action.concurrency
+            ? {
+                concurrency: {
+                  key: concurrencyKey(
+                    automation.id,
+                    action.concurrency.key,
+                    fields,
+                  ),
+                  policy: action.concurrency.policy,
+                },
+              }
+            : {}),
+          ...(action.context?.length ? { context: action.context } : {}),
+        },
+      });
+      await this.announce(
+        automation,
+        run.id,
+        'ergon.work-assigned',
+        event.eventId,
+        null,
+      );
+      this.logger.log(
+        `Automation ${automation.id} started agent ${assignee.id} on work item ${workItemId} (run ${run.id})`,
+      );
+    }
   }
 
   /** Hephaestus created the task a run asked for (or had already). */
@@ -143,18 +240,43 @@ export class AutomationRunsService {
     linkId: string,
   ): Promise<void> {
     const { payload } = event;
+    const run = await this.insertRun(automation, event.eventId, {
+      eventId: event.eventId,
+      type,
+      webhookDeliveryId: payload.webhookDeliveryId,
+      repository: payload.repository,
+      issueNumber: payload.number,
+      url: payload.url,
+      author: payload.author.login,
+    });
+    if (!run) return;
+    await this.sendTaskCreate(
+      automation,
+      run.id,
+      taskCreate(automation, fieldsOf(payload), linkId),
+    );
+    await this.announce(
+      automation,
+      run.id,
+      type,
+      event.eventId,
+      payload.webhookDeliveryId,
+    );
+    this.logger.log(
+      `Automation ${automation.id} fired for ${payload.repository}#${payload.number} (run ${run.id})`,
+    );
+  }
+
+  /** A new run, or null when this automation already fired for this event. */
+  private async insertRun(
+    automation: AutomationEntity,
+    sourceEventId: string,
+    event: RunEvent,
+  ): Promise<AutomationRunEntity | null> {
     const run = this.mapper.toRunEntity(
       automation,
-      event.eventId,
-      {
-        eventId: event.eventId,
-        type,
-        webhookDeliveryId: payload.webhookDeliveryId,
-        repository: payload.repository,
-        issueNumber: payload.number,
-        url: payload.url,
-        author: payload.author.login,
-      },
+      sourceEventId,
+      event,
       new Date(),
     );
     const inserted: unknown[] = (
@@ -166,38 +288,47 @@ export class AutomationRunsService {
         .returning('id')
         .execute()
     ).raw;
-    if (inserted.length === 0) {
-      // This automation already fired for this event.
-      return;
-    }
+    return inserted.length > 0 ? run : null;
+  }
 
+  /** The command, its idempotency key the run's ID, through the outbox. */
+  private async sendTaskCreate(
+    automation: AutomationEntity,
+    runId: string,
+    payload: TaskCreate,
+  ): Promise<void> {
     await this.domainEvents.send<TaskCreate>('hephaestus', {
-      // The run is the command's idempotency key.
-      eventId: run.id,
+      eventId: runId,
       eventType: 'task.create',
-      aggregateId: run.id,
+      aggregateId: runId,
       aggregateVersion: 1,
       organizationId: automation.organizationId,
       projectId: automation.projectId,
-      payload: taskCreate(automation, fieldsOf(payload), linkId),
+      payload,
     });
+  }
+
+  private async announce(
+    automation: AutomationEntity,
+    runId: string,
+    triggerType: string,
+    sourceEventId: string,
+    webhookDeliveryId: string | null,
+  ): Promise<void> {
     await this.events.emit({
       eventType: 'automation.triggered',
-      aggregateId: run.id,
+      aggregateId: runId,
       aggregateVersion: 1,
       organizationId: automation.organizationId,
       projectId: automation.projectId,
       payload: {
         automationId: automation.id,
-        runId: run.id,
-        triggerType: type,
-        sourceEventId: event.eventId,
-        webhookDeliveryId: payload.webhookDeliveryId,
+        runId,
+        triggerType,
+        sourceEventId,
+        webhookDeliveryId,
       },
     });
-    this.logger.log(
-      `Automation ${automation.id} fired for ${payload.repository}#${payload.number} (run ${run.id})`,
-    );
   }
 
   /** Records Hephaestus's answer on the run it's for, if it's one of Kairos's. */

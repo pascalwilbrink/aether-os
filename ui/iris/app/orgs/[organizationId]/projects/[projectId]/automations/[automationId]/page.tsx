@@ -10,6 +10,7 @@ import {
   CONCURRENCY_POLICIES,
   fieldsOf,
   runStatusLabel,
+  isWorkTrigger,
   triggerSummary,
 } from "@/lib/automations";
 import { formatTime } from "@/lib/tasks";
@@ -165,7 +166,7 @@ async function AutomationDetails({ params }: Props) {
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-zinc-500">
               <tr>
-                <th className="py-1 font-normal">Issue</th>
+                <th className="py-1 font-normal">What</th>
                 <th className="py-1 font-normal">By</th>
                 <th className="py-1 font-normal">Outcome</th>
                 <th className="py-1 font-normal">When</th>
@@ -174,17 +175,26 @@ async function AutomationDetails({ params }: Props) {
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {runs.items.map((run) => (
                 <tr key={run.id} className="align-top">
-                  <td className="py-2 pr-2">
-                    <a
-                      href={run.event.url}
-                      className="hover:underline"
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      {run.event.repository}#{run.event.issueNumber}
-                    </a>
-                  </td>
-                  <td className="py-2 pr-2">{run.event.author}</td>
+                  {"url" in run.event ? (
+                    <>
+                      <td className="py-2 pr-2">
+                        <a
+                          href={run.event.url}
+                          className="hover:underline"
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          {run.event.repository}#{run.event.issueNumber}
+                        </a>
+                      </td>
+                      <td className="py-2 pr-2">{run.event.author}</td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="py-2 pr-2">{run.event.title}</td>
+                      <td className="py-2 pr-2">The assigned agent</td>
+                    </>
+                  )}
                   <td className="py-2 pr-2">
                     {run.taskId ? (
                       <Link
@@ -212,7 +222,14 @@ async function AutomationDetails({ params }: Props) {
         )}
       </section>
 
-      {automation.status === "archived" ? null : (
+      {automation.status === "archived" ? null : isWorkTrigger(
+          automation.trigger,
+        ) ? (
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          This automation starts agents on work assigned to them in Ergon; it is
+          changed through Kairos&apos;s API for now.
+        </p>
+      ) : (
         <section className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
           <h2 className="font-medium">Change it</h2>
           <AutomationForm

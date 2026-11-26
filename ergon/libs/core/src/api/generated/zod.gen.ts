@@ -113,6 +113,8 @@ export const zWorkItemUpdate = z.object({
   constraints: z.array(zWorkBriefItem).max(50).optional(),
   acceptanceCriteria: z.array(zWorkBriefItem).max(50).optional(),
   dueAt: z.iso.datetime().nullish(),
+  departmentId: z.uuid().nullish(),
+  teamId: z.uuid().nullish(),
 });
 
 export const zWorkItemRequest = z.object({
@@ -130,6 +132,8 @@ export const zWorkItemRequest = z.object({
   constraints: z.array(zWorkBriefItem).max(50).optional(),
   acceptanceCriteria: z.array(zWorkBriefItem).max(50).optional(),
   dueAt: z.iso.datetime().nullish(),
+  departmentId: z.uuid().nullish(),
+  teamId: z.uuid().nullish(),
 });
 
 export const zWorkItemTransitionRequest = z.object({
@@ -157,6 +161,8 @@ export const zWorkItemResponse = z.object({
   organizationId: z.uuid(),
   projectId: z.uuid().nullable(),
   parentId: z.uuid().nullable(),
+  departmentId: z.uuid().nullable(),
+  teamId: z.uuid().nullable(),
   type: zWorkItemType,
   title: z.string(),
   description: z.string(),

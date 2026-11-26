@@ -4,7 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { AccessControl, type ApiTypes } from '@ergon/core';
+import {
+  AccessControl,
+  ValidationProblemException,
+  type ApiTypes,
+} from '@ergon/core';
 import { TenancyService } from '@ergon/tenancy';
 
 type Scope = { organizationId: string; projectId: string | null };
@@ -67,6 +71,27 @@ export class WorkAccess {
         throw new NotFoundException(`Work item ${item.id} not found`);
       }
       throw error;
+    }
+  }
+
+  /**
+   * A work item's department and team are active ones of the organization
+   * in Polis; `400` naming the field otherwise.
+   */
+  async assertOwners(
+    organizationId: string,
+    owners: { departmentId: string | null; teamId: string | null },
+  ): Promise<void> {
+    const unknown = await this.tenancy.unknownOwners(organizationId, owners);
+    if (unknown.length > 0) {
+      throw new ValidationProblemException(
+        unknown.map((field) => ({
+          pointer: `/${field}`,
+          parameter: null,
+          code: 'INVALID' as const,
+          detail: `Not an active ${field === 'departmentId' ? 'department' : 'team'} of the organization.`,
+        })),
+      );
     }
   }
 

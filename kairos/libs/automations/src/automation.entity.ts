@@ -4,8 +4,12 @@ import type { ApiTypes } from '@kairos/core';
 
 export type AutomationStatus = ApiTypes.AutomationStatus;
 
-/** The trigger as stored: every optional field filled in (`AutomationMapper`). */
-export type StoredTrigger = Required<ApiTypes.AutomationTrigger>;
+/** A GitHub issue trigger as stored: every optional field filled in. */
+export type StoredIssueTrigger = Required<ApiTypes.GitHubIssueTrigger>;
+/** A work assignment trigger as stored: every optional field filled in. */
+export type StoredWorkTrigger = Required<ApiTypes.WorkAssignedTrigger>;
+/** The trigger as stored (`AutomationMapper`). */
+export type StoredTrigger = StoredIssueTrigger | StoredWorkTrigger;
 
 /** The action as stored: every optional field filled in. */
 export type StoredAction = ApiTypes.AutomationAction &

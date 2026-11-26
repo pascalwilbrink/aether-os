@@ -264,6 +264,32 @@ export type CreateTaskRequest = {
      *
      */
     untrustedInputs?: Array<UntrustedInput>;
+    /**
+     * The work it's done for, when an Ergon work item started it
+     * (Kairos's `ergon.work-assigned` trigger): fixed at creation,
+     * shown in the agent's prompt and given to its tools.
+     * `organizationId` must be the task's and `agentId` the task's agent
+     * (`TASK_FIELDS_INVALID`).
+     *
+     */
+    workContext?: TaskWorkContext;
+};
+
+export type TaskWorkContext = {
+    workItemId: string;
+    organizationId: string;
+    /**
+     * The agent assigned to the work.
+     */
+    agentId: string;
+    /**
+     * The work item's department (Polis).
+     */
+    departmentId?: string | null;
+    /**
+     * The work item's team (Polis).
+     */
+    teamId?: string | null;
 };
 
 export type UntrustedInput = {
@@ -678,6 +704,10 @@ export type TaskResponse = {
      * Where it came from, when not from a request (a council's plan).
      */
     origin: TaskOrigin | null;
+    /**
+     * The Ergon work item it's done for; null for other tasks.
+     */
+    workContext: TaskWorkContext | null;
     createdAt: string;
     updatedAt: string;
     finishedAt: string | null;

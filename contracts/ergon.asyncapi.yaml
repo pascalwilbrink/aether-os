@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Ergon events
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Events Ergon publishes to the `ergon.events` topic exchange on RabbitMQ;
     the routing key is the event type. Every message is the Krepis
@@ -155,10 +155,18 @@ components:
       type: object
       description: The work item as it is after the change (its text fields left out).
       additionalProperties: false
-      required: [id, parentId, type, title, status, priority, needsReview, dueAt, source]
+      required: [id, parentId, departmentId, teamId, type, title, status, priority, needsReview, dueAt, source]
       properties:
         id: { $ref: '#/components/schemas/Uuid' }
         parentId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        departmentId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        teamId:
           oneOf:
             - $ref: '#/components/schemas/Uuid'
             - type: 'null'

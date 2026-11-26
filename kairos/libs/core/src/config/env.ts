@@ -21,6 +21,8 @@ export const zEnv = z.object({
   ...zAuthEnv.shape,
   /** Polis's API: organizations and projects (with Kairos's own token). */
   POLIS_URL: z.url({ protocol: /^https?$/ }),
+  /** Ergon's API: the work items `ergon.work-assigned` automations run (with Kairos's own token). */
+  ERGON_URL: z.url({ protocol: /^https?$/ }),
   /** Kairos's own client at Pistis (client credentials, `platform:read`). */
   PISTIS_CLIENT_ID: z.string().min(1).default('kairos'),
   PISTIS_CLIENT_SECRET: z.string().min(16),

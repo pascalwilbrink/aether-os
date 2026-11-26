@@ -9,7 +9,7 @@ Status: built in its first form (Kairos, `../kairos`); sections marked **Proposa
 | Concept | What it is |
 |---|---|
 | Automation | A **trigger** bound to the **task** an agent runs, in one project. `active`, `paused` or `archived`. Managed by the project's admins (`automation:manage`), read by its members (`automation:read`). |
-| Trigger | What fires it. Built: a GitHub issue event from Proxenos (`github.issue.opened`, `github.issue.labeled`, `github.issue-comment.created`), with filters. |
+| Trigger | What fires it. Built: a GitHub issue event from Proxenos (`github.issue.opened`, `github.issue.labeled`, `github.issue-comment.created`), with filters; and **work assigned to an agent** in Ergon (`ergon.work-assigned`, below). |
 | Action | The task: written in the automation (agent, title, instructions) or from a Hephaestus task template (template, version or latest, inputs), the service account it runs as, whether it works in the event's repository, and which artifact kinds need approval. Texts and inputs can use the event's fields (`{{issue.number}}`, `{{issue.title}}`, `{{issue.url}}`, `{{repository}}`, `{{author}}`, `{{label}}`). |
 | Run | One time it fired: the event, and the task it started or why Hephaestus refused it. |
 
@@ -23,6 +23,16 @@ Status: built in its first form (Kairos, `../kairos`); sections marked **Proposa
 **Concurrency keys** (`tasks.md`, Concurrency): an action can set a key using the event's fields, e.g. `{{repository}}#{{issue.number}}` (Iris starts new automations with that one, policy `queue`), and a policy for a task while an earlier one of the same automation with the same key hasn't finished: `queue` (it waits), `cancel-previous` (the earlier one is cancelled) or `skip` (no task; the run is `skipped`). Kairos prefixes the automation's ID, so two automations never block each other; a key longer than 160 characters once filled in is hashed.
 
 The issue's title (and later its body) is written by whoever opened it: it reaches the agent as untrusted input (`git.md`, Untrusted input), which is why automations fire only for collaborators with write access by default. Kairos never pastes it into the task's text: it leaves `{{issue.title}}` there and sends the title as an `untrustedInputs` entry (with where it came from), which Hephaestus marks as data in the agent's prompt. An automation can also pin knowledge on every task it starts (`action.context`).
+
+## Work assigned to agents
+
+The way agents start on Ergon's work (`../ergon/CLAUDE.md`, decided: Kairos starts agents, Ergon never calls Hephaestus). A trigger `{ type: 'ergon.work-assigned', agentId?, repositoryLinkId? }` fires on Ergon's `work-assignment.changed` when an agent becomes `responsible` for a work item in the automation's project (the trigger's agent only, if it names one). Its action gives neither `task` nor `template`: the task is the work item's.
+
+1. Kairos reads the work item from Ergon (`GET …/work-items/{id}` with its own token, `platform:read`; Ergon not answering leaves the event to be retried).
+2. Each matching automation gets a run, at most one per event. Work that's gone, `done` or `cancelled`, or whose responsible agent changed meanwhile, makes the run `skipped` (`WORK_ITEM_NOT_FOUND`, `WORK_ITEM_CLOSED`, `WORK_ITEM_REASSIGNED`).
+3. Otherwise `task.create` with the work item's title, description (its title when empty), requirements, expected outcome, constraints and acceptance criteria (as `manual` checks, confirmed by the reviewer), the assigned agent, the action's service account, review kinds, pinned knowledge and concurrency key (fields `{{workItem.id}}`, `{{workItem.type}}`, `{{agent.id}}`), the trigger's repository link, and the **work context** `{ workItemId, organizationId, agentId, departmentId, teamId }` (the work item's department and team, set by the UI). Hephaestus keeps it on the task (`workContext`), shows it in the agent's prompt, gives it to the agent's tools (Mastra's request context, `aether.workContext`) and puts it on `task.created`.
+
+Work outside a project starts no agent (a task belongs to a project). The assignment's pinned agent version isn't used yet: the task runs the agent's published version, as every task does.
 
 ## Not yet
 

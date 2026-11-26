@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Hephaestus events and commands
-  version: 0.12.0
+  version: 0.13.0
   description: |
     Events Hephaestus publishes to the `hephaestus.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -364,7 +364,7 @@ components:
     TaskCreated:
       type: object
       additionalProperties: false
-      required: [taskId, parentTaskId, topLevelTaskId, agentId, agentVersionId, serviceAccountId, requestedBy, idempotencyKey, status, taskTemplateId, taskTemplateVersion]
+      required: [taskId, parentTaskId, topLevelTaskId, agentId, agentVersionId, serviceAccountId, requestedBy, idempotencyKey, status, taskTemplateId, taskTemplateVersion, workContext]
       properties:
         taskId: { $ref: '#/components/schemas/Uuid' }
         parentTaskId:
@@ -384,6 +384,25 @@ components:
         taskTemplateVersion:
           type: [integer, 'null']
           minimum: 1
+        workContext:
+          description: The Ergon work item it's done for (`TaskWorkContext` of the HTTP API), so Ergon can link the work to its tasks; null for other tasks.
+          oneOf:
+            - type: 'null'
+            - type: object
+              additionalProperties: false
+              required: [workItemId, organizationId, agentId, departmentId, teamId]
+              properties:
+                workItemId: { $ref: '#/components/schemas/Uuid' }
+                organizationId: { $ref: '#/components/schemas/Uuid' }
+                agentId: { $ref: '#/components/schemas/Uuid' }
+                departmentId:
+                  oneOf:
+                    - $ref: '#/components/schemas/Uuid'
+                    - type: 'null'
+                teamId:
+                  oneOf:
+                    - $ref: '#/components/schemas/Uuid'
+                    - type: 'null'
     TaskStatusChanged:
       type: object
       additionalProperties: false

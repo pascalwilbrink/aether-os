@@ -24,7 +24,7 @@
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
-    "generate:api": "openapi-ts --no-log-file && aether-asyncapi-types node_modules/@aether-os/contracts/kairos.asyncapi.yaml libs/core/src/events/generated/kairos-events.gen.ts --name Kairos && aether-asyncapi-types node_modules/@aether-os/contracts/proxenos.asyncapi.yaml libs/core/src/events/generated/proxenos-events.gen.ts --name Proxenos && aether-asyncapi-types node_modules/@aether-os/contracts/hephaestus.asyncapi.yaml libs/core/src/events/generated/hephaestus-events.gen.ts --name Hephaestus && prettier --log-level warn --write libs/core/src/api/generated libs/core/src/clients/polis/generated libs/core/src/events/generated"
+    "generate:api": "openapi-ts --no-log-file && aether-asyncapi-types node_modules/@aether-os/contracts/kairos.asyncapi.yaml libs/core/src/events/generated/kairos-events.gen.ts --name Kairos && aether-asyncapi-types node_modules/@aether-os/contracts/proxenos.asyncapi.yaml libs/core/src/events/generated/proxenos-events.gen.ts --name Proxenos && aether-asyncapi-types node_modules/@aether-os/contracts/hephaestus.asyncapi.yaml libs/core/src/events/generated/hephaestus-events.gen.ts --name Hephaestus && aether-asyncapi-types node_modules/@aether-os/contracts/ergon.asyncapi.yaml libs/core/src/events/generated/ergon-events.gen.ts --name Ergon && prettier --log-level warn --write libs/core/src/api/generated libs/core/src/clients/polis/generated libs/core/src/clients/ergon/generated libs/core/src/events/generated"
   },
   "dependencies": {
     "@aether-os/krepis": "workspace:*",

@@ -203,6 +203,16 @@ export interface TaskCreated {
     | 'cancelled';
   taskTemplateId: string | null;
   taskTemplateVersion: number | null;
+  /**
+   * The Ergon work item it's done for (`TaskWorkContext` of the HTTP API), so Ergon can link the work to its tasks; null for other tasks.
+   */
+  workContext: null | {
+    workItemId: string;
+    organizationId: string;
+    agentId: string;
+    departmentId: string | null;
+    teamId: string | null;
+  };
 }
 
 /**

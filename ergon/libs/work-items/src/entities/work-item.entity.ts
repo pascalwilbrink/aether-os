@@ -66,6 +66,14 @@ export class WorkItemEntity {
   @Column({ type: 'uuid', nullable: true })
   parentId: string | null;
 
+  /** The department that owns the work (Polis), if any; the UI sets it. */
+  @Column({ type: 'uuid', nullable: true })
+  departmentId: string | null;
+
+  /** The team that owns the work (Polis), if any. */
+  @Column({ type: 'uuid', nullable: true })
+  teamId: string | null;
+
   @Column({ type: 'text' })
   type: ApiTypes.WorkItemType;
 

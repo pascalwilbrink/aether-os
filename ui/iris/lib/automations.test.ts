@@ -128,10 +128,10 @@ describe("automations", () => {
 
   it("says what fires it", () => {
     const trigger = {
-      type: "github.issue",
-      event: "github.issue.labeled",
+      type: "github.issue" as const,
+      event: "github.issue.labeled" as const,
       label: "aether",
-    } as Automation["trigger"];
+    };
     expect(triggerSummary(trigger, "acme/api")).toBe(
       "When an issue in acme/api is labelled “aether”, by someone with write access or more.",
     );

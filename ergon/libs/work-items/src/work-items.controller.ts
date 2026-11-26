@@ -11,7 +11,11 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { RequirePermission, ZodSerializerDto } from '@ergon/core';
+import {
+  PlatformAccess,
+  RequirePermission,
+  ZodSerializerDto,
+} from '@ergon/core';
 
 import {
   ListWorkActivityQuery,
@@ -58,6 +62,8 @@ export class WorkItemsController {
 
   @Get(':workItemId')
   @RequirePermission('org:read')
+  // Kairos reads the work it starts an agent on (work in a project only).
+  @PlatformAccess('platform:read')
   @ZodSerializerDto(WorkItemResponse)
   get(@Param() { organizationId, workItemId }: WorkItemParams) {
     return this.workItems.get(organizationId, workItemId);

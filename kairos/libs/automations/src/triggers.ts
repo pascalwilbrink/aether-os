@@ -1,10 +1,17 @@
 import { createHash } from 'node:crypto';
 
-import type { ApiTypes, ProxenosEvents } from '@kairos/core';
+import type { ApiTypes, ErgonEvents, ProxenosEvents } from '@kairos/core';
 
-import type { StoredAction, StoredTrigger } from './automation.entity.js';
+import type {
+  StoredAction,
+  StoredIssueTrigger,
+  StoredTrigger,
+  StoredWorkTrigger,
+} from './automation.entity.js';
+import type { WorkItem } from './ergon-client.js';
 
 type IssueEvent = ProxenosEvents.GithubIssueOpened;
+type AssignmentChanged = ErgonEvents.WorkAssignmentChanged;
 type Permission = ApiTypes.RepositoryPermission;
 type EventType = ApiTypes.GitHubIssueEventType;
 
@@ -21,12 +28,32 @@ export const FIELDS = [
   'label',
 ] as const;
 
-const PLACEHOLDER = /{{\s*([a-z.]+)\s*}}/g;
+/** The fields a work trigger's concurrency key can name. */
+export const WORK_FIELDS = [
+  'workItem.id',
+  'workItem.type',
+  'agent.id',
+] as const;
+
+const PLACEHOLDER = /{{\s*([A-Za-z.]+)\s*}}/g;
 
 /** Defaults filled in, so stored triggers are explicit. */
 export function storedTrigger(
+  trigger: ApiTypes.GitHubIssueTrigger,
+): StoredIssueTrigger;
+export function storedTrigger(
+  trigger: ApiTypes.AutomationTrigger,
+): StoredTrigger;
+export function storedTrigger(
   trigger: ApiTypes.AutomationTrigger,
 ): StoredTrigger {
+  if (trigger.type === 'ergon.work-assigned') {
+    return {
+      type: trigger.type,
+      agentId: trigger.agentId ?? null,
+      repositoryLinkId: trigger.repositoryLinkId ?? null,
+    };
+  }
   return {
     type: trigger.type,
     event: trigger.event,
@@ -48,17 +75,26 @@ export function storedAction(action: ApiTypes.AutomationAction): StoredAction {
   };
 }
 
-/** Problems with an action, as JSON Pointers under `/action`. */
+/** Problems with an action for its trigger, as JSON Pointers under `/action`. */
 export function actionProblems(
+  trigger: Pick<ApiTypes.AutomationTrigger, 'type'>,
   action: ApiTypes.AutomationAction,
 ): { pointer: string; detail: string }[] {
   const problems: { pointer: string; detail: string }[] = [];
-  if (!action.task === !action.template) {
+  const work = trigger.type === 'ergon.work-assigned';
+  if (work && (action.task || action.template)) {
+    problems.push({
+      pointer: '/action',
+      detail:
+        "A work trigger's task is the work item's: give neither task nor template.",
+    });
+  } else if (!work && !action.task === !action.template) {
     problems.push({
       pointer: '/action',
       detail: 'Give exactly one of task and template.',
     });
   }
+  const fields: readonly string[] = work ? WORK_FIELDS : FIELDS;
   const texts: [string, string][] = [
     ...(action.task
       ? ([
@@ -79,12 +115,12 @@ export function actionProblems(
   ];
   for (const [pointer, text] of texts) {
     const unknown = placeholdersIn(text).filter(
-      (name) => !(FIELDS as readonly string[]).includes(name),
+      (name) => !fields.includes(name),
     );
     if (unknown.length > 0) {
       problems.push({
         pointer,
-        detail: `Unknown fields ${unknown.map((name) => `{{${name}}}`).join(', ')}; use ${FIELDS.map((name) => `{{${name}}}`).join(', ')}.`,
+        detail: `Unknown fields ${unknown.map((name) => `{{${name}}}`).join(', ')}; use ${fields.map((name) => `{{${name}}}`).join(', ')}.`,
       });
     }
   }
@@ -105,7 +141,9 @@ export function match(
   event: IssueEvent,
   projectId: string,
 ): { linkId: string } | null {
-  if (trigger.event !== eventType) return null;
+  if (trigger.type !== 'github.issue' || trigger.event !== eventType) {
+    return null;
+  }
   const link = event.links.find((entry) => entry.projectId === projectId);
   if (!link) return null;
   if (trigger.repositoryLinkId && trigger.repositoryLinkId !== link.linkId) {
@@ -125,6 +163,110 @@ export function match(
     if (!labelled) return null;
   }
   return { linkId: link.linkId };
+}
+
+/**
+ * Whether an assignment fires a work trigger of a project: an agent became
+ * `responsible` for work in the project (the trigger's agent, if it names
+ * one).
+ */
+export function matchesWork(
+  trigger: StoredTrigger,
+  change: AssignmentChanged,
+  eventProjectId: string | null,
+  projectId: string,
+): trigger is StoredWorkTrigger {
+  return (
+    trigger.type === 'ergon.work-assigned' &&
+    change.change === 'started' &&
+    change.role === 'responsible' &&
+    change.assignee.kind === 'agent' &&
+    eventProjectId === projectId &&
+    (trigger.agentId === null || trigger.agentId === change.assignee.id)
+  );
+}
+
+/**
+ * Why Kairos won't start an agent on the work it read (the run is
+ * `skipped` with it), or null: it's gone, finished, or no longer that
+ * agent's.
+ */
+export function workSkipReason(
+  workItem: WorkItem | null,
+  agentId: string,
+): { code: string; message: string } | null {
+  if (!workItem) {
+    return {
+      code: 'WORK_ITEM_NOT_FOUND',
+      message: 'Ergon has no such work item.',
+    };
+  }
+  if (workItem.status === 'done' || workItem.status === 'cancelled') {
+    return {
+      code: 'WORK_ITEM_CLOSED',
+      message: `The work item is ${workItem.status}.`,
+    };
+  }
+  if (
+    workItem.responsible?.kind !== 'agent' ||
+    workItem.responsible.id !== agentId
+  ) {
+    return {
+      code: 'WORK_ITEM_REASSIGNED',
+      message: 'The agent is no longer responsible for the work item.',
+    };
+  }
+  return null;
+}
+
+/** A work item's fields for `{{…}}` (a work trigger's concurrency key). */
+export function workFieldsOf(
+  workItem: WorkItem,
+  agentId: string,
+): Record<string, string> {
+  return {
+    'workItem.id': workItem.id,
+    'workItem.type': workItem.type,
+    'agent.id': agentId,
+  };
+}
+
+/**
+ * The task a work item asks of its agent (Hephaestus's `CreateTaskRequest`
+ * fields): its brief, its acceptance criteria as `manual` checks (people
+ * confirm them when they review), and its work context.
+ */
+export function workTaskOf(workItem: WorkItem, agentId: string) {
+  return {
+    agentId,
+    title: workItem.title.slice(0, 200),
+    description: workItem.description.trim() || workItem.title,
+    ...(workItem.requirements.length > 0
+      ? { requirements: workItem.requirements }
+      : {}),
+    ...(workItem.expectedOutcome
+      ? { expectedOutcome: workItem.expectedOutcome }
+      : {}),
+    ...(workItem.constraints.length > 0
+      ? { constraints: workItem.constraints }
+      : {}),
+    ...(workItem.acceptanceCriteria.length > 0
+      ? {
+          acceptanceCriteria: workItem.acceptanceCriteria.map((criterion) => ({
+            key: criterion.key,
+            description: criterion.description.slice(0, 2000),
+            check: { type: 'manual' as const },
+          })),
+        }
+      : {}),
+    workContext: {
+      workItemId: workItem.id,
+      organizationId: workItem.organizationId,
+      agentId,
+      departmentId: workItem.departmentId,
+      teamId: workItem.teamId,
+    },
+  };
 }
 
 /** The author's role meets the least one required; unknown is untrusted. */

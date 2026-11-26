@@ -5,10 +5,12 @@ import type { App } from 'supertest/types.js';
 
 import type { OrganizationRole, ProjectRole } from '@aether-os/krepis';
 import { configureHttpApp, EventConsumer } from '@kairos/core';
+import { ErgonClient } from '@kairos/automations';
 import { PolisClient } from '@kairos/tenancy';
 
 import { AppModule } from '../src/app.module.js';
 import { resetDatabase } from './database.js';
+import { FakeErgon } from './fake-ergon.js';
 import { FakePolis } from './fake-polis.js';
 import { tokens } from './tokens.js';
 
@@ -16,11 +18,15 @@ import { tokens } from './tokens.js';
 export async function createApp(): Promise<{
   app: INestApplication<App>;
   polis: FakePolis;
+  ergon: FakeErgon;
 }> {
   const polis = new FakePolis();
+  const ergon = new FakeErgon();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(PolisClient)
     .useValue(polis)
+    .overrideProvider(ErgonClient)
+    .useValue(ergon)
     .compile();
   const app = configureHttpApp(
     moduleRef.createNestApplication({ logger: false }),
@@ -30,7 +36,7 @@ export async function createApp(): Promise<{
   // channel that is still being set up (an unhandled rejection).
   await app.get(EventConsumer).ready();
   await resetDatabase(app);
-  return { app: app as INestApplication<App>, polis };
+  return { app: app as INestApplication<App>, polis, ergon };
 }
 
 export type Client = ReturnType<typeof request.agent>;

@@ -422,6 +422,7 @@ export type {
   TaskTemplateResponse,
   TaskTemplateVersionPage,
   TaskTemplateVersionResponse,
+  TaskWorkContext,
   TemplateExtends,
   TemplateId,
   TemplateInput,
