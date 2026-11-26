@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Not, type Repository } from 'typeorm';
+import { IsNull, MoreThan, Not, type Repository } from 'typeorm';
 
 import {
   AccessControl,
@@ -32,6 +32,9 @@ import { PersonMapper, personFields } from './person.mapper.js';
  * address, or when such a user is created later (Pistis's `user.created`).
  * Persons grant nothing; roles stay on memberships.
  */
+/** How many persons one transaction of `announce` publishes. */
+const ANNOUNCE_BATCH = 500;
+
 @Injectable()
 export class PersonsService {
   constructor(
@@ -275,6 +278,52 @@ export class PersonsService {
       entity.userId = user.id;
       await this.saveLinkChange(entity);
     }
+  }
+
+  /**
+   * Publishes every person again as `person.updated`, at their current
+   * version (the backfill: `POST /v1/persons/announce`). In batches, each
+   * its own transaction; how many were published.
+   */
+  async announce(): Promise<number> {
+    let announced = 0;
+    let after: string | null = null;
+    for (;;) {
+      const batch = await this.announceBatch(after);
+      announced += batch.count;
+      if (!batch.last) {
+        return announced;
+      }
+      after = batch.last;
+    }
+  }
+
+  @Transactional()
+  private async announceBatch(
+    after: string | null,
+  ): Promise<{ count: number; last: string | null }> {
+    const entities = await this.persons.find({
+      where: after ? { id: MoreThan(after) } : {},
+      order: { id: 'ASC' },
+      take: ANNOUNCE_BATCH,
+    });
+    const departments = await this.departments.of(
+      entities.map((entity) => entity.id),
+    );
+    for (const entity of entities) {
+      await this.emitChanged(
+        'person.updated',
+        entity,
+        departments.get(entity.id) ?? [],
+      );
+    }
+    return {
+      count: entities.length,
+      last:
+        entities.length === ANNOUNCE_BATCH
+          ? entities[entities.length - 1].id
+          : null,
+    };
   }
 
   /** A person whose linked user changed: a new version and `person.updated`. */

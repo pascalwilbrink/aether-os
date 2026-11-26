@@ -160,6 +160,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/persons/announce": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Publishes every person of every organization again as `person.updated`,
+         *     at their current version (no new version): the backfill for services
+         *     that keep a copy of the persons (Ergon) and missed ones created before
+         *     they subscribed. Deleted persons are gone and aren't announced.
+         *
+         *     Consumers keep what they have when it's as new, so running it again
+         *     is harmless.
+         */
+        post: operations["announcePersons"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{organizationId}/persons": {
         parameters: {
             query?: never;
@@ -693,6 +718,10 @@ export interface components {
             createdAt: components["schemas"]["Timestamp"];
             updatedAt: components["schemas"]["Timestamp"];
             version: components["schemas"]["Version"];
+        };
+        AnnouncementResponse: {
+            /** @description How many were published. */
+            announced: number;
         };
         PersonPage: components["schemas"]["PageMeta"] & {
             items: components["schemas"]["PersonResponse"][];
@@ -1290,6 +1319,28 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["DomainError"];
+        };
+    };
+    announcePersons: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The events are in the outbox */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnnouncementResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     listPersons: {

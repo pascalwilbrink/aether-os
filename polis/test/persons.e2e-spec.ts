@@ -361,4 +361,53 @@ describe('Persons (e2e)', () => {
       'person.deleted',
     ]);
   });
+
+  it('announces every person again at their current version (the backfill)', async () => {
+    const research = await department('research');
+    const ada1 = (await owner.post(base).send(ada()).expect(201)).body;
+    const grace = (
+      await owner
+        .post(base)
+        .send(ada({ email: 'grace@example.com', departmentIds: [research] }))
+        .expect(201)
+    ).body;
+    await owner
+      .put(`${base}/${grace.id}`)
+      .send(ada({ email: 'grace@example.com', role: 'Lead' }))
+      .expect(200);
+    // Another organization's persons too.
+    const other = (await foundOrganization(app, 'globex', 'owner-2')).id;
+    const otherOwner = await asOwner(app, other, 'owner-2');
+    const hopper = (
+      await otherOwner
+        .post(`/v1/organizations/${other}/persons`)
+        .send(ada({ email: 'hopper@example.com' }))
+        .expect(201)
+    ).body;
+    const before = (await outboxEvents(app)).length;
+
+    const res = await (
+      await asOperator(app)
+    )
+      .post('/v1/persons/announce')
+      .expect(200);
+    expect(res.body).toEqual({ announced: 3 });
+    const announced = (await outboxEvents(app)).slice(before);
+    expect(announced.every((e) => e.eventType === 'person.updated')).toBe(true);
+    expect(
+      Object.fromEntries(
+        announced.map((e) => [
+          e.aggregateId,
+          [e.organizationId, e.aggregateVersion],
+        ]),
+      ),
+    ).toEqual({
+      [ada1.id]: [orgId, 1],
+      [grace.id]: [orgId, 2],
+      [hopper.id]: [other, 1],
+    });
+
+    // Not for organizations' owners.
+    await owner.post('/v1/persons/announce').expect(403);
+  });
 });

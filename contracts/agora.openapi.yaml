@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Agora API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Agent management for Aether-os: agents and their immutable versions
     (instructions, model, tools, skills, capabilities, runtime), the
@@ -40,6 +40,30 @@ tags:
   - name: councils
 
 paths:
+  /v1/agents/announce:
+    post:
+      tags: [agents]
+      operationId: announceAgents
+      x-permission: '`platform:manage` (platform operators)'
+      description: |
+        Publishes every agent of every organization again, replaying its
+        events at their versions (no new version): `agent.created` at
+        version 1, then, for an archived agent, `agent.archived` at its
+        current version. The backfill for services that keep a copy of the
+        agents (Ergon, Pylon, Hephaestus) and missed ones created before they
+        subscribed; agent versions aren't announced.
+
+        Consumers keep what they have when it's as new, so running it again
+        is harmless.
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '200':
+          description: The events are in the outbox
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnnouncementResponse' }
+
   /v1/organizations/{organizationId}/agents:
     parameters:
       - $ref: '#/components/parameters/OrganizationId'
@@ -699,6 +723,14 @@ components:
         createdBy: { type: string }
         createdAt: { $ref: '#/components/schemas/Timestamp' }
         updatedAt: { $ref: '#/components/schemas/Timestamp' }
+    AnnouncementResponse:
+      type: object
+      required: [announced]
+      properties:
+        announced:
+          type: integer
+          minimum: 0
+          description: How many were published.
     AgentPage:
       allOf:
         - $ref: '#/components/schemas/PageMeta'

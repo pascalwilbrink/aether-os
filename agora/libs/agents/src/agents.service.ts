@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, type Repository } from 'typeorm';
+import { In, MoreThan, type Repository } from 'typeorm';
 
 import {
   AccessControl,
@@ -27,6 +27,9 @@ import type { CreateAgentRequest } from './dto/create-agent.request.js';
  * publishes an event in its transaction (`agent.created`,
  * `agent.archived`, and the version events through `AgentVersionsService`).
  */
+/** How many agents one transaction of `announce` publishes. */
+const ANNOUNCE_BATCH = 500;
+
 @Injectable()
 export class AgentsService {
   constructor(
@@ -111,6 +114,68 @@ export class AgentsService {
     }
 
     return this.mapper.toResponse(entity);
+  }
+
+  /**
+   * Publishes every agent again, replaying its events at their versions
+   * (the backfill: `POST /v1/agents/announce`): `agent.created` at version
+   * 1, then `agent.archived` at the current version for an archived agent,
+   * so consumers that refuse an archiving before the creation take it. In
+   * batches, each its own transaction; how many agents were published.
+   */
+  async announce(): Promise<number> {
+    let announced = 0;
+    let after: string | null = null;
+    for (;;) {
+      const batch = await this.announceBatch(after);
+      announced += batch.count;
+      if (!batch.last) {
+        return announced;
+      }
+      after = batch.last;
+    }
+  }
+
+  @Transactional()
+  private async announceBatch(
+    after: string | null,
+  ): Promise<{ count: number; last: string | null }> {
+    const entities = await this.agents.find({
+      where: after ? { id: MoreThan(after) } : {},
+      order: { id: 'ASC' },
+      take: ANNOUNCE_BATCH,
+    });
+    for (const entity of entities) {
+      await this.events.emit({
+        eventType: 'agent.created',
+        aggregateId: entity.id,
+        aggregateVersion: 1,
+        organizationId: entity.organizationId,
+        payload: {
+          agentId: entity.id,
+          name: entity.name,
+          description: entity.description,
+          createdBy: entity.createdBy,
+          createdAt: entity.createdAt.toISOString(),
+        },
+      });
+      if (entity.status === 'archived') {
+        await this.events.emit({
+          eventType: 'agent.archived',
+          aggregateId: entity.id,
+          aggregateVersion: entity.version,
+          organizationId: entity.organizationId,
+          payload: { agentId: entity.id },
+        });
+      }
+    }
+    return {
+      count: entities.length,
+      last:
+        entities.length === ANNOUNCE_BATCH
+          ? entities[entities.length - 1].id
+          : null,
+    };
   }
 
   /**
