@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ergon API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Work management (`../ergon/CLAUDE.md`): **work items** that people and
     agents do together, who is **assigned** to them, the **dependencies**
@@ -235,7 +235,11 @@ paths:
         active `responsible` assignment: a new one ends the old one (a
         reassignment). The same assignee can't hold the same role twice
         (`ALREADY_ASSIGNED`). Not for a `done` or `cancelled` work item
-        (`WORK_ITEM_CLOSED`). An assignment grants no access to anything.
+        (`WORK_ITEM_CLOSED`), a person or agent Ergon doesn't know in the
+        organization (`UNKNOWN_ASSIGNEE`), or an archived agent
+        (`AGENT_ARCHIVED`). Deleting the person in Polis or archiving the
+        agent in Agora ends their assignments. An assignment grants no access
+        to anything.
       requestBody:
         required: true
         content:
@@ -421,6 +425,8 @@ components:
         - CHILDREN_OPEN
         - WORK_ITEM_CLOSED
         - ALREADY_ASSIGNED
+        - UNKNOWN_ASSIGNEE
+        - AGENT_ARCHIVED
         - SELF_DEPENDENCY
         - DEPENDENCY_EXISTS
         - DEPENDENCY_CYCLE
@@ -648,20 +654,22 @@ components:
     AssigneeKind:
       type: string
       description: |
-        `user` (a Pistis `sub`), `agent` or `council` (Agora's IDs). Teams
-        come once Polis's teams can be assigned.
-      enum: [user, agent, council]
+        `person` (a person of the organization, Polis's ID) or `agent`
+        (Agora's ID). Ergon knows them from Polis's `person.*` and Agora's
+        `agent.*` events; anyone else is `UNKNOWN_ASSIGNEE`. Teams and
+        councils come later.
+      enum: [person, agent]
     Assignee:
       type: object
       additionalProperties: false
       required: [kind, id]
       properties:
         kind: { $ref: '#/components/schemas/AssigneeKind' }
-        id: { type: string, minLength: 1, maxLength: 255 }
+        id: { type: string, format: uuid }
         versionId:
           type: [string, 'null']
           format: uuid
-          description: The agent's or council's version, when the assignment is pinned to one.
+          description: The agent's version, when the assignment is pinned to one.
     WorkAssignmentRole:
       type: string
       description: At most one active `responsible`; any number of the others.
@@ -693,7 +701,7 @@ components:
           required: [kind, id, versionId]
           properties:
             kind: { $ref: '#/components/schemas/AssigneeKind' }
-            id: { type: string }
+            id: { type: string, format: uuid }
             versionId: { type: [string, 'null'], format: uuid }
         role: { $ref: '#/components/schemas/WorkAssignmentRole' }
         status: { $ref: '#/components/schemas/WorkAssignmentStatus' }

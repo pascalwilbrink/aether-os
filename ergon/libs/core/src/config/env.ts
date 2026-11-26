@@ -10,7 +10,7 @@ export const zEnv = z.object({
   PORT: z.coerce.number().int().positive().default(3013),
   /** Ergon's own Postgres database. */
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
-  /** RabbitMQ: Ergon's events go out (through the outbox). */
+  /** RabbitMQ: Polis's and Agora's events come in, Ergon's go out (through the outbox). */
   RABBITMQ_URL: z.url({ protocol: /^amqps?$/ }),
   /** How often the relay publishes waiting events; 0 turns it off. */
   OUTBOX_RELAY_INTERVAL_MS: z.coerce.number().int().min(0).default(1000),

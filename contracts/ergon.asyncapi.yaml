@@ -214,8 +214,8 @@ components:
           additionalProperties: false
           required: [kind, id, versionId]
           properties:
-            kind: { type: string, enum: [user, agent, council] }
-            id: { type: string }
+            kind: { type: string, enum: [person, agent] }
+            id: { $ref: '#/components/schemas/Uuid' }
             versionId:
               oneOf:
                 - $ref: '#/components/schemas/Uuid'
@@ -223,7 +223,7 @@ components:
         role: { type: string, enum: [responsible, contributor, reviewer, observer] }
         reason:
           type: [string, 'null']
-          description: Why it started, or why it ended.
+          description: Why it started, or why it ended (`Person deleted` and `Agent archived` when Ergon ended it, with a null actor).
     WorkDependency:
       type: object
       additionalProperties: false

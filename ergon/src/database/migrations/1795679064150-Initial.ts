@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class Initial1795678146589 implements MigrationInterface {
-  name = 'Initial1795678146589';
+export class Initial1795679064150 implements MigrationInterface {
+  name = 'Initial1795679064150';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     const database = await queryRunner.getCurrentDatabase();
@@ -31,6 +31,36 @@ export class Initial1795678146589 implements MigrationInterface {
                 "received_at" TIMESTAMP WITH TIME ZONE NOT NULL,
                 CONSTRAINT "PK_9b85eb4cab41c7c6023b1e579d0" PRIMARY KEY ("event_id")
             )
+        `);
+    await queryRunner.query(`
+            CREATE TABLE "agents" (
+                "id" uuid NOT NULL,
+                "organization_id" uuid NOT NULL,
+                "name" text NOT NULL,
+                "status" text NOT NULL,
+                "version" integer NOT NULL,
+                "received_at" TIMESTAMP WITH TIME ZONE NOT NULL,
+                CONSTRAINT "ck_agents_status" CHECK (status IN ('active', 'archived')),
+                CONSTRAINT "PK_9c653f28ae19c5884d5baf6a1d9" PRIMARY KEY ("id")
+            )
+        `);
+    await queryRunner.query(`
+            CREATE INDEX "ix_agents_organization_id" ON "agents" ("organization_id")
+        `);
+    await queryRunner.query(`
+            CREATE TABLE "persons" (
+                "id" uuid NOT NULL,
+                "organization_id" uuid NOT NULL,
+                "user_id" uuid,
+                "status" text NOT NULL,
+                "version" integer NOT NULL,
+                "received_at" TIMESTAMP WITH TIME ZONE NOT NULL,
+                CONSTRAINT "ck_persons_status" CHECK (status IN ('active', 'deleted')),
+                CONSTRAINT "PK_74278d8812a049233ce41440ac7" PRIMARY KEY ("id")
+            )
+        `);
+    await queryRunner.query(`
+            CREATE INDEX "ix_persons_organization_id" ON "persons" ("organization_id")
         `);
     await queryRunner.query(`
             CREATE TABLE "work_activity" (
@@ -64,7 +94,7 @@ export class Initial1795678146589 implements MigrationInterface {
                 "organization_id" uuid NOT NULL,
                 "work_item_id" uuid NOT NULL,
                 "assignee_kind" text NOT NULL,
-                "assignee_id" text NOT NULL,
+                "assignee_id" uuid NOT NULL,
                 "assignee_version_id" uuid,
                 "role" text NOT NULL,
                 "status" text NOT NULL,
@@ -84,7 +114,7 @@ export class Initial1795678146589 implements MigrationInterface {
                         'observer'
                     )
                 ),
-                CONSTRAINT "ck_work_assignments_kind" CHECK (assignee_kind IN ('user', 'agent', 'council')),
+                CONSTRAINT "ck_work_assignments_kind" CHECK (assignee_kind IN ('person', 'agent')),
                 CONSTRAINT "PK_544be1ffd82eb7a344e1d550418" PRIMARY KEY ("id")
             )
         `);
@@ -258,6 +288,18 @@ export class Initial1795678146589 implements MigrationInterface {
         `);
     await queryRunner.query(`
             DROP TABLE "work_activity"
+        `);
+    await queryRunner.query(`
+            DROP INDEX "public"."ix_persons_organization_id"
+        `);
+    await queryRunner.query(`
+            DROP TABLE "persons"
+        `);
+    await queryRunner.query(`
+            DROP INDEX "public"."ix_agents_organization_id"
+        `);
+    await queryRunner.query(`
+            DROP TABLE "agents"
         `);
     await queryRunner.query(`
             DROP TABLE "inbox"

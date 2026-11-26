@@ -8,7 +8,7 @@ Ergon is the Aether OS service for **work management and coordination**: one mod
 
 Package: **`@aether-os/ergon`**.
 
-Status: **first slice built** (roadmap steps 1 to 3): work items with their lifecycle and activity, assignments (users, agents and councils), and dependencies with cycle detection and derived Blocked, on port `3013` (What's built, below). This file is the agreed design for the rest. It says what Ergon owns, how it fits with the other services, and which rules its code must follow. Sections and lines marked **(Proposal)** are suggestions still to be decided. Everything else is a decision; change it on purpose, in this file, not by drifting in code.
+Status: **first slice built** (roadmap steps 1 to 3): work items with their lifecycle and activity, assignments (to persons and agents, copied from Polis's and Agora's events), and dependencies with cycle detection and derived Blocked, on port `3013` (What's built, below). This file is the agreed design for the rest. It says what Ergon owns, how it fits with the other services, and which rules its code must follow. Sections and lines marked **(Proposal)** are suggestions still to be decided. Everything else is a decision; change it on purpose, in this file, not by drifting in code.
 
 Read the root `../CLAUDE.md` first. It describes the platform, the shared conventions (Krepis, contracts, events, identity) and how the workspace is built. This file adds only what is particular to Ergon.
 
@@ -163,7 +163,8 @@ The central entity: one unit of work.
 
 Who is responsible for the work, and who takes part.
 
-- **Assignee:** `{ kind: user | team | agent | council, id }`, plus the agent or council version when the assignment is pinned to one.
+- **Assignee:** `{ kind: person | agent, id }` (built), later `team` and `council`, plus the agent's version when the assignment is pinned to one. A person is Polis's (the people of an organization, linked to a Pistis user once they sign up), not a Pistis user, so work can be assigned to someone who hasn't signed up yet.
+- **Only known assignees (decided):** Ergon keeps local copies of Polis's persons (`person.created`, `.updated`, `.deleted`) and Agora's agents (`agent.created`, `.archived`), version-guarded, and assigns only to an active one of the organization (`UNKNOWN_ASSIGNEE`, `AGENT_ARCHIVED`). Deleting the person or archiving the agent ends their active assignments, as Ergon's own work (no actor).
 - **Roles:** `responsible`, `contributor`, `reviewer`, `observer`.
 - **Accountability is separate from participation.** A work item has **at most one `responsible` assignment** at a time (none while unassigned), and any number of the others.
 - **History:** reassignment ends the old assignment and starts a new one (with `assignedBy`, `reason`, timestamps). It never overwrites, so the activity shows who held the work and when.
@@ -318,9 +319,9 @@ Later steps add `work-handoff.requested`, `.resolved`, `work-artifact.linked`, `
 
 | With | Direction | How |
 |---|---|---|
-| Polis | in | Its events (organization suspended, project archived, membership revoked, and teams once they exist), for tenancy and assignee checks; its API on a miss, as Hephaestus does (`libs/tenancy`) |
+| Polis | in | `person.*` (built: the persons work is assigned to); later organization suspended, project archived and teams. Tenancy is asked of its API on writes for now (`libs/tenancy`) |
 | Pistis | in | Tokens verified with Krepis's `AuthModule` (JWKS); users referenced by `sub` |
-| Agora | in | Its events (`agent.*`, `council.*`), so assignments refer to existing agents and councils |
+| Agora | in | `agent.created`, `agent.archived` (built: the agents work is assigned to); later `council.*` |
 | Hephaestus | in and out | Out: references to tasks and executions. In: its `task.*` / execution events update `WorkExecution` projections and link its artifacts |
 | Kairos | in | Calls Ergon's API, or sends commands, to create and update work. Ergon references its runs |
 | Proxenos | in | Events about pull requests, issues and pushes, to update external artifact projections and the work they're linked to |
@@ -367,7 +368,7 @@ Later steps add `work-handoff.requested`, `.resolved`, `work-artifact.linked`, `
 The first implementation lays the foundation of work management, in this order:
 
 1. **WorkItem and its lifecycle:** the entity, types, the transition table, the API, WorkActivity for transitions. Decide on derived Blocked first.
-2. **WorkAssignment:** users and agents first. Teams wait for teams in Polis; councils are assignable like agents.
+2. **WorkAssignment:** persons and agents first. Teams wait for Ergon to know Polis's teams; councils are assignable like agents, once Ergon keeps their copy too.
 3. **WorkDependency:** `blocks` and `relates_to`, cycle detection.
 4. **WorkComment and WorkActivity.**
 5. **WorkArtifact and links:** Loculus files and external resources first.
@@ -387,10 +388,10 @@ The first slice, on port `3013` with its own database `ergon`:
 
 - **Work items** (`libs/work-items`): `POST`/`GET …/work-items` (a project's with `projectId`, otherwise the organization's work outside any project), `GET`/`PUT …/work-items/{id}` (the full content; `If-Match` with the `version`, `412` on a stale one), `POST …/transitions` with an action (`plan`, `defer`, `start`, `stop`, `submit`, `request_changes`, `approve`, `complete`, `cancel`, `reopen`; the pure table in `domain/lifecycle.ts`, tested exhaustively). Fields: type, title, description, priority, `needsReview`, the brief Hephaestus's tasks use (`requirements`, `expectedOutcome`, `constraints`, `acceptanceCriteria`, as key and description), `dueAt`, `source` (person, agent, automation or external, with a reference), and the derived `blocked` and `responsible`. Deliverables and pinned context come with artifacts.
 - **Activity:** `GET …/work-items/{id}/activity`, oldest first: created, updated (the changed fields), status changed (from, to, action, reason), assignment started and ended, dependency added and removed, each with its actor, written in the transaction of the change.
-- **Assignments:** `POST`/`GET …/work-items/{id}/assignments` and `POST …/{assignmentId}/end`: users (a Pistis `sub`), agents and councils (Agora's IDs, optionally a version), roles `responsible` (at most one active; a new one ends the old, "Reassigned"), `contributor`, `reviewer`, `observer`. Not on done or cancelled work. Existence isn't checked yet (with the integration contracts, step 8).
+- **Assignments:** `POST`/`GET …/work-items/{id}/assignments` and `POST …/{assignmentId}/end`: persons (Polis's IDs) and agents (Agora's IDs, optionally a version), only ones Ergon knows in the organization (`libs/assignees`: copies from `polis.events` and `agora.events`, version-guarded upserts), roles `responsible` (at most one active; a new one ends the old, "Reassigned"), `contributor`, `reviewer`, `observer`. Not on done or cancelled work. A deleted person's or archived agent's assignments end. Persons and agents created before Ergon subscribed are unknown until a backfill exists.
 - **Dependencies:** `POST …/work-dependencies` (`blocks` or `relates_to`, across the organization's projects, `work:write` on both sides), `DELETE …/work-dependencies/{id}`, `GET …/work-items/{id}/dependencies` (at most 200 per work item). A `blocks` edge that would close a cycle is refused (`domain/dependency-graph.ts`, with a recursive query for what the blocked item leads to, under a per-organization advisory lock); `relates_to` is stored once, smaller ID first.
 - **Permissions** (Krepis): `work:read` / `work:write` in a project, `org:work:read` / `org:work:write` for work outside any project (never with a token limited to one project); session tokens read only. Routes check the organization (`org:read`); `WorkAccess` checks the work item's scope. Writes ask Polis whether the organization and project accept them (`libs/tenancy`, Ergon's own Pistis client `ergon`).
-- **Events** through the outbox to `ergon.events`; nothing consumed yet.
+- **Events** through the outbox to `ergon.events`; consumed: Polis's `person.*` and Agora's `agent.created` / `.archived` (queues `ergon.polis-events`, `ergon.agora-events`).
 
 ```bash
 cp .env.example .env && pnpm start:dev   # build, migrate, watch (port 3013)

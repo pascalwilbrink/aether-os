@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { AssigneesModule } from '@ergon/assignees';
 import { TenancyModule } from '@ergon/tenancy';
 
 import {
@@ -9,6 +10,7 @@ import {
   WorkDependencyEntity,
   WorkItemEntity,
 } from './entities/index.js';
+import { AssigneeEventsListener } from './assignee-events.listener.js';
 import { WorkAccess } from './work-access.service.js';
 import { WorkActivityService } from './work-activity.service.js';
 import { WorkAssignmentsController } from './work-assignments.controller.js';
@@ -30,6 +32,7 @@ import { WorkItemsService } from './work-items.service.js';
       WorkActivityEntity,
     ]),
     TenancyModule,
+    AssigneesModule,
   ],
   controllers: [
     WorkItemsController,
@@ -37,6 +40,7 @@ import { WorkItemsService } from './work-items.service.js';
     WorkDependenciesController,
   ],
   providers: [
+    AssigneeEventsListener,
     WorkAccess,
     WorkActivityService,
     WorkAssignmentsService,

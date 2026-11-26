@@ -25,6 +25,15 @@
         "tsConfigPath": "libs/tenancy/tsconfig.lib.json"
       }
     },
+    "assignees": {
+      "type": "library",
+      "root": "libs/assignees",
+      "entryFile": "index",
+      "sourceRoot": "libs/assignees/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/assignees/tsconfig.lib.json"
+      }
+    },
     "work-items": {
       "type": "library",
       "root": "libs/work-items",

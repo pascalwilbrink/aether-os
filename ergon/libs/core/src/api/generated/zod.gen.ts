@@ -10,6 +10,8 @@ export const zDomainErrorCode = z.enum([
   'CHILDREN_OPEN',
   'WORK_ITEM_CLOSED',
   'ALREADY_ASSIGNED',
+  'UNKNOWN_ASSIGNEE',
+  'AGENT_ARCHIVED',
   'SELF_DEPENDENCY',
   'DEPENDENCY_EXISTS',
   'DEPENDENCY_CYCLE',
@@ -136,15 +138,17 @@ export const zWorkItemTransitionRequest = z.object({
 });
 
 /**
- * `user` (a Pistis `sub`), `agent` or `council` (Agora's IDs). Teams
- * come once Polis's teams can be assigned.
+ * `person` (a person of the organization, Polis's ID) or `agent`
+ * (Agora's ID). Ergon knows them from Polis's `person.*` and Agora's
+ * `agent.*` events; anyone else is `UNKNOWN_ASSIGNEE`. Teams and
+ * councils come later.
  *
  */
-export const zAssigneeKind = z.enum(['user', 'agent', 'council']);
+export const zAssigneeKind = z.enum(['person', 'agent']);
 
 export const zAssignee = z.object({
   kind: zAssigneeKind,
-  id: z.string().min(1).max(255),
+  id: z.uuid(),
   versionId: z.uuid().nullish(),
 });
 
@@ -205,7 +209,7 @@ export const zWorkAssignmentResponse = z.object({
   workItemId: z.uuid(),
   assignee: z.object({
     kind: zAssigneeKind,
-    id: z.string(),
+    id: z.uuid(),
     versionId: z.uuid().nullable(),
   }),
   role: zWorkAssignmentRole,

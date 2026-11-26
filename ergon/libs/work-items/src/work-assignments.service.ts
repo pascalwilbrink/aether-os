@@ -13,6 +13,8 @@ import {
   type PageRequest,
 } from '@ergon/core';
 
+import { AssigneeDirectory } from '@ergon/assignees';
+
 import { isClosed } from './domain/index.js';
 import { WorkAssignmentEntity, type WorkItemEntity } from './entities/index.js';
 import { WorkAccess } from './work-access.service.js';
@@ -44,6 +46,7 @@ export class WorkAssignmentsService {
     private readonly activity: WorkActivityService,
     private readonly events: ErgonEvents,
     private readonly mapper: WorkItemMapper,
+    private readonly directory: AssigneeDirectory,
   ) {}
 
   async list(
@@ -80,6 +83,11 @@ export class WorkAssignmentsService {
     if (isClosed(item.status)) {
       throw new WorkItemClosedError(item.id, item.status);
     }
+    await this.directory.assertAssignable(
+      organizationId,
+      request.assignee.kind,
+      request.assignee.id,
+    );
     const actor = this.access.actor();
     const now = new Date();
     const entity = this.mapper.toAssignmentEntity(item, request, actor, now);
@@ -138,6 +146,37 @@ export class WorkAssignmentsService {
     return this.mapper.toAssignmentResponse(entity);
   }
 
+  /**
+   * Ends every active assignment of a person Polis deleted or an agent
+   * Agora archived, as Ergon's own work (no actor).
+   */
+  async endAllFor(
+    organizationId: string,
+    kind: ApiTypes.AssigneeKind,
+    assigneeId: string,
+    reason: string,
+  ): Promise<void> {
+    const active = await this.assignments.find({
+      where: {
+        organizationId,
+        assigneeKind: kind,
+        assigneeId,
+        status: 'active',
+      },
+      order: { workItemId: 'ASC', id: 'ASC' },
+    });
+    for (const { id, workItemId } of active) {
+      const item = await this.items.get(organizationId, workItemId, true);
+      const entity = await this.assignments.findOne({
+        where: { id, status: 'active' },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (entity) {
+        await this.finish(item, entity, null, reason);
+      }
+    }
+  }
+
   /** The active responsible assignee of each of these work items. */
   async responsibleFor(workItemIds: string[]): Promise<Map<string, Assignee>> {
     if (workItemIds.length === 0) {
@@ -161,7 +200,7 @@ export class WorkAssignmentsService {
   private async finish(
     item: WorkItemEntity,
     entity: WorkAssignmentEntity,
-    actor: ApiTypes.Actor,
+    actor: ApiTypes.Actor | null,
     reason: string | null,
     now = new Date(),
   ): Promise<void> {
@@ -178,7 +217,7 @@ export class WorkAssignmentsService {
     item: WorkItemEntity,
     entity: WorkAssignmentEntity,
     change: 'started' | 'ended',
-    actor: ApiTypes.Actor,
+    actor: ApiTypes.Actor | null,
     now: Date,
   ): Promise<void> {
     const assignee = this.mapper.assignee(entity);

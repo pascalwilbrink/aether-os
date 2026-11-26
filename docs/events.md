@@ -60,7 +60,7 @@ Rules:
 | `organization.suspended` / `organization.reactivated` | `organizationId`, `reason` | Every service (reject writes / resume) |
 | `organization.deleted` | `organizationId` | Every service (delete tenant data) |
 | `project.created` / `project.archived` / `project.deleted` | `projectId` (and on `project.created` its `departmentId`, or null) | Hephaestus, Kairos, Themis, Seshat |
-| `person.created` / `person.updated` / `person.deleted` | `personId`, and `userId` (the linked Pistis user, or null) and `departmentIds` on created and updated; IDs only, no personal data | later Kerykes, Seshat |
+| `person.created` / `person.updated` / `person.deleted` | `personId`, and `userId` (the linked Pistis user, or null) and `departmentIds` on created and updated; IDs only, no personal data | Ergon (whom work can be assigned to); later Kerykes, Seshat |
 | `team.created` / `team.updated` / `team.archived` | `teamId`, `departmentIds` | later Kerykes, Iris |
 | `team-member.added` / `team-member.removed` | `teamId`, `personId`; removed also when the person was deleted | later Kerykes, Iris |
 | `project.department-changed` | `projectId`, `from`, `to` (department IDs or null) | Seshat (which department's knowledge a project sees) |
@@ -78,8 +78,8 @@ Agents' events have the agent as their aggregate, skills' the skill; its version
 
 | Event | Payload | Consumers |
 |---|---|---|
-| `agent.created` | `agentId`, `name`, `description`, `createdBy`, `createdAt` | Hephaestus (its copy of agents) |
-| `agent.archived` | `agentId` | Hephaestus (no new tasks), Kairos |
+| `agent.created` | `agentId`, `name`, `description`, `createdBy`, `createdAt` | Hephaestus (its copy of agents), Ergon (agents work can be assigned to) |
+| `agent.archived` | `agentId` | Hephaestus (no new tasks), Kairos, Ergon (ends the agent's assignments) |
 | `agent-version.published` | `agentId`, `agentVersionId`, `policySetVersionId` (null until Themis), `previousVersionId`, `version` (the whole version) | Hephaestus (its copy: new tasks pin it), Kairos, Kriterion |
 | `agent-version.deprecated` | `agentId`, `agentVersionId` | Kairos (warn about automations still using it) |
 | `skill.created` | `skillId`, `name`, `createdBy`, `createdAt` (its first version follows) | Hephaestus (its copy of skills) |

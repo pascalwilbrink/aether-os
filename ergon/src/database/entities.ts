@@ -1,5 +1,6 @@
 import { InboxMessageEntity, OutboxMessageEntity } from '@aether-os/krepis';
 
+import { AgentEntity, PersonEntity } from '../../libs/assignees/src/index.js';
 import {
   WorkActivityEntity,
   WorkAssignmentEntity,
@@ -13,6 +14,8 @@ export const entities = [
   WorkAssignmentEntity,
   WorkDependencyEntity,
   WorkActivityEntity,
+  PersonEntity,
+  AgentEntity,
   OutboxMessageEntity,
   InboxMessageEntity,
 ];

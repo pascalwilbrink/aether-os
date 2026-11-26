@@ -8,10 +8,7 @@ import type { ApiTypes } from '@ergon/core';
  * old `responsible` assignment and starts a new one.
  */
 @Entity({ name: 'work_assignments' })
-@Check(
-  'ck_work_assignments_kind',
-  `assignee_kind IN ('user', 'agent', 'council')`,
-)
+@Check('ck_work_assignments_kind', `assignee_kind IN ('person', 'agent')`)
 @Check(
   'ck_work_assignments_role',
   `role IN ('responsible', 'contributor', 'reviewer', 'observer')`,
@@ -47,8 +44,8 @@ export class WorkAssignmentEntity {
   @Column({ type: 'text' })
   assigneeKind: ApiTypes.AssigneeKind;
 
-  /** A Pistis `sub` for a user; Agora's ID for an agent or council. */
-  @Column({ type: 'text' })
+  /** Polis's person ID or Agora's agent ID (`libs/assignees`). */
+  @Column({ type: 'uuid' })
   assigneeId: string;
 
   @Column({ type: 'uuid', nullable: true })

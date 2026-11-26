@@ -35,6 +35,12 @@
       "@ergon/tenancy/*": [
         "./libs/tenancy/src/*"
       ],
+      "@ergon/assignees": [
+        "./libs/assignees/src/index.ts"
+      ],
+      "@ergon/assignees/*": [
+        "./libs/assignees/src/*"
+      ],
       "@ergon/work-items": [
         "./libs/work-items/src/index.ts"
       ],

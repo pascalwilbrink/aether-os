@@ -14,6 +14,16 @@ import {
 } from '@ergon/core';
 import { WorkItemsModule } from '@ergon/work-items';
 
+/** Polis's persons, whom work can be assigned to. */
+export const POLIS_SUBSCRIPTIONS = [
+  'person.created',
+  'person.updated',
+  'person.deleted',
+] as const;
+
+/** Agora's agents, which work can be assigned to. */
+export const AGORA_SUBSCRIPTIONS = ['agent.created', 'agent.archived'] as const;
+
 // Validation, the /v1 prefix and problem details: configureHttpApp (main.ts).
 @Module({
   imports: [
@@ -28,11 +38,13 @@ import { WorkItemsModule } from '@ergon/work-items';
         serviceCheck('polis', config.get('POLIS_URL', { infer: true })),
       ],
     }),
-    // Publishes Ergon's events to ergon.events through the outbox; consumes
-    // nothing yet.
+    // Consumes Polis's persons and Agora's agents (ergon.polis-events,
+    // ergon.agora-events: inbox, retries, dead-lettering); publishes its own
+    // events to ergon.events through the outbox.
     EventsModule.forRoot({
       service: 'ergon',
       publish: ERGON_PUBLISHED_EVENTS,
+      subscribe: { polis: POLIS_SUBSCRIPTIONS, agora: AGORA_SUBSCRIPTIONS },
       rabbitmq: {
         inject: [ConfigService],
         useFactory: (config: ConfigService<Env, true>) => ({

@@ -14,6 +14,8 @@ export type DomainErrorCode =
   | 'CHILDREN_OPEN'
   | 'WORK_ITEM_CLOSED'
   | 'ALREADY_ASSIGNED'
+  | 'UNKNOWN_ASSIGNEE'
+  | 'AGENT_ARCHIVED'
   | 'SELF_DEPENDENCY'
   | 'DEPENDENCY_EXISTS'
   | 'DEPENDENCY_CYCLE'
@@ -194,17 +196,19 @@ export type WorkItemPage = {
 };
 
 /**
- * `user` (a Pistis `sub`), `agent` or `council` (Agora's IDs). Teams
- * come once Polis's teams can be assigned.
+ * `person` (a person of the organization, Polis's ID) or `agent`
+ * (Agora's ID). Ergon knows them from Polis's `person.*` and Agora's
+ * `agent.*` events; anyone else is `UNKNOWN_ASSIGNEE`. Teams and
+ * councils come later.
  *
  */
-export type AssigneeKind = 'user' | 'agent' | 'council';
+export type AssigneeKind = 'person' | 'agent';
 
 export type Assignee = {
   kind: AssigneeKind;
   id: string;
   /**
-   * The agent's or council's version, when the assignment is pinned to one.
+   * The agent's version, when the assignment is pinned to one.
    */
   versionId?: string | null;
 };

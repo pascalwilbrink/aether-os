@@ -10,13 +10,13 @@ export interface WorkAssignmentChanged {
   workItemId: string;
   workItemTitle: string;
   assignee: {
-    kind: 'user' | 'agent' | 'council';
+    kind: 'person' | 'agent';
     id: string;
     versionId: string | null;
   };
   role: 'responsible' | 'contributor' | 'reviewer' | 'observer';
   /**
-   * Why it started, or why it ended.
+   * Why it started, or why it ended (`Person deleted` and `Agent archived` when Ergon ended it, with a null actor).
    */
   reason: string | null;
 }

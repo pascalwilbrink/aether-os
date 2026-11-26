@@ -2,6 +2,10 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
+import { v7 as uuidv7 } from 'uuid';
+
+import { EventInbox, type DomainEvent } from '@ergon/core';
+
 import { asMember, createApp, type Client } from './app.js';
 import type { FakePolis } from './fake-polis.js';
 import { outboxEvents } from './outbox.js';
@@ -10,6 +14,7 @@ import { tokens } from './tokens.js';
 const AGENT = '0193a1b2-c3d4-7e5f-8a9b-0000000000a1';
 const AGENT_VERSION = '0193a1b2-c3d4-7e5f-8a9b-0000000000a2';
 const SERVICE_ACCOUNT = 'sa-0193a1b2';
+const PERSON = '0193a1b2-c3d4-7e5f-8a9b-0000000000b1';
 
 describe('Work items (e2e)', () => {
   let app: INestApplication<App>;
@@ -23,7 +28,66 @@ describe('Work items (e2e)', () => {
     orgId = polis.organization();
     projectId = polis.project(orgId);
     owner = await asMember(app, orgId, ['owner'], { sub: 'owner-1' });
+    // Whom work can be assigned to, as Polis and Agora announce them.
+    await personEvent('person.created', PERSON);
+    await agentEvent('agent.created', AGENT);
   });
+
+  /** An event from Polis or Agora, as the consumer hands it over. */
+  const deliver = (
+    source: string,
+    eventType: string,
+    aggregateId: string,
+    aggregateVersion: number,
+    payload: unknown,
+    organizationId = orgId,
+  ) =>
+    app.get(EventInbox).receive(source, {
+      eventId: uuidv7(),
+      eventType,
+      schemaVersion: 1,
+      aggregateId,
+      aggregateVersion,
+      occurredAt: new Date().toISOString(),
+      organizationId,
+      projectId: null,
+      actor: null,
+      payload,
+    } as DomainEvent);
+
+  const personEvent = (
+    eventType: string,
+    personId: string,
+    version = 1,
+    organizationId = orgId,
+  ) =>
+    deliver(
+      'polis',
+      eventType,
+      personId,
+      version,
+      eventType === 'person.deleted'
+        ? { personId }
+        : { personId, userId: null, departmentIds: [] },
+      organizationId,
+    );
+
+  const agentEvent = (eventType: string, agentId: string, version = 1) =>
+    deliver(
+      'agora',
+      eventType,
+      agentId,
+      version,
+      eventType === 'agent.archived'
+        ? { agentId }
+        : {
+            agentId,
+            name: 'Reporter',
+            description: '',
+            createdBy: 'owner-1',
+            createdAt: new Date().toISOString(),
+          },
+    );
 
   afterEach(async () => {
     await app.close();
@@ -381,14 +445,14 @@ describe('Work items (e2e)', () => {
       const first = await owner
         .post(assignments(item.id))
         .send({
-          assignee: { kind: 'user', id: 'user-7' },
+          assignee: { kind: 'person', id: PERSON },
           role: 'responsible',
           reason: 'Knows the numbers',
         })
         .expect(201);
       expect(first.body).toMatchObject({
         workItemId: item.id,
-        assignee: { kind: 'user', id: 'user-7', versionId: null },
+        assignee: { kind: 'person', id: PERSON, versionId: null },
         role: 'responsible',
         status: 'active',
         reason: 'Knows the numbers',
@@ -397,7 +461,7 @@ describe('Work items (e2e)', () => {
       });
       await owner
         .post(assignments(item.id))
-        .send({ assignee: { kind: 'user', id: 'user-7' }, role: 'responsible' })
+        .send({ assignee: { kind: 'person', id: PERSON }, role: 'responsible' })
         .expect(409)
         .expect(({ body }) => expect(body.code).toBe('ALREADY_ASSIGNED'));
 
@@ -410,7 +474,7 @@ describe('Work items (e2e)', () => {
         .expect(201);
       await owner
         .post(assignments(item.id))
-        .send({ assignee: { kind: 'user', id: 'user-7' }, role: 'reviewer' })
+        .send({ assignee: { kind: 'person', id: PERSON }, role: 'reviewer' })
         .expect(201);
 
       const got = await owner.get(`${items()}/${item.id}`).expect(200);
@@ -445,10 +509,10 @@ describe('Work items (e2e)', () => {
           return `${p.change} ${p.assignee.id}`;
         }),
       ).toEqual([
-        'started user-7',
-        'ended user-7',
+        `started ${PERSON}`,
+        `ended ${PERSON}`,
         `started ${AGENT}`,
-        'started user-7',
+        `started ${PERSON}`,
       ]);
       expect(events[2]).toMatchObject({
         aggregateId: second.body.id,
@@ -466,7 +530,7 @@ describe('Work items (e2e)', () => {
       const item = await create();
       const assignment = await owner
         .post(assignments(item.id))
-        .send({ assignee: { kind: 'council', id: AGENT }, role: 'contributor' })
+        .send({ assignee: { kind: 'agent', id: AGENT }, role: 'contributor' })
         .expect(201);
       const ended = await owner
         .post(`${assignments(item.id)}/${assignment.body.id}/end`)
@@ -493,9 +557,88 @@ describe('Work items (e2e)', () => {
       await act(item.id, 'cancel').expect(200);
       await owner
         .post(assignments(item.id))
-        .send({ assignee: { kind: 'user', id: 'user-7' }, role: 'responsible' })
+        .send({ assignee: { kind: 'person', id: PERSON }, role: 'responsible' })
         .expect(409)
         .expect(({ body }) => expect(body.code).toBe('WORK_ITEM_CLOSED'));
+    });
+  });
+
+  describe('assignees', () => {
+    const assignments = (id: string) => `${items()}/${id}/assignments`;
+    const assign = (id: string, kind: string, assigneeId: string) =>
+      owner
+        .post(assignments(id))
+        .send({ assignee: { kind, id: assigneeId }, role: 'contributor' });
+
+    it('assigns only persons and agents Ergon knows in the organization', async () => {
+      const item = await create();
+      const unknown = await assign(item.id, 'person', uuidv7()).expect(409);
+      expect(unknown.body.code).toBe('UNKNOWN_ASSIGNEE');
+      // Another organization's person isn't this one's.
+      const elsewhere = uuidv7();
+      await personEvent('person.created', elsewhere, 1, polis.organization());
+      await assign(item.id, 'person', elsewhere).expect(409);
+      await assign(item.id, 'agent', uuidv7()).expect(409);
+      await owner
+        .post(assignments(item.id))
+        .send({ assignee: { kind: 'user', id: 'user-7' }, role: 'responsible' })
+        .expect(400);
+
+      // Known once Polis announces them, whichever event comes first.
+      const later = uuidv7();
+      await personEvent('person.updated', later, 2);
+      await assign(item.id, 'person', later).expect(201);
+    });
+
+    it('ends the assignments of a deleted person or an archived agent', async () => {
+      const item = await create();
+      const person = await assign(item.id, 'person', PERSON).expect(201);
+      const agent = await owner
+        .post(assignments(item.id))
+        .send({ assignee: { kind: 'agent', id: AGENT }, role: 'responsible' })
+        .expect(201);
+
+      await personEvent('person.deleted', PERSON, 2);
+      await agentEvent('agent.archived', AGENT, 2);
+      // A late update doesn't bring the person back.
+      await personEvent('person.updated', PERSON, 1);
+
+      const history = await owner.get(assignments(item.id)).expect(200);
+      const byId = new Map(
+        history.body.items.map((a: { id: string }) => [a.id, a]),
+      );
+      expect(byId.get(person.body.id)).toMatchObject({
+        status: 'ended',
+        endReason: 'Person deleted',
+        endedBy: null,
+      });
+      expect(byId.get(agent.body.id)).toMatchObject({
+        status: 'ended',
+        endReason: 'Agent archived',
+      });
+      await owner
+        .get(`${items()}/${item.id}`)
+        .expect(({ body }) => expect(body.responsible).toBeNull());
+
+      const again = await assign(item.id, 'person', PERSON).expect(409);
+      expect(again.body.code).toBe('UNKNOWN_ASSIGNEE');
+      const archived = await assign(item.id, 'agent', AGENT).expect(409);
+      expect(archived.body.code).toBe('AGENT_ARCHIVED');
+
+      const activity = await owner
+        .get(`${items()}/${item.id}/activity`)
+        .expect(200);
+      expect(activity.body.items.at(-1)).toMatchObject({
+        kind: 'assignment_ended',
+        actor: null,
+        details: { reason: 'Agent archived' },
+      });
+      const ended = (await outboxEvents(app)).filter(
+        (e) =>
+          e.eventType === 'work-assignment.changed' &&
+          (e.payload as { change: string }).change === 'ended',
+      );
+      expect(ended.map((e) => e.actor)).toEqual([null, null]);
     });
   });
 
