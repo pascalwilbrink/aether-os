@@ -141,6 +141,13 @@ export type PersonResponse = {
   version: Version;
 };
 
+export type AnnouncementResponse = {
+  /**
+   * How many were published.
+   */
+  announced: number;
+};
+
 export type PersonPage = PageMeta & {
   items: Array<PersonResponse>;
 };
@@ -1000,6 +1007,42 @@ export type ArchiveDepartmentResponses = {
 
 export type ArchiveDepartmentResponse =
   ArchiveDepartmentResponses[keyof ArchiveDepartmentResponses];
+
+export type AnnouncePersonsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/v1/persons/announce';
+};
+
+export type AnnouncePersonsErrors = {
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+};
+
+export type AnnouncePersonsError =
+  AnnouncePersonsErrors[keyof AnnouncePersonsErrors];
+
+export type AnnouncePersonsResponses = {
+  /**
+   * The events are in the outbox
+   */
+  200: AnnouncementResponse;
+};
+
+export type AnnouncePersonsResponse =
+  AnnouncePersonsResponses[keyof AnnouncePersonsResponses];
 
 export type ListPersonsData = {
   body?: never;

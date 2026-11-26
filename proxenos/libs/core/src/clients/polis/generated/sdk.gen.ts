@@ -15,6 +15,9 @@ import type {
   AddTeamMemberData,
   AddTeamMemberErrors,
   AddTeamMemberResponses,
+  AnnouncePersonsData,
+  AnnouncePersonsErrors,
+  AnnouncePersonsResponses,
   ArchiveDepartmentData,
   ArchiveDepartmentErrors,
   ArchiveDepartmentResponses,
@@ -361,6 +364,33 @@ export const archiveDepartment = <ThrowOnError extends boolean = false>(
   >({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/organizations/{organizationId}/departments/{departmentId}/archive',
+    ...options,
+  });
+
+/**
+ * Publishes every person of every organization again as `person.updated`,
+ * at their current version (no new version): the backfill for services
+ * that keep a copy of the persons (Ergon) and missed ones created before
+ * they subscribed. Deleted persons are gone and aren't announced.
+ *
+ * Consumers keep what they have when it's as new, so running it again
+ * is harmless.
+ *
+ */
+export const announcePersons = <ThrowOnError extends boolean = false>(
+  options?: Options<AnnouncePersonsData, ThrowOnError>,
+): RequestResult<
+  AnnouncePersonsResponses,
+  AnnouncePersonsErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).post<
+    AnnouncePersonsResponses,
+    AnnouncePersonsErrors,
+    ThrowOnError
+  >({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/persons/announce',
     ...options,
   });
 

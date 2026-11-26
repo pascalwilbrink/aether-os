@@ -64,6 +64,13 @@ export type AgentResponse = {
   updatedAt: Timestamp;
 };
 
+export type AnnouncementResponse = {
+  /**
+   * How many were published.
+   */
+  announced: number;
+};
+
 export type AgentPage = PageMeta & {
   items: Array<AgentResponse>;
 };
@@ -492,6 +499,42 @@ export type CommonOpenapiCursor = string;
  * Page size.
  */
 export type CommonOpenapiLimit = number;
+
+export type AnnounceAgentsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/v1/agents/announce';
+};
+
+export type AnnounceAgentsErrors = {
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+};
+
+export type AnnounceAgentsError =
+  AnnounceAgentsErrors[keyof AnnounceAgentsErrors];
+
+export type AnnounceAgentsResponses = {
+  /**
+   * The events are in the outbox
+   */
+  200: AnnouncementResponse;
+};
+
+export type AnnounceAgentsResponse =
+  AnnounceAgentsResponses[keyof AnnounceAgentsResponses];
 
 export type ListAgentsData = {
   body?: never;
