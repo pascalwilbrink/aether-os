@@ -1,0 +1,235 @@
+asyncapi: 3.0.0
+info:
+  title: Ergon events
+  version: 0.1.0
+  description: |
+    Events Ergon publishes to the `ergon.events` topic exchange on RabbitMQ;
+    the routing key is the event type. Every message is the Krepis
+    `DomainEvent` envelope (see `../docs/events.md`), JSON, persistent, with
+    the event ID as AMQP `messageId` and the event type as `type`.
+
+    Delivery is at least once (transactional outbox and relay): deduplicate
+    on `eventId`. `work-item.*` events have the work item as aggregate (its
+    `version`), `work-assignment.changed` the assignment (1 when it starts, 2
+    when it ends) and `work-dependency.*` the dependency (1 created, 2
+    removed). `projectId` is null for work outside any project; a
+    dependency's is its `to` work item's.
+
+    Blocked is derived and has no event: consumers that care follow
+    `work-item.status-changed` of the blocking work and `work-dependency.*`.
+
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:5672
+    protocol: amqp
+    description: RabbitMQ from ../docker-compose.yml
+
+channels:
+  ergonEvents:
+    address: ergon.events
+    description: Topic exchange; consumers bind their own durable queue (`<consumer>.ergon-events`) to the routing keys they need.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ergon.events
+          type: topic
+          durable: true
+          autoDelete: false
+    messages:
+      workItemCreated: { $ref: '#/components/messages/workItemCreated' }
+      workItemUpdated: { $ref: '#/components/messages/workItemUpdated' }
+      workItemStatusChanged: { $ref: '#/components/messages/workItemStatusChanged' }
+      workAssignmentChanged: { $ref: '#/components/messages/workAssignmentChanged' }
+      workDependencyCreated: { $ref: '#/components/messages/workDependencyCreated' }
+      workDependencyRemoved: { $ref: '#/components/messages/workDependencyRemoved' }
+
+operations:
+  publishErgonEvents:
+    action: send
+    channel: { $ref: '#/channels/ergonEvents' }
+    messages:
+      - $ref: '#/channels/ergonEvents/messages/workItemCreated'
+      - $ref: '#/channels/ergonEvents/messages/workItemUpdated'
+      - $ref: '#/channels/ergonEvents/messages/workItemStatusChanged'
+      - $ref: '#/channels/ergonEvents/messages/workAssignmentChanged'
+      - $ref: '#/channels/ergonEvents/messages/workDependencyCreated'
+      - $ref: '#/channels/ergonEvents/messages/workDependencyRemoved'
+
+components:
+  messages:
+    workItemCreated:
+      name: work-item.created
+      summary: A work item was created.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: work-item.created }
+              payload: { $ref: '#/components/schemas/WorkItemCreated' }
+    workItemUpdated:
+      name: work-item.updated
+      summary: A work item's content changed (not its status).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: work-item.updated }
+              payload: { $ref: '#/components/schemas/WorkItemUpdated' }
+    workItemStatusChanged:
+      name: work-item.status-changed
+      summary: A work item moved through its lifecycle (done and cancelled included).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: work-item.status-changed }
+              payload: { $ref: '#/components/schemas/WorkItemStatusChanged' }
+    workAssignmentChanged:
+      name: work-assignment.changed
+      summary: An assignment started or ended (Kairos starts agents on it; Kerykes tells people).
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: work-assignment.changed }
+              payload: { $ref: '#/components/schemas/WorkAssignmentChanged' }
+    workDependencyCreated:
+      name: work-dependency.created
+      summary: A dependency between two work items was added.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: work-dependency.created }
+              payload: { $ref: '#/components/schemas/WorkDependency' }
+    workDependencyRemoved:
+      name: work-dependency.removed
+      summary: A dependency between two work items was removed.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: work-dependency.removed }
+              payload: { $ref: '#/components/schemas/WorkDependency' }
+
+  schemas:
+    Uuid: { type: string, format: uuid }
+    Envelope:
+      type: object
+      description: Krepis's `DomainEvent`.
+      required: [eventId, eventType, schemaVersion, aggregateId, aggregateVersion, occurredAt, organizationId, projectId, actor, payload]
+      properties:
+        eventId: { $ref: '#/components/schemas/Uuid', description: 'UUIDv7; the deduplication key.' }
+        eventType: { type: string }
+        schemaVersion: { type: integer, const: 1 }
+        aggregateId: { $ref: '#/components/schemas/Uuid' }
+        aggregateVersion: { type: integer, minimum: 1 }
+        occurredAt: { type: string, format: date-time }
+        organizationId: { $ref: '#/components/schemas/Uuid' }
+        projectId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        actor:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [sub, sub_type]
+              properties:
+                sub: { type: string }
+                sub_type: { enum: [user, service_account, service] }
+        payload: { type: object }
+    WorkItemStatus:
+      type: string
+      enum: [backlog, todo, in_progress, in_review, done, cancelled]
+    WorkItem:
+      type: object
+      description: The work item as it is after the change (its text fields left out).
+      additionalProperties: false
+      required: [id, parentId, type, title, status, priority, needsReview, dueAt, source]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        parentId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        type: { type: string, description: 'The API''s `WorkItemType`.' }
+        title: { type: string }
+        status: { $ref: '#/components/schemas/WorkItemStatus' }
+        priority: { type: string, enum: [low, medium, high, urgent] }
+        needsReview: { type: boolean }
+        dueAt: { type: [string, 'null'], format: date-time }
+        source:
+          type: object
+          additionalProperties: false
+          required: [kind, reference]
+          properties:
+            kind: { type: string, enum: [person, agent, automation, external] }
+            reference: { type: [string, 'null'] }
+    WorkItemCreated:
+      type: object
+      additionalProperties: false
+      required: [workItem]
+      properties:
+        workItem: { $ref: '#/components/schemas/WorkItem' }
+    WorkItemUpdated:
+      type: object
+      additionalProperties: false
+      required: [workItem, changedFields]
+      properties:
+        workItem: { $ref: '#/components/schemas/WorkItem' }
+        changedFields:
+          type: array
+          items: { type: string }
+    WorkItemStatusChanged:
+      type: object
+      additionalProperties: false
+      required: [workItem, from, to, action, reason]
+      properties:
+        workItem: { $ref: '#/components/schemas/WorkItem' }
+        from: { $ref: '#/components/schemas/WorkItemStatus' }
+        to: { $ref: '#/components/schemas/WorkItemStatus' }
+        action: { type: string, description: 'The API''s `WorkItemAction`.' }
+        reason: { type: [string, 'null'] }
+    WorkAssignmentChanged:
+      type: object
+      additionalProperties: false
+      required: [change, assignmentId, workItemId, workItemTitle, assignee, role, reason]
+      properties:
+        change: { type: string, enum: [started, ended] }
+        assignmentId: { $ref: '#/components/schemas/Uuid' }
+        workItemId: { $ref: '#/components/schemas/Uuid' }
+        workItemTitle: { type: string }
+        assignee:
+          type: object
+          additionalProperties: false
+          required: [kind, id, versionId]
+          properties:
+            kind: { type: string, enum: [user, agent, council] }
+            id: { type: string }
+            versionId:
+              oneOf:
+                - $ref: '#/components/schemas/Uuid'
+                - type: 'null'
+        role: { type: string, enum: [responsible, contributor, reviewer, observer] }
+        reason:
+          type: [string, 'null']
+          description: Why it started, or why it ended.
+    WorkDependency:
+      type: object
+      additionalProperties: false
+      required: [dependencyId, kind, fromWorkItemId, toWorkItemId]
+      properties:
+        dependencyId: { $ref: '#/components/schemas/Uuid' }
+        kind: { type: string, enum: [blocks, relates_to] }
+        fromWorkItemId: { $ref: '#/components/schemas/Uuid' }
+        toWorkItemId: { $ref: '#/components/schemas/Uuid' }

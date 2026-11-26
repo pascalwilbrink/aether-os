@@ -123,6 +123,7 @@ Named `resource:action`. Organization-scoped permissions are checked against `or
 | `org:policy:write` (organization-wide policies) | org | ✓ | ✓ | | |
 | `org:secret:write` (organization-wide secrets) | org | ✓ | ✓ | | |
 | `org:knowledge:write` (organization-wide knowledge items, `knowledge.md`; Proposal) | org | ✓ | ✓ | | |
+| `org:work:read` / `org:work:write` (Ergon's work outside any project: reading it; creating, changing, assigning and moving it, `../ergon/CLAUDE.md`) | org | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / |
 
 The organization-wide variants carry an `org:` prefix in code, so every permission name has exactly one scope.
 
@@ -151,6 +152,7 @@ The organization-wide variants carry an `org:` prefix in code, so every permissi
 | `knowledge:approve` (accepting or rejecting proposals; only people) | project | ✓ | ✓ | | |
 | `model:invoke` (model calls and embeddings through Pylon, `pylon.md`; used by task tokens) | project | ✓ | ✓ | ✓ | |
 | `session:use` (copilot, voice and council sessions, `interaction.md`, `councils.md`) | project | ✓ | ✓ | ✓ | ✓ |
+| `work:read` / `work:write` (a project's work items in Ergon: reading them; creating, changing, assigning and moving them, `../ergon/CLAUDE.md`) | project | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / |
 | `meeting:read` / `meeting:manage` (the meeting agent, `interaction.md`; Proposal) | project | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / |
 
 Approval is gated only by `task:approve`: every principal holding it in the task's project can approve that task, with two rules:

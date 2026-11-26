@@ -22,6 +22,8 @@ Shared definitions (the `Problem` schema, the `Limit` and `Cursor` parameters, `
 | `seshat.openapi.yaml` | Seshat (each project's knowledge) | later Hephaestus (agents' knowledge tools) and Iris |
 | `pylon.openapi.yaml` | Pylon (the model gateway: provider pass-through, embeddings, catalogue, keys, budgets, usage) | Hephaestus (budget checks, task trees' budgets, usage) and Agora (`listModels`), generated HTTP clients; Iris; later Seshat |
 | `pylon.asyncapi.yaml` | Pylon (budget events on `pylon.events`) | Kerykes (`budget.threshold-reached`); later Hephaestus, Iris |
+| `ergon.openapi.yaml` | Ergon (work items, their lifecycle and activity, assignments, dependencies) | later Iris, Kairos and agents' tools |
+| `ergon.asyncapi.yaml` | Ergon (`work-item.*`, `work-assignment.changed`, `work-dependency.*` on `ergon.events`) | later Kairos (starting agents on assigned work), Kerykes, Iris |
 | `seshat.asyncapi.yaml` | Seshat (knowledge item events on `seshat.events`) | later Hephaestus (embeddings), Kerykes, Iris |
 | `pistis.asyncapi.yaml` | Pistis (`user.created` on `pistis.events`) | Polis (its copy of users) |
 | `polis.asyncapi.yaml` | Polis (events on `polis.events`) | Hephaestus (organization and project events), Kerykes (membership events); later Pistis and others |

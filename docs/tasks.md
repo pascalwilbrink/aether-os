@@ -28,6 +28,7 @@ Status: design in progress. Sections marked **Proposal** are not agreed yet. Bui
 | Retention | **A project-level setting**, with a **separate setting for `partial` artifacts**. |
 | What needs approval | **Both** the automation's own setting and Themis policy can require approval; either one is enough. |
 | Deleting a task | Whether deleting a task also deletes its artifacts is **a project-level setting** (like GitHub's "delete branch after merge"). |
+| Tasks and Ergon's work items | **A task is the runtime unit; Ergon's work item is the organizational unit of work.** A task is one agent doing a work item, or part of one, with its pinned version, sandbox, verification and run artifacts. Ergon references tasks, executions and their artifacts and never copies them; run-level reviews and verification stay here, and Ergon records only the work item's outcome. Hephaestus doesn't call Ergon: an automation in Kairos starts an agent on work assigned to it (`../ergon/CLAUDE.md`). |
 | Task fields | **A task says what, why, within which limits and with what result**: `title`, `description`, `requirements`, `expectedOutcome`, `acceptanceCriteria`, `context`, `constraints`, `deliverables` (see Task fields). Templates, plan entries and automations fill in the same fields. |
 
 ## Tasks and subtasks

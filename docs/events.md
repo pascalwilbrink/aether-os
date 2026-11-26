@@ -165,6 +165,17 @@ Every event has the knowledge item as its aggregate; the item's `revision` grows
 | `knowledge-item.proposed` / `.accepted` / `.rejected` / `.updated` / `.superseded` / `.retired` | `itemId`, `projectId` and `departmentId` (one of them, the other null), `type`, `status`, `version`, `sourceKind`, `supersededBy` | later Kerykes (proposals to review), Iris |
 | `knowledge-item.indexed` | `itemId`, `projectId`, `departmentId`, `version`, `chunkCount` | later Iris |
 
+### Ergon (`ergon.events`)
+
+Work management (`../ergon/CLAUDE.md`, `../contracts/ergon.asyncapi.yaml`). `work-item.*` have the work item as aggregate (its `version`), `work-assignment.changed` the assignment (1 started, 2 ended), `work-dependency.*` the dependency (1 created, 2 removed). `projectId` is null for work outside any project. Blocked is derived and has no event.
+
+| Event | Payload | Consumers |
+|---|---|---|
+| `work-item.created` / `.updated` | `workItem` (`id`, `parentId`, `type`, `title`, `status`, `priority`, `needsReview`, `dueAt`, `source`); `.updated` adds `changedFields` | later Iris, Seshat |
+| `work-item.status-changed` | `workItem`, `from`, `to`, `action`, `reason` (done and cancelled included) | later Kerykes, Kairos |
+| `work-assignment.changed` | `change` (`started` / `ended`), `assignmentId`, `workItemId`, `workItemTitle`, `assignee` (`kind`, `id`, `versionId`), `role`, `reason` | later Kairos (starts an agent on work assigned to it), Kerykes |
+| `work-dependency.created` / `.removed` | `dependencyId`, `kind`, `fromWorkItemId`, `toWorkItemId` | later Iris |
+
 ### Learning, council sessions and meetings (Proposal)
 
 Councils (`councils.md`) add Hephaestus's `council-session.started` / `.ended`; `deliberation-round.concluded` and `council-plan.proposed` are built (above).

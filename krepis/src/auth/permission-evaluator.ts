@@ -52,7 +52,7 @@ export abstract class PermissionEvaluator {
  * agent sees what they see and changes nothing on its own.
  */
 export const SESSION_ORGANIZATION_PERMISSIONS: readonly OrganizationPermission[] =
-  ['org:read', 'agent:read', 'council:read'];
+  ['org:read', 'agent:read', 'council:read', 'org:work:read'];
 export const SESSION_PROJECT_PERMISSIONS: readonly ProjectPermission[] = [
   'project:read',
   'task:read',
@@ -61,6 +61,7 @@ export const SESSION_PROJECT_PERMISSIONS: readonly ProjectPermission[] = [
   'file:read',
   'automation:read',
   'workspace:read',
+  'work:read',
 ];
 
 /** The fixed role → permission table. */
