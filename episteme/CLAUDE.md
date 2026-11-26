@@ -16,6 +16,17 @@ Status: **design only, no code yet.** This file is the starting point for buildi
 
 Read the root `../CLAUDE.md` first. It describes the platform, the shared conventions (Krepis, contracts, events, identity) and how the workspace is built. Read `../docs/knowledge.md` and `../seshat/CLAUDE.md` before changing anything in this file: Seshat already holds part of what Episteme is meant to own (below, **Current state**).
 
+## Decisions
+
+Settled with the platform's owner (they were open questions 1, 2, 3 and 5). The sections below follow them.
+
+| Question | Decision |
+|---|---|
+| **Service names** | The **repository's names**: Proxenos for external integrations, Themis for policy (with OPA and APS), Krepis and `@aether-os/contracts` for shared code, schemas and tool contracts, Kerykes for notifications. Events follow the repository's convention, `<aggregate>.<past-tense verb>` with kebab-case aggregates: `knowledge-version.published`, not `knowledge.version.published`. |
+| **Seshat migration** | **New kinds of knowledge first.** Episteme starts with the knowledge Seshat doesn't hold: policies, procedures, runbooks, handbooks and the like. Seshat keeps its project and department items (and their lifecycle) for now. Once Episteme's model is proven, Seshat's items move over with an import that **keeps their IDs and versions**, so the versions tasks pinned still resolve (as Agora took Hephaestus's agents, `pnpm import:hephaestus`). Seshat stays the indexing and retrieval layer throughout. |
+| **Drafts and versions** | **A draft is a version in the `draft` state**, editable in place until it's submitted. From submission on, a version isn't edited (a request for changes or a withdrawal returns it to `draft`). Published versions never change. **At most one draft per resource at a time.** `title` and `description` belong to the resource and **aren't versioned** with the content: they change in place, recorded in the audit. |
+| **Content format** | **Markdown** is the authoring and stored format. It is what Seshat indexes and agents read today, versions compare as text diffs, and imports convert to it. A rich-text editor can come later on top of Markdown. Files (PDF, `.docx`) are attachments in Loculus, not the content format. |
+
 ## Aether OS, briefly
 
 Aether OS combines two capabilities:
@@ -55,7 +66,7 @@ It is not a document management system. Knowledge is a **first-class organizatio
 
 ## Service names in this file
 
-The brief that started Episteme used some service names that differ from this repository. This file uses **the repository's names**, because they are what the code, contracts and docs use. The mapping below is itself an open question until someone confirms it (Open questions, 1).
+The brief that started Episteme used some service names that differ from this repository. This file uses **the repository's names** (decided, **Decisions**). The table maps the brief's names to them.
 
 | Responsibility | Name in this repository | Name in Episteme's brief |
 |---|---|---|
@@ -141,7 +152,7 @@ So the brief's split (Episteme governs, Seshat retrieves) **moves an existing re
 - Seshat keeps indexing, passages, embeddings, hybrid search and the retrieval tools.
 - `../docs/knowledge.md`, `../seshat/CLAUDE.md`, `../ergon/CLAUDE.md` (which says Ergon must not own "project knowledge … (Seshat)") and the root `../CLAUDE.md` all describe the current split and must change with it.
 
-How to migrate, and in which order, is undecided (Open questions, 2). **(Proposal)** Episteme first owns the new kinds of knowledge (policies, procedures, handbooks) while Seshat keeps project items. Then Seshat's governance moves over once Episteme's model is proven, with an import that keeps item IDs and versions (as Agora did with `pnpm import:hephaestus`), so pinned task context still resolves.
+**Decided (Decisions, Seshat migration):** Episteme first owns the new kinds of knowledge (policies, procedures, runbooks, handbooks) while Seshat keeps project and department items. Seshat's governance moves over once Episteme's model is proven, with an import that keeps item IDs and versions (as Agora did with `pnpm import:hephaestus`), so pinned task context still resolves. Until that import, Seshat's items and Episteme's resources live side by side, and the docs above stay as they are. The details of the import (permissions, Seshat's `knowledge-item.*` events, Iris's Knowledge page, Hephaestus's `propose_knowledge`) are open question 2.
 
 ## What Episteme owns
 
@@ -184,24 +195,24 @@ The stable identity of a piece of knowledge, independent of its content and wher
 - **Fields to consider:** `id` (UUIDv7), `organizationId`, `knowledgeType`, `title`, `description`, `status` (the resource's lifecycle, below), `currentVersionId` (the latest version), `publishedVersionId` (the authoritative one, or none), `reviewDueAt`, `publishedAt`, `expiresAt`, `tags`, `metadata` (validated against the type's schema, if it has one), `createdBy`, `updatedBy`, `createdAt`, `updatedAt`, `version` (the row's version, the `aggregateVersion` of its events).
 - **Decided:** every resource has exactly one `organizationId`, set at creation and never changed. There are no cross-organization resources.
 - **Decided:** the identity is stable. Retitling, moving between scopes or replacing the content never makes a new resource. Superseding by a *different* resource is a relationship (below), not an identity change.
-- `title` and `description` belong to the resource. Whether a title change is versioned with the content is undecided (Open questions, 3).
+- **Decided:** `title` and `description` belong to the resource and aren't versioned with the content. They change in place, and each change is in the audit.
 
 ### KnowledgeVersion
 
 One immutable snapshot of a resource's content.
 
 - **Fields to consider:** `id`, `resourceId`, `number` (1, 2, 3 … per resource), `content` (inline, or a reference), `contentFormat`, `checksum` (SHA-256 of the canonical content, for idempotent indexing and integrity), `changeSummary`, `authoredBy`, `createdAt`, `basedOnVersionId` (the version it was edited from, for restores and conflict detection), `state` (the version's lifecycle, below).
-- **Decided:** a version that has been submitted for review is never edited. A change is a new version.
+- **Decided:** a draft is a version in the `draft` state, editable in place by its maintainers. From submission on it isn't edited; a request for changes or a withdrawal returns it to `draft`, and an approval is recorded against its checksum, so what was approved is what gets published. Any later change is a new version.
+- **Decided:** at most one draft per resource at a time. Starting a new draft while one exists is refused; the existing draft is edited instead.
 - **Decided:** a published version is never edited or deleted. It stays readable for audit and for anything that pinned it (tasks pin versions, `../docs/tasks.md`).
 - **Decided:** restoring an older version creates a **new** version with that content (`basedOnVersionId` pointing at the old one). History is never rewritten.
-- **(Proposal)** drafts are versions in the `draft` state that may be edited in place until submitted, rather than a separate "draft revision" entity. The alternative, an editable working copy plus immutable versions, is Open questions, 3.
 
 ### Content
 
 - **Decided:** binary files and attachments live in **Loculus**. Episteme stores the Loculus file ID and its checksum, never a signed URL. Uploads follow Loculus's flow (declare, signed `PUT`, complete).
 - **Decided:** content isn't chunked, embedded or vectorized here. That is Seshat's.
-- **Formats to consider:** Markdown (what Seshat and the agents read today), a structured rich-text document (e.g. a ProseMirror/TipTap JSON tree), structured content per type (a policy's sections, a FAQ's question-and-answer pairs), a file (PDF, `.docx`) as the content itself, and an external reference (a URL or an external system's ID through Proxenos). Which is primary is Open questions, 5.
-- **(Proposal)** whatever the authoring format, every version has a **canonical text rendering** (Markdown) that Seshat indexes and agents read, so retrieval never depends on the editor's format.
+- **Decided:** a version's content is **Markdown**: what people write, what is stored, what Seshat indexes and what agents read. Versions compare as text diffs, and the checksum is over the Markdown. Imports convert to Markdown, keeping the original as an attachment where useful. A rich-text editor in Iris or Atlas can come later, writing Markdown.
+- Files (PDF, `.docx`, images) are **attachments** in Loculus, referenced from a version. An external reference (a URL, or an external system's ID through Proxenos) is provenance, not content.
 - **Decided:** content is untrusted input. It's stored and served as data, sanitized when rendered (Iris, Atlas), and never interpreted as instructions (Security, below).
 
 ### KnowledgeScope
@@ -433,7 +444,7 @@ API-first and spec-first: `../contracts/episteme.openapi.yaml` and `../contracts
 
 ### Events (Proposal)
 
-On `episteme.events`, described in `../contracts/episteme.asyncapi.yaml`, IDs only (no content, no personal data), published through the outbox. The repository's naming convention is `<aggregate>.<past-tense verb>` with kebab-case aggregates (`knowledge-item.accepted`, `team-member.added`), which differs from the brief's `knowledge.resource.created`. The repository's form is used here. Confirm it (Open questions, 1).
+On `episteme.events`, described in `../contracts/episteme.asyncapi.yaml`, IDs only (no content, no personal data), published through the outbox. Names follow the repository's convention, `<aggregate>.<past-tense verb>` with kebab-case aggregates (`knowledge-item.accepted`, `team-member.added`), not the brief's `knowledge.resource.created` (decided, **Decisions**).
 
 | Event | When |
 |---|---|
@@ -520,13 +531,13 @@ The pages are the UIs' to design. Episteme's job is an API that makes them simpl
 
 ## Open questions
 
-Settle each one before the code that depends on it, and record the answer here.
+Settle each one before the code that depends on it, and record the answer here (and in **Decisions**). The numbers stay as they were, so references elsewhere in this file still point to the right question.
 
-1. **Names.** Confirm the mapping in **Service names in this file**: Proxenos vs "Kerykes" for integrations, Themis vs "Aegis Control" for policy, Krepis and contracts vs "Forge". Also confirm the event naming (`knowledge-version.published` vs `knowledge.version.published`).
-2. **Seshat migration.** Does Episteme take over Seshat's knowledge items, lifecycle, approvals, versions and provenance? When, and how? Choices: all at once, by knowledge type, or new types first. The migration must keep item IDs and pinned versions resolvable. What happens to `knowledge:*` permissions, Seshat's `knowledge-item.*` events, Iris's Knowledge page, Hephaestus's `propose_knowledge`, and `../docs/knowledge.md`?
-3. **Drafts and versions.** Is a draft an editable version in the `draft` state, or a mutable working copy beside immutable versions? Are title and description changes versioned with the content? Can two drafts of one resource exist at once, and if so, how are they reconciled?
+1. ~~**Names.**~~ **Settled** (Decisions): the repository's names and event convention.
+2. **Seshat migration: the import's details.** The order is settled (Decisions): new kinds of knowledge first, Seshat's items later with their IDs and versions. Still open, for when the import comes: what happens to the `knowledge:*` permissions, Seshat's `knowledge-item.*` events, Iris's Knowledge page, Hephaestus's `propose_knowledge`, and `../docs/knowledge.md`? And when is Episteme's model "proven"?
+3. ~~**Drafts and versions.**~~ **Settled** (Decisions): a draft is a `draft` version, one per resource, title and description unversioned.
 4. **Ownership across departments.** Who owns a resource shared by several departments: one owner, co-owners, or a team or department as owner? Can a Polis person without a Pistis account be an owner (accountable but unable to act)? What happens when an owner leaves the organization (a person deleted, a membership revoked)? Who reviews a resource shared by several departments: every department's approver, or one?
-5. **Content format.** Is Markdown the primary authoring format, or a structured rich-text document (e.g. a ProseMirror/TipTap JSON tree) with Markdown as its rendering? Or structured content per type? This drives diffs, the editor in Iris, imports and what Seshat indexes.
+5. ~~**Content format.**~~ **Settled** (Decisions): Markdown; files are attachments.
 6. **Approval workflows per type.** Do the lifecycle and approval rules differ per knowledge type? For example, a policy needing two approvers and a fact needing none. Is that configuration Episteme's (per organization and type) or a policy in Themis?
 7. **External sources.** How are external platforms synchronized through Proxenos: a one-time import, periodic pull, or webhook-driven? Is the external system or Episteme authoritative after import? How are conflicts and deletions upstream handled? Is Kairos (once it supports schedules) the scheduler, or Episteme's poller?
 8. **Taxonomy.** Is it global, per organization, or a platform vocabulary with per-organization extensions? Can organizations define knowledge types of their own, with metadata schemas?
@@ -540,7 +551,7 @@ Settle each one before the code that depends on it, and record the answer here.
 
 ## Roadmap (Proposal)
 
-1. **Settle open questions 1, 2, 3 and 5**, then write `../contracts/episteme.openapi.yaml` and `../contracts/episteme.asyncapi.yaml`.
+1. **Contracts:** write `../contracts/episteme.openapi.yaml` and `../contracts/episteme.asyncapi.yaml` (open questions 1, 3 and 5 are settled; the migration's order too).
 2. **KnowledgeResource and KnowledgeVersion** with Markdown content, the version and resource transition tables, publication, the audit log and the outbox.
 3. **Scopes and stewardship** with Polis's IDs and a copy of their statuses.
 4. **Reviews and approvals**, with the "people approve, agents propose" rule.
