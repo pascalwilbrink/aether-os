@@ -139,6 +139,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
       model?: { provider: string; model: string };
       skills?: { name: string; version: string; enabled: boolean }[];
     } = {},
+    work?: { workItemId: string; departmentId?: string | null },
   ) {
     const published = await publishedAgent(moduleRef, organizationId, {
       instructions: 'You fix bugs. Answer with what you changed.',
@@ -169,6 +170,7 @@ describe('MastraAgentRuntime (Postgres)', () => {
         instructions: 'Uppercase emails cannot sign in.',
         agentId,
         serviceAccountId: SERVICE_ACCOUNT,
+        ...(work ? { workContext: { ...work, organizationId, agentId } } : {}),
       },
       `key-${++key}`,
     );
@@ -245,6 +247,24 @@ describe('MastraAgentRuntime (Postgres)', () => {
         topLevelTaskId: created.id,
       },
     ]);
+  });
+
+  it('tells the agent which work item the task is for', async () => {
+    models.replies = [{ text: 'Done.' }];
+    const workItemId = '0193a1b2-0000-7000-8000-00000000aaaa';
+    const departmentId = '0193a1b2-0000-7000-8000-00000000bbbb';
+    const { task: created } = await taskFor({}, { workItemId, departmentId });
+
+    await runOnce();
+
+    await expect(task(created.id)).resolves.toMatchObject({
+      status: 'succeeded',
+      workContext: { workItemId, departmentId, teamId: null },
+    });
+    const prompt = JSON.stringify(models.calls[0].prompt.at(-1));
+    expect(prompt).toContain('## The work');
+    expect(prompt).toContain(`Work item: ${workItemId}`);
+    expect(prompt).toContain(`Department: ${departmentId}`);
   });
 
   it('records what the agent submits with submit_artifact', async () => {

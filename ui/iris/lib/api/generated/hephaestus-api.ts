@@ -1259,6 +1259,35 @@ export interface components {
              *     never as instructions. Names are unique (`TASK_FIELDS_INVALID`).
              */
             untrustedInputs?: components["schemas"]["UntrustedInput"][];
+            /**
+             * @description The work it's done for, when an Ergon work item started it
+             *     (Kairos's `ergon.work-assigned` trigger): fixed at creation,
+             *     shown in the agent's prompt and given to its tools.
+             *     `organizationId` must be the task's and `agentId` the task's agent
+             *     (`TASK_FIELDS_INVALID`).
+             */
+            workContext?: components["schemas"]["TaskWorkContext"];
+        };
+        TaskWorkContext: {
+            /** Format: uuid */
+            workItemId: string;
+            /** Format: uuid */
+            organizationId: string;
+            /**
+             * Format: uuid
+             * @description The agent assigned to the work.
+             */
+            agentId: string;
+            /**
+             * Format: uuid
+             * @description The work item's department (Polis).
+             */
+            departmentId?: string | null;
+            /**
+             * Format: uuid
+             * @description The work item's team (Polis).
+             */
+            teamId?: string | null;
         };
         UntrustedInput: {
             /** @description Named as `{{name}}` in the text fields, e.g. `issue.title`. */
@@ -1595,6 +1624,8 @@ export interface components {
             taskTemplateVersion: number | null;
             /** @description Where it came from, when not from a request (a council's plan). */
             origin: components["schemas"]["TaskOrigin"] | null;
+            /** @description The Ergon work item it's done for; null for other tasks. */
+            workContext: components["schemas"]["TaskWorkContext"] | null;
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */

@@ -11,6 +11,13 @@ export interface ProjectState {
   version: number;
 }
 
+/** A department or team of an organization (Polis), for a work item's owners. */
+export interface GroupState {
+  id: string;
+  organizationId: string;
+  status: 'active' | 'archived';
+}
+
 /**
  * Polis, as Ergon needs it: the current state of one organization or
  * project, or null if Polis doesn't know it. Throws `PolisUnavailableError`
@@ -25,4 +32,14 @@ export abstract class PolisClient {
     organizationId: string,
     projectId: string,
   ): Promise<ProjectState | null>;
+
+  abstract getDepartment(
+    organizationId: string,
+    departmentId: string,
+  ): Promise<GroupState | null>;
+
+  abstract getTeam(
+    organizationId: string,
+    teamId: string,
+  ): Promise<GroupState | null>;
 }

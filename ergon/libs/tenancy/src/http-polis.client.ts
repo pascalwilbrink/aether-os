@@ -9,6 +9,7 @@ import {
 
 import {
   PolisClient,
+  type GroupState,
   type OrganizationState,
   type ProjectState,
 } from './polis-client.js';
@@ -83,6 +84,44 @@ export class HttpPolisClient extends PolisClient {
       status: result.status,
       version: result.version,
     };
+  }
+
+  async getDepartment(
+    organizationId: string,
+    departmentId: string,
+  ): Promise<GroupState | null> {
+    const result = await this.call(() =>
+      PolisApi.getDepartment({
+        client: this.client,
+        path: { organizationId, departmentId },
+      }),
+    );
+    return result
+      ? {
+          id: result.id,
+          organizationId: result.organizationId,
+          status: result.status,
+        }
+      : null;
+  }
+
+  async getTeam(
+    organizationId: string,
+    teamId: string,
+  ): Promise<GroupState | null> {
+    const result = await this.call(() =>
+      PolisApi.getTeam({
+        client: this.client,
+        path: { organizationId, teamId },
+      }),
+    );
+    return result
+      ? {
+          id: result.id,
+          organizationId: result.organizationId,
+          status: result.status,
+        }
+      : null;
   }
 
   /**

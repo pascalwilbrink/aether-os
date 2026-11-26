@@ -152,6 +152,17 @@ export class AutomationsService {
       .getMany();
   }
 
+  /** An organization's active work triggers' automations (`AutomationRunsService`). */
+  activeForWork(organizationId: string): Promise<AutomationEntity[]> {
+    return this.automations
+      .createQueryBuilder('automation')
+      .where('automation.organizationId = :organizationId', { organizationId })
+      .andWhere("automation.status = 'active'")
+      .andWhere("automation.trigger ->> 'type' = 'ergon.work-assigned'")
+      .orderBy('automation.createdAt', 'ASC')
+      .getMany();
+  }
+
   /** 404 unless the automation is in that project (`AutomationRunsService`). */
   async assertExists(
     organizationId: string,
@@ -216,7 +227,7 @@ export class AutomationsService {
 }
 
 function assertValid(request: ApiTypes.AutomationRequest): void {
-  const problems = actionProblems(request.action);
+  const problems = actionProblems(request.trigger, request.action);
   if (problems.length > 0) {
     throw new ValidationProblemException(
       problems.map(({ pointer, detail }) => ({

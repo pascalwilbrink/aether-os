@@ -90,6 +90,15 @@ export class TaskMapper {
       taskTemplateId: task.template?.templateId ?? null,
       taskTemplateVersion: task.template?.version ?? null,
       origin: task.origin ?? null,
+      workContext: task.dto.workContext
+        ? {
+            workItemId: task.dto.workContext.workItemId,
+            organizationId: task.dto.workContext.organizationId,
+            agentId: task.dto.workContext.agentId,
+            departmentId: task.dto.workContext.departmentId ?? null,
+            teamId: task.dto.workContext.teamId ?? null,
+          }
+        : null,
       attempt: 1,
       nextAttemptAt: null,
       deliveryAttempts: 0,
@@ -151,6 +160,7 @@ export class TaskMapper {
       taskTemplateId: entity.taskTemplateId,
       taskTemplateVersion: entity.taskTemplateVersion,
       origin: entity.origin,
+      workContext: entity.workContext,
       createdAt: entity.createdAt.toISOString(),
       updatedAt: entity.updatedAt.toISOString(),
       finishedAt: entity.finishedAt?.toISOString() ?? null,

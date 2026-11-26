@@ -27,6 +27,8 @@ export type WorkItemContent = Pick<
   | 'constraints'
   | 'acceptanceCriteria'
   | 'dueAt'
+  | 'departmentId'
+  | 'teamId'
 >;
 
 export const CONTENT_FIELDS: readonly (keyof WorkItemContent)[] = [
@@ -40,6 +42,8 @@ export const CONTENT_FIELDS: readonly (keyof WorkItemContent)[] = [
   'constraints',
   'acceptanceCriteria',
   'dueAt',
+  'departmentId',
+  'teamId',
 ];
 
 @Injectable()
@@ -56,6 +60,8 @@ export class WorkItemMapper {
       constraints: request.constraints ?? [],
       acceptanceCriteria: request.acceptanceCriteria ?? [],
       dueAt: request.dueAt ? new Date(request.dueAt) : null,
+      departmentId: request.departmentId ?? null,
+      teamId: request.teamId ?? null,
     };
   }
 
@@ -96,6 +102,8 @@ export class WorkItemMapper {
       organizationId: entity.organizationId,
       projectId: entity.projectId,
       parentId: entity.parentId,
+      departmentId: entity.departmentId,
+      teamId: entity.teamId,
       type: entity.type,
       title: entity.title,
       description: entity.description,
@@ -124,6 +132,8 @@ export class WorkItemMapper {
     return {
       id: entity.id,
       parentId: entity.parentId,
+      departmentId: entity.departmentId,
+      teamId: entity.teamId,
       type: entity.type,
       title: entity.title,
       status: entity.status,

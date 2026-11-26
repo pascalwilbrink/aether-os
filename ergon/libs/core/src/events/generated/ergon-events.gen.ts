@@ -51,6 +51,8 @@ export interface WorkItemCreated {
   workItem: {
     id: string;
     parentId: string | null;
+    departmentId: string | null;
+    teamId: string | null;
     /**
      * The API's `WorkItemType`.
      */
@@ -78,6 +80,8 @@ export interface WorkItemStatusChanged {
   workItem: {
     id: string;
     parentId: string | null;
+    departmentId: string | null;
+    teamId: string | null;
     /**
      * The API's `WorkItemType`.
      */
@@ -112,6 +116,8 @@ export interface WorkItemUpdated {
   workItem: {
     id: string;
     parentId: string | null;
+    departmentId: string | null;
+    teamId: string | null;
     /**
      * The API's `WorkItemType`.
      */

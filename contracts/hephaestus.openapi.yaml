@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Hephaestus API
-  version: 0.35.0
+  version: 0.36.0
   description: |
     AI Agent Factory for Aether-os. Source of truth for the Hephaestus HTTP
     contract; Hephaestus and Iris generate their API types from this file.
@@ -1823,6 +1823,24 @@ components:
             filled in; in the agent's prompt it is filled in marked as data,
             never as instructions. Names are unique (`TASK_FIELDS_INVALID`).
           items: { $ref: '#/components/schemas/UntrustedInput' }
+        workContext:
+          description: |
+            The work it's done for, when an Ergon work item started it
+            (Kairos's `ergon.work-assigned` trigger): fixed at creation,
+            shown in the agent's prompt and given to its tools.
+            `organizationId` must be the task's and `agentId` the task's agent
+            (`TASK_FIELDS_INVALID`).
+          $ref: '#/components/schemas/TaskWorkContext'
+    TaskWorkContext:
+      type: object
+      additionalProperties: false
+      required: [workItemId, organizationId, agentId]
+      properties:
+        workItemId: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        agentId: { type: string, format: uuid, description: The agent assigned to the work. }
+        departmentId: { type: [string, 'null'], format: uuid, description: The work item's department (Polis). }
+        teamId: { type: [string, 'null'], format: uuid, description: The work item's team (Polis). }
     UntrustedInput:
       type: object
       additionalProperties: false
@@ -2198,7 +2216,7 @@ components:
           items: { type: string, minLength: 1, maxLength: 50 }
     TaskResponse:
       type: object
-      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, description, instructions, requirements, expectedOutcome, constraints, deliverables, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, pausedFor, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, concurrency, inputFiles, context, untrustedInputs, taskTemplateId, taskTemplateVersion, origin, createdAt, updatedAt, finishedAt, version]
+      required: [id, organizationId, projectId, parentTaskId, topLevelTaskId, title, description, instructions, requirements, expectedOutcome, constraints, deliverables, agentId, agentVersionId, serviceAccountId, requestedBy, status, failureReason, pausedFor, dependsOn, attempt, primaryArtifactId, review, reviewRound, acceptanceCriteria, repository, concurrency, inputFiles, context, untrustedInputs, taskTemplateId, taskTemplateVersion, origin, workContext, createdAt, updatedAt, finishedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
@@ -2288,6 +2306,11 @@ components:
             - $ref: '#/components/schemas/TaskOrigin'
             - type: 'null'
           description: Where it came from, when not from a request (a council's plan).
+        workContext:
+          description: The Ergon work item it's done for; null for other tasks.
+          oneOf:
+            - $ref: '#/components/schemas/TaskWorkContext'
+            - type: 'null'
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         finishedAt: { type: [string, 'null'], format: date-time }

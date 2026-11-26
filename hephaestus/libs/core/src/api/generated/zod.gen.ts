@@ -163,6 +163,14 @@ export const zTaskFailureReason = z.enum([
     'access_denied'
 ]);
 
+export const zTaskWorkContext = z.object({
+    workItemId: z.uuid(),
+    organizationId: z.uuid(),
+    agentId: z.uuid(),
+    departmentId: z.uuid().nullish(),
+    teamId: z.uuid().nullish()
+});
+
 export const zUntrustedInput = z.object({
     name: z.string().regex(/^[a-z][a-z0-9._-]{0,63}$/),
     source: z.string().min(1).max(300),
@@ -655,7 +663,8 @@ export const zCreateTaskRequest = z.object({
     concurrency: zTaskConcurrency.nullish(),
     inputFiles: z.array(zTaskInputFile).max(20).optional(),
     context: z.array(zTaskContextReference).max(50).optional(),
-    untrustedInputs: z.array(zUntrustedInput).max(20).optional()
+    untrustedInputs: z.array(zUntrustedInput).max(20).optional(),
+    workContext: zTaskWorkContext.optional()
 });
 
 /**
@@ -955,6 +964,7 @@ export const zTaskResponse = z.object({
     taskTemplateId: z.uuid().nullable(),
     taskTemplateVersion: z.int().gte(1).nullable(),
     origin: zTaskOrigin.nullable(),
+    workContext: zTaskWorkContext.nullable(),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
     finishedAt: z.iso.datetime().nullable(),

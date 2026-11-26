@@ -8,11 +8,14 @@ export interface AutomationTriggered {
   automationId: string;
   runId: string;
   /**
-   * The event that fired it, e.g. `github.issue.opened`.
+   * The event that fired it, e.g. `github.issue.opened` or `ergon.work-assigned`.
    */
   triggerType: string;
   sourceEventId: string;
-  webhookDeliveryId: string;
+  /**
+   * The GitHub webhook delivery; null for a work assignment.
+   */
+  webhookDeliveryId: string | null;
 }
 
 /** Every Kairos event type, mapped to its payload. */

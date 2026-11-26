@@ -33,6 +33,7 @@ import {
 } from './agent-runtime.js';
 import { KnowledgeBase, NoKnowledgeBase } from './knowledge-base.js';
 import { briefOf } from './task-brief.js';
+import { requestContextFor, withWorkContext } from './work-context.js';
 import {
   knowledgeTools,
   withKnowledge,
@@ -265,6 +266,8 @@ export class MastraAgentRuntime extends AgentRuntime {
         {
           abortSignal: signal,
           maxSteps: MAX_STEPS,
+          // The task, and the work it's for, for the tools.
+          requestContext: requestContextFor(task),
           tracingOptions: {
             metadata: {
               organizationId: task.organizationId,
@@ -349,7 +352,13 @@ export function promptFor(
   conflict: AgentRunInput['conflict'] = null,
 ): string {
   const prompt = withConflict(
-    withFailedChecks(withRepository(briefOf(task), repository), failedChecks),
+    withFailedChecks(
+      withRepository(
+        withWorkContext(briefOf(task), task.workContext),
+        repository,
+      ),
+      failedChecks,
+    ),
     conflict,
     repository,
   );

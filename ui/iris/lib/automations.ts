@@ -65,16 +65,19 @@ export function fieldsOf(automation?: Automation): AutomationFields {
         "Fix the issue {{issue.url}} in {{repository}}, reported by {{author}}.",
     };
   }
-  const { trigger, action } = automation;
+  const { action } = automation;
+  // The form edits GitHub issue triggers only (`isWorkTrigger`).
+  const trigger =
+    automation.trigger.type === "github.issue" ? automation.trigger : null;
   return {
     name: automation.name,
     description: automation.description,
-    event: trigger.event,
-    repositoryLinkId: trigger.repositoryLinkId ?? "",
-    label: trigger.label ?? "",
-    minimumPermission: trigger.minimumPermission ?? "write",
-    includePullRequests: trigger.includePullRequests ? "on" : "",
-    includeAetherOs: trigger.includeAetherOs ? "on" : "",
+    event: trigger?.event ?? "github.issue.opened",
+    repositoryLinkId: automation.trigger.repositoryLinkId ?? "",
+    label: trigger?.label ?? "",
+    minimumPermission: trigger?.minimumPermission ?? "write",
+    includePullRequests: trigger?.includePullRequests ? "on" : "",
+    includeAetherOs: trigger?.includeAetherOs ? "on" : "",
     kind: action.template ? "template" : "task",
     agentId: action.task?.agentId ?? "",
     title: action.task?.title ?? "",
@@ -177,11 +180,28 @@ export function requestOf(
   };
 }
 
+/**
+ * Whether an automation starts agents on work assigned to them in Ergon
+ * (`ergon.work-assigned`): its task is the work item's, so the form, which
+ * writes GitHub issue triggers, doesn't change it.
+ */
+export function isWorkTrigger(trigger: Automation["trigger"]): boolean {
+  return trigger.type === "ergon.work-assigned";
+}
+
 /** What fires an automation, in a sentence. */
 export function triggerSummary(
   trigger: Automation["trigger"],
   repositoryName: string | null,
+  agentName?: string | null,
 ): string {
+  if (trigger.type === "ergon.work-assigned") {
+    const who = trigger.agentId
+      ? (agentName ?? "a particular agent")
+      : "an agent";
+    const repository = repositoryName ? `, working in ${repositoryName}` : "";
+    return `When ${who} is made responsible for work in this project, it starts on it${repository}.`;
+  }
   const where = repositoryName ?? "any linked repository";
   const what =
     trigger.event === "github.issue.labeled"

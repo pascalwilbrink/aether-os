@@ -189,7 +189,32 @@ export interface components {
          * @enum {string}
          */
         RepositoryPermission: "admin" | "maintain" | "write" | "triage" | "read" | "any";
-        AutomationTrigger: {
+        /** @description What fires it; `type` says which kind. */
+        AutomationTrigger: components["schemas"]["GitHubIssueTrigger"] | components["schemas"]["WorkAssignedTrigger"];
+        /**
+         * @description An agent became `responsible` for a work item of the automation's
+         *     project in Ergon (`work-assignment.changed`). The task is the work
+         *     item's: its title, description, requirements, expected outcome,
+         *     constraints and acceptance criteria (as `manual` checks), run by the
+         *     assigned agent with the work item's `workContext`; the action gives
+         *     neither `task` nor `template`. Work that is done or cancelled by the
+         *     time Kairos reads it is skipped.
+         */
+        WorkAssignedTrigger: {
+            /** @constant */
+            type: "ergon.work-assigned";
+            /**
+             * Format: uuid
+             * @description Only for this agent; null or left out for any agent assigned work in the project.
+             */
+            agentId?: string | null;
+            /**
+             * Format: uuid
+             * @description One of the project's repository links (Proxenos) the task works in; null or left out for none.
+             */
+            repositoryLinkId?: string | null;
+        };
+        GitHubIssueTrigger: {
             /** @constant */
             type: "github.issue";
             event: components["schemas"]["GitHubIssueEventType"];
@@ -235,7 +260,12 @@ export interface components {
                 [key: string]: string;
             };
         };
-        /** @description The task to start; exactly one of `task` and `template`. */
+        /**
+         * @description The task to start: exactly one of `task` and `template` for a
+         *     `github.issue` trigger, neither for `ergon.work-assigned` (the task
+         *     is the work item's). `workInRepository` is for `github.issue` only;
+         *     a work trigger names its repository link itself.
+         */
         AutomationAction: {
             task?: components["schemas"]["AutomationTaskAction"];
             template?: components["schemas"]["AutomationTemplateAction"];
@@ -327,6 +357,19 @@ export interface components {
                 issueNumber: number;
                 url: string;
                 author: string;
+            } | {
+                /** Format: uuid */
+                eventId: string;
+                /** @constant */
+                type: "ergon.work-assigned";
+                /** Format: uuid */
+                workItemId: string;
+                /** Format: uuid */
+                assignmentId: string;
+                /** Format: uuid */
+                agentId: string;
+                /** @description The work item's title when it fired. */
+                title: string;
             };
             /** Format: uuid */
             taskId: string | null;

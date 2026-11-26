@@ -24,4 +24,15 @@ export default defineConfig([
     },
     plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
   },
+  // Ergon's API: a typed HTTP client, used behind ErgonClient (the work an
+  // `ergon.work-assigned` automation starts an agent on).
+  {
+    input: 'node_modules/@aether-os/contracts/ergon.openapi.yaml',
+    output: {
+      path: 'libs/core/src/clients/ergon/generated',
+      importFileExtension: '.js',
+      clean: true,
+    },
+    plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
+  },
 ]);

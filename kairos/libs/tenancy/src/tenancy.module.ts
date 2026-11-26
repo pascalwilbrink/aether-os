@@ -39,6 +39,7 @@ import { TenancyService } from './tenancy.service.js';
     },
     { provide: PolisClient, useClass: HttpPolisClient },
   ],
-  exports: [TenancyService],
+  // ServiceTokens too: Kairos's own token, for its other calls (Ergon).
+  exports: [TenancyService, ServiceTokens],
 })
 export class TenancyModule {}

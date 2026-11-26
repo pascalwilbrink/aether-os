@@ -37,7 +37,23 @@ export const zRepositoryPermission = z.enum([
   'any',
 ]);
 
-export const zAutomationTrigger = z.object({
+/**
+ * An agent became `responsible` for a work item of the automation's
+ * project in Ergon (`work-assignment.changed`). The task is the work
+ * item's: its title, description, requirements, expected outcome,
+ * constraints and acceptance criteria (as `manual` checks), run by the
+ * assigned agent with the work item's `workContext`; the action gives
+ * neither `task` nor `template`. Work that is done or cancelled by the
+ * time Kairos reads it is skipped.
+ *
+ */
+export const zWorkAssignedTrigger = z.object({
+  type: z.literal('ergon.work-assigned'),
+  agentId: z.uuid().nullish(),
+  repositoryLinkId: z.uuid().nullish(),
+});
+
+export const zGitHubIssueTrigger = z.object({
   type: z.literal('github.issue'),
   event: zGitHubIssueEventType,
   repositoryLinkId: z.uuid().nullish(),
@@ -46,6 +62,14 @@ export const zAutomationTrigger = z.object({
   includePullRequests: z.boolean().optional(),
   includeAetherOs: z.boolean().optional(),
 });
+
+/**
+ * What fires it; `type` says which kind.
+ */
+export const zAutomationTrigger = z.union([
+  zGitHubIssueTrigger,
+  zWorkAssignedTrigger,
+]);
 
 /**
  * A task written here. `title` and `instructions` can use the event's
@@ -72,7 +96,11 @@ export const zAutomationTemplateAction = z.object({
 });
 
 /**
- * The task to start; exactly one of `task` and `template`.
+ * The task to start: exactly one of `task` and `template` for a
+ * `github.issue` trigger, neither for `ergon.work-assigned` (the task
+ * is the work item's). `workInRepository` is for `github.issue` only;
+ * a work trigger names its repository link itself.
+ *
  */
 export const zAutomationAction = z.object({
   task: zAutomationTaskAction.optional(),
@@ -133,15 +161,25 @@ export const zAutomationRunResponse = z.object({
   id: z.uuid(),
   automationId: z.uuid(),
   status: zAutomationRunStatus,
-  event: z.object({
-    eventId: z.uuid(),
-    type: zGitHubIssueEventType,
-    webhookDeliveryId: z.uuid(),
-    repository: z.string(),
-    issueNumber: z.int().gte(1),
-    url: z.string(),
-    author: z.string(),
-  }),
+  event: z.union([
+    z.object({
+      eventId: z.uuid(),
+      type: zGitHubIssueEventType,
+      webhookDeliveryId: z.uuid(),
+      repository: z.string(),
+      issueNumber: z.int().gte(1),
+      url: z.string(),
+      author: z.string(),
+    }),
+    z.object({
+      eventId: z.uuid(),
+      type: z.literal('ergon.work-assigned'),
+      workItemId: z.uuid(),
+      assignmentId: z.uuid(),
+      agentId: z.uuid(),
+      title: z.string(),
+    }),
+  ]),
   taskId: z.uuid().nullable(),
   rejection: z
     .object({

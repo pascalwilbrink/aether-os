@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type {
+  GroupState,
   OrganizationState,
   PolisClient,
   ProjectState,
@@ -10,6 +11,43 @@ import type {
 export class FakePolis implements PolisClient {
   readonly organizations = new Map<string, OrganizationState>();
   readonly projects = new Map<string, ProjectState>();
+  readonly departments = new Map<string, GroupState>();
+  readonly teams = new Map<string, GroupState>();
+
+  department(
+    organizationId: string,
+    status: GroupState['status'] = 'active',
+  ): string {
+    const id = randomUUID();
+    this.departments.set(id, { id, organizationId, status });
+    return id;
+  }
+
+  team(
+    organizationId: string,
+    status: GroupState['status'] = 'active',
+  ): string {
+    const id = randomUUID();
+    this.teams.set(id, { id, organizationId, status });
+    return id;
+  }
+
+  getDepartment(
+    organizationId: string,
+    departmentId: string,
+  ): Promise<GroupState | null> {
+    const found = this.departments.get(departmentId);
+    return Promise.resolve(
+      found?.organizationId === organizationId ? found : null,
+    );
+  }
+
+  getTeam(organizationId: string, teamId: string): Promise<GroupState | null> {
+    const found = this.teams.get(teamId);
+    return Promise.resolve(
+      found?.organizationId === organizationId ? found : null,
+    );
+  }
 
   organization(status: OrganizationState['status'] = 'active'): string {
     const id = randomUUID();

@@ -48,7 +48,7 @@ describe('Work items (e2e)', () => {
       schemaVersion: 1,
       aggregateId,
       aggregateVersion,
-      occurredAt: new Date().toISOString(),
+      occurredAt: new Date(),
       organizationId,
       projectId: null,
       actor: null,
@@ -317,6 +317,70 @@ describe('Work items (e2e)', () => {
         .send(content)
         .expect(409);
       expect(closed.body.code).toBe('WORK_ITEM_CLOSED');
+    });
+  });
+
+  describe('owners', () => {
+    it("keeps the work's department and team, if Polis has them active", async () => {
+      const department = polis.department(orgId);
+      const team = polis.team(orgId);
+      const item = await create({ departmentId: department, teamId: team });
+      expect(item).toMatchObject({ departmentId: department, teamId: team });
+      const [event] = await outboxEvents(app);
+      expect(event.payload).toMatchObject({
+        workItem: { departmentId: department, teamId: team },
+      });
+
+      const unknown = await owner
+        .post(items())
+        .send({
+          type: 'task',
+          title: 'Elsewhere',
+          projectId,
+          departmentId: polis.department(polis.organization()),
+          teamId: polis.team(orgId, 'archived'),
+        })
+        .expect(400);
+      expect(
+        unknown.body.errors.map((e: { pointer: string }) => e.pointer),
+      ).toEqual(['/departmentId', '/teamId']);
+
+      // One archived since stays; a new one is checked.
+      polis.teams.get(team)!.status = 'archived';
+      await owner
+        .put(`${items()}/${item.id}`)
+        .send({
+          type: 'task',
+          title: 'Renamed',
+          departmentId: department,
+          teamId: team,
+        })
+        .expect(200);
+      await owner
+        .put(`${items()}/${item.id}`)
+        .send({
+          type: 'task',
+          title: 'Renamed',
+          departmentId: department,
+          teamId: polis.team(orgId, 'archived'),
+        })
+        .expect(400);
+      const cleared = await owner
+        .put(`${items()}/${item.id}`)
+        .send({ type: 'task', title: 'Renamed' })
+        .expect(200);
+      expect(cleared.body).toMatchObject({ departmentId: null, teamId: null });
+    });
+
+    it('lets platform services read work in a project (Kairos)', async () => {
+      const item = await create();
+      const kairos = request
+        .agent(app.getHttpServer())
+        .set('authorization', `Bearer ${await tokens.service('kairos')}`);
+      await kairos.get(`${items()}/${item.id}`).expect(200);
+      await kairos.get(items()).query({ projectId }).expect(403);
+      const outside = await create({ projectId: null });
+      await kairos.get(`${items()}/${outside.id}`).expect(403);
     });
   });
 

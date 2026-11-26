@@ -110,6 +110,7 @@ describe('Tasks (e2e)', () => {
       projectId,
       parentTaskId: null,
       origin: null,
+      workContext: null,
       topLevelTaskId: first.body.id,
       title: 'Fix the login bug',
       description: "Users can't sign in with uppercase emails.",

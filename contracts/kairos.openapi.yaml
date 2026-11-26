@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Kairos API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Automations (`../docs/automations.md`): a **trigger** (for now a GitHub
     issue event from Proxenos) bound to a **task** an agent runs in
@@ -280,6 +280,33 @@ components:
         including people without access.
       enum: [admin, maintain, write, triage, read, any]
     AutomationTrigger:
+      description: What fires it; `type` says which kind.
+      oneOf:
+        - $ref: '#/components/schemas/GitHubIssueTrigger'
+        - $ref: '#/components/schemas/WorkAssignedTrigger'
+    WorkAssignedTrigger:
+      type: object
+      additionalProperties: false
+      required: [type]
+      description: |
+        An agent became `responsible` for a work item of the automation's
+        project in Ergon (`work-assignment.changed`). The task is the work
+        item's: its title, description, requirements, expected outcome,
+        constraints and acceptance criteria (as `manual` checks), run by the
+        assigned agent with the work item's `workContext`; the action gives
+        neither `task` nor `template`. Work that is done or cancelled by the
+        time Kairos reads it is skipped.
+      properties:
+        type: { type: string, const: ergon.work-assigned }
+        agentId:
+          description: Only for this agent; null or left out for any agent assigned work in the project.
+          type: [string, 'null']
+          format: uuid
+        repositoryLinkId:
+          description: One of the project's repository links (Proxenos) the task works in; null or left out for none.
+          type: [string, 'null']
+          format: uuid
+    GitHubIssueTrigger:
       type: object
       additionalProperties: false
       required: [type, event]
@@ -340,7 +367,11 @@ components:
       type: object
       additionalProperties: false
       required: [serviceAccountId]
-      description: The task to start; exactly one of `task` and `template`.
+      description: |
+        The task to start: exactly one of `task` and `template` for a
+        `github.issue` trigger, neither for `ergon.work-assigned` (the task
+        is the work item's). `workInRepository` is for `github.issue` only;
+        a work trigger names its repository link itself.
       properties:
         task: { $ref: '#/components/schemas/AutomationTaskAction' }
         template: { $ref: '#/components/schemas/AutomationTemplateAction' }
@@ -436,17 +467,27 @@ components:
         automationId: { type: string, format: uuid }
         status: { $ref: '#/components/schemas/AutomationRunStatus' }
         event:
-          type: object
           description: What fired it.
-          required: [eventId, type, webhookDeliveryId, repository, issueNumber, url, author]
-          properties:
-            eventId: { type: string, format: uuid }
-            type: { $ref: '#/components/schemas/GitHubIssueEventType' }
-            webhookDeliveryId: { type: string, format: uuid }
-            repository: { type: string }
-            issueNumber: { type: integer, minimum: 1 }
-            url: { type: string }
-            author: { type: string }
+          oneOf:
+            - type: object
+              required: [eventId, type, webhookDeliveryId, repository, issueNumber, url, author]
+              properties:
+                eventId: { type: string, format: uuid }
+                type: { $ref: '#/components/schemas/GitHubIssueEventType' }
+                webhookDeliveryId: { type: string, format: uuid }
+                repository: { type: string }
+                issueNumber: { type: integer, minimum: 1 }
+                url: { type: string }
+                author: { type: string }
+            - type: object
+              required: [eventId, type, workItemId, assignmentId, agentId, title]
+              properties:
+                eventId: { type: string, format: uuid }
+                type: { type: string, const: ergon.work-assigned }
+                workItemId: { type: string, format: uuid }
+                assignmentId: { type: string, format: uuid }
+                agentId: { type: string, format: uuid }
+                title: { type: string, description: The work item's title when it fired. }
         taskId:
           type: [string, 'null']
           format: uuid

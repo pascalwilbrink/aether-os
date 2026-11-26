@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Kairos events
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Events Kairos publishes to the `kairos.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -94,6 +94,10 @@ components:
         runId:
           description: Also the `task.create` command's idempotency key.
           $ref: '#/components/schemas/Uuid'
-        triggerType: { type: string, description: 'The event that fired it, e.g. `github.issue.opened`.' }
+        triggerType: { type: string, description: 'The event that fired it, e.g. `github.issue.opened` or `ergon.work-assigned`.' }
         sourceEventId: { $ref: '#/components/schemas/Uuid' }
-        webhookDeliveryId: { $ref: '#/components/schemas/Uuid' }
+        webhookDeliveryId:
+          description: The GitHub webhook delivery; null for a work assignment.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'

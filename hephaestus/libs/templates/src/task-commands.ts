@@ -203,6 +203,13 @@ export class TaskCommands {
         requestedBy: task.requestedBy,
         idempotencyKey: command.eventId,
         status: task.status,
+        workContext: task.workContext
+          ? {
+              ...task.workContext,
+              departmentId: task.workContext.departmentId ?? null,
+              teamId: task.workContext.teamId ?? null,
+            }
+          : null,
         taskTemplateId: task.taskTemplateId,
         taskTemplateVersion: task.taskTemplateVersion,
       },

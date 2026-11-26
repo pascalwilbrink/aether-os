@@ -37,6 +37,7 @@ export type {
   GetAutomationResponse,
   GetAutomationResponses,
   GitHubIssueEventType,
+  GitHubIssueTrigger,
   Limit,
   ListAutomationRunsData,
   ListAutomationRunsError,
@@ -69,4 +70,5 @@ export type {
   UpdateAutomationErrors,
   UpdateAutomationResponse,
   UpdateAutomationResponses,
+  WorkAssignedTrigger,
 } from './types.gen.js';

@@ -6,6 +6,7 @@ const base = {
   PISTIS_ISSUER: 'http://localhost:3003/oidc',
   PISTIS_CLIENT_SECRET: 'kairos-dev-secret',
   POLIS_URL: 'http://localhost:3001',
+  ERGON_URL: 'http://localhost:3013',
 };
 
 describe('Kairos env', () => {
@@ -17,10 +18,11 @@ describe('Kairos env', () => {
     });
   });
 
-  it('needs its database, RabbitMQ, Pistis and Polis', () => {
+  it('needs its database, RabbitMQ, Pistis, Polis and Ergon', () => {
     const result = zEnv.safeParse({});
     expect(result.error?.issues.map((issue) => issue.path[0]).sort()).toEqual([
       'DATABASE_URL',
+      'ERGON_URL',
       'PISTIS_CLIENT_SECRET',
       'PISTIS_ISSUER',
       'POLIS_URL',

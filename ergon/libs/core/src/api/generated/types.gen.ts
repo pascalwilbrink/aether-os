@@ -121,6 +121,14 @@ export type WorkItemUpdate = {
   constraints?: Array<WorkBriefItem>;
   acceptanceCriteria?: Array<WorkBriefItem>;
   dueAt?: string | null;
+  /**
+   * The department that owns the work (Polis's, active, in the organization); set by the UI, e.g. from the project's department.
+   */
+  departmentId?: string | null;
+  /**
+   * The team that owns the work (Polis's, active, in the organization).
+   */
+  teamId?: string | null;
 };
 
 export type WorkItemRequest = {
@@ -141,6 +149,14 @@ export type WorkItemRequest = {
   constraints?: Array<WorkBriefItem>;
   acceptanceCriteria?: Array<WorkBriefItem>;
   dueAt?: string | null;
+  /**
+   * The department that owns the work (Polis's, active, in the organization); set by the UI, e.g. from the project's department.
+   */
+  departmentId?: string | null;
+  /**
+   * The team that owns the work (Polis's, active, in the organization).
+   */
+  teamId?: string | null;
 };
 
 export type WorkItemTransitionRequest = {
@@ -153,6 +169,8 @@ export type WorkItemResponse = {
   organizationId: string;
   projectId: string | null;
   parentId: string | null;
+  departmentId: string | null;
+  teamId: string | null;
   type: WorkItemType;
   title: string;
   description: string;
