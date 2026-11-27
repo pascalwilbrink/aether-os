@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Episteme events
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Events Episteme publishes to the `episteme.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -18,6 +18,10 @@ info:
     Payloads carry IDs, states and checksums, never content, titles or
     personal data: read the resource or version from Episteme's API
     (`platform:read` for platform services).
+
+    Seshat indexes every published version where its resource belongs and
+    answers with `knowledge-indexing.completed` or `.failed`
+    (`seshat.asyncapi.yaml`), which Episteme keeps on the version.
 
 defaultContentType: application/json
 

@@ -248,6 +248,35 @@ export type KnowledgeVersionSummary = {
   submittedAt: string | null;
   approvedAt: string | null;
   publishedAt: string | null;
+  /**
+   * Whether Seshat made it searchable, for a version that was published; null for one that never was.
+   */
+  indexing: null | KnowledgeVersionIndexing;
+};
+
+/**
+ * Seshat's answer for a published version (`seshat.asyncapi.yaml`,
+ * `knowledge-indexing.completed` / `.failed`): `pending` from
+ * publishing until it answers, then `indexed` (searchable there as
+ * `itemId`) or `failed` (with `error`).
+ *
+ */
+export type KnowledgeVersionIndexing = {
+  status: 'pending' | 'indexed' | 'failed';
+  /**
+   * The Seshat knowledge item that holds it.
+   */
+  itemId: string | null;
+  chunkCount: number | null;
+  error: string | null;
+  /**
+   * When it was published.
+   */
+  requestedAt: string;
+  /**
+   * When Seshat's answer came, or `requestedAt` before it.
+   */
+  updatedAt: string;
 };
 
 export type KnowledgeVersionResponse = KnowledgeVersionSummary & {

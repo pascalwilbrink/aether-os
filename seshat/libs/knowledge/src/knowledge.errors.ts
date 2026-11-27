@@ -39,6 +39,16 @@ export class KnowledgeItemReadOnlyError extends DomainError {
   }
 }
 
+/** Episteme's knowledge changes with a published version there, not through Seshat: 409. */
+export class KnowledgeItemFromEpistemeError extends DomainError {
+  constructor(itemId: string) {
+    super(
+      `Knowledge item ${itemId} is the published version of an Episteme resource: publish a new version there.`,
+      'KNOWLEDGE_ITEM_READ_ONLY',
+    );
+  }
+}
+
 /** A department's item, seen from one of its projects: changed only on the department (409). */
 export class KnowledgeItemOfDepartmentError extends DomainError {
   constructor(itemId: string) {

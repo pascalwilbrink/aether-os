@@ -29,6 +29,7 @@ export class KnowledgeItemMapper {
         sessionId: entity.sourceSessionId,
         agentId: entity.sourceAgentId,
         repository: this.repositoryFileOf(entity),
+        episteme: epistemeOf(entity),
       },
       supersedes: entity.supersedes,
       supersededBy: entity.supersededBy,
@@ -143,4 +144,24 @@ export class KnowledgeItemMapper {
         }
       : null;
   }
+}
+
+/** The Episteme resource and published version an item holds; null for any other item. */
+function epistemeOf(
+  entity: KnowledgeItemEntity,
+): ApiTypes.EpistemeVersionRef | null {
+  if (
+    entity.sourceKind !== 'episteme' ||
+    !entity.epistemeResourceId ||
+    !entity.epistemeVersionId ||
+    entity.epistemeVersionNumber === null
+  ) {
+    return null;
+  }
+  return {
+    resourceId: entity.epistemeResourceId,
+    versionId: entity.epistemeVersionId,
+    versionNumber: entity.epistemeVersionNumber,
+    knowledgeType: entity.epistemeKnowledgeType ?? '',
+  };
 }

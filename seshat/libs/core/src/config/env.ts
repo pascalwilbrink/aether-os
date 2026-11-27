@@ -49,6 +49,12 @@ export const zEnv = z.object({
    * repositories are recorded but not read.
    */
   PROXENOS_URL: z.url({ protocol: /^https?$/ }).optional(),
+  /**
+   * Episteme's API: the published versions of its resources (with
+   * Seshat's own token), indexed where they belong. Without it, Episteme's
+   * events are ignored.
+   */
+  EPISTEME_URL: z.url({ protocol: /^https?$/ }).optional(),
   /** How often repositories waiting to be read are looked for (ms); 0 turns it off. */
   REPOSITORY_SYNC_INTERVAL_MS: z.coerce.number().int().min(0).default(5000),
   /** What a newly linked repository indexes: folders (ending in `/`) and files, comma-separated. */

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Seshat API
-  version: 0.5.0
+  version: 0.6.0
   description: |
     Project knowledge (`../docs/knowledge.md`): what agents know about the
     project they work in. Typed items (decisions, facts, conventions,
@@ -14,6 +14,14 @@ info:
     A department of the organization (Polis) has knowledge of its own:
     items every project in the department sees, read-only, in its lists,
     reads and search (by keywords; their passages aren't embedded yet).
+
+    Episteme's published knowledge (policies, procedures, runbooks, …;
+    `../episteme/CLAUDE.md`) is indexed here too, read-only, where its
+    resource belongs: a project's in the project, a department's in the
+    department, and the organization's in every project and department of
+    the organization (an item with neither `projectId` nor
+    `departmentId`, found by keywords). Each such item names the resource
+    and the version it holds (`source.kind: episteme`).
     Organization owners and admins write and accept them under
     `…/departments/{departmentId}/knowledge`; agents and people of a
     project propose them from the project (`scope: department`).
@@ -797,9 +805,11 @@ components:
         `session` (an agent in a person's session proposed it, e.g. a
         council's facilitator: `sessionId`, `agentId`), or `repository` (a
         document indexed from a repository linked to the project, with
-        `repository`; read-only: change it with a commit).
+        `repository`; read-only: change it with a commit), or `episteme`
+        (the published version of a resource in Episteme, with `episteme`;
+        read-only: publish a new version there).
       properties:
-        kind: { type: string, enum: [person, task, session, repository] }
+        kind: { type: string, enum: [person, task, session, repository, episteme] }
         taskId:
           type: [string, 'null']
           format: uuid
@@ -814,6 +824,19 @@ components:
           oneOf:
             - $ref: '#/components/schemas/KnowledgeRepositoryFile'
             - type: 'null'
+        episteme:
+          oneOf:
+            - $ref: '#/components/schemas/EpistemeVersionRef'
+            - type: 'null'
+    EpistemeVersionRef:
+      type: object
+      required: [resourceId, versionId, versionNumber, knowledgeType]
+      description: The Episteme resource and its published version the item holds.
+      properties:
+        resourceId: { type: string, format: uuid }
+        versionId: { type: string, format: uuid }
+        versionNumber: { type: integer, minimum: 1 }
+        knowledgeType: { type: string, description: "Episteme's `KnowledgeType` (policy, procedure, runbook, …)." }
     KnowledgeRepositoryFile:
       type: object
       required: [linkId, fullName, path, commit, blobSha, url]
@@ -983,16 +1006,16 @@ components:
         projectId:
           type: [string, 'null']
           format: uuid
-          description: The project it belongs to; null for a department's item.
+          description: The project it belongs to; null for a department's or the organization's item.
         departmentId:
           type: [string, 'null']
           format: uuid
-          description: The department it belongs to (seen by every project in it); null for a project's item.
+          description: The department it belongs to (seen by every project in it); null for a project's or the organization's item. Both null is the organization's (Episteme's only, for now), seen by every project and department.
         type: { $ref: '#/components/schemas/KnowledgeItemType' }
         title: { type: string }
         body:
           type: string
-          description: Markdown; for a document, empty (its text is in its chunks).
+          description: Markdown; for a document, empty (its text is in its chunks), except Episteme's, whose body is the published version's content.
         rationale:
           type: [string, 'null']
           description: A decision's rationale; null for anything else, or none given.

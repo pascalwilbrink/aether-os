@@ -24,8 +24,14 @@ export type IndexingStatus = ApiTypes.DocumentIndexing['status'];
 )
 @Check(
   'ck_knowledge_items_source_kind',
-  `source_kind IN ('person', 'task', 'session', 'repository')`,
+  `source_kind IN ('person', 'task', 'session', 'repository', 'episteme')`,
 )
+// One current item per Episteme resource (a retired one stays, and a
+// resource published again after it's archived gets a new item).
+@Index('uq_knowledge_items_episteme_resource', ['epistemeResourceId'], {
+  unique: true,
+  where: `episteme_resource_id IS NOT NULL AND status <> 'retired'`,
+})
 // One current document per file of an indexed repository (a retired one
 // stays, and a file added back is a new item).
 @Index(
@@ -48,10 +54,11 @@ export type IndexingStatus = ApiTypes.DocumentIndexing['status'];
 ])
 // A project's view (its items and its department's), or a department's, newest first.
 @Index('ix_knowledge_items_scope_created_at_id', ['scopeId', 'createdAt', 'id'])
-// A project's or a department's, never both.
+// A project's or a department's, never both; neither is the
+// organization's, which only Episteme's items are for now.
 @Check(
   'ck_knowledge_items_owner',
-  `(project_id IS NULL) <> (department_id IS NULL)`,
+  `(project_id IS NULL OR department_id IS NULL) AND (source_kind = 'episteme' OR project_id IS NOT NULL OR department_id IS NOT NULL)`,
 )
 @Check(
   'ck_knowledge_items_embedding_status',
@@ -72,22 +79,23 @@ export class KnowledgeItemEntity {
   @Column({ type: 'uuid' })
   organizationId: string;
 
-  /** The project it belongs to; null for a department's item. */
+  /** The project it belongs to; null for a department's or the organization's item. */
   @Column({ type: 'uuid', nullable: true })
   projectId: string | null;
 
-  /** The department it belongs to, seen by every project in it; null for a project's item. */
+  /** The department it belongs to, seen by every project in it; null for a project's or the organization's item. */
   @Column({ type: 'uuid', nullable: true })
   departmentId: string | null;
 
   /**
-   * Its project or department, whichever it has (kept by Postgres): a
-   * project's view of its items and its department's is one `IN` filter.
+   * Its project or department, whichever it has, else its organization
+   * (kept by Postgres): a project's view of its items, its department's and
+   * the organization's is one `IN` filter.
    */
   @Column({
     type: 'uuid',
     generatedType: 'STORED',
-    asExpression: 'COALESCE(project_id, department_id)',
+    asExpression: 'COALESCE(project_id, department_id, organization_id)',
     insert: false,
     update: false,
   })
@@ -128,7 +136,7 @@ export class KnowledgeItemEntity {
   alternatives: ApiTypes.DecisionAlternative[];
 
   @Column({ type: 'text' })
-  sourceKind: 'person' | 'task' | 'session' | 'repository';
+  sourceKind: 'person' | 'task' | 'session' | 'repository' | 'episteme';
 
   @Column({ type: 'uuid', nullable: true })
   sourceTaskId: string | null;
@@ -195,6 +203,27 @@ export class KnowledgeItemEntity {
 
   @Column({ type: 'text', nullable: true })
   repositoryUrl: string | null;
+
+  // ---- Episteme's knowledge only (source `episteme`) ----
+
+  /** The resource in Episteme whose published version this item holds. */
+  @Column({ type: 'uuid', nullable: true })
+  epistemeResourceId: string | null;
+
+  /** Its published version this item's current version holds. */
+  @Column({ type: 'uuid', nullable: true })
+  epistemeVersionId: string | null;
+
+  @Column({ type: 'integer', nullable: true })
+  epistemeVersionNumber: number | null;
+
+  /** Episteme's `KnowledgeType` (policy, procedure, runbook, …). */
+  @Column({ type: 'text', nullable: true })
+  epistemeKnowledgeType: string | null;
+
+  /** The resource's `version` last read: an older read changes nothing. */
+  @Column({ type: 'integer', nullable: true })
+  epistemeResourceVersion: number | null;
 
   @Column({ type: 'text', nullable: true })
   indexingStatus: IndexingStatus | null;

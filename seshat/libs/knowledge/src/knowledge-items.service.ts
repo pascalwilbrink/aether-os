@@ -22,6 +22,7 @@ import {
 import { TenancyService } from '@seshat/tenancy';
 
 import type { DocumentFile } from './document-files.js';
+import type { EpistemePublished } from './episteme-source.js';
 import { KnowledgeChunksService } from './knowledge-chunks.service.js';
 import {
   KnowledgeItemEntity,
@@ -35,6 +36,7 @@ import {
 } from './knowledge-transitions.js';
 import {
   KnowledgeItemInvalidError,
+  KnowledgeItemFromEpistemeError,
   KnowledgeItemInvalidTransitionError,
   KnowledgeItemOfDepartmentError,
   KnowledgeItemReadOnlyError,
@@ -305,7 +307,7 @@ export class KnowledgeItemsService {
   ): Promise<ItemResponse> {
     await this.assertWritable(scope);
     const item = await this.loadOwned(scope, itemId);
-    assertNotFromRepository(item);
+    assertNotSourced(item);
     if (item.type === 'document') {
       throw new KnowledgeItemInvalidError(
         `Knowledge item ${itemId} is a document: change it with PUT …/documents/${itemId}.`,
@@ -333,7 +335,7 @@ export class KnowledgeItemsService {
     this.assertApprover(scope);
     await this.assertWritable(scope);
     const item = await this.loadOwned(scope, itemId);
-    assertNotFromRepository(item);
+    assertNotSourced(item);
     if (item.status === 'accepted') {
       return this.mapper.toResponse(item);
     }
@@ -416,7 +418,7 @@ export class KnowledgeItemsService {
       { organizationId, projectId, departmentId: null },
       itemId,
     );
-    assertNotFromRepository(item);
+    assertNotSourced(item);
     if (item.type !== 'document') {
       throw new KnowledgeItemInvalidError(
         `Knowledge item ${itemId} isn't a document: change it with PUT …/items/${itemId}.`,
@@ -707,6 +709,7 @@ export class KnowledgeItemsService {
       repositoryCommit: null,
       repositoryBlobSha: null,
       repositoryUrl: null,
+      ...NO_EPISTEME,
       indexingStatus: null,
       indexingError: null,
       chunkCount: 0,
@@ -728,6 +731,146 @@ export class KnowledgeItemsService {
       updatedAt: now,
     } satisfies KnowledgeItemEntity);
     setRepositoryFile(item, source, file);
+    return item;
+  }
+
+  // ---- Episteme's knowledge (KnowledgeEpistemeService) ----
+
+  /**
+   * Makes the resource's item hold its published version, where the
+   * resource belongs: a new accepted item, or a new version of it when the
+   * version, title or tags changed, passaged at once. A read older than the
+   * item's last (`resourceVersion`) changes nothing. The item.
+   */
+  @Transactional()
+  async syncEpistemeItem(
+    published: EpistemePublished,
+  ): Promise<KnowledgeItemEntity> {
+    const item = await this.currentEpistemeItem(published.resourceId);
+    if (!item) {
+      const created = this.epistemeItem(published);
+      await this.items.insert(created);
+      await this.versions.record(created);
+      await this.emit(created, 'knowledge-item.accepted');
+      await this.indexText(created);
+      return created;
+    }
+    if (
+      item.epistemeResourceVersion !== null &&
+      item.epistemeResourceVersion >= published.resourceVersion
+    ) {
+      return item;
+    }
+    const changed =
+      item.epistemeVersionId !== published.versionId ||
+      item.title !== published.title ||
+      item.body !== published.content ||
+      item.epistemeKnowledgeType !== published.knowledgeType ||
+      JSON.stringify(item.tags) !== JSON.stringify(published.tags);
+    setEpistemeVersion(item, published);
+    if (changed) {
+      await this.newVersion(item, EPISTEME_ACTOR);
+      await this.indexText(item);
+    } else {
+      await this.items.save(item);
+    }
+    return item;
+  }
+
+  /**
+   * Retires the resource's item: it has no published version any more
+   * (archived) or is gone (deleted, `resourceVersion` null). A read older
+   * than the item's last changes nothing.
+   */
+  @Transactional()
+  async retireEpistemeItem(
+    resourceId: string,
+    resourceVersion: number | null,
+  ): Promise<void> {
+    const item = await this.currentEpistemeItem(resourceId);
+    if (
+      !item ||
+      (resourceVersion !== null &&
+        item.epistemeResourceVersion !== null &&
+        item.epistemeResourceVersion >= resourceVersion)
+    ) {
+      return;
+    }
+    item.epistemeResourceVersion = resourceVersion;
+    this.move(item, 'retire');
+    item.updatedBy = EPISTEME_ACTOR;
+    await this.save(item, 'knowledge-item.retired');
+  }
+
+  /** The resource's current (not retired) item, locked. */
+  private currentEpistemeItem(
+    resourceId: string,
+  ): Promise<KnowledgeItemEntity | null> {
+    return this.items
+      .createQueryBuilder('item')
+      .setLock('pessimistic_write')
+      .where('item.epistemeResourceId = :resourceId', { resourceId })
+      .andWhere(`item.status <> 'retired'`)
+      .getOne();
+  }
+
+  private epistemeItem(published: EpistemePublished): KnowledgeItemEntity {
+    const now = new Date();
+    const item = Object.assign(new KnowledgeItemEntity(), {
+      id: uuidv7(),
+      organizationId: published.organizationId,
+      projectId: published.projectId,
+      departmentId: published.projectId ? null : published.departmentId,
+      type: 'document',
+      title: published.title,
+      body: published.content,
+      rationale: null,
+      alternatives: [],
+      status: 'accepted',
+      version: 1,
+      revision: 0,
+      tags: [...published.tags],
+      references: [],
+      sourceKind: 'episteme',
+      sourceTaskId: null,
+      sourceSessionId: null,
+      sourceAgentId: null,
+      supersedes: null,
+      supersededBy: null,
+      reviewBy: null,
+      fileId: null,
+      fileName: null,
+      contentType: null,
+      sizeBytes: null,
+      sha256: null,
+      repositoryLinkId: null,
+      repositoryFullName: null,
+      repositoryPath: null,
+      repositoryCommit: null,
+      repositoryBlobSha: null,
+      repositoryUrl: null,
+      ...NO_EPISTEME,
+      indexingStatus: null,
+      indexingError: null,
+      chunkCount: 0,
+      indexingAttempts: 0,
+      nextIndexAt: null,
+      indexedAt: null,
+      embeddingStatus: null,
+      embeddingModel: null,
+      embeddingAttempts: 0,
+      nextEmbedAt: null,
+      embeddingError: null,
+      embeddedAt: null,
+      createdBy: EPISTEME_ACTOR,
+      updatedBy: EPISTEME_ACTOR,
+      // Published in Episteme, after its review: accepted as it is.
+      acceptedBy: EPISTEME_ACTOR,
+      acceptedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    } satisfies KnowledgeItemEntity);
+    setEpistemeVersion(item, published);
     return item;
   }
 
@@ -783,6 +926,7 @@ export class KnowledgeItemsService {
       repositoryCommit: null,
       repositoryBlobSha: null,
       repositoryUrl: null,
+      ...NO_EPISTEME,
       indexingStatus: null,
       indexingError: null,
       chunkCount: 0,
@@ -865,7 +1009,7 @@ export class KnowledgeItemsService {
     this.assertApprover(scope);
     await this.assertWritable(scope);
     const item = await this.loadOwned(scope, itemId);
-    assertNotFromRepository(item);
+    assertNotSourced(item);
     if (item.status !== done) {
       this.move(item, action);
       await this.save(
@@ -911,7 +1055,7 @@ export class KnowledgeItemsService {
         `supersedes must name an accepted item of the ${owner.projectId ? 'project' : 'department'} (${itemId} isn't one).`,
       );
     }
-    assertNotFromRepository(item);
+    assertNotSourced(item);
     return item;
   }
 
@@ -1011,6 +1155,9 @@ export class KnowledgeItemsService {
     if (!item) {
       throw new NotFoundException(`Knowledge item ${itemId} not found`);
     }
+    if (item.sourceKind === 'episteme') {
+      throw new KnowledgeItemFromEpistemeError(item.id);
+    }
     if (scope.projectId !== null && item.projectId === null) {
       throw new KnowledgeItemOfDepartmentError(item.id);
     }
@@ -1060,9 +1207,12 @@ export class KnowledgeItemsService {
   }
 }
 
-/** The projects and departments whose items a scope sees (`scopeId`). */
+/**
+ * The project, department and organization whose items a scope sees
+ * (`scopeId`): the organization's are Episteme's, seen everywhere in it.
+ */
 function scopeIds(scope: KnowledgeScope): string[] {
-  return [scope.projectId, scope.departmentId].filter(
+  return [scope.projectId, scope.departmentId, scope.organizationId].filter(
     (id): id is string => id !== null,
   );
 }
@@ -1079,6 +1229,35 @@ function ownerOf(item: KnowledgeItemEntity): Owner {
   return item.projectId !== null
     ? { projectId: item.projectId, departmentId: null }
     : { projectId: null, departmentId: item.departmentId ?? '' };
+}
+
+/** Who changes Episteme's knowledge here: Episteme, where people published it. */
+const EPISTEME_ACTOR = 'episteme';
+
+/** The Episteme columns of every other item. */
+const NO_EPISTEME = {
+  epistemeResourceId: null,
+  epistemeVersionId: null,
+  epistemeVersionNumber: null,
+  epistemeKnowledgeType: null,
+  epistemeResourceVersion: null,
+} satisfies Partial<KnowledgeItemEntity>;
+
+/** The published version an Episteme item holds now. */
+function setEpistemeVersion(
+  item: KnowledgeItemEntity,
+  published: EpistemePublished,
+): void {
+  Object.assign(item, {
+    title: published.title,
+    body: published.content,
+    tags: [...published.tags],
+    epistemeResourceId: published.resourceId,
+    epistemeVersionId: published.versionId,
+    epistemeVersionNumber: published.versionNumber,
+    epistemeKnowledgeType: published.knowledgeType,
+    epistemeResourceVersion: published.resourceVersion,
+  } satisfies Partial<KnowledgeItemEntity>);
 }
 
 /** Who changed a repository document: the repository, not a person. */
@@ -1110,10 +1289,16 @@ function setRepositoryFile(
   } satisfies Partial<KnowledgeItemEntity>);
 }
 
-/** Repository documents change with commits, never through the API. */
-function assertNotFromRepository(item: KnowledgeItemEntity): void {
+/**
+ * Repository documents change with commits, Episteme's knowledge with a
+ * published version there: never through the API.
+ */
+function assertNotSourced(item: KnowledgeItemEntity): void {
   if (item.sourceKind === 'repository') {
     throw new KnowledgeItemReadOnlyError(item.id, item.repositoryFullName);
+  }
+  if (item.sourceKind === 'episteme') {
+    throw new KnowledgeItemFromEpistemeError(item.id);
   }
 }
 

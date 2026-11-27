@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Seshat events
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Events Seshat publishes to the `seshat.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -14,6 +14,12 @@ info:
     can tell an old event from a newer one. Payloads carry IDs and metadata,
     never the item's text: read it from Seshat's API with your own
     permissions.
+
+    `knowledge-indexing.completed` and `.failed` answer Episteme
+    (`episteme.asyncapi.yaml`): whether a published version of one of its
+    resources is searchable here. Their aggregate is the Episteme resource,
+    and `aggregateVersion` the resource's `version` Seshat read, so a
+    consumer keeps the latest answer per resource.
 
 defaultContentType: application/json
 
@@ -43,6 +49,8 @@ channels:
       knowledgeItemSuperseded: { $ref: '#/components/messages/knowledgeItemSuperseded' }
       knowledgeItemRetired: { $ref: '#/components/messages/knowledgeItemRetired' }
       knowledgeItemIndexed: { $ref: '#/components/messages/knowledgeItemIndexed' }
+      knowledgeIndexingCompleted: { $ref: '#/components/messages/knowledgeIndexingCompleted' }
+      knowledgeIndexingFailed: { $ref: '#/components/messages/knowledgeIndexingFailed' }
 
 operations:
   publishSeshatEvents:
@@ -56,6 +64,8 @@ operations:
       - $ref: '#/channels/seshatEvents/messages/knowledgeItemSuperseded'
       - $ref: '#/channels/seshatEvents/messages/knowledgeItemRetired'
       - $ref: '#/channels/seshatEvents/messages/knowledgeItemIndexed'
+      - $ref: '#/channels/seshatEvents/messages/knowledgeIndexingCompleted'
+      - $ref: '#/channels/seshatEvents/messages/knowledgeIndexingFailed'
 
 components:
   messages:
@@ -129,6 +139,26 @@ components:
             properties:
               eventType: { const: knowledge-item.indexed }
               payload: { $ref: '#/components/schemas/KnowledgeItemIndexed' }
+    knowledgeIndexingCompleted:
+      name: knowledge-indexing.completed
+      summary: "A published version of an Episteme resource is searchable in Seshat, as `itemId` (Episteme)."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-indexing.completed }
+              payload: { $ref: '#/components/schemas/KnowledgeIndexingCompleted' }
+    knowledgeIndexingFailed:
+      name: knowledge-indexing.failed
+      summary: "A published version of an Episteme resource couldn't be indexed, and won't be until it changes (Episteme)."
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-indexing.failed }
+              payload: { $ref: '#/components/schemas/KnowledgeIndexingFailed' }
 
   schemas:
     Uuid: { type: string, format: uuid }
@@ -165,12 +195,12 @@ components:
       properties:
         itemId: { $ref: '#/components/schemas/Uuid' }
         projectId:
-          description: The project the item belongs to; null for a department's item.
+          description: The project the item belongs to; null for a department's or the organization's item.
           oneOf:
             - $ref: '#/components/schemas/Uuid'
             - type: 'null'
         departmentId:
-          description: The department the item belongs to; null for a project's item.
+          description: The department the item belongs to; null for a project's or the organization's item.
           oneOf:
             - $ref: '#/components/schemas/Uuid'
             - type: 'null'
@@ -180,7 +210,7 @@ components:
           type: integer
           minimum: 1
           description: The item's content version (its text, or a document's file).
-        sourceKind: { enum: [person, task, session, repository] }
+        sourceKind: { enum: [person, task, session, repository, episteme] }
         supersededBy:
           oneOf:
             - $ref: '#/components/schemas/Uuid'
@@ -192,12 +222,12 @@ components:
       properties:
         itemId: { $ref: '#/components/schemas/Uuid' }
         projectId:
-          description: The project the item belongs to; null for a department's item.
+          description: The project the item belongs to; null for a department's or the organization's item.
           oneOf:
             - $ref: '#/components/schemas/Uuid'
             - type: 'null'
         departmentId:
-          description: The department the item belongs to; null for a project's item.
+          description: The department the item belongs to; null for a project's or the organization's item.
           oneOf:
             - $ref: '#/components/schemas/Uuid'
             - type: 'null'
@@ -206,3 +236,23 @@ components:
           minimum: 1
           description: The content version whose chunks are ready.
         chunkCount: { type: integer, minimum: 0 }
+    KnowledgeIndexingCompleted:
+      type: object
+      additionalProperties: false
+      required: [resourceId, versionId, versionNumber, itemId, itemVersion, chunkCount]
+      properties:
+        resourceId: { $ref: '#/components/schemas/Uuid', description: The Episteme resource. }
+        versionId: { $ref: '#/components/schemas/Uuid', description: Its published version that was indexed. }
+        versionNumber: { type: integer, minimum: 1 }
+        itemId: { $ref: '#/components/schemas/Uuid', description: The Seshat item that holds it. }
+        itemVersion: { type: integer, minimum: 1, description: The item's content version. }
+        chunkCount: { type: integer, minimum: 0, description: Its passages. }
+    KnowledgeIndexingFailed:
+      type: object
+      additionalProperties: false
+      required: [resourceId, versionId, versionNumber, error]
+      properties:
+        resourceId: { $ref: '#/components/schemas/Uuid', description: The Episteme resource. }
+        versionId: { $ref: '#/components/schemas/Uuid' }
+        versionNumber: { type: integer, minimum: 1 }
+        error: { type: string, description: Why, for people (no content). }

@@ -76,6 +76,7 @@ export type {
   KnowledgeType,
   KnowledgeVersionCreateRequest,
   KnowledgeVersionDiff,
+  KnowledgeVersionIndexing,
   KnowledgeVersionPage,
   KnowledgeVersionResponse,
   KnowledgeVersionState,

@@ -70,6 +70,16 @@ export const zKnowledgeReference = z.object({
 });
 
 /**
+ * The Episteme resource and its published version the item holds.
+ */
+export const zEpistemeVersionRef = z.object({
+  resourceId: z.uuid(),
+  versionId: z.uuid(),
+  versionNumber: z.int().gte(1),
+  knowledgeType: z.string(),
+});
+
+/**
  * A file in a repository linked to the project, at a commit of its default branch.
  */
 export const zKnowledgeRepositoryFile = z.object({
@@ -87,15 +97,18 @@ export const zKnowledgeRepositoryFile = z.object({
  * `session` (an agent in a person's session proposed it, e.g. a
  * council's facilitator: `sessionId`, `agentId`), or `repository` (a
  * document indexed from a repository linked to the project, with
- * `repository`; read-only: change it with a commit).
+ * `repository`; read-only: change it with a commit), or `episteme`
+ * (the published version of a resource in Episteme, with `episteme`;
+ * read-only: publish a new version there).
  *
  */
 export const zKnowledgeSource = z.object({
-  kind: z.enum(['person', 'task', 'session', 'repository']),
+  kind: z.enum(['person', 'task', 'session', 'repository', 'episteme']),
   taskId: z.uuid().nullish(),
   sessionId: z.uuid().nullish(),
   agentId: z.uuid().nullish(),
   repository: zKnowledgeRepositoryFile.nullish(),
+  episteme: zEpistemeVersionRef.nullish(),
 });
 
 export const zDocumentIndexing = z.object({

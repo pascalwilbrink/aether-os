@@ -175,6 +175,22 @@ export const zKnowledgeVersionState = z.enum([
   'superseded',
 ]);
 
+/**
+ * Seshat's answer for a published version (`seshat.asyncapi.yaml`,
+ * `knowledge-indexing.completed` / `.failed`): `pending` from
+ * publishing until it answers, then `indexed` (searchable there as
+ * `itemId`) or `failed` (with `error`).
+ *
+ */
+export const zKnowledgeVersionIndexing = z.object({
+  status: z.enum(['pending', 'indexed', 'failed']),
+  itemId: z.uuid().nullable(),
+  chunkCount: z.int().gte(0).nullable(),
+  error: z.string().nullable(),
+  requestedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
 export const zKnowledgeVersionSummary = z.object({
   id: z.uuid(),
   resourceId: z.uuid(),
@@ -190,6 +206,7 @@ export const zKnowledgeVersionSummary = z.object({
   submittedAt: z.iso.datetime().nullable(),
   approvedAt: z.iso.datetime().nullable(),
   publishedAt: z.iso.datetime().nullable(),
+  indexing: zKnowledgeVersionIndexing.nullable(),
 });
 
 export const zKnowledgeResourceResponse = z.object({

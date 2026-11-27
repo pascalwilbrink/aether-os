@@ -74,11 +74,13 @@ export type KnowledgeReference = {
  * `session` (an agent in a person's session proposed it, e.g. a
  * council's facilitator: `sessionId`, `agentId`), or `repository` (a
  * document indexed from a repository linked to the project, with
- * `repository`; read-only: change it with a commit).
+ * `repository`; read-only: change it with a commit), or `episteme`
+ * (the published version of a resource in Episteme, with `episteme`;
+ * read-only: publish a new version there).
  *
  */
 export type KnowledgeSource = {
-  kind: 'person' | 'task' | 'session' | 'repository';
+  kind: 'person' | 'task' | 'session' | 'repository' | 'episteme';
   taskId?: string | null;
   sessionId?: string | null;
   /**
@@ -86,6 +88,20 @@ export type KnowledgeSource = {
    */
   agentId?: string | null;
   repository?: KnowledgeRepositoryFile | null;
+  episteme?: EpistemeVersionRef | null;
+};
+
+/**
+ * The Episteme resource and its published version the item holds.
+ */
+export type EpistemeVersionRef = {
+  resourceId: string;
+  versionId: string;
+  versionNumber: number;
+  /**
+   * Episteme's `KnowledgeType` (policy, procedure, runbook, …).
+   */
+  knowledgeType: string;
 };
 
 /**
@@ -221,17 +237,17 @@ export type KnowledgeItemResponse = {
   id: string;
   organizationId: string;
   /**
-   * The project it belongs to; null for a department's item.
+   * The project it belongs to; null for a department's or the organization's item.
    */
   projectId: string | null;
   /**
-   * The department it belongs to (seen by every project in it); null for a project's item.
+   * The department it belongs to (seen by every project in it); null for a project's or the organization's item. Both null is the organization's (Episteme's only, for now), seen by every project and department.
    */
   departmentId: string | null;
   type: KnowledgeItemType;
   title: string;
   /**
-   * Markdown; for a document, empty (its text is in its chunks).
+   * Markdown; for a document, empty (its text is in its chunks), except Episteme's, whose body is the published version's content.
    */
   body: string;
   /**

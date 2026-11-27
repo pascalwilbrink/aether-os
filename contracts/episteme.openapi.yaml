@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Episteme API
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Knowledge governance (`../episteme/CLAUDE.md`): the organization's
     authoritative knowledge as **resources** (a policy, a procedure, a
@@ -928,7 +928,7 @@ components:
       enum: [draft, in_review, approved, rejected, published, superseded]
     KnowledgeVersionSummary:
       type: object
-      required: [id, resourceId, number, state, checksum, changeSummary, basedOnVersionId, authoredBy, revision, createdAt, updatedAt, submittedAt, approvedAt, publishedAt]
+      required: [id, resourceId, number, state, checksum, changeSummary, basedOnVersionId, authoredBy, revision, createdAt, updatedAt, submittedAt, approvedAt, publishedAt, indexing]
       properties:
         id: { type: string, format: uuid }
         resourceId: { type: string, format: uuid }
@@ -953,6 +953,29 @@ components:
         submittedAt: { type: [string, 'null'], format: date-time }
         approvedAt: { type: [string, 'null'], format: date-time }
         publishedAt: { type: [string, 'null'], format: date-time }
+        indexing:
+          description: Whether Seshat made it searchable, for a version that was published; null for one that never was.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/KnowledgeVersionIndexing'
+    KnowledgeVersionIndexing:
+      type: object
+      description: |
+        Seshat's answer for a published version (`seshat.asyncapi.yaml`,
+        `knowledge-indexing.completed` / `.failed`): `pending` from
+        publishing until it answers, then `indexed` (searchable there as
+        `itemId`) or `failed` (with `error`).
+      required: [status, itemId, chunkCount, error, requestedAt, updatedAt]
+      properties:
+        status: { type: string, enum: [pending, indexed, failed] }
+        itemId:
+          type: [string, 'null']
+          format: uuid
+          description: The Seshat knowledge item that holds it.
+        chunkCount: { type: [integer, 'null'], minimum: 0 }
+        error: { type: [string, 'null'] }
+        requestedAt: { type: string, format: date-time, description: When it was published. }
+        updatedAt: { type: string, format: date-time, description: "When Seshat's answer came, or `requestedAt` before it." }
     KnowledgeVersionResponse:
       allOf:
         - $ref: '#/components/schemas/KnowledgeVersionSummary'
