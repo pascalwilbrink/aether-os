@@ -482,7 +482,7 @@ paths:
         required); `request_changes` → `draft` again (a comment is
         required). Reviewers and approvers are the resource's stewards with
         those roles; anyone holding the permission may reject or ask for
-        changes.
+        changes. Approving a version you wrote is allowed.
       requestBody:
         required: true
         content:

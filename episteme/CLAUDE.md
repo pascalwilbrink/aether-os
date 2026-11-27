@@ -28,7 +28,7 @@ Settled with the platform's owner (open questions 1, 2, 3 and 5, and parts of 4 
 | **The first contracts** | **The core first:** resources, versions (Markdown drafts, submit, review, approve, publish, restore, diff), the two lifecycles, scopes, stewards, the audit and their events (`../contracts/episteme.openapi.yaml`, `../contracts/episteme.asyncapi.yaml`). Taxonomy beyond the fixed type list, relationships, indexing status, review schedules and expiry, and access restrictions are added as their open questions (6 to 11, 13) are settled. |
 | **Permissions** | **Extend `knowledge:*`:** organization permissions `org:knowledge:read` (owners, admins, members, viewers), `org:knowledge:draft` and `org:knowledge:review` (owners, admins, members), `org:knowledge:publish` and `org:knowledge:govern` (owners and admins), in Krepis's table. Resources belong to the organization, so the project-level ones wait until resources can belong to a project (Seshat's migration). Seshat's `knowledge:write` / `:approve` and `org:knowledge:write` stay until the migration (open question 2). |
 | **Stewards** (part of question 4) | **Polis persons**, as Ergon's assignments: a person can be accountable before they sign up, and acts once linked to a Pistis user. Teams and departments as owners come later. |
-| **Approvals** (part of question 6) | **One approval**, from one of the resource's approvers, or from anyone holding `org:knowledge:publish` when it names none; the same for every knowledge type. Rules per type can come later without breaking the API. |
+| **Approvals** (part of question 6) | **One approval**, from one of the resource's approvers, or from anyone holding `org:knowledge:publish` when it names none; the same for every knowledge type. **Approving a version you wrote is allowed.** Rules per type (a second approver, no self-approval) can come later without breaking the API. |
 | **Content format** | **Markdown** is the authoring and stored format. It is what Seshat indexes and agents read today, versions compare as text diffs, and imports convert to it. A rich-text editor can come later on top of Markdown. Files (PDF, `.docx`) are attachments in Loculus, not the content format. |
 
 ## Aether OS, briefly
@@ -289,7 +289,7 @@ Where a resource came from: `sourceType` (`internal`, `import`, `sync`, `derived
 - **Scopes** are departments, teams and projects; none means the whole organization (no `organization` scope row).
 - **Concurrency:** `If-Match` with the resource's `version` (one counter for the resource and its versions, also the events' `aggregateVersion`), and with a draft's `revision` for editing and submitting it.
 - **Events** have the resource as aggregate and carry IDs, states and checksums only (no titles, content or personal data); Seshat reads a published version's content from `GET …/versions/{id}` with `platform:read`. The review withdrawal is `knowledge-version.returned` (`withdrawn`), so `knowledge-version.withdrawn` keeps its meaning: no longer current.
-- **Left open:** whether someone may approve their own version (allowed for now), and scheduled publication (`at`), which comes with the poller.
+- **Left for later:** scheduled publication (`at`), which comes with the poller.
 
 ## Lifecycle
 
