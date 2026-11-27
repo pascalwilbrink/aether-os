@@ -124,6 +124,8 @@ Named `resource:action`. Organization-scoped permissions are checked against `or
 | `org:secret:write` (organization-wide secrets) | org | ✓ | ✓ | | |
 | `org:knowledge:write` (organization-wide knowledge items, `knowledge.md`; Proposal) | org | ✓ | ✓ | | |
 | `org:work:read` / `org:work:write` (Ergon's work outside any project: reading it; creating, changing, assigning and moving it, `../ergon/CLAUDE.md`) | org | ✓ / ✓ | ✓ / ✓ | ✓ / ✓ | ✓ / |
+| `org:knowledge:read` / `:draft` / `:review` (Episteme's governed knowledge: reading it; drafting and submitting versions; deciding reviews, people only, `../episteme/CLAUDE.md`) | org | ✓ / ✓ / ✓ | ✓ / ✓ / ✓ | ✓ / ✓ / ✓ | ✓ / / |
+| `org:knowledge:publish` / `:govern` (publishing and archiving, people only; stewards, scopes and metadata) | org | ✓ / ✓ | ✓ / ✓ | / | / |
 
 The organization-wide variants carry an `org:` prefix in code, so every permission name has exactly one scope.
 

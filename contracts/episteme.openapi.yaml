@@ -24,7 +24,8 @@ info:
     means the whole organization), stewards who is accountable (persons of
     Polis). What a caller may do comes from the `org:knowledge:*`
     permissions. **People approve and publish, agents propose:** task and
-    session tokens may read, draft and submit, never decide or publish.
+    session tokens may read, draft and submit, never decide or publish
+    (`org:knowledge:review` and `:publish` are people's only, in Krepis).
 
     **Search stays in Seshat.** The list filters resources' metadata; Seshat
     indexes what Episteme publishes (`knowledge-version.published`) and
@@ -200,9 +201,10 @@ paths:
       x-permission: '`org:knowledge:publish`, or `org:knowledge:draft` as one of its owners'
       description: |
         Withdraws it from use: no version of it is current any more
-        (`knowledge-version.withdrawn` for its published one), and an open
-        version is closed. Kept for audit. Archiving an archived resource
-        returns it unchanged.
+        (`knowledge-version.withdrawn` for its published one), and a version
+        in review goes back to draft (its review withdrawn). Kept for audit;
+        nothing about it can change afterwards (`RESOURCE_ARCHIVED`).
+        Archiving an archived resource returns it unchanged.
       parameters:
         - $ref: '#/components/parameters/IfMatch'
       requestBody:
@@ -474,7 +476,7 @@ paths:
     post:
       tags: [reviews]
       operationId: decideKnowledgeVersion
-      x-permission: '`org:knowledge:review`, people only (`PEOPLE_DECIDE`); to approve, one of the resource''s approvers, or `org:knowledge:publish` when it has none (`NOT_AN_APPROVER`)'
+      x-permission: '`org:knowledge:review` (people only); to approve, one of the resource''s approvers, or `org:knowledge:publish` when it has none (403 otherwise)'
       description: |
         A decision on the version's open review (`NOT_IN_REVIEW` otherwise).
         One approval is enough: `approve` → `approved` (recorded against the
@@ -531,7 +533,7 @@ paths:
     post:
       tags: [reviews]
       operationId: publishKnowledgeVersion
-      x-permission: '`org:knowledge:publish`, people only (`PEOPLE_DECIDE`)'
+      x-permission: '`org:knowledge:publish` (people only)'
       description: |
         `approved` → `published` (`NOT_APPROVED` otherwise): the resource's
         authoritative version from now on, and the resource `active`. The
@@ -684,8 +686,8 @@ components:
         taskId: { type: [string, 'null'] }
     Tag:
       type: string
-      description: Lowercase letters, digits and hyphens; stored lowercased.
-      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      description: Letters, digits and hyphens; stored lowercased.
+      pattern: '^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$'
       minLength: 1
       maxLength: 50
     ReasonRequest:

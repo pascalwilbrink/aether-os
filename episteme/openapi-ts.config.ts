@@ -14,4 +14,14 @@ export default defineConfig([
     },
     plugins: ['@hey-api/typescript', 'zod'],
   },
+  // Polis's API: a typed HTTP client, used behind PolisClient (libs/tenancy).
+  {
+    input: 'node_modules/@aether-os/contracts/polis.openapi.yaml',
+    output: {
+      path: 'libs/core/src/clients/polis/generated',
+      importFileExtension: '.js',
+      clean: true,
+    },
+    plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
+  },
 ]);

@@ -8,7 +8,7 @@ Episteme is the Aether OS service for **knowledge management and governance**: t
 
 Package: **`@aether-os/episteme`**.
 
-Status: **the service's shell is built** (What's built, below): a NestJS app on port `3014` with its database, Pistis tokens, the outbox and inbox, health checks, telemetry and logging, and its **contracts** (The contracts, below), with no domain yet. This file is the starting point for building the rest. It says what Episteme owns, how it fits with the other services, and which rules its code must follow.
+Status: **the core is built** (What's built, below): resources with Markdown versions, review, publication, scopes, stewards and the audit, behind the contracts (The contracts, below), on port `3014`. This file is the starting point for building the rest. It says what Episteme owns, how it fits with the other services, and which rules its code must follow.
 
 - Statements without a marker are **decided**: they follow from the platform's agreed design (`../CLAUDE.md`, `../docs/*.md`) or from Episteme's mission.
 - **(Proposal)** marks a recommendation that still needs validation. Implement it only after it's confirmed, or as the smallest version that can be changed cheaply.
@@ -285,7 +285,7 @@ Where a resource came from: `sourceType` (`internal`, `import`, `sync`, `derived
 - **One open version:** a resource has at most one version in `draft` or `in_review` (`DRAFT_EXISTS`), so a request for changes never leaves two drafts. Creating a resource creates its first draft.
 - **Restoring** is `POST …/versions` with `basedOnVersionId` and no `content`.
 - **Decisions are posted on the version** (`POST …/versions/{id}/decisions`), on its open review; `GET …/versions/{id}/reviews` lists each submission (`round`) with its decisions. Reviewers and approvers are the resource's stewards in those roles; per-review assignment comes later.
-- **Who may do what**, on top of the permissions: a draft is edited and submitted by its author or the resource's owners and maintainers; a resource's title, tags, scopes and stewards are changed by its owners or with `org:knowledge:govern`; deleting (only never-published resources) and archiving by its owners or with `org:knowledge:publish`. Only people decide and publish (`PEOPLE_DECIDE`).
+- **Who may do what**, on top of the permissions: a draft is edited and submitted by its author or the resource's owners and maintainers; a resource's title, tags, scopes and stewards are changed by its owners or with `org:knowledge:govern`; deleting (only never-published resources) and archiving by its owners or with `org:knowledge:publish`. Only people decide and publish: Krepis gives `org:knowledge:review` and `:publish` to users only, so a service account or session is refused (403).
 - **Scopes** are departments, teams and projects; none means the whole organization (no `organization` scope row).
 - **Concurrency:** `If-Match` with the resource's `version` (one counter for the resource and its versions, also the events' `aggregateVersion`), and with a draft's `revision` for editing and submitting it.
 - **Events** have the resource as aggregate and carry IDs, states and checksums only (no titles, content or personal data); Seshat reads a published version's content from `GET …/versions/{id}` with `platform:read`. The review withdrawal is `knowledge-version.returned` (`withdrawn`), so `knowledge-version.withdrawn` keeps its meaning: no longer current.
@@ -575,9 +575,9 @@ Settle each one before the code that depends on it, and record the answer here (
 ## Roadmap (Proposal)
 
 1. **Contracts** (built, the core: The contracts, above).
-2. **KnowledgeResource and KnowledgeVersion** with Markdown content, the version and resource transition tables, publication, the audit log and the outbox.
-3. **Scopes and stewardship** with Polis's IDs and a copy of their statuses.
-4. **Reviews and approvals**, with the "people approve, agents propose" rule.
+2. **KnowledgeResource and KnowledgeVersion** (built) with Markdown content, the version and resource transition tables, publication, the audit log and the outbox.
+3. **Scopes and stewardship** (built) with Polis's IDs; checked against Polis's API on writes for now, no copy of their statuses.
+4. **Reviews and approvals** (built), with the "people approve, agents propose" rule.
 5. **The Seshat contract:** indexing on publication, withdrawal, re-indexing, status back. Seshat keeps search.
 6. **Taxonomy and metadata schemas**, then **relationships**.
 7. **Attachments and file content** through Loculus.
@@ -591,14 +591,19 @@ Done before step 2: the package, `../pnpm-workspace.yaml`, the root `CLAUDE.md` 
 
 ## What's built
 
-The service's shell, copied from Ergon's without its domain, so step 1 (the contracts) and step 2 start from a running app:
+Roadmap steps 1 to 4 for the core: the contracts (The contracts, above) and the service behind them, on port `3014`.
 
-- **`src/`:** `main.ts` (telemetry first), `server.ts` (Krepis's logger, transactions, `configureHttpApp`), `app.module.ts`: configuration, the database, `/health` and `/health/live` (the database, RabbitMQ, Pistis), the events module (the outbox and inbox; it publishes and consumes nothing yet), Pistis tokens (Krepis's `AuthModule`). No routes of its own yet; every route will need a rule (Krepis fails closed).
-- **`libs/core`** (`@episteme/core`): Krepis re-exported, the configuration (`DATABASE_URL`, `RABBITMQ_URL`, `OUTBOX_RELAY_INTERVAL_MS`, `PORT` 3014, `PISTIS_ISSUER`; validated at startup, `env.spec.ts`), the database module (migrations only, never `synchronize`).
-- **Database:** migration `Initial` (the outbox and the inbox); `src/database/entities.ts` lists every entity for the TypeORM CLI and the tests' schema check.
-- **Tests:** `pnpm test` (the configuration); `pnpm test:e2e` against Postgres and RabbitMQ in containers (`test/global-setup.ts` applies the migrations and fails if the entities differ from them; `test/health.e2e-spec.ts`).
-- **Contracts:** `pnpm generate:api` writes `libs/core/src/api/generated` (types and Zod from `../contracts/episteme.openapi.yaml`) and `libs/core/src/events/generated` (event types from `../contracts/episteme.asyncapi.yaml`).
-- **Not yet:** the Polis client, the `org:knowledge:*` permissions in Krepis, and everything in the domain model.
+- **`libs/knowledge`:**
+  - `domain/`, pure and unit-tested: the version and resource transition tables (`version-lifecycle.ts`, `resource-lifecycle.ts`, tested exhaustively), content (canonical Markdown, SHA-256 checksum, unified diff with `diff`), stewardship (owners required, normalized stewards, scopes and tags).
+  - Entities: `knowledge_resources` (scopes and stewards as `jsonb` with GIN indexes for the list's filters, tags as `text[]`), `knowledge_versions` (at most one in `draft` or `in_review` per resource, a partial unique index), `knowledge_reviews` (one per submission, at most one open; its decisions kept with it, since any decision closes it), `knowledge_audit` (every governance change, kept when a never-published resource is deleted).
+  - `KnowledgeResourcesService` (create with the first draft, list with filters and keyset pagination, metadata, scopes, stewards, archive, delete, audit), `KnowledgeVersionsService` (new drafts and restores, editing drafts, reading, diff), `KnowledgeReviewsService` (submit, withdraw, decide, publish, reviews); `KnowledgeAccess` (the caller's persons, owner and maintainer checks, `If-Match`, writes refused for an archived resource or a suspended organization); every change bumps the resource's `version`, is audited and published (`resourceEvent`) in one transaction.
+  - Content is redacted with Krepis's `redactText` (email addresses kept) and stored with `\n` line endings before it is checksummed.
+- **`libs/persons`:** Episteme's copy of Polis's persons (`person.created`, `.updated`, `.deleted`, version-guarded), who can be stewards; the caller is a steward when Polis links one of these persons to their user. A deleted person stays a steward where they were (open question 4). Persons created before Episteme subscribed are unknown until an operator runs Polis's `POST /v1/persons/announce`.
+- **`libs/tenancy`:** Polis behind `PolisClient` (Episteme's own client `episteme`, `platform:read`): the organization accepts writes (`ORGANIZATION_SUSPENDED`), and new scopes are active departments, teams or projects of it (`400`, pointing at the scope).
+- **Krepis:** `org:knowledge:read`, `:draft`, `:review`, `:publish` and `:govern`; review and publish for users only; sessions may read and draft.
+- **`src/`:** `main.ts` (telemetry first), `server.ts`, `app.module.ts`: configuration (`POLIS_URL`, `PISTIS_CLIENT_ID` / `_SECRET` besides the database, RabbitMQ and Pistis), `/health` (the database, RabbitMQ, Pistis, Polis), events (publishes every event of `../contracts/episteme.asyncapi.yaml` to `episteme.events`; consumes Polis's `person.*` on `episteme.polis-events`), tokens. Migrations `Initial` (the outbox and inbox) and `KnowledgeResources`.
+- **Tests:** `pnpm test` (the domain, the configuration); `pnpm test:e2e` against Postgres and RabbitMQ (`test/knowledge.e2e-spec.ts`: creating and filtering, stewards and scopes, a draft through review to publication and supersession, approval without approvers, agents and platform reads, archiving and deleting, a suspended organization; `test/health.e2e-spec.ts`).
+- **Not yet:** attachments (Loculus), indexing in Seshat (it consumes the events next), review schedules and expiry, relationships, taxonomy beyond the fixed types, restrictions, and Iris and Atlas pages.
 
 ```bash
 cp .env.example .env && pnpm start:dev   # build, migrate, watch (port 3014)

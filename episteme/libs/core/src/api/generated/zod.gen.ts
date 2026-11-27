@@ -41,13 +41,13 @@ export const zActor = z.object({
 });
 
 /**
- * Lowercase letters, digits and hyphens; stored lowercased.
+ * Letters, digits and hyphens; stored lowercased.
  */
 export const zTag = z
   .string()
   .min(1)
   .max(50)
-  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+  .regex(/^[A-Za-z0-9]+(-[A-Za-z0-9]+)*$/);
 
 export const zReasonRequest = z.object({
   reason: z.string().max(2000).nullish(),

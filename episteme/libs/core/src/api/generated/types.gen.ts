@@ -53,7 +53,7 @@ export type Actor = {
 };
 
 /**
- * Lowercase letters, digits and hyphens; stored lowercased.
+ * Letters, digits and hyphens; stored lowercased.
  */
 export type Tag = string;
 

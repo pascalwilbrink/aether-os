@@ -15,6 +15,33 @@
       "compilerOptions": {
         "tsConfigPath": "libs/core/tsconfig.lib.json"
       }
+    },
+    "tenancy": {
+      "type": "library",
+      "root": "libs/tenancy",
+      "entryFile": "index",
+      "sourceRoot": "libs/tenancy/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/tenancy/tsconfig.lib.json"
+      }
+    },
+    "persons": {
+      "type": "library",
+      "root": "libs/persons",
+      "entryFile": "index",
+      "sourceRoot": "libs/persons/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/persons/tsconfig.lib.json"
+      }
+    },
+    "knowledge": {
+      "type": "library",
+      "root": "libs/knowledge",
+      "entryFile": "index",
+      "sourceRoot": "libs/knowledge/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/knowledge/tsconfig.lib.json"
+      }
     }
   }
 }

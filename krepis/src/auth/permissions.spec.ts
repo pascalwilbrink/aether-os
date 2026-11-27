@@ -64,6 +64,41 @@ describe('permissions', () => {
 describe('FixedPermissionEvaluator', () => {
   const evaluator = new FixedPermissionEvaluator();
 
+  it("keeps Episteme's reviews and publication for people; sessions read and draft", () => {
+    const member = principal();
+    const admin = principal({ organizationRoles: ['admin'] });
+    const agent = principal({
+      subType: 'service_account',
+      organizationRoles: ['member'],
+    });
+    const session = principal({
+      organizationRoles: ['admin'],
+      projectId: PROJECT,
+      sessionId: 's1',
+    });
+    expect(
+      evaluator.hasOrganizationPermission(member, 'org:knowledge:review'),
+    ).toBe(true);
+    expect(
+      evaluator.hasOrganizationPermission(member, 'org:knowledge:publish'),
+    ).toBe(false);
+    expect(
+      evaluator.hasOrganizationPermission(admin, 'org:knowledge:publish'),
+    ).toBe(true);
+    expect(
+      evaluator.hasOrganizationPermission(agent, 'org:knowledge:draft'),
+    ).toBe(true);
+    expect(
+      evaluator.hasOrganizationPermission(agent, 'org:knowledge:review'),
+    ).toBe(false);
+    expect(
+      evaluator.hasOrganizationPermission(session, 'org:knowledge:draft'),
+    ).toBe(true);
+    expect(
+      evaluator.hasOrganizationPermission(session, 'org:knowledge:publish'),
+    ).toBe(false);
+  });
+
   it('checks project permissions against the effective role', () => {
     const editor = principal({ projectRoles: { [PROJECT]: 'editor' } });
     expect(evaluator.hasProjectPermission(editor, PROJECT, 'task:create')).toBe(

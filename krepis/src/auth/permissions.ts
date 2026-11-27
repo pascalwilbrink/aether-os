@@ -45,6 +45,15 @@ const ORGANIZATION_PERMISSIONS = {
   // creating, changing, assigning and transitioning it.
   'org:work:read': ['owner', 'admin', 'member', 'viewer'],
   'org:work:write': ['owner', 'admin', 'member'],
+  // The organization's governed knowledge in Episteme (episteme/CLAUDE.md):
+  // reading it, drafting and submitting versions, deciding reviews (people
+  // only), publishing and archiving (people only), and managing stewards,
+  // scopes and metadata.
+  'org:knowledge:read': ['owner', 'admin', 'member', 'viewer'],
+  'org:knowledge:draft': ['owner', 'admin', 'member'],
+  'org:knowledge:review': ['owner', 'admin', 'member'],
+  'org:knowledge:publish': ['owner', 'admin'],
+  'org:knowledge:govern': ['owner', 'admin'],
 } as const satisfies Record<string, readonly OrganizationRole[]>;
 
 const PROJECT_PERMISSIONS = {

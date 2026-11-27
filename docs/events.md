@@ -179,7 +179,7 @@ Work management (`../ergon/CLAUDE.md`, `../contracts/ergon.asyncapi.yaml`). `wor
 
 ### Episteme (`episteme.events`)
 
-Knowledge governance (`../episteme/CLAUDE.md`, `../contracts/episteme.asyncapi.yaml`; the contract only, no code publishes them yet). Every event has the **resource** as aggregate and its `version` (one counter for the resource and its versions); `projectId` is null, since resources belong to the organization. IDs, states and checksums only: no titles, content or personal data.
+Knowledge governance (`../episteme/CLAUDE.md`, `../contracts/episteme.asyncapi.yaml`), published by Episteme's resources, versions and reviews. Every event has the **resource** as aggregate and its `version` (one counter for the resource and its versions); `projectId` is null, since resources belong to the organization. IDs, states and checksums only: no titles, content or personal data.
 
 | Event | Payload | Consumers |
 |---|---|---|
