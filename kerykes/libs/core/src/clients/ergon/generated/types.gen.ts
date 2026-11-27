@@ -306,14 +306,18 @@ export type WorkActivityKind =
   | 'assignment_started'
   | 'assignment_ended'
   | 'dependency_added'
-  | 'dependency_removed';
+  | 'dependency_removed'
+  | 'execution_started'
+  | 'execution_finished';
 
 /**
  * One entry of the work item's record, append-only. `details` depends
  * on `kind`: `updated` lists the changed `fields`; `status_changed` has
  * `from`, `to`, `action` and `reason`; `assignment_*` the
  * `assignmentId`, `assignee`, `role` and `reason`; `dependency_*` the
- * `dependencyId`, `kind`, `fromWorkItemId` and `toWorkItemId`.
+ * `dependencyId`, `kind`, `fromWorkItemId` and `toWorkItemId`;
+ * `execution_*` the `executionId`, `taskId`, `agentId` and, when
+ * finished, `status` and `failureReason`.
  *
  */
 export type WorkActivityResponse = {
@@ -332,6 +336,42 @@ export type WorkActivityResponse = {
 
 export type WorkActivityPage = {
   items: Array<WorkActivityResponse>;
+  nextCursor: CommonOpenapiNextCursor;
+};
+
+/**
+ * One attempt at the work: a Hephaestus task, as Hephaestus last
+ * announced it. When it starts, a `backlog` or `todo` work item moves
+ * to `in_progress`; when it succeeds, an `in_progress` one moves to
+ * `in_review` for a person to decide (never to `done` by itself); a
+ * failed or cancelled one changes nothing but its record.
+ *
+ */
+export type WorkExecutionResponse = {
+  id: string;
+  workItemId: string;
+  taskId: string;
+  agentId: string;
+  agentVersionId: string;
+  /**
+   * The task's status in Hephaestus (`queued`, `running`, `succeeded`, `failed`, …).
+   */
+  status: string;
+  failureReason: string | null;
+  /**
+   * A succeeded task's outcome (Hephaestus's artifact).
+   */
+  primaryArtifactId: string | null;
+  /**
+   * When the task was created.
+   */
+  startedAt: string;
+  finishedAt: string | null;
+  updatedAt: string;
+};
+
+export type WorkExecutionPage = {
+  items: Array<WorkExecutionResponse>;
   nextCursor: CommonOpenapiNextCursor;
 };
 
@@ -809,6 +849,67 @@ export type ListWorkActivityResponses = {
 
 export type ListWorkActivityResponse =
   ListWorkActivityResponses[keyof ListWorkActivityResponses];
+
+export type ListWorkExecutionsData = {
+  body?: never;
+  path: {
+    organizationId: string;
+    workItemId: string;
+  };
+  query?: {
+    /**
+     * Page size.
+     */
+    limit?: number;
+    /**
+     * Opaque cursor from the previous page's `nextCursor`; leave it out for
+     * the first page. A cursor only works with the filters it was made with
+     * (otherwise `400 INVALID_CURSOR`).
+     *
+     */
+    cursor?: string;
+  };
+  url: '/v1/organizations/{organizationId}/work-items/{workItemId}/executions';
+};
+
+export type ListWorkExecutionsErrors = {
+  /**
+   * The request is invalid: `VALIDATION_FAILED` (with `errors`) or
+   * `INVALID_CURSOR`.
+   *
+   */
+  400: CommonOpenapiProblem;
+  /**
+   * `UNAUTHENTICATED`: no bearer token, or one that isn't a valid Pistis
+   * access token (signature, issuer, audience, expiry).
+   *
+   */
+  401: CommonOpenapiProblem;
+  /**
+   * `FORBIDDEN`: the token is valid but lacks the permission
+   * (`x-permission` on the operation). Another organization's resources
+   * are 404, not 403.
+   *
+   */
+  403: CommonOpenapiProblem;
+  /**
+   * `NOT_FOUND`: the resource doesn't exist.
+   */
+  404: CommonOpenapiProblem;
+};
+
+export type ListWorkExecutionsError =
+  ListWorkExecutionsErrors[keyof ListWorkExecutionsErrors];
+
+export type ListWorkExecutionsResponses = {
+  /**
+   * Newest first
+   */
+  200: WorkExecutionPage;
+};
+
+export type ListWorkExecutionsResponse =
+  ListWorkExecutionsResponses[keyof ListWorkExecutionsResponses];
 
 export type ListWorkAssignmentsData = {
   body?: never;

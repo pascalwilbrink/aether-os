@@ -257,6 +257,8 @@ export const zWorkActivityKind = z.enum([
   'assignment_ended',
   'dependency_added',
   'dependency_removed',
+  'execution_started',
+  'execution_finished',
 ]);
 
 /**
@@ -264,7 +266,9 @@ export const zWorkActivityKind = z.enum([
  * on `kind`: `updated` lists the changed `fields`; `status_changed` has
  * `from`, `to`, `action` and `reason`; `assignment_*` the
  * `assignmentId`, `assignee`, `role` and `reason`; `dependency_*` the
- * `dependencyId`, `kind`, `fromWorkItemId` and `toWorkItemId`.
+ * `dependencyId`, `kind`, `fromWorkItemId` and `toWorkItemId`;
+ * `execution_*` the `executionId`, `taskId`, `agentId` and, when
+ * finished, `status` and `failureReason`.
  *
  */
 export const zWorkActivityResponse = z.object({
@@ -274,6 +278,28 @@ export const zWorkActivityResponse = z.object({
   actor: zActor.nullable(),
   details: z.record(z.string(), z.unknown()),
   createdAt: z.iso.datetime(),
+});
+
+/**
+ * One attempt at the work: a Hephaestus task, as Hephaestus last
+ * announced it. When it starts, a `backlog` or `todo` work item moves
+ * to `in_progress`; when it succeeds, an `in_progress` one moves to
+ * `in_review` for a person to decide (never to `done` by itself); a
+ * failed or cancelled one changes nothing but its record.
+ *
+ */
+export const zWorkExecutionResponse = z.object({
+  id: z.uuid(),
+  workItemId: z.uuid(),
+  taskId: z.uuid(),
+  agentId: z.uuid(),
+  agentVersionId: z.uuid(),
+  status: z.string(),
+  failureReason: z.string().nullable(),
+  primaryArtifactId: z.uuid().nullable(),
+  startedAt: z.iso.datetime(),
+  finishedAt: z.iso.datetime().nullable(),
+  updatedAt: z.iso.datetime(),
 });
 
 /**
@@ -295,6 +321,11 @@ export const zWorkAssignmentPage = z.object({
 
 export const zWorkActivityPage = z.object({
   items: z.array(zWorkActivityResponse),
+  nextCursor: zCommonOpenapiNextCursor,
+});
+
+export const zWorkExecutionPage = z.object({
+  items: z.array(zWorkExecutionResponse),
   nextCursor: zCommonOpenapiNextCursor,
 });
 
@@ -459,6 +490,21 @@ export const zListWorkActivityQuery = z.object({
  * Oldest first
  */
 export const zListWorkActivityResponse = zWorkActivityPage;
+
+export const zListWorkExecutionsPath = z.object({
+  organizationId: z.uuid(),
+  workItemId: z.uuid(),
+});
+
+export const zListWorkExecutionsQuery = z.object({
+  limit: z.int().gte(1).lte(100).optional().default(50),
+  cursor: z.string().min(1).max(1024).optional(),
+});
+
+/**
+ * Newest first
+ */
+export const zListWorkExecutionsResponse = zWorkExecutionPage;
 
 export const zListWorkAssignmentsPath = z.object({
   organizationId: z.uuid(),

@@ -7,6 +7,7 @@ import {
   WorkActivityEntity,
   WorkAssignmentEntity,
   WorkDependencyEntity,
+  WorkExecutionEntity,
   WorkItemEntity,
   type ActivityValue,
 } from './entities/index.js';
@@ -254,6 +255,63 @@ export class WorkItemMapper {
       actor: entity.actor,
       details: entity.details,
       createdAt: entity.createdAt.toISOString(),
+    };
+  }
+
+  /** A new execution, from `task.created`; its ID (UUIDv7) is generated here. */
+  toExecutionEntity(
+    workItem: Pick<WorkItemEntity, 'id' | 'organizationId'>,
+    task: {
+      taskId: string;
+      agentId: string;
+      agentVersionId: string;
+      status: string;
+      taskVersion: number;
+    },
+    now: Date,
+  ): WorkExecutionEntity {
+    return Object.assign(new WorkExecutionEntity(), {
+      id: uuidv7(),
+      organizationId: workItem.organizationId,
+      workItemId: workItem.id,
+      ...task,
+      failureReason: null,
+      primaryArtifactId: null,
+      version: 1,
+      createdAt: now,
+      updatedAt: now,
+      finishedAt: null,
+    } satisfies WorkExecutionEntity);
+  }
+
+  toExecutionResponse(
+    entity: WorkExecutionEntity,
+  ): ApiTypes.WorkExecutionResponse {
+    return {
+      id: entity.id,
+      workItemId: entity.workItemId,
+      taskId: entity.taskId,
+      agentId: entity.agentId,
+      agentVersionId: entity.agentVersionId,
+      status: entity.status,
+      failureReason: entity.failureReason,
+      primaryArtifactId: entity.primaryArtifactId,
+      startedAt: entity.createdAt.toISOString(),
+      finishedAt: entity.finishedAt?.toISOString() ?? null,
+      updatedAt: entity.updatedAt.toISOString(),
+    };
+  }
+
+  /** The execution in events. */
+  toExecutionPayload(entity: WorkExecutionEntity) {
+    return {
+      executionId: entity.id,
+      workItemId: entity.workItemId,
+      taskId: entity.taskId,
+      agentId: entity.agentId,
+      status: entity.status,
+      failureReason: entity.failureReason,
+      primaryArtifactId: entity.primaryArtifactId,
     };
   }
 }

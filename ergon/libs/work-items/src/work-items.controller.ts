@@ -19,9 +19,11 @@ import {
 
 import {
   ListWorkActivityQuery,
+  ListWorkExecutionsQuery,
   ListWorkItemsQuery,
   OrganizationParams,
   WorkActivityPage,
+  WorkExecutionPage,
   WorkItemPage,
   WorkItemParams,
   WorkItemRequest,
@@ -29,6 +31,7 @@ import {
   WorkItemTransitionRequest,
   WorkItemUpdate,
 } from './dto/work-item.dto.js';
+import { WorkExecutionsService } from './work-executions.service.js';
 import { WorkItemsService } from './work-items.service.js';
 
 /**
@@ -38,7 +41,10 @@ import { WorkItemsService } from './work-items.service.js';
  */
 @Controller('organizations/:organizationId/work-items')
 export class WorkItemsController {
-  constructor(private readonly workItems: WorkItemsService) {}
+  constructor(
+    private readonly workItems: WorkItemsService,
+    private readonly executions: WorkExecutionsService,
+  ) {}
 
   @Get()
   @RequirePermission('org:read')
@@ -100,5 +106,15 @@ export class WorkItemsController {
     @Query() query: ListWorkActivityQuery,
   ) {
     return this.workItems.listActivity(organizationId, workItemId, query);
+  }
+
+  @Get(':workItemId/executions')
+  @RequirePermission('org:read')
+  @ZodSerializerDto(WorkExecutionPage)
+  executionsOf(
+    @Param() { organizationId, workItemId }: WorkItemParams,
+    @Query() query: ListWorkExecutionsQuery,
+  ) {
+    return this.executions.list(organizationId, workItemId, query);
   }
 }

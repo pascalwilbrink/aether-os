@@ -372,7 +372,7 @@ The first implementation lays the foundation of work management, in this order:
 3. **WorkDependency:** `blocks` and `relates_to`, cycle detection.
 4. **WorkComment and WorkActivity.**
 5. **WorkArtifact and links:** Loculus files and external resources first.
-6. **WorkExecution references:** Hephaestus and Kairos projections from their events.
+6. **WorkExecution references:** Hephaestus and Kairos projections from their events (Hephaestus's built).
 7. **WorkHandoff:** after the Ergon ↔ Hephaestus decision on reviews.
 8. **Integration contracts:** Polis, Pistis, Agora, Hephaestus, Kairos, Proxenos.
 9. **Event contracts and the outbox:** the AsyncAPI spec comes with step 1. Every later step adds its events there.
@@ -380,7 +380,7 @@ The first implementation lays the foundation of work management, in this order:
 
 Later: queues, templates, scheduling and planning (estimates, cycles, roadmaps).
 
-Steps 1 to 3 are built (What's built, below), with the AsyncAPI spec's first events (step 9). Step 4's comments come next.
+Steps 1 to 3 are built (What's built, below), with the AsyncAPI spec's first events (step 9), and step 6 for Hephaestus's tasks. Step 4's comments come next.
 
 ## What's built
 
@@ -392,7 +392,8 @@ The first slice, on port `3013` with its own database `ergon`:
 - **Assignments:** `POST`/`GET …/work-items/{id}/assignments` and `POST …/{assignmentId}/end`: persons (Polis's IDs) and agents (Agora's IDs, optionally a version), only ones Ergon knows in the organization (`libs/assignees`: copies from `polis.events` and `agora.events`, version-guarded upserts), roles `responsible` (at most one active; a new one ends the old, "Reassigned"), `contributor`, `reviewer`, `observer`. Not on done or cancelled work. A deleted person's or archived agent's assignments end. Persons and agents created before Ergon subscribed are unknown until an operator runs Polis's `POST /v1/persons/announce` and Agora's `POST /v1/agents/announce` (once per environment; repeating them is harmless).
 - **Dependencies:** `POST …/work-dependencies` (`blocks` or `relates_to`, across the organization's projects, `work:write` on both sides), `DELETE …/work-dependencies/{id}`, `GET …/work-items/{id}/dependencies` (at most 200 per work item). A `blocks` edge that would close a cycle is refused (`domain/dependency-graph.ts`, with a recursive query for what the blocked item leads to, under a per-organization advisory lock); `relates_to` is stored once, smaller ID first.
 - **Permissions** (Krepis): `work:read` / `work:write` in a project, `org:work:read` / `org:work:write` for work outside any project (never with a token limited to one project); session tokens read only. Routes check the organization (`org:read`); `WorkAccess` checks the work item's scope. Writes ask Polis whether the organization and project accept them (`libs/tenancy`, Ergon's own Pistis client `ergon`).
-- **Events** through the outbox to `ergon.events`; consumed: Polis's `person.*` and Agora's `agent.created` / `.archived` (queues `ergon.polis-events`, `ergon.agora-events`).
+- **Executions** (`WorkExecutionsService`, `work_executions`, migration `WorkExecutions`): Hephaestus's `task.created` with a `workContext` naming a work item of the organization makes an execution (the task, agent, agent version; one per task), and `task.status-changed`, `.succeeded`, `.failed` and `.cancelled` keep its status, failure reason, primary artifact and end in step, in the task's event order (`taskVersion`; a retried task runs, and ends, again). `GET …/work-items/{id}/executions` (newest first, the work item's read permission). Activity `execution_started` / `execution_finished` and events `work-execution.started` / `.completed`. **Ergon's own transitions** (decided; no actor, `WorkItemsService.advance`, each only where the lifecycle allows it): a task created moves its work item from `backlog` or `todo` to `in_progress`; a task succeeded moves it from `in_progress` to `in_review`, for a person to decide (never to `done` by itself); a failed or cancelled task changes only its record, and the agent stays responsible. Hephaestus stays the source of truth; reviews of its drafts stay there.
+- **Events** through the outbox to `ergon.events`; consumed: Polis's `person.*`, Agora's `agent.created` / `.archived` and Hephaestus's `task.*` (queues `ergon.polis-events`, `ergon.agora-events`, `ergon.hephaestus-events`).
 
 ```bash
 cp .env.example .env && pnpm start:dev   # build, migrate, watch (port 3013)

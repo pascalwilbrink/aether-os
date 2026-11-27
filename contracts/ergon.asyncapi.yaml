@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Ergon events
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Events Ergon publishes to the `ergon.events` topic exchange on RabbitMQ;
     the routing key is the event type. Every message is the Krepis
@@ -11,9 +11,10 @@ info:
     Delivery is at least once (transactional outbox and relay): deduplicate
     on `eventId`. `work-item.*` events have the work item as aggregate (its
     `version`), `work-assignment.changed` the assignment (1 when it starts, 2
-    when it ends) and `work-dependency.*` the dependency (1 created, 2
-    removed). `projectId` is null for work outside any project; a
-    dependency's is its `to` work item's.
+    when it ends), `work-dependency.*` the dependency (1 created, 2
+    removed) and `work-execution.*` the execution (1 started, one more
+    each time its task finishes). `projectId` is null for work outside any
+    project; a dependency's is its `to` work item's.
 
     Blocked is derived and has no event: consumers that care follow
     `work-item.status-changed` of the blocking work and `work-dependency.*`.
@@ -45,6 +46,8 @@ channels:
       workAssignmentChanged: { $ref: '#/components/messages/workAssignmentChanged' }
       workDependencyCreated: { $ref: '#/components/messages/workDependencyCreated' }
       workDependencyRemoved: { $ref: '#/components/messages/workDependencyRemoved' }
+      workExecutionStarted: { $ref: '#/components/messages/workExecutionStarted' }
+      workExecutionCompleted: { $ref: '#/components/messages/workExecutionCompleted' }
 
 operations:
   publishErgonEvents:
@@ -57,6 +60,8 @@ operations:
       - $ref: '#/channels/ergonEvents/messages/workAssignmentChanged'
       - $ref: '#/channels/ergonEvents/messages/workDependencyCreated'
       - $ref: '#/channels/ergonEvents/messages/workDependencyRemoved'
+      - $ref: '#/channels/ergonEvents/messages/workExecutionStarted'
+      - $ref: '#/channels/ergonEvents/messages/workExecutionCompleted'
 
 components:
   messages:
@@ -120,6 +125,27 @@ components:
             properties:
               eventType: { const: work-dependency.removed }
               payload: { $ref: '#/components/schemas/WorkDependency' }
+
+    workExecutionStarted:
+      name: work-execution.started
+      summary: A Hephaestus task was started for a work item.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: work-execution.started }
+              payload: { $ref: '#/components/schemas/WorkExecution' }
+    workExecutionCompleted:
+      name: work-execution.completed
+      summary: A work item's task succeeded, failed or was cancelled.
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: work-execution.completed }
+              payload: { $ref: '#/components/schemas/WorkExecution' }
 
   schemas:
     Uuid: { type: string, format: uuid }
@@ -241,3 +267,18 @@ components:
         kind: { type: string, enum: [blocks, relates_to] }
         fromWorkItemId: { $ref: '#/components/schemas/Uuid' }
         toWorkItemId: { $ref: '#/components/schemas/Uuid' }
+    WorkExecution:
+      type: object
+      additionalProperties: false
+      required: [executionId, workItemId, taskId, agentId, status, failureReason, primaryArtifactId]
+      properties:
+        executionId: { $ref: '#/components/schemas/Uuid' }
+        workItemId: { $ref: '#/components/schemas/Uuid' }
+        taskId: { $ref: '#/components/schemas/Uuid' }
+        agentId: { $ref: '#/components/schemas/Uuid' }
+        status: { type: string, description: The task's status in Hephaestus. }
+        failureReason: { type: [string, 'null'] }
+        primaryArtifactId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'

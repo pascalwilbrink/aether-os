@@ -222,38 +222,74 @@ export class WorkItemsService {
           ? new ChildrenOpenError(entity.id)
           : new InvalidTransitionError(entity.status, request.action);
     }
+    await this.apply(
+      entity,
+      request.action,
+      decision.to,
+      request.reason ?? null,
+      this.access.actor(),
+    );
+    return this.presentOne(entity);
+  }
+
+  /**
+   * Ergon's own transitions (no actor, no caller to check): the actions in
+   * turn, each only if the lifecycle allows it from where the work item is
+   * then; any it doesn't are skipped, never an error. For the work's agent
+   * starting and finishing (`WorkExecutionsService`).
+   */
+  async advance(
+    organizationId: string,
+    workItemId: string,
+    actions: ApiTypes.WorkItemAction[],
+    reason: string,
+  ): Promise<void> {
+    const entity = await this.items.get(organizationId, workItemId, true);
+    for (const action of actions) {
+      const decision = decideTransition(entity, action, () => false);
+      if ('to' in decision) {
+        await this.apply(entity, action, decision.to, reason, null);
+      }
+    }
+  }
+
+  /** Moves the work item, records it and announces it. */
+  private async apply(
+    entity: WorkItemEntity,
+    action: ApiTypes.WorkItemAction,
+    to: ApiTypes.WorkItemStatus,
+    reason: string | null,
+    actor: ApiTypes.Actor | null,
+  ): Promise<void> {
     const from = entity.status;
     const now = this.touch(entity);
-    entity.status = decision.to;
-    if (decision.to === 'in_progress') {
+    entity.status = to;
+    if (to === 'in_progress') {
       entity.startedAt ??= now;
     }
-    entity.completedAt = decision.to === 'done' ? now : null;
+    entity.completedAt = to === 'done' ? now : null;
     await this.items.save(entity);
-    const reason = request.reason ?? null;
-    const actor = this.access.actor();
     await this.activity.record(
       entity,
       'status_changed',
       actor,
-      { from, to: decision.to, action: request.action, reason },
+      { from, to, action, reason },
       now,
     );
     await this.events.emit({
       eventType: 'work-item.status-changed',
       aggregateId: entity.id,
       aggregateVersion: entity.version,
-      organizationId,
+      organizationId: entity.organizationId,
       projectId: entity.projectId,
       payload: {
         workItem: this.mapper.toSnapshot(entity),
         from,
-        to: decision.to,
-        action: request.action,
+        to,
+        action,
         reason,
       },
     });
-    return this.presentOne(entity);
   }
 
   /**

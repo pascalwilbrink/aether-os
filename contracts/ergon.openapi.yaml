@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ergon API
-  version: 0.3.1
+  version: 0.4.1
   description: |
     Work management (`../ergon/CLAUDE.md`): **work items** that people and
     agents do together, who is **assigned** to them, the **dependencies**
@@ -33,6 +33,7 @@ tags:
   - name: assignments
   - name: dependencies
   - name: activity
+  - name: executions
 
 paths:
   /v1/organizations/{organizationId}/work-items:
@@ -197,6 +198,32 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/WorkActivityPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/work-items/{workItemId}/executions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/WorkItemId'
+    get:
+      tags: [executions]
+      operationId: listWorkExecutions
+      x-permission: '`work:read` (`org:work:read` outside a project)'
+      description: |
+        The attempts at the work: each Hephaestus task started for it (a
+        task whose `workContext` names it), with its status as Hephaestus
+        last announced it. Hephaestus stays the source of truth.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WorkExecutionPage' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -791,6 +818,8 @@ components:
         - assignment_ended
         - dependency_added
         - dependency_removed
+        - execution_started
+        - execution_finished
     WorkActivityResponse:
       type: object
       description: |
@@ -798,7 +827,9 @@ components:
         on `kind`: `updated` lists the changed `fields`; `status_changed` has
         `from`, `to`, `action` and `reason`; `assignment_*` the
         `assignmentId`, `assignee`, `role` and `reason`; `dependency_*` the
-        `dependencyId`, `kind`, `fromWorkItemId` and `toWorkItemId`.
+        `dependencyId`, `kind`, `fromWorkItemId` and `toWorkItemId`;
+        `execution_*` the `executionId`, `taskId`, `agentId` and, when
+        finished, `status` and `failureReason`.
       required: [id, workItemId, kind, actor, details, createdAt]
       properties:
         id: { type: string, format: uuid }
@@ -820,4 +851,40 @@ components:
         items:
           type: array
           items: { $ref: '#/components/schemas/WorkActivityResponse' }
+        nextCursor: { $ref: '#/components/schemas/NextCursor' }
+
+    # ---------- executions ----------
+    WorkExecutionResponse:
+      type: object
+      description: |
+        One attempt at the work: a Hephaestus task, as Hephaestus last
+        announced it. When it starts, a `backlog` or `todo` work item moves
+        to `in_progress`; when it succeeds, an `in_progress` one moves to
+        `in_review` for a person to decide (never to `done` by itself); a
+        failed or cancelled one changes nothing but its record.
+      required: [id, workItemId, taskId, agentId, agentVersionId, status, failureReason, primaryArtifactId, startedAt, finishedAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        workItemId: { type: string, format: uuid }
+        taskId: { type: string, format: uuid }
+        agentId: { type: string, format: uuid }
+        agentVersionId: { type: string, format: uuid }
+        status:
+          type: string
+          description: The task's status in Hephaestus (`queued`, `running`, `succeeded`, `failed`, …).
+        failureReason: { type: [string, 'null'] }
+        primaryArtifactId:
+          type: [string, 'null']
+          format: uuid
+          description: A succeeded task's outcome (Hephaestus's artifact).
+        startedAt: { type: string, format: date-time, description: When the task was created. }
+        finishedAt: { type: [string, 'null'], format: date-time }
+        updatedAt: { type: string, format: date-time }
+    WorkExecutionPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/WorkExecutionResponse' }
         nextCursor: { $ref: '#/components/schemas/NextCursor' }

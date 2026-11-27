@@ -5,6 +5,7 @@ import {
   zEndWorkAssignmentPath,
   zGetWorkItemPath,
   zListWorkActivityQuery,
+  zListWorkExecutionsQuery,
   zListWorkAssignmentsQuery,
   zListWorkItemsPath,
   zListWorkItemsQuery,
@@ -16,6 +17,7 @@ import {
   zWorkDependencyList,
   zWorkDependencyRequest,
   zWorkDependencyResponse,
+  zWorkExecutionPage,
   zWorkItemPage,
   zWorkItemRequest,
   zWorkItemResponse,
@@ -70,4 +72,9 @@ export class ListWorkActivityQuery extends createZodDto(
 ) {}
 export class ListWorkAssignmentsQuery extends createZodDto(
   zListWorkAssignmentsQuery,
+) {}
+
+export class WorkExecutionPage extends createZodDto(zWorkExecutionPage) {}
+export class ListWorkExecutionsQuery extends createZodDto(
+  zListWorkExecutionsQuery,
 ) {}
