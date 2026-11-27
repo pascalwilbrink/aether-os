@@ -19,6 +19,8 @@ export const zEnv = z
     ...zAuthEnv.shape,
     /** Polis's API: memberships and projects (with Kerykes's own token). */
     POLIS_URL: z.url({ protocol: /^https?$/ }),
+    /** Ergon's API: a work item's reviewers (with Kerykes's own token). */
+    ERGON_URL: z.url({ protocol: /^https?$/ }),
     /** Pistis's API (users' email addresses); its issuer's origin by default. */
     PISTIS_URL: z.url({ protocol: /^https?$/ }).optional(),
     /** Kerykes's own client at Pistis (client credentials, `platform:read`). */

@@ -378,9 +378,12 @@ describe('Work items (e2e)', () => {
         .agent(app.getHttpServer())
         .set('authorization', `Bearer ${await tokens.service('kairos')}`);
       await kairos.get(`${items()}/${item.id}`).expect(200);
+      // Kerykes reads who reviews it.
+      await kairos.get(`${items()}/${item.id}/assignments`).expect(200);
       await kairos.get(items()).query({ projectId }).expect(403);
       const outside = await create({ projectId: null });
       await kairos.get(`${items()}/${outside.id}`).expect(403);
+      await kairos.get(`${items()}/${outside.id}/assignments`).expect(403);
     });
   });
 

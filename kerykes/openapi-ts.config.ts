@@ -34,4 +34,14 @@ export default defineConfig([
     },
     plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
   },
+  // Ergon's API: a work item's assignments (who reviews it), behind Directory.
+  {
+    input: 'node_modules/@aether-os/contracts/ergon.openapi.yaml',
+    output: {
+      path: 'libs/core/src/clients/ergon/generated',
+      importFileExtension: '.js',
+      clean: true,
+    },
+    plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
+  },
 ]);

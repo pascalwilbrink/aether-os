@@ -1,5 +1,6 @@
 import type {
   DomainEvent,
+  ErgonEvents,
   HephaestusEvents,
   PylonEvents,
   OrganizationPermission,
@@ -12,6 +13,7 @@ import type { NotificationType } from './notification.entities.js';
 type Hephaestus = HephaestusEvents.HephaestusEventPayloads;
 type Pylon = PylonEvents.PylonEventPayloads;
 type Polis = PolisEvents.PolisEventPayloads;
+type Ergon = ErgonEvents.ErgonEventPayloads;
 
 /** Who a notification is for, before the permission check. */
 export type Audience =
@@ -20,7 +22,15 @@ export type Audience =
   /** The project's approvers (organization admins when it has none). */
   | { kind: 'approvers'; projectId: string }
   /** The organization's owners and admins. */
-  | { kind: 'organization-admins' };
+  | { kind: 'organization-admins' }
+  /** A person of the organization (Polis), through the user they're linked to. */
+  | { kind: 'person'; personId: string }
+  /**
+   * Who reviews a work item in a project (Ergon): its reviewers, else the
+   * person responsible for it, else the project's approvers; at each step
+   * leaving out whoever caused the event.
+   */
+  | { kind: 'work-reviewers'; workItemId: string; projectId: string };
 
 /**
  * What to tell whom about one event (docs/notifications.md,
@@ -47,6 +57,8 @@ export interface NotificationPlan {
   link: string;
   /** One notification per recipient and key. */
   groupKey: string;
+  /** A user not to tell, because they did it themselves (Ergon's events). */
+  except?: string | null;
   email: boolean;
   /**
    * The words, from Aether-os's own data only: never a task's title (it can
@@ -123,6 +135,14 @@ export function planFor(
     case 'polis.project-membership.granted':
       return projectMembershipGranted(
         event as DomainEvent<Polis['project-membership.granted']>,
+      );
+    case 'ergon.work-assignment.changed':
+      return workAssigned(
+        event as DomainEvent<Ergon['work-assignment.changed']>,
+      );
+    case 'ergon.work-item.status-changed':
+      return workReviewRequested(
+        event as DomainEvent<Ergon['work-item.status-changed']>,
       );
     default:
       return null;
@@ -363,6 +383,112 @@ function projectMembershipGranted(
     render: (projectName) => ({
       title: 'You were added to a project',
       body: `You can now work ${inProject(projectName)} as ${payload.role}.`,
+    }),
+  };
+}
+
+const workLink = (
+  organizationId: string,
+  projectId: string | null,
+  workItemId: string,
+) =>
+  projectId
+    ? `/orgs/${organizationId}/projects/${projectId}/work/${workItemId}`
+    : `/orgs/${organizationId}/work/${workItemId}`;
+
+/** The user who caused an event, when it was one. */
+const userActor = (event: DomainEvent<unknown>): string | null =>
+  event.actor?.sub_type === 'user' ? event.actor.sub : null;
+
+const WORK_ROLES: Record<
+  Ergon['work-assignment.changed']['role'],
+  { title: string; as: string }
+> = {
+  responsible: {
+    title: 'Work was assigned to you',
+    as: "You're now responsible for a work item",
+  },
+  reviewer: {
+    title: "You're asked to review work",
+    as: "You're now a reviewer of a work item",
+  },
+  contributor: {
+    title: 'You were added to work',
+    as: "You're now contributing to a work item",
+  },
+  observer: {
+    title: "You're following work",
+    as: "You're now following a work item",
+  },
+};
+
+/**
+ * A person given a role on work in Ergon, told through the user they're
+ * linked to (nobody when they haven't signed up); not when they assigned
+ * themselves. Emailed when they're responsible for it or review it. Never
+ * the work's title or the reason: an agent or an issue can have written
+ * them.
+ */
+function workAssigned(
+  event: DomainEvent<Ergon['work-assignment.changed']>,
+): NotificationPlan | null {
+  const { organizationId, projectId, payload } = event;
+  if (
+    !organizationId ||
+    payload.change !== 'started' ||
+    payload.assignee.kind !== 'person'
+  ) {
+    return null;
+  }
+  const role = WORK_ROLES[payload.role];
+  return {
+    type: 'work_assigned',
+    organizationId,
+    projectId,
+    taskId: null,
+    audience: { kind: 'person', personId: payload.assignee.id },
+    requires: projectId
+      ? { project: 'work:read' }
+      : { organization: 'org:work:read' },
+    link: workLink(organizationId, projectId, payload.workItemId),
+    groupKey: `assignment:${payload.assignmentId}`,
+    except: userActor(event),
+    email: payload.role === 'responsible' || payload.role === 'reviewer',
+    render: (projectName) => ({
+      title: role.title,
+      body: `${role.as} ${projectId ? inProject(projectName) : 'of the organization'}.`,
+    }),
+  };
+}
+
+/**
+ * Work in a project moved to `in_review` (by a person, or by Ergon when its
+ * agent's task succeeded), for whoever can decide on it; once per
+ * submission. Work outside any project waits for Ergon to answer Kerykes
+ * about it.
+ */
+function workReviewRequested(
+  event: DomainEvent<Ergon['work-item.status-changed']>,
+): NotificationPlan | null {
+  const { organizationId, projectId, payload } = event;
+  if (!organizationId || !projectId || payload.to !== 'in_review') {
+    return null;
+  }
+  const workItemId = payload.workItem.id;
+  return {
+    type: 'work_review_requested',
+    organizationId,
+    projectId,
+    taskId: null,
+    audience: { kind: 'work-reviewers', workItemId, projectId },
+    requires: { project: 'work:write' },
+    link: workLink(organizationId, projectId, workItemId),
+    groupKey: `work-review:${workItemId}:${event.aggregateVersion}`,
+    except: userActor(event),
+    email: true,
+    render: (projectName) => ({
+      title: 'Work is waiting for your review',
+      body: `A work item ${inProject(projectName)} is ready for review. Approve it or ask for changes on its page.`,
     }),
   };
 }

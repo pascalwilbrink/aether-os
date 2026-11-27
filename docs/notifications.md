@@ -11,6 +11,7 @@ What the first form decided where this document left room:
 - **No task titles in notifications:** a title can come from an issue (untrusted), so notifications say "a task in <project>" and link to it; the project's name is the only text they take from elsewhere.
 - **Recipients' permissions are checked twice,** when the notification is made and again before its email goes out, against Kerykes's copy of Polis's memberships. That copy is read from Polis the first time an organization comes up, then kept from Polis's events (version-guarded); the inbox shows only the organization and the projects the reader's token can read.
 - **Email addresses come from Pistis** (`GET /v1/users/{userId}`, which platform services can now read with `platform:read`).
+- **Work in Ergon** (`../ergon/CLAUDE.md`): people are assigned as Polis's persons, so Kerykes asks Polis for the user a person is linked to (`GET …/persons/{id}`) and tells nobody before they've signed up. Who reviews work is asked of Ergon when it reaches `in_review` (`GET …/work-items/{id}/assignments`, `platform:read`, work in a project only), not kept as a copy. Links go to the work's page in Iris (`/orgs/<org>/projects/<project>/work/<id>`, `/orgs/<org>/work/<id>` outside a project), which comes with Iris's Work page. Nobody is told what they did themselves.
 
 ## Decisions
 
@@ -43,6 +44,8 @@ What the first form decided where this document left room:
 | `budget.threshold-reached` | Budget nearly used | Admins of the budget's scope | In-app, email |
 | `membership.granted` | You were added to an organization or project | That user | In-app, email |
 | `council-plan.proposed` | A council's plan waiting for review (`councils.md`), linking to the session, without the plan's title (the facilitator wrote it) | The person who started the session, the only one who can decide on it | In-app, email |
+| `work-assignment.changed` (started, a person) | Work assigned to you, by role (responsible, reviewer, contributor, observer), without the work's title or the reason | The person's user (Polis's person, once they've signed up), not when they assigned themselves; `work:read` in the project, `org:work:read` for work outside any | In-app; email when responsible or reviewer |
+| `work-item.status-changed` (to `in_review`, work in a project) | Work waiting for review, once per submission | The work's reviewers (persons with the `reviewer` role), else the person responsible for it, else the project's approvers: the first with a user other than whoever submitted it, holding `work:write` | In-app, email |
 
 Further types are added by adding a row: an event, a rule for recipients, default channels.
 

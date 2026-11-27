@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Ergon API
-  version: 0.3.0
+  version: 0.3.1
   description: |
     Work management (`../ergon/CLAUDE.md`): **work items** that people and
     agents do together, who is **assigned** to them, the **dependencies**
@@ -209,7 +209,7 @@ paths:
     get:
       tags: [assignments]
       operationId: listWorkAssignments
-      x-permission: '`work:read` (`org:work:read` outside a project)'
+      x-permission: '`work:read` (`org:work:read` outside a project), or `platform:read` for work in a project (Kerykes)'
       parameters:
         - name: status
           in: query

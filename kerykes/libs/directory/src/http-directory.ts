@@ -1,8 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import {
+  createErgonHttpClient,
   createPistisHttpClient,
   createPolisHttpClient,
+  ErgonApi,
   fetchFailure,
   PistisApi,
   PolisApi,
@@ -14,6 +16,7 @@ import {
   type MemberInfo,
   type ProjectGrantInfo,
   type UserInfo,
+  type WorkAssigneeInfo,
 } from './directory.js';
 import { DirectoryUnavailableError } from './directory.errors.js';
 
@@ -22,6 +25,7 @@ export const DIRECTORY_OPTIONS = Symbol('DIRECTORY_OPTIONS');
 export interface DirectoryOptions {
   polisUrl: string;
   pistisUrl: string;
+  ergonUrl: string;
   /** Per request; docs/engineering.md's default is 5 seconds. */
   timeoutMs?: number;
 }
@@ -39,6 +43,7 @@ export class HttpDirectory extends Directory {
   private readonly logger = new Logger(HttpDirectory.name);
   private readonly polis: ReturnType<typeof createPolisHttpClient>;
   private readonly pistis: ReturnType<typeof createPistisHttpClient>;
+  private readonly ergon: ReturnType<typeof createErgonHttpClient>;
 
   constructor(
     @Inject(DIRECTORY_OPTIONS) options: DirectoryOptions,
@@ -57,6 +62,11 @@ export class HttpDirectory extends Directory {
     });
     this.pistis = createPistisHttpClient({
       baseUrl: options.pistisUrl,
+      fetch: fetchWithTimeout,
+      auth,
+    });
+    this.ergon = createErgonHttpClient({
+      baseUrl: options.ergonUrl,
       fetch: fetchWithTimeout,
       auth,
     });
@@ -146,12 +156,53 @@ export class HttpDirectory extends Directory {
       : null;
   }
 
+  async personUser(
+    organizationId: string,
+    personId: string,
+  ): Promise<string | null> {
+    const person = await this.call('Polis', () =>
+      PolisApi.getPerson({
+        client: this.polis,
+        path: { organizationId, personId },
+      }),
+    );
+    return person?.userId ?? null;
+  }
+
+  async workAssignments(
+    organizationId: string,
+    workItemId: string,
+  ): Promise<WorkAssigneeInfo[] | null> {
+    const assignees: WorkAssigneeInfo[] = [];
+    let cursor: string | undefined;
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const result = await this.call('Ergon', () =>
+        ErgonApi.listWorkAssignments({
+          client: this.ergon,
+          path: { organizationId, workItemId },
+          query: { status: 'active', limit: 100, cursor },
+        }),
+      );
+      if (!result) return page === 0 ? null : assignees;
+      for (const item of result.items) {
+        assignees.push({
+          kind: item.assignee.kind,
+          id: item.assignee.id,
+          role: item.role,
+        });
+      }
+      if (!result.nextCursor) return assignees;
+      cursor = result.nextCursor;
+    }
+    return assignees;
+  }
+
   /**
    * The body of a 2xx, null for a 404 (or a 400: not an ID the service
    * knows), `DirectoryUnavailableError` otherwise.
    */
   private async call<T>(
-    service: 'Polis' | 'Pistis',
+    service: 'Polis' | 'Pistis' | 'Ergon',
     request: () => Promise<{
       data?: T;
       error?: unknown;

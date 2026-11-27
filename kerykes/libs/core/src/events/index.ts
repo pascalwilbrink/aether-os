@@ -6,3 +6,6 @@ export type * as HephaestusEvents from './generated/hephaestus-events.gen.js';
 
 /** Pylon's events: budgets (../contracts/pylon.asyncapi.yaml). */
 export type * as PylonEvents from './generated/pylon-events.gen.js';
+
+/** Ergon's events: assignments and work waiting for review (../contracts/ergon.asyncapi.yaml). */
+export type * as ErgonEvents from './generated/ergon-events.gen.js';

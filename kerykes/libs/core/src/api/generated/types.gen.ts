@@ -13,9 +13,12 @@ export type NextCursor = CommonOpenapiNextCursor;
  * `review_requested` (`task.awaiting-review`), `task_failed`,
  * `task_succeeded` (tasks started by hand), `task_paused` (a budget ran
  * out), `budget_threshold` (80% of a budget used) and
- * `membership_granted` (added to the organization or a project) and
+ * `membership_granted` (added to the organization or a project),
  * `plan_review_requested` (a council's plan waiting for the person who
- * started the session, `council-plan.proposed`).
+ * started the session, `council-plan.proposed`), `work_assigned` (a
+ * person given a role on a work item in Ergon,
+ * `work-assignment.changed`) and `work_review_requested` (a work item
+ * moved to `in_review`, for its reviewers, `work-item.status-changed`).
  *
  */
 export type NotificationType =
@@ -25,7 +28,9 @@ export type NotificationType =
   | 'task_paused'
   | 'budget_threshold'
   | 'membership_granted'
-  | 'plan_review_requested';
+  | 'plan_review_requested'
+  | 'work_assigned'
+  | 'work_review_requested';
 
 export type NotificationResponse = {
   id: string;

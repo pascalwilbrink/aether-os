@@ -9,7 +9,11 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { RequirePermission, ZodSerializerDto } from '@ergon/core';
+import {
+  PlatformAccess,
+  RequirePermission,
+  ZodSerializerDto,
+} from '@ergon/core';
 
 import {
   AssignmentParams,
@@ -29,6 +33,8 @@ export class WorkAssignmentsController {
 
   @Get()
   @RequirePermission('org:read')
+  // Kerykes tells a work item's reviewers it's waiting (work in a project only).
+  @PlatformAccess('platform:read')
   @ZodSerializerDto(WorkAssignmentPage)
   list(
     @Param() { organizationId, workItemId }: WorkItemParams,

@@ -35,6 +35,12 @@ export const HEPHAESTUS_SUBSCRIPTIONS = [
 /** Pylon's budget events that need people (docs/pylon.md, Events). */
 export const PYLON_SUBSCRIPTIONS = ['budget.threshold-reached'] as const;
 
+/** Ergon's events that need people: work assigned, work waiting for review. */
+export const ERGON_SUBSCRIPTIONS = [
+  'work-assignment.changed',
+  'work-item.status-changed',
+] as const;
+
 // Validation, the /v1 prefix and problem details: configureHttpApp (main.ts).
 @Module({
   imports: [
@@ -47,11 +53,13 @@ export const PYLON_SUBSCRIPTIONS = ['budget.threshold-reached'] as const;
       checks: (config: ConfigService<Env, true>) => [
         serviceCheck('pistis', config.get('PISTIS_ISSUER', { infer: true })),
         serviceCheck('polis', config.get('POLIS_URL', { infer: true })),
+        serviceCheck('ergon', config.get('ERGON_URL', { infer: true })),
       ],
     }),
-    // Consumes Polis's, Hephaestus's and Pylon's events
-    // (kerykes.polis-events, kerykes.hephaestus-events, kerykes.pylon-events:
-    // inbox, retries, dead-lettering). Kerykes publishes nothing yet.
+    // Consumes Polis's, Hephaestus's, Pylon's and Ergon's events
+    // (kerykes.polis-events, kerykes.hephaestus-events, kerykes.pylon-events,
+    // kerykes.ergon-events: inbox, retries, dead-lettering). Kerykes
+    // publishes nothing yet.
     EventsModule.forRoot({
       service: 'kerykes',
       publish: [],
@@ -59,6 +67,7 @@ export const PYLON_SUBSCRIPTIONS = ['budget.threshold-reached'] as const;
         polis: POLIS_SUBSCRIPTIONS,
         hephaestus: HEPHAESTUS_SUBSCRIPTIONS,
         pylon: PYLON_SUBSCRIPTIONS,
+        ergon: ERGON_SUBSCRIPTIONS,
       },
       rabbitmq: {
         inject: [ConfigService],
