@@ -150,6 +150,133 @@ importers:
         specifier: ^16.0.0
         version: 16.0.0
 
+  episteme:
+    dependencies:
+      '@aether-os/krepis':
+        specifier: workspace:*
+        version: file:krepis(ea9e3b2e4c9ca4971679d24f8d5bdab0)
+      '@golevelup/nestjs-rabbitmq':
+        specifier: ^9.1.2
+        version: 9.1.2(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.5.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/common':
+        specifier: ^12.0.1
+        version: 12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/config':
+        specifier: ^12.1.1
+        version: 12.1.1(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)
+      '@nestjs/core':
+        specifier: ^12.0.1
+        version: 12.5.0(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@12.5.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/event-emitter':
+        specifier: ^12.0.3
+        version: 12.0.3(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.5.0)
+      '@nestjs/platform-express':
+        specifier: ^12.0.1
+        version: 12.5.0(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.5.0)(rxjs@7.8.2)
+      '@nestjs/typeorm':
+        specifier: ^12.0.3
+        version: 12.0.3(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.5.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typeorm@1.1.3(pg@8.23.1))
+      '@opentelemetry/api':
+        specifier: ^1.10.0
+        version: 1.10.0
+      jose:
+        specifier: ^6.2.17
+        version: 6.2.17
+      nestjs-zod:
+        specifier: ^5.6.0
+        version: 5.6.0(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)(zod@4.6.7)
+      pg:
+        specifier: ^8.23.1
+        version: 8.23.1
+      reflect-metadata:
+        specifier: ^0.2.2
+        version: 0.2.2
+      rxjs:
+        specifier: ^7.8.1
+        version: 7.8.2
+      typeorm:
+        specifier: ^1.1.3
+        version: 1.1.3(pg@8.23.1)
+      typeorm-transactional:
+        specifier: ^0.5.0
+        version: 0.5.0(reflect-metadata@0.2.2)(typeorm@1.1.3(pg@8.23.1))
+      uuid:
+        specifier: ^14.0.3
+        version: 14.0.3
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    dependenciesMeta:
+      '@aether-os/krepis':
+        injected: true
+    devDependencies:
+      '@nestjs/cli':
+        specifier: ^12.0.0
+        version: 12.0.13(@types/node@24.19.2)(prettier@3.10.1)
+      '@nestjs/mau':
+        specifier: ^0.2.6
+        version: 0.2.9
+      '@nestjs/schematics':
+        specifier: ^12.0.0
+        version: 12.0.13(chokidar@5.0.0)(prettier@3.10.1)(typescript@6.0.3)
+      '@nestjs/testing':
+        specifier: ^12.0.1
+        version: 12.5.0(@nestjs/common@12.5.0(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.5.0)(@nestjs/platform-express@12.5.0)
+      '@testcontainers/postgresql':
+        specifier: ^12.2.1
+        version: 12.2.1(bare-buffer@3.7.2)
+      '@testcontainers/rabbitmq':
+        specifier: ^12.2.1
+        version: 12.2.1(bare-buffer@3.7.2)
+      '@types/amqplib':
+        specifier: ^0.10.8
+        version: 0.10.8
+      '@types/express':
+        specifier: ^5.0.0
+        version: 5.0.6
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.19.2
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      '@types/supertest':
+        specifier: ^7.0.0
+        version: 7.2.1
+      '@vitest/coverage-v8':
+        specifier: ^4.1.2
+        version: 4.1.12(vitest@4.1.12)
+      amqplib:
+        specifier: ^0.10.9
+        version: 0.10.9
+      oxlint:
+        specifier: ^1.58.0
+        version: 1.93.0(oxlint-tsgolint@7.0.2007)
+      oxlint-tsgolint:
+        specifier: ^7.0.2001
+        version: 7.0.2007
+      prettier:
+        specifier: ^3.4.2
+        version: 3.10.1
+      source-map-support:
+        specifier: ^0.5.21
+        version: 0.5.21
+      supertest:
+        specifier: ^7.0.0
+        version: 7.3.2
+      testcontainers:
+        specifier: ^12.2.1
+        version: 12.2.1(bare-buffer@3.7.2)
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.3
+      vite:
+        specifier: ^8.0.0
+        version: 8.3.8(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
+      vitest:
+        specifier: ^4.1.2
+        version: 4.1.12(@opentelemetry/api@1.10.0)(@types/node@24.19.2)(@vitest/coverage-v8@4.1.12)(vite@8.3.8(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+
   ergon:
     dependencies:
       '@aether-os/krepis':

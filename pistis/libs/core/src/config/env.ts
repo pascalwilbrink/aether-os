@@ -182,6 +182,16 @@ const DEV_CLIENTS = [
     token_endpoint_auth_method: 'client_secret_basic',
     platform_permissions: ['platform:read'],
   },
+  // Episteme's own token (client credentials): Polis, Loculus and Seshat.
+  {
+    client_id: 'episteme',
+    client_secret: 'episteme-dev-secret',
+    redirect_uris: [],
+    response_types: [],
+    grant_types: ['client_credentials'],
+    token_endpoint_auth_method: 'client_secret_basic',
+    platform_permissions: ['platform:read'],
+  },
   // Operator tooling for local development: create users, suspend
   // organizations (README: "Creating a user").
   {

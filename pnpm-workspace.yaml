@@ -12,6 +12,7 @@ packages:
   - seshat
   - pylon
   - ergon
+  - episteme
   - ui/iris
   - ui/atlas
   - ui/design

@@ -28,6 +28,7 @@ const SERVICES = [
   ['Seshat', 3009],
   ['Pylon', 3011],
   ['Ergon', 3013],
+  ['Episteme', 3014],
   ['Atlas', Number(process.env.ATLAS_PORT ?? 3012)],
 ];
 

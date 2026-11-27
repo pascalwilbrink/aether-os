@@ -8,7 +8,7 @@ Episteme is the Aether OS service for **knowledge management and governance**: t
 
 Package: **`@aether-os/episteme`**.
 
-Status: **design only, no code yet.** This file is the starting point for building the service. It says what Episteme owns, how it fits with the other services, and which rules its code must follow.
+Status: **the service's shell is built** (What's built, below): a NestJS app on port `3014` with its database, Pistis tokens, the outbox and inbox, health checks, telemetry and logging, and no domain yet. This file is the starting point for building the rest. It says what Episteme owns, how it fits with the other services, and which rules its code must follow.
 
 - Statements without a marker are **decided**: they follow from the platform's agreed design (`../CLAUDE.md`, `../docs/*.md`) or from Episteme's mission.
 - **(Proposal)** marks a recommendation that still needs validation. Implement it only after it's confirmed, or as the smallest version that can be changed cheaply.
@@ -523,10 +523,11 @@ The pages are the UIs' to design. Episteme's job is an API that makes them simpl
 - **References, not copies:** entities owned elsewhere are referenced by stable ID. A local copy exists only where Episteme's own rules need it, kept from the owner's events and version-guarded.
 - **Small first:** explicit domain concepts over generic "entity" or "relation" tables, and no abstraction a second use hasn't asked for.
 
+- **Port `3014`**, the database `episteme` (`../infra/postgres/init/`), and the Pistis platform client `episteme` (`platform:read`; locally `episteme` / `episteme-dev-secret`) for calling Polis, Loculus and Seshat with its own token, once it does.
+
 ### Proposed
 
-- Libraries under `libs/`: `core`, `resources`, `versions`, `reviews`, `stewardship`, `scopes`, `taxonomy`, `relationships`, `provenance`, `indexing`, `audit`, `tenancy` (Polis's copy). Each has its pure domain in a `domain/` folder.
-- Port `3014` (the next free one after Ergon's `3013`), a database `episteme` in `../infra/postgres/init/`, and a Pistis platform client `episteme` (to call Polis, Loculus and Seshat with its own token).
+- Libraries under `libs/`: `core` (built), then `resources`, `versions`, `reviews`, `stewardship`, `scopes`, `taxonomy`, `relationships`, `provenance`, `indexing`, `audit`, `tenancy` (Polis's copy). Each has its pure domain in a `domain/` folder.
 - An Episteme MCP tool server (drafting, proposing, reading a resource's currency) that agent versions can choose, beside Seshat's retrieval tools.
 
 ## Open questions
@@ -564,7 +565,24 @@ Settle each one before the code that depends on it, and record the answer here (
 
 Later: templates, restricted resources through Themis, organization-specific taxonomies, an Episteme MCP tool server, Ergon links.
 
-Before step 2: create the package, add it to `../pnpm-workspace.yaml`, the root `CLAUDE.md` (component table, ports, workspace list), `../infra/postgres/init/` and Pistis's development clients.
+Done before step 2: the package, `../pnpm-workspace.yaml`, the root `CLAUDE.md` (component table, ports, workspace list), `../infra/postgres/init/`, Uptime Kuma and Pistis's development clients (What's built).
+
+## What's built
+
+The service's shell, copied from Ergon's without its domain, so step 1 (the contracts) and step 2 start from a running app:
+
+- **`src/`:** `main.ts` (telemetry first), `server.ts` (Krepis's logger, transactions, `configureHttpApp`), `app.module.ts`: configuration, the database, `/health` and `/health/live` (the database, RabbitMQ, Pistis), the events module (the outbox and inbox; it publishes and consumes nothing yet), Pistis tokens (Krepis's `AuthModule`). No routes of its own yet; every route will need a rule (Krepis fails closed).
+- **`libs/core`** (`@episteme/core`): Krepis re-exported, the configuration (`DATABASE_URL`, `RABBITMQ_URL`, `OUTBOX_RELAY_INTERVAL_MS`, `PORT` 3014, `PISTIS_ISSUER`; validated at startup, `env.spec.ts`), the database module (migrations only, never `synchronize`).
+- **Database:** migration `Initial` (the outbox and the inbox); `src/database/entities.ts` lists every entity for the TypeORM CLI and the tests' schema check.
+- **Tests:** `pnpm test` (the configuration); `pnpm test:e2e` against Postgres and RabbitMQ in containers (`test/global-setup.ts` applies the migrations and fails if the entities differ from them; `test/health.e2e-spec.ts`).
+- **Not yet:** `generate:api` (it comes with `../contracts/episteme.openapi.yaml` and `.asyncapi.yaml`), the Polis client, and everything in the domain model.
+
+```bash
+cp .env.example .env && pnpm start:dev   # build, migrate, watch (port 3014)
+pnpm build | lint | test                 # test: unit tests (the configuration, later the domain)
+pnpm test:e2e                            # against Postgres and RabbitMQ (Testcontainers; needs Docker)
+pnpm build && pnpm migration:generate src/database/migrations/<Name>   # then review it and add it to migrations/index.ts
+```
 
 ## What Episteme must not own
 
