@@ -64,6 +64,18 @@ export class KnowledgeStore {
     return entity;
   }
 
+  /** The version, locked, or null when it isn't one of the resource (in the organization). */
+  async findVersionForUpdate(
+    organizationId: string,
+    resourceId: string,
+    versionId: string,
+  ): Promise<KnowledgeVersionEntity | null> {
+    return this.versions.findOne({
+      where: { id: versionId, resourceId, organizationId },
+      lock: { mode: 'pessimistic_write' },
+    });
+  }
+
   /** 404 unless it's a version of the resource (in the organization). */
   async version(
     organizationId: string,

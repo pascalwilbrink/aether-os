@@ -657,6 +657,104 @@ describe('Knowledge (e2e)', () => {
     expect(refused.body.code).toBe('DEPARTMENT_ARCHIVED');
   });
 
+  it("keeps Seshat's indexing answer on each published version", async () => {
+    const resource = await create();
+    const versionId = resource.openVersion.id;
+    const path = `${versions(resource.id)}/${versionId}`;
+    // Never published: no indexing.
+    expect((await viewer.get(path).expect(200)).body.indexing).toBeNull();
+
+    const published = await publishOpen(resource.id, versionId);
+    expect(published.body.indexing).toMatchObject({
+      status: 'pending',
+      itemId: null,
+      chunkCount: null,
+      error: null,
+    });
+
+    const answer = (eventType: string, payload: Record<string, unknown>) =>
+      app.get(EventInbox).receive('seshat', {
+        eventId: uuidv7(),
+        eventType,
+        schemaVersion: 1,
+        aggregateId: resource.id,
+        aggregateVersion: 1,
+        occurredAt: new Date(),
+        organizationId: orgId,
+        projectId: null,
+        actor: null,
+        payload: {
+          resourceId: resource.id,
+          versionId,
+          versionNumber: 1,
+          ...payload,
+        },
+      } as DomainEvent);
+
+    await answer('knowledge-indexing.failed', {
+      error: 'Episteme answered 403',
+    });
+    expect((await viewer.get(path).expect(200)).body.indexing).toMatchObject({
+      status: 'failed',
+      error: 'Episteme answered 403',
+    });
+
+    const itemId = uuidv7();
+    await answer('knowledge-indexing.completed', {
+      itemId,
+      itemVersion: 1,
+      chunkCount: 2,
+    });
+    const indexed = (await viewer.get(path).expect(200)).body.indexing;
+    expect(indexed).toMatchObject({
+      status: 'indexed',
+      itemId,
+      chunkCount: 2,
+      error: null,
+    });
+    // On the resource's published version too.
+    const read = await viewer.get(`${resources()}/${resource.id}`).expect(200);
+    expect(read.body.publishedVersion.indexing).toMatchObject({
+      status: 'indexed',
+    });
+
+    // A late failure doesn't undo it; an answer for a draft is ignored.
+    await answer('knowledge-indexing.failed', { error: 'late' });
+    expect((await viewer.get(path).expect(200)).body.indexing.status).toBe(
+      'indexed',
+    );
+    const draft = await olga
+      .post(versions(resource.id))
+      .send({ content: '# Travel\n\nBook trains.\n' })
+      .expect(201);
+    await app.get(EventInbox).receive('seshat', {
+      eventId: uuidv7(),
+      eventType: 'knowledge-indexing.completed',
+      schemaVersion: 1,
+      aggregateId: resource.id,
+      aggregateVersion: 1,
+      occurredAt: new Date(),
+      organizationId: orgId,
+      projectId: null,
+      actor: null,
+      payload: {
+        resourceId: resource.id,
+        versionId: draft.body.id,
+        versionNumber: 2,
+        itemId,
+        itemVersion: 2,
+        chunkCount: 1,
+      },
+    } as DomainEvent);
+    expect(
+      (
+        await viewer
+          .get(`${versions(resource.id)}/${draft.body.id}`)
+          .expect(200)
+      ).body.indexing,
+    ).toBeNull();
+  });
+
   it('refuses changes while the organization is suspended', async () => {
     const resource = await create();
     polis.organizations.set(orgId, {

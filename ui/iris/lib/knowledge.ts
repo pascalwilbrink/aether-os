@@ -61,13 +61,14 @@ export const isKnowledgeItemStatus = (
 
 /**
  * What a person may do to an item now (Seshat checks `knowledge:approve`);
- * nothing to a repository's document, which changes with a commit.
+ * nothing to a repository's document, which changes with a commit, or to
+ * Episteme's knowledge, which changes when a version is published there.
  */
 export function decisionsFor(
   status: KnowledgeItemStatus,
   sourceKind: KnowledgeItem["source"]["kind"] = "person",
 ): ("accept" | "reject" | "retire")[] {
-  if (sourceKind === "repository") return [];
+  if (sourceKind === "repository" || sourceKind === "episteme") return [];
   if (status === "proposed") return ["accept", "reject"];
   if (status === "accepted") return ["retire"];
   return [];
@@ -77,6 +78,12 @@ export function decisionsFor(
 export function sourceLabel(item: Pick<KnowledgeItem, "source" | "createdBy">) {
   if (item.source.kind === "repository") {
     return `From ${item.source.repository?.fullName ?? "a repository"}`;
+  }
+  if (item.source.kind === "episteme") {
+    const episteme = item.source.episteme;
+    return episteme
+      ? `Published in Episteme (${episteme.knowledgeType.replaceAll("_", " ")}, version ${episteme.versionNumber})`
+      : "Published in Episteme";
   }
   if (item.source.kind === "session") return "Proposed in a council session";
   return item.source.kind === "task"

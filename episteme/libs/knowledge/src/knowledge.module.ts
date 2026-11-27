@@ -18,6 +18,7 @@ import { KnowledgeReviewsService } from './knowledge-reviews.service.js';
 import { KnowledgeVersionsController } from './knowledge-versions.controller.js';
 import { KnowledgeVersionsService } from './knowledge-versions.service.js';
 import { KnowledgeMapper } from './knowledge.mapper.js';
+import { KnowledgeIndexingListener } from './knowledge-indexing.listener.js';
 import { KnowledgeStore } from './knowledge.store.js';
 
 /** Knowledge resources, their versions, review, publication and audit. */
@@ -41,6 +42,7 @@ import { KnowledgeStore } from './knowledge.store.js';
     KnowledgeResourcesService,
     KnowledgeVersionsService,
     KnowledgeReviewsService,
+    KnowledgeIndexingListener,
   ],
 })
 export class KnowledgeModule {}

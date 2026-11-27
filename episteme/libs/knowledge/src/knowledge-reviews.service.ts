@@ -308,6 +308,15 @@ export class KnowledgeReviewsService {
     const actor = this.access.actor();
     const now = this.transition(resource, version, 'publish');
     version.publishedAt = now;
+    // Seshat indexes it and answers (KnowledgeIndexingListener).
+    Object.assign(version, {
+      indexingStatus: 'pending',
+      indexingItemId: null,
+      indexingChunkCount: null,
+      indexingError: null,
+      indexingRequestedAt: now,
+      indexingUpdatedAt: now,
+    } satisfies Partial<KnowledgeVersionEntity>);
     const previousId = resource.publishedVersionId;
     const superseded = (
       await this.store.versionsIn(resourceId, ['approved', 'published'])

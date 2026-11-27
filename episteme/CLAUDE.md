@@ -31,6 +31,7 @@ Settled with the platform's owner (open questions 1, 2, 3 and 5, and parts of 4 
 | **Permissions by owner** | **The organization's and a department's resources take `org:knowledge:*`; a project's take the project's existing `knowledge:*`**, as Seshat's items do: read `knowledge:read`, draft and submit `knowledge:propose`, review and publish `knowledge:approve` (people only), govern `project:manage`. No new project-level permissions. A project the caller can't read hides its resources (404, and left out of lists). |
 | **Stewards** (part of question 4) | **Polis persons**, as Ergon's assignments: a person can be accountable before they sign up, and acts once linked to a Pistis user. Teams and departments as owners come later. |
 | **Approvals** (part of question 6) | **One approval**, from one of the resource's approvers, or from anyone holding `org:knowledge:publish` when it names none; the same for every knowledge type. **Approving a version you wrote is allowed.** Rules per type (a second approver, no self-approval) can come later without breaking the API. |
+| **Indexing in Seshat** | **Where the resource belongs, by keywords first, status back both ways.** Seshat indexes each published version as one read-only item: a project's in the project, a department's in the department, the organization's in every project and department (Seshat's first organization-wide items). Embeddings for the organization's and departments' wait for Pylon to charge an organization. Seshat answers each publication with `knowledge-indexing.completed` / `.failed`, which Episteme keeps on the version (`indexing`). |
 | **Content format** | **Markdown** is the authoring and stored format. It is what Seshat indexes and agents read today, versions compare as text diffs, and imports convert to it. A rich-text editor can come later on top of Markdown. Files (PDF, `.docx`) are attachments in Loculus, not the content format. |
 
 ## Aether OS, briefly
@@ -281,7 +282,7 @@ Where a resource came from: `sourceType` (`internal`, `import`, `sync`, `derived
 
 ## The contracts (built)
 
-`../contracts/episteme.openapi.yaml` (0.2.0) and `../contracts/episteme.asyncapi.yaml` (0.2.0), generated in `libs/core` (`pnpm generate:api`). Beyond the Decisions above, they settle:
+`../contracts/episteme.openapi.yaml` (0.3.0) and `../contracts/episteme.asyncapi.yaml` (0.3.0), generated in `libs/core` (`pnpm generate:api`). Beyond the Decisions above, they settle:
 
 - **Paths:** `/v1/organizations/{organizationId}/knowledge/resources[/{resourceId}]`, with its `archive`, `scopes`, `stewards`, `audit`, and `versions[/{versionId}]` with `diff?against=`, `submit`, `withdraw`, `decisions`, `reviews` and `publish`. Everything else in the endpoint table below is still a proposal.
 - **One open version:** a resource has at most one version in `draft` or `in_review` (`DRAFT_EXISTS`), so a request for changes never leaves two drafts. Creating a resource creates its first draft.
@@ -292,7 +293,8 @@ Where a resource came from: `sourceType` (`internal`, `import`, `sync`, `derived
 - **Owners** (0.2.0): `projectId` and `departmentId` on the create request and the resource, filters `projectId`, `departmentId` and `owner` (`organization`, `project`, `department`) on the list, `PROJECT_ARCHIVED` and `DEPARTMENT_ARCHIVED`; every route checks the organization (`org:read`) and the service the permission for the owner. Events carry the owner in the snapshot and the project as the envelope's `projectId`.
 - **Concurrency:** `If-Match` with the resource's `version` (one counter for the resource and its versions, also the events' `aggregateVersion`), and with a draft's `revision` for editing and submitting it.
 - **Events** have the resource as aggregate and carry IDs, states and checksums only (no titles, content or personal data); Seshat reads a published version's content from `GET …/versions/{id}` with `platform:read`. The review withdrawal is `knowledge-version.returned` (`withdrawn`), so `knowledge-version.withdrawn` keeps its meaning: no longer current.
-- **Left for later:** scheduled publication (`at`), which comes with the poller.
+- **Indexing** (0.3.0): every version has `indexing`, null until it's published, then `pending` until Seshat answers (`knowledge-indexing.completed` / `.failed` on `seshat.events`), then `indexed` (with Seshat's `itemId` and `chunkCount`) or `failed` (with `error`).
+- **Left for later:** scheduled publication (`at`), which comes with the poller; re-indexing on request (`knowledge.reindex`).
 
 ## Lifecycle
 
@@ -581,7 +583,7 @@ Settle each one before the code that depends on it, and record the answer here (
 2. **KnowledgeResource and KnowledgeVersion** (built) with Markdown content, the version and resource transition tables, publication, the audit log and the outbox.
 3. **Scopes and stewardship** (built) with Polis's IDs; checked against Polis's API on writes for now, no copy of their statuses.
 4. **Reviews and approvals** (built), with the "people approve, agents propose" rule.
-5. **The Seshat contract:** indexing on publication, withdrawal, re-indexing, status back. Seshat keeps search.
+5. **The Seshat contract** (built, but re-indexing on request): indexing on publication, withdrawal, status back. Seshat keeps search.
 6. **Taxonomy and metadata schemas**, then **relationships**.
 7. **Attachments and file content** through Loculus.
 8. **Scheduled reviews and expiry** (the poller), with events for Kerykes.
@@ -594,7 +596,7 @@ Done before step 2: the package, `../pnpm-workspace.yaml`, the root `CLAUDE.md` 
 
 ## What's built
 
-Roadmap steps 1 to 4 for the core: the contracts (The contracts, above) and the service behind them, on port `3014`.
+Roadmap steps 1 to 5 for the core (5 without re-indexing on request): the contracts (The contracts, above) and the service behind them, on port `3014`.
 
 - **`libs/knowledge`:**
   - `domain/`, pure and unit-tested: the version and resource transition tables (`version-lifecycle.ts`, `resource-lifecycle.ts`, tested exhaustively), content (canonical Markdown, SHA-256 checksum, unified diff with `diff`), stewardship (owners required, normalized stewards, scopes and tags).
@@ -605,9 +607,10 @@ Roadmap steps 1 to 4 for the core: the contracts (The contracts, above) and the 
 - **`libs/persons`:** Episteme's copy of Polis's persons (`person.created`, `.updated`, `.deleted`, version-guarded), who can be stewards; the caller is a steward when Polis links one of these persons to their user. A deleted person stays a steward where they were (open question 4). Persons created before Episteme subscribed are unknown until an operator runs Polis's `POST /v1/persons/announce`.
 - **`libs/tenancy`:** Polis behind `PolisClient` (Episteme's own client `episteme`, `platform:read`): the organization accepts writes (`ORGANIZATION_SUSPENDED`), and new scopes are active departments, teams or projects of it (`400`, pointing at the scope).
 - **Krepis:** `org:knowledge:read`, `:draft`, `:review`, `:publish` and `:govern`; review and publish for users only; sessions may read and draft.
-- **`src/`:** `main.ts` (telemetry first), `server.ts`, `app.module.ts`: configuration (`POLIS_URL`, `PISTIS_CLIENT_ID` / `_SECRET` besides the database, RabbitMQ and Pistis), `/health` (the database, RabbitMQ, Pistis, Polis), events (publishes every event of `../contracts/episteme.asyncapi.yaml` to `episteme.events`; consumes Polis's `person.*` on `episteme.polis-events`), tokens. Migrations `Initial` (the outbox and inbox) and `KnowledgeResources`.
-- **Tests:** `pnpm test` (the domain, the configuration); `pnpm test:e2e` against Postgres and RabbitMQ (`test/knowledge.e2e-spec.ts`: creating and filtering, stewards and scopes, a draft through review to publication and supersession, approval without approvers, agents and platform reads, archiving and deleting, a project's resource under the project's permissions, a department's owner checks, a suspended organization; `test/health.e2e-spec.ts`).
-- **Not yet:** attachments (Loculus), indexing in Seshat (it consumes the events next), review schedules and expiry, relationships, taxonomy beyond the fixed types, restrictions, and Iris and Atlas pages.
+- **`src/`:** `main.ts` (telemetry first), `server.ts`, `app.module.ts`: configuration (`POLIS_URL`, `PISTIS_CLIENT_ID` / `_SECRET` besides the database, RabbitMQ and Pistis), `/health` (the database, RabbitMQ, Pistis, Polis), events (publishes every event of `../contracts/episteme.asyncapi.yaml` to `episteme.events`; consumes Polis's `person.*` on `episteme.polis-events` and Seshat's `knowledge-indexing.*` on `episteme.seshat-events`), tokens. Migrations `Initial` (the outbox and inbox), `KnowledgeResources`, `ResourceOwners` and `VersionIndexing`.
+- **Indexing:** `KnowledgeIndexingListener` keeps Seshat's answers (`seshat.knowledge-indexing.completed` / `.failed`, on `episteme.seshat-events`) on the version: publishing sets it `pending`, an answer `indexed` or `failed`; a failure never replaces a success, and an answer for a version that was never published is ignored. It's Seshat's state, so it's neither audited nor published. Migration `VersionIndexing`. Seshat's side: `../seshat/CLAUDE.md`, Episteme's knowledge.
+- **Tests:** `pnpm test` (the domain, the configuration); `pnpm test:e2e` against Postgres and RabbitMQ (`test/knowledge.e2e-spec.ts`: creating and filtering, stewards and scopes, a draft through review to publication and supersession, approval without approvers, agents and platform reads, archiving and deleting, a project's resource under the project's permissions, a department's owner checks, Seshat's indexing answers, a suspended organization; `test/health.e2e-spec.ts`).
+- **Not yet:** attachments (Loculus), re-indexing on request, review schedules and expiry, relationships, taxonomy beyond the fixed types, restrictions, and Iris and Atlas pages.
 
 ```bash
 cp .env.example .env && pnpm start:dev   # build, migrate, watch (port 3014)

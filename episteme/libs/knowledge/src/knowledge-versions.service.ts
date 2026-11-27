@@ -13,6 +13,7 @@ import {
 
 import { checksumOf, unifiedDiff } from './domain/index.js';
 import type { KnowledgeVersionEntity } from './entities/index.js';
+import { NOT_INDEXED } from './entities/index.js';
 import { assertMatches, KnowledgeAccess } from './knowledge-access.service.js';
 import { KnowledgeAudit } from './knowledge-audit.service.js';
 import { resourceEvent } from './knowledge-events.js';
@@ -129,6 +130,7 @@ export class KnowledgeVersionsService {
       submittedAt: null,
       approvedAt: null,
       publishedAt: null,
+      ...NOT_INDEXED,
     };
     resource.latestVersionNumber = version.number;
     resource.openVersionId = version.id;
