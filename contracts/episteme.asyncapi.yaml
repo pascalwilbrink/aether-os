@@ -1,0 +1,334 @@
+asyncapi: 3.0.0
+info:
+  title: Episteme events
+  version: 0.1.0
+  description: |
+    Events Episteme publishes to the `episteme.events` topic exchange on
+    RabbitMQ; the routing key is the event type. Every message is the Krepis
+    `DomainEvent` envelope (see `../docs/events.md`), JSON, persistent, with
+    the event ID as AMQP `messageId` and the event type as `type`.
+
+    Delivery is at least once (transactional outbox and relay): deduplicate
+    on `eventId`. Every event has the **resource** as aggregate, and its
+    `version` as `aggregateVersion` (it grows with every change to the
+    resource or its versions), so a consumer applies them in order per
+    resource. `projectId` is always null: resources belong to the
+    organization; projects are among their scopes.
+
+    Payloads carry IDs, states and checksums, never content, titles or
+    personal data: read the resource or version from Episteme's API
+    (`platform:read` for platform services).
+
+defaultContentType: application/json
+
+servers:
+  local:
+    host: localhost:5672
+    protocol: amqp
+    description: RabbitMQ from ../docker-compose.yml
+
+channels:
+  epistemeEvents:
+    address: episteme.events
+    description: Topic exchange; consumers bind their own durable queue (`<consumer>.episteme-events`) to the routing keys they need.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: episteme.events
+          type: topic
+          durable: true
+          autoDelete: false
+    messages:
+      knowledgeResourceCreated: { $ref: '#/components/messages/knowledgeResourceCreated' }
+      knowledgeResourceUpdated: { $ref: '#/components/messages/knowledgeResourceUpdated' }
+      knowledgeResourceArchived: { $ref: '#/components/messages/knowledgeResourceArchived' }
+      knowledgeResourceDeleted: { $ref: '#/components/messages/knowledgeResourceDeleted' }
+      knowledgeVersionCreated: { $ref: '#/components/messages/knowledgeVersionCreated' }
+      knowledgeVersionSubmitted: { $ref: '#/components/messages/knowledgeVersionSubmitted' }
+      knowledgeVersionApproved: { $ref: '#/components/messages/knowledgeVersionApproved' }
+      knowledgeVersionRejected: { $ref: '#/components/messages/knowledgeVersionRejected' }
+      knowledgeVersionReturned: { $ref: '#/components/messages/knowledgeVersionReturned' }
+      knowledgeVersionPublished: { $ref: '#/components/messages/knowledgeVersionPublished' }
+      knowledgeVersionWithdrawn: { $ref: '#/components/messages/knowledgeVersionWithdrawn' }
+
+operations:
+  publishEpistemeEvents:
+    action: send
+    channel: { $ref: '#/channels/epistemeEvents' }
+    messages:
+      - $ref: '#/channels/epistemeEvents/messages/knowledgeResourceCreated'
+      - $ref: '#/channels/epistemeEvents/messages/knowledgeResourceUpdated'
+      - $ref: '#/channels/epistemeEvents/messages/knowledgeResourceArchived'
+      - $ref: '#/channels/epistemeEvents/messages/knowledgeResourceDeleted'
+      - $ref: '#/channels/epistemeEvents/messages/knowledgeVersionCreated'
+      - $ref: '#/channels/epistemeEvents/messages/knowledgeVersionSubmitted'
+      - $ref: '#/channels/epistemeEvents/messages/knowledgeVersionApproved'
+      - $ref: '#/channels/epistemeEvents/messages/knowledgeVersionRejected'
+      - $ref: '#/channels/epistemeEvents/messages/knowledgeVersionReturned'
+      - $ref: '#/channels/epistemeEvents/messages/knowledgeVersionPublished'
+      - $ref: '#/channels/epistemeEvents/messages/knowledgeVersionWithdrawn'
+
+components:
+  messages:
+    knowledgeResourceCreated:
+      name: knowledge-resource.created
+      summary: 'A resource was created (with its first version, `knowledge-version.created` too).'
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-resource.created }
+              payload: { $ref: '#/components/schemas/KnowledgeResourceCreated' }
+    knowledgeResourceUpdated:
+      name: knowledge-resource.updated
+      summary: 'Its title, description, tags, scopes or stewards changed.'
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-resource.updated }
+              payload: { $ref: '#/components/schemas/KnowledgeResourceUpdated' }
+    knowledgeResourceArchived:
+      name: knowledge-resource.archived
+      summary: 'It was withdrawn from use; its published version is withdrawn too.'
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-resource.archived }
+              payload: { $ref: '#/components/schemas/KnowledgeResourceArchived' }
+    knowledgeResourceDeleted:
+      name: knowledge-resource.deleted
+      summary: 'A resource that was never published was deleted, with its versions.'
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-resource.deleted }
+              payload: { $ref: '#/components/schemas/KnowledgeResourceDeleted' }
+    knowledgeVersionCreated:
+      name: knowledge-version.created
+      summary: 'A new draft (a restore too).'
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-version.created }
+              payload: { $ref: '#/components/schemas/KnowledgeVersionChanged' }
+    knowledgeVersionSubmitted:
+      name: knowledge-version.submitted
+      summary: 'A draft was submitted for review (Kerykes tells its reviewers, later).'
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-version.submitted }
+              payload: { $ref: '#/components/schemas/KnowledgeVersionReviewed' }
+    knowledgeVersionApproved:
+      name: knowledge-version.approved
+      summary: 'A version was approved and may be published.'
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-version.approved }
+              payload: { $ref: '#/components/schemas/KnowledgeVersionReviewed' }
+    knowledgeVersionRejected:
+      name: knowledge-version.rejected
+      summary: 'A version was rejected, closed.'
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-version.rejected }
+              payload: { $ref: '#/components/schemas/KnowledgeVersionReviewed' }
+    knowledgeVersionReturned:
+      name: knowledge-version.returned
+      summary: 'A version in review went back to draft: changes were requested, or it was withdrawn.'
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-version.returned }
+              payload: { $ref: '#/components/schemas/KnowledgeVersionReturned' }
+    knowledgeVersionPublished:
+      name: knowledge-version.published
+      summary: 'A version became the resource''s authoritative one: Seshat indexes it (reading its content from Episteme).'
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-version.published }
+              payload: { $ref: '#/components/schemas/KnowledgeVersionPublished' }
+    knowledgeVersionWithdrawn:
+      name: knowledge-version.withdrawn
+      summary: 'A version stopped being current (superseded by a newer one, or its resource archived): Seshat stops returning it as current.'
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/Envelope'
+          - type: object
+            properties:
+              eventType: { const: knowledge-version.withdrawn }
+              payload: { $ref: '#/components/schemas/KnowledgeVersionWithdrawn' }
+
+  schemas:
+    Uuid: { type: string, format: uuid }
+    Envelope:
+      type: object
+      description: Krepis's `DomainEvent`.
+      required: [eventId, eventType, schemaVersion, aggregateId, aggregateVersion, occurredAt, organizationId, projectId, actor, payload]
+      properties:
+        eventId: { $ref: '#/components/schemas/Uuid', description: 'UUIDv7; the deduplication key.' }
+        eventType: { type: string }
+        schemaVersion: { type: integer, const: 1 }
+        aggregateId: { $ref: '#/components/schemas/Uuid', description: The resource. }
+        aggregateVersion: { type: integer, minimum: 1 }
+        occurredAt: { type: string, format: date-time }
+        organizationId: { $ref: '#/components/schemas/Uuid' }
+        projectId: { type: 'null' }
+        actor:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [sub, sub_type]
+              properties:
+                sub: { type: string }
+                sub_type: { enum: [user, service_account, service] }
+        payload: { type: object }
+    KnowledgeResource:
+      type: object
+      description: The resource as it is after the change, without its title, description or content.
+      additionalProperties: false
+      required: [id, knowledgeType, status, tags, scopes, stewards, publishedVersionId, latestVersionNumber]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        knowledgeType: { type: string, description: 'The API''s `KnowledgeType`.' }
+        status: { type: string, enum: [draft, active, under_review, expired, superseded, archived] }
+        tags:
+          type: array
+          items: { type: string }
+        scopes:
+          type: array
+          description: Departments, teams and projects of Polis; empty for the whole organization.
+          items:
+            type: object
+            additionalProperties: false
+            required: [type, id]
+            properties:
+              type: { type: string, enum: [department, team, project] }
+              id: { $ref: '#/components/schemas/Uuid' }
+        stewards:
+          type: array
+          description: Persons of Polis, by ID.
+          items:
+            type: object
+            additionalProperties: false
+            required: [role, personId]
+            properties:
+              role: { type: string, enum: [owner, maintainer, reviewer, approver] }
+              personId: { $ref: '#/components/schemas/Uuid' }
+        publishedVersionId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        latestVersionNumber: { type: integer, minimum: 1 }
+    KnowledgeVersion:
+      type: object
+      additionalProperties: false
+      required: [id, number, state, checksum, basedOnVersionId]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        number: { type: integer, minimum: 1 }
+        state: { type: string, enum: [draft, in_review, approved, rejected, published, superseded] }
+        checksum: { type: string, description: SHA-256 of the content (hex). }
+        basedOnVersionId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+    KnowledgeResourceCreated:
+      type: object
+      additionalProperties: false
+      required: [resource]
+      properties:
+        resource: { $ref: '#/components/schemas/KnowledgeResource' }
+    KnowledgeResourceUpdated:
+      type: object
+      additionalProperties: false
+      required: [resource, changedFields]
+      properties:
+        resource: { $ref: '#/components/schemas/KnowledgeResource' }
+        changedFields:
+          type: array
+          items: { type: string, enum: [title, description, tags, scopes, stewards] }
+    KnowledgeResourceArchived:
+      type: object
+      additionalProperties: false
+      required: [resource, withdrawnVersionId]
+      properties:
+        resource: { $ref: '#/components/schemas/KnowledgeResource' }
+        withdrawnVersionId:
+          description: Its published version, which is no longer current; null when it had none.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+    KnowledgeResourceDeleted:
+      type: object
+      additionalProperties: false
+      required: [resourceId]
+      properties:
+        resourceId: { $ref: '#/components/schemas/Uuid' }
+    KnowledgeVersionChanged:
+      type: object
+      additionalProperties: false
+      required: [resourceId, version]
+      properties:
+        resourceId: { $ref: '#/components/schemas/Uuid' }
+        version: { $ref: '#/components/schemas/KnowledgeVersion' }
+    KnowledgeVersionReviewed:
+      type: object
+      additionalProperties: false
+      required: [resourceId, version, reviewId]
+      properties:
+        resourceId: { $ref: '#/components/schemas/Uuid' }
+        version: { $ref: '#/components/schemas/KnowledgeVersion' }
+        reviewId: { $ref: '#/components/schemas/Uuid' }
+    KnowledgeVersionReturned:
+      type: object
+      additionalProperties: false
+      required: [resourceId, version, reviewId, reason]
+      properties:
+        resourceId: { $ref: '#/components/schemas/Uuid' }
+        version: { $ref: '#/components/schemas/KnowledgeVersion' }
+        reviewId: { $ref: '#/components/schemas/Uuid' }
+        reason: { type: string, enum: [changes_requested, withdrawn] }
+    KnowledgeVersionPublished:
+      type: object
+      additionalProperties: false
+      required: [resource, version, previousVersionId]
+      properties:
+        resource: { $ref: '#/components/schemas/KnowledgeResource' }
+        version: { $ref: '#/components/schemas/KnowledgeVersion' }
+        previousVersionId:
+          description: The version published before it, now superseded (`knowledge-version.withdrawn` for it too); null for the first.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+    KnowledgeVersionWithdrawn:
+      type: object
+      additionalProperties: false
+      required: [resourceId, version, reason]
+      properties:
+        resourceId: { $ref: '#/components/schemas/Uuid' }
+        version: { $ref: '#/components/schemas/KnowledgeVersion' }
+        reason: { type: string, enum: [superseded, resource_archived] }

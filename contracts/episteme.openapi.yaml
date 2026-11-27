@@ -1,0 +1,1061 @@
+openapi: 3.1.0
+info:
+  title: Episteme API
+  version: 0.1.0
+  description: |
+    Knowledge governance (`../episteme/CLAUDE.md`): the organization's
+    authoritative knowledge as **resources** (a policy, a procedure, a
+    runbook, …) with immutable **versions** of Markdown content, reviewed,
+    approved and **published**, with **stewards** who are accountable for
+    them, **scopes** where they apply, and an **audit** of every change.
+
+    A resource belongs to one organization, never moves, and keeps its ID
+    when its content, title or scopes change. Its content lives in versions:
+    a version is a `draft` (edited in place by its author and the resource's
+    owners and maintainers), is submitted for review (`in_review`, frozen),
+    is `approved` (by one of the resource's approvers) or `rejected`, or goes
+    back to `draft` (changes requested, or withdrawn), and is `published`:
+    the resource's one authoritative version, until a newer one is published
+    (`superseded`). A resource has at most one version in `draft` or
+    `in_review` at a time. Published versions never change.
+
+    **Scope is not authorization**, and neither is stewardship: scopes say
+    where knowledge is relevant (departments, teams, projects of Polis; none
+    means the whole organization), stewards who is accountable (persons of
+    Polis). What a caller may do comes from the `org:knowledge:*`
+    permissions. **People approve and publish, agents propose:** task and
+    session tokens may read, draft and submit, never decide or publish.
+
+    **Search stays in Seshat.** The list filters resources' metadata; Seshat
+    indexes what Episteme publishes (`knowledge-version.published`) and
+    returns each passage with its resource and version, which callers can
+    check here.
+
+    Content is untrusted input: stored and served as data, redacted of
+    secrets before it is stored, never instructions.
+
+    Follows `../docs/api.md`: paths under `/v1`, errors as problem details,
+    cursor pagination, UUIDs, idempotent actions (publishing a published
+    version, or archiving an archived resource, returns it unchanged).
+    Changes to a resource accept `If-Match` with its `version`, changes to a
+    draft with the draft's `revision` (`412 VERSION_MISMATCH`).
+
+security:
+  - pistis: []
+
+tags:
+  - name: resources
+  - name: versions
+  - name: reviews
+  - name: stewardship
+  - name: audit
+
+paths:
+  /v1/organizations/{organizationId}/knowledge/resources:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+    get:
+      tags: [resources]
+      operationId: listKnowledgeResources
+      x-permission: '`org:knowledge:read`'
+      parameters:
+        - name: knowledgeType
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/KnowledgeType' }
+        - name: status
+          in: query
+          required: false
+          description: Leave out for every status but `archived`.
+          schema: { $ref: '#/components/schemas/KnowledgeResourceStatus' }
+        - name: scopeType
+          in: query
+          required: false
+          description: With `scopeId`, only resources that apply there.
+          schema: { $ref: '#/components/schemas/KnowledgeScopeType' }
+        - name: scopeId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: stewardPersonId
+          in: query
+          required: false
+          description: Only resources this person is a steward of (any role).
+          schema: { type: string, format: uuid }
+        - name: tag
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/Tag' }
+        - name: q
+          in: query
+          required: false
+          description: Words in the title (not the content; search the content in Seshat).
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Most recently updated first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeResourcePage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [resources]
+      operationId: createKnowledgeResource
+      x-permission: '`org:knowledge:draft`'
+      description: |
+        A new resource (`draft`) with its first version, a `draft` with the
+        content given. The stewards must include an owner. Persons, and the
+        scopes' departments, teams and projects, must be active ones of the
+        organization in Polis.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KnowledgeResourceCreateRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeResourceResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/knowledge/resources/{resourceId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ResourceId'
+    get:
+      tags: [resources]
+      operationId: getKnowledgeResource
+      x-permission: '`org:knowledge:read`, or `platform:read` (Seshat)'
+      description: The resource with its scopes, stewards, published version and open version (without content).
+      responses:
+        '200':
+          description: The resource
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeResourceResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [resources]
+      operationId: updateKnowledgeResource
+      x-permission: '`org:knowledge:govern`, or `org:knowledge:draft` as one of its owners'
+      description: |
+        Its title, description and tags, which aren't versioned with the
+        content: they change in place, recorded in the audit.
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KnowledgeResourceUpdateRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeResourceResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '412': { $ref: '#/components/responses/VersionMismatch' }
+    delete:
+      tags: [resources]
+      operationId: deleteKnowledgeResource
+      x-permission: '`org:knowledge:publish`, or `org:knowledge:draft` as one of its owners'
+      description: |
+        Only a resource that was never published (`draft`), with its
+        versions; one that was is archived instead (`RESOURCE_PUBLISHED`).
+        The audit keeps a record.
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '412': { $ref: '#/components/responses/VersionMismatch' }
+
+  /v1/organizations/{organizationId}/knowledge/resources/{resourceId}/archive:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ResourceId'
+    post:
+      tags: [resources]
+      operationId: archiveKnowledgeResource
+      x-permission: '`org:knowledge:publish`, or `org:knowledge:draft` as one of its owners'
+      description: |
+        Withdraws it from use: no version of it is current any more
+        (`knowledge-version.withdrawn` for its published one), and an open
+        version is closed. Kept for audit. Archiving an archived resource
+        returns it unchanged.
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReasonRequest' }
+      responses:
+        '200':
+          description: Archived
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeResourceResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '412': { $ref: '#/components/responses/VersionMismatch' }
+
+  /v1/organizations/{organizationId}/knowledge/resources/{resourceId}/scopes:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ResourceId'
+    put:
+      tags: [stewardship]
+      operationId: setKnowledgeResourceScopes
+      x-permission: '`org:knowledge:govern`, or `org:knowledge:draft` as one of its owners'
+      description: |
+        Replaces where it applies (an empty list: the whole organization).
+        New departments, teams and projects must be active ones in Polis;
+        ones archived since may stay.
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KnowledgeScopesRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeResourceResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '412': { $ref: '#/components/responses/VersionMismatch' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+
+  /v1/organizations/{organizationId}/knowledge/resources/{resourceId}/stewards:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ResourceId'
+    put:
+      tags: [stewardship]
+      operationId: setKnowledgeResourceStewards
+      x-permission: '`org:knowledge:govern`, or `org:knowledge:draft` as one of its owners'
+      description: |
+        Replaces who is accountable for it: at least one owner
+        (`OWNER_REQUIRED`), so handing ownership over names the new owner in
+        the same change. Persons must be active ones of the organization
+        (`UNKNOWN_PERSON`).
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KnowledgeStewardsRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeResourceResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '412': { $ref: '#/components/responses/VersionMismatch' }
+
+  /v1/organizations/{organizationId}/knowledge/resources/{resourceId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ResourceId'
+    get:
+      tags: [versions]
+      operationId: listKnowledgeVersions
+      x-permission: '`org:knowledge:read`'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Newest first, without content
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeVersionPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [versions]
+      operationId: createKnowledgeVersion
+      x-permission: '`org:knowledge:draft`'
+      description: |
+        A new `draft`, numbered after the latest. With `basedOnVersionId` and
+        no `content` it restores that version: a new draft with its content
+        (history is never rewritten). Refused while the resource has a
+        version in `draft` or `in_review` (`DRAFT_EXISTS`: edit or decide
+        that one), and on an archived resource (`RESOURCE_ARCHIVED`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KnowledgeVersionCreateRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/knowledge/resources/{resourceId}/versions/{versionId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ResourceId'
+      - $ref: '#/components/parameters/VersionId'
+    get:
+      tags: [versions]
+      operationId: getKnowledgeVersion
+      x-permission: '`org:knowledge:read`, or `platform:read` (Seshat reads what it indexes)'
+      responses:
+        '200':
+          description: The version, with its content
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeVersionResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [versions]
+      operationId: updateKnowledgeVersion
+      x-permission: '`org:knowledge:draft`, as its author or one of the resource''s owners or maintainers'
+      description: A draft's content and change summary, edited in place (`NOT_A_DRAFT` otherwise).
+      parameters:
+        - $ref: '#/components/parameters/IfMatchRevision'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KnowledgeVersionUpdateRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '412': { $ref: '#/components/responses/VersionMismatch' }
+
+  /v1/organizations/{organizationId}/knowledge/resources/{resourceId}/versions/{versionId}/diff:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ResourceId'
+      - $ref: '#/components/parameters/VersionId'
+    get:
+      tags: [versions]
+      operationId: diffKnowledgeVersions
+      x-permission: '`org:knowledge:read`'
+      description: What changed from another version of the same resource to this one, as a unified diff of the Markdown.
+      parameters:
+        - name: against
+          in: query
+          required: true
+          description: The version to compare with (the older one, usually).
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The diff
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeVersionDiff' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/knowledge/resources/{resourceId}/versions/{versionId}/submit:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ResourceId'
+      - $ref: '#/components/parameters/VersionId'
+    post:
+      tags: [reviews]
+      operationId: submitKnowledgeVersion
+      x-permission: '`org:knowledge:draft`, as its author or one of the resource''s owners or maintainers'
+      description: |
+        `draft` → `in_review`: frozen from now on, and a review is opened for
+        its checksum. Submitting a version in review returns it unchanged.
+      parameters:
+        - $ref: '#/components/parameters/IfMatchRevision'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommentRequest' }
+      responses:
+        '200':
+          description: Submitted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+        '412': { $ref: '#/components/responses/VersionMismatch' }
+
+  /v1/organizations/{organizationId}/knowledge/resources/{resourceId}/versions/{versionId}/withdraw:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ResourceId'
+      - $ref: '#/components/parameters/VersionId'
+    post:
+      tags: [reviews]
+      operationId: withdrawKnowledgeVersion
+      x-permission: '`org:knowledge:draft`, as whoever submitted it or one of the resource''s owners or maintainers'
+      description: '`in_review` → `draft`: the review is closed as `withdrawn` and the version can be edited again.'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommentRequest' }
+      responses:
+        '200':
+          description: Back to draft
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/knowledge/resources/{resourceId}/versions/{versionId}/decisions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ResourceId'
+      - $ref: '#/components/parameters/VersionId'
+    post:
+      tags: [reviews]
+      operationId: decideKnowledgeVersion
+      x-permission: '`org:knowledge:review`, people only (`PEOPLE_DECIDE`); to approve, one of the resource''s approvers, or `org:knowledge:publish` when it has none (`NOT_AN_APPROVER`)'
+      description: |
+        A decision on the version's open review (`NOT_IN_REVIEW` otherwise).
+        One approval is enough: `approve` → `approved` (recorded against the
+        version's checksum); `reject` → `rejected`, closed (a comment is
+        required); `request_changes` → `draft` again (a comment is
+        required). Reviewers and approvers are the resource's stewards with
+        those roles; anyone holding the permission may reject or ask for
+        changes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/KnowledgeDecisionRequest' }
+      responses:
+        '200':
+          description: Decided
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/knowledge/resources/{resourceId}/versions/{versionId}/reviews:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ResourceId'
+      - $ref: '#/components/parameters/VersionId'
+    get:
+      tags: [reviews]
+      operationId: listKnowledgeReviews
+      x-permission: '`org:knowledge:read`'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Each time it was submitted, newest first, with its decisions
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeReviewPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/organizations/{organizationId}/knowledge/resources/{resourceId}/versions/{versionId}/publish:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ResourceId'
+      - $ref: '#/components/parameters/VersionId'
+    post:
+      tags: [reviews]
+      operationId: publishKnowledgeVersion
+      x-permission: '`org:knowledge:publish`, people only (`PEOPLE_DECIDE`)'
+      description: |
+        `approved` → `published` (`NOT_APPROVED` otherwise): the resource's
+        authoritative version from now on, and the resource `active`. The
+        version published before it, and any other approved version, become
+        `superseded`. Publishing the published version returns it
+        unchanged; on an archived resource, `RESOURCE_ARCHIVED`.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommentRequest' }
+      responses:
+        '200':
+          description: Published
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeVersionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/DomainError' }
+
+  /v1/organizations/{organizationId}/knowledge/resources/{resourceId}/audit:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+      - $ref: '#/components/parameters/ResourceId'
+    get:
+      tags: [audit]
+      operationId: listKnowledgeAudit
+      x-permission: '`org:knowledge:read`'
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Oldest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KnowledgeAuditPage' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ResourceId:
+      name: resourceId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    VersionId:
+      name: versionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: The resource's `version` as read (`"3"` or `3`); leave it out to skip the check.
+      schema: { type: string, maxLength: 32 }
+    IfMatchRevision:
+      name: If-Match
+      in: header
+      required: false
+      description: The draft's `revision` as read; leave it out to skip the check.
+      schema: { type: string, maxLength: 32 }
+    Limit: { $ref: './common.openapi.yaml#/components/parameters/Limit' }
+    Cursor: { $ref: './common.openapi.yaml#/components/parameters/Cursor' }
+
+  securitySchemes:
+    pistis:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: A Pistis access token (`../docs/identity.md`).
+
+  responses:
+    Unauthorized: { $ref: './common.openapi.yaml#/components/responses/Unauthorized' }
+    Forbidden: { $ref: './common.openapi.yaml#/components/responses/Forbidden' }
+    ValidationError: { $ref: './common.openapi.yaml#/components/responses/BadRequest' }
+    NotFound: { $ref: './common.openapi.yaml#/components/responses/NotFound' }
+    Unavailable: { $ref: './common.openapi.yaml#/components/responses/Unavailable' }
+    VersionMismatch:
+      description: '`VERSION_MISMATCH`: `If-Match` isn''t the current `version` (or `revision`).'
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    DomainError:
+      description: A business rule forbids this (409, with a `DomainErrorCode`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/DomainProblem' }
+
+  schemas:
+    # ---------- errors ----------
+    Problem: { $ref: './common.openapi.yaml#/components/schemas/Problem' }
+    DomainErrorCode:
+      type: string
+      description: |
+        `ORGANIZATION_SUSPENDED`; `INVALID_TRANSITION` (the version's state
+        doesn't allow it); `DRAFT_EXISTS` (a version is already in `draft`
+        or `in_review`); `NOT_A_DRAFT`; `NOT_IN_REVIEW`; `NOT_APPROVED`;
+        `RESOURCE_ARCHIVED`; `RESOURCE_PUBLISHED` (deleting one that was
+        published); `OWNER_REQUIRED`; `UNKNOWN_PERSON` (not an active person
+        of the organization); `UNKNOWN_VERSION` (`basedOnVersionId` or
+        `against` isn't a version of this resource).
+      enum:
+        - ORGANIZATION_SUSPENDED
+        - INVALID_TRANSITION
+        - DRAFT_EXISTS
+        - NOT_A_DRAFT
+        - NOT_IN_REVIEW
+        - NOT_APPROVED
+        - RESOURCE_ARCHIVED
+        - RESOURCE_PUBLISHED
+        - OWNER_REQUIRED
+        - UNKNOWN_PERSON
+        - UNKNOWN_VERSION
+    DomainProblem:
+      description: Problem details for a business-rule violation.
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          required: [code]
+          properties:
+            code: { $ref: '#/components/schemas/DomainErrorCode' }
+    NextCursor: { $ref: './common.openapi.yaml#/components/schemas/NextCursor' }
+
+    # ---------- shared ----------
+    Actor:
+      type: object
+      description: |
+        Who did it, from their token: a person (`user`), a service account
+        (an agent's task, with `agentId`, `agentVersionId` and `taskId`), or a
+        platform service.
+      required: [sub, subType, agentId, agentVersionId, taskId]
+      properties:
+        sub: { type: string }
+        subType: { type: string, enum: [user, service_account, service] }
+        agentId: { type: [string, 'null'], format: uuid }
+        agentVersionId: { type: [string, 'null'], format: uuid }
+        taskId: { type: [string, 'null'] }
+    Tag:
+      type: string
+      description: Lowercase letters, digits and hyphens; stored lowercased.
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      minLength: 1
+      maxLength: 50
+    ReasonRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        reason: { type: [string, 'null'], maxLength: 2000 }
+    CommentRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        comment: { type: [string, 'null'], maxLength: 4000 }
+
+    # ---------- resources ----------
+    KnowledgeType:
+      type: string
+      description: The platform's vocabulary, the same for every organization for now (`../episteme/CLAUDE.md`, Classification).
+      enum:
+        - policy
+        - procedure
+        - standard_operating_procedure
+        - guideline
+        - handbook
+        - technical_documentation
+        - architecture_decision
+        - runbook
+        - onboarding
+        - business_rule
+        - faq
+        - research
+        - principle
+        - reference
+    KnowledgeResourceStatus:
+      type: string
+      description: |
+        `draft` (never published), `active` (has a published, authoritative
+        version), `archived` (withdrawn, kept for audit). `under_review`
+        (its scheduled review is due, still authoritative), `expired` and
+        `superseded` (by another resource) come with review schedules,
+        expiry and relationships.
+      enum: [draft, active, under_review, expired, superseded, archived]
+    KnowledgeScopeType:
+      type: string
+      enum: [department, team, project]
+    KnowledgeScope:
+      type: object
+      description: A department, team or project of Polis the resource applies to.
+      additionalProperties: false
+      required: [type, id]
+      properties:
+        type: { $ref: '#/components/schemas/KnowledgeScopeType' }
+        id: { type: string, format: uuid }
+    KnowledgeStewardRole:
+      type: string
+      description: |
+        `owner` (accountable; at least one), `maintainer` (edits drafts),
+        `reviewer` (asked to review), `approver` (may approve).
+      enum: [owner, maintainer, reviewer, approver]
+    KnowledgeSteward:
+      type: object
+      description: A person of the organization (Polis) in a role. A person may hold several roles.
+      additionalProperties: false
+      required: [role, personId]
+      properties:
+        role: { $ref: '#/components/schemas/KnowledgeStewardRole' }
+        personId: { type: string, format: uuid }
+    KnowledgeScopesRequest:
+      type: object
+      additionalProperties: false
+      required: [scopes]
+      properties:
+        scopes:
+          type: array
+          maxItems: 100
+          description: Empty for the whole organization.
+          items: { $ref: '#/components/schemas/KnowledgeScope' }
+    KnowledgeStewardsRequest:
+      type: object
+      additionalProperties: false
+      required: [stewards]
+      properties:
+        stewards:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { $ref: '#/components/schemas/KnowledgeSteward' }
+    KnowledgeResourceCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [knowledgeType, title, stewards, content]
+      properties:
+        knowledgeType: { $ref: '#/components/schemas/KnowledgeType' }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        tags:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/Tag' }
+        scopes:
+          type: array
+          maxItems: 100
+          description: Empty or left out for the whole organization.
+          items: { $ref: '#/components/schemas/KnowledgeScope' }
+        stewards:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: { $ref: '#/components/schemas/KnowledgeSteward' }
+        content: { $ref: '#/components/schemas/MarkdownContent' }
+        changeSummary: { type: [string, 'null'], maxLength: 500 }
+    KnowledgeResourceUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: [string, 'null'], maxLength: 2000 }
+        tags:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/Tag' }
+    KnowledgeResourceResponse:
+      type: object
+      required: [id, organizationId, knowledgeType, title, description, tags, status, scopes, stewards, publishedVersion, openVersion, latestVersionNumber, publishedAt, archivedAt, createdBy, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        organizationId: { type: string, format: uuid }
+        knowledgeType: { $ref: '#/components/schemas/KnowledgeType' }
+        title: { type: string }
+        description: { type: [string, 'null'] }
+        tags:
+          type: array
+          items: { type: string }
+        status: { $ref: '#/components/schemas/KnowledgeResourceStatus' }
+        scopes:
+          type: array
+          items: { $ref: '#/components/schemas/KnowledgeScope' }
+        stewards:
+          type: array
+          items: { $ref: '#/components/schemas/KnowledgeSteward' }
+        publishedVersion:
+          description: The authoritative version, or null (never published, or archived).
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/KnowledgeVersionSummary'
+        openVersion:
+          description: The version in `draft` or `in_review`, or null.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/KnowledgeVersionSummary'
+        latestVersionNumber: { type: integer, minimum: 1 }
+        publishedAt:
+          type: [string, 'null']
+          format: date-time
+          description: When its current published version was published.
+        archivedAt: { type: [string, 'null'], format: date-time }
+        createdBy: { $ref: '#/components/schemas/Actor' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version:
+          type: integer
+          minimum: 1
+          description: Grows with every change to the resource or its versions; `If-Match` and events' `aggregateVersion`.
+    KnowledgeResourcePage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/KnowledgeResourceResponse' }
+        nextCursor: { $ref: '#/components/schemas/NextCursor' }
+
+    # ---------- versions ----------
+    MarkdownContent:
+      type: string
+      description: Markdown, at most 1 MiB. Secrets are redacted before it is stored.
+      maxLength: 1048576
+    KnowledgeVersionState:
+      type: string
+      description: |
+        `draft` → `in_review` (submit) → `approved` (approve), `rejected`
+        (reject, closed) or `draft` (changes requested, or withdrawn);
+        `approved` → `published`; `published` or `approved` → `superseded`
+        when a newer version is published.
+      enum: [draft, in_review, approved, rejected, published, superseded]
+    KnowledgeVersionSummary:
+      type: object
+      required: [id, resourceId, number, state, checksum, changeSummary, basedOnVersionId, authoredBy, revision, createdAt, updatedAt, submittedAt, approvedAt, publishedAt]
+      properties:
+        id: { type: string, format: uuid }
+        resourceId: { type: string, format: uuid }
+        number: { type: integer, minimum: 1 }
+        state: { $ref: '#/components/schemas/KnowledgeVersionState' }
+        checksum:
+          type: string
+          description: SHA-256 of the content (hex), what an approval is recorded against and Seshat indexes by.
+          pattern: '^[0-9a-f]{64}$'
+        changeSummary: { type: [string, 'null'] }
+        basedOnVersionId:
+          type: [string, 'null']
+          format: uuid
+          description: The version it was edited or restored from.
+        authoredBy: { $ref: '#/components/schemas/Actor' }
+        revision:
+          type: integer
+          minimum: 1
+          description: Grows with each edit of the draft; `If-Match` for editing and submitting it.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        submittedAt: { type: [string, 'null'], format: date-time }
+        approvedAt: { type: [string, 'null'], format: date-time }
+        publishedAt: { type: [string, 'null'], format: date-time }
+    KnowledgeVersionResponse:
+      allOf:
+        - $ref: '#/components/schemas/KnowledgeVersionSummary'
+        - type: object
+          required: [content]
+          properties:
+            content: { $ref: '#/components/schemas/MarkdownContent' }
+    KnowledgeVersionPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/KnowledgeVersionSummary' }
+        nextCursor: { $ref: '#/components/schemas/NextCursor' }
+    KnowledgeVersionCreateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        basedOnVersionId:
+          type: [string, 'null']
+          format: uuid
+          description: The version it starts from; without `content`, its content is copied (a restore).
+        content:
+          description: Required without `basedOnVersionId`.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/MarkdownContent'
+        changeSummary: { type: [string, 'null'], maxLength: 500 }
+    KnowledgeVersionUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [content]
+      properties:
+        content: { $ref: '#/components/schemas/MarkdownContent' }
+        changeSummary: { type: [string, 'null'], maxLength: 500 }
+    KnowledgeVersionDiff:
+      type: object
+      required: [fromVersionId, toVersionId, fromNumber, toNumber, diff]
+      properties:
+        fromVersionId: { type: string, format: uuid }
+        toVersionId: { type: string, format: uuid }
+        fromNumber: { type: integer, minimum: 1 }
+        toNumber: { type: integer, minimum: 1 }
+        diff:
+          type: string
+          description: A unified diff of the Markdown, empty when they're the same.
+
+    # ---------- reviews ----------
+    KnowledgeDecision:
+      type: string
+      enum: [approve, reject, request_changes]
+    KnowledgeDecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision: { $ref: '#/components/schemas/KnowledgeDecision' }
+        comment:
+          type: [string, 'null']
+          maxLength: 4000
+          description: Required to reject or to ask for changes.
+    KnowledgeReviewState:
+      type: string
+      enum: [open, approved, rejected, changes_requested, withdrawn]
+    KnowledgeReviewDecision:
+      type: object
+      required: [id, decision, comment, personId, decidedBy, decidedAt]
+      properties:
+        id: { type: string, format: uuid }
+        decision: { $ref: '#/components/schemas/KnowledgeDecision' }
+        comment: { type: [string, 'null'] }
+        personId:
+          type: [string, 'null']
+          format: uuid
+          description: The person of Polis the deciding user is, when Episteme knows them.
+        decidedBy: { $ref: '#/components/schemas/Actor' }
+        decidedAt: { type: string, format: date-time }
+    KnowledgeReviewResponse:
+      type: object
+      required: [id, versionId, round, state, checksum, comment, requestedBy, requestedAt, closedAt, decisions]
+      properties:
+        id: { type: string, format: uuid }
+        versionId: { type: string, format: uuid }
+        round:
+          type: integer
+          minimum: 1
+          description: The how-manyth time this version was submitted.
+        state: { $ref: '#/components/schemas/KnowledgeReviewState' }
+        checksum:
+          type: string
+          pattern: '^[0-9a-f]{64}$'
+          description: The content that was submitted, and approved if it was.
+        comment:
+          type: [string, 'null']
+          description: The submitter's.
+        requestedBy: { $ref: '#/components/schemas/Actor' }
+        requestedAt: { type: string, format: date-time }
+        closedAt: { type: [string, 'null'], format: date-time }
+        decisions:
+          type: array
+          items: { $ref: '#/components/schemas/KnowledgeReviewDecision' }
+    KnowledgeReviewPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/KnowledgeReviewResponse' }
+        nextCursor: { $ref: '#/components/schemas/NextCursor' }
+
+    # ---------- audit ----------
+    KnowledgeAuditAction:
+      type: string
+      enum:
+        - resource_created
+        - resource_updated
+        - scopes_changed
+        - stewards_changed
+        - resource_archived
+        - resource_deleted
+        - version_created
+        - version_edited
+        - version_submitted
+        - version_withdrawn
+        - version_approved
+        - version_rejected
+        - changes_requested
+        - version_published
+        - version_superseded
+    KnowledgeAuditEntry:
+      type: object
+      description: One governance change, written in the transaction that made it.
+      required: [id, resourceId, versionId, action, actor, reason, changes, occurredAt]
+      properties:
+        id: { type: string, format: uuid }
+        resourceId: { type: string, format: uuid }
+        versionId: { type: [string, 'null'], format: uuid }
+        action: { $ref: '#/components/schemas/KnowledgeAuditAction' }
+        actor:
+          description: Null for Episteme's own changes.
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/Actor'
+        reason: { type: [string, 'null'] }
+        changes:
+          type: object
+          description: |
+            What changed, as `{ "<field>": { "from": …, "to": … } }` for the
+            resource's fields, scopes and stewards (never content: compare
+            versions for that).
+          additionalProperties: true
+        occurredAt: { type: string, format: date-time }
+    KnowledgeAuditPage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/KnowledgeAuditEntry' }
+        nextCursor: { $ref: '#/components/schemas/NextCursor' }

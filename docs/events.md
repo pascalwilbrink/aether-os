@@ -177,6 +177,20 @@ Work management (`../ergon/CLAUDE.md`, `../contracts/ergon.asyncapi.yaml`). `wor
 | `work-dependency.created` / `.removed` | `dependencyId`, `kind`, `fromWorkItemId`, `toWorkItemId` | later Iris |
 | `work-execution.started` / `.completed` | `executionId`, `workItemId`, `taskId`, `agentId`, `status`, `failureReason`, `primaryArtifactId`; the execution as aggregate (1 started, one more per ending) | later Kerykes, Iris |
 
+### Episteme (`episteme.events`)
+
+Knowledge governance (`../episteme/CLAUDE.md`, `../contracts/episteme.asyncapi.yaml`; the contract only, no code publishes them yet). Every event has the **resource** as aggregate and its `version` (one counter for the resource and its versions); `projectId` is null, since resources belong to the organization. IDs, states and checksums only: no titles, content or personal data.
+
+| Event | Payload | Consumers |
+|---|---|---|
+| `knowledge-resource.created` / `.updated` / `.archived` | `resource` (`id`, `knowledgeType`, `status`, `tags`, `scopes`, `stewards` by person ID, `publishedVersionId`, `latestVersionNumber`); `.updated` adds `changedFields`, `.archived` the `withdrawnVersionId` | later Seshat (scopes for filtering), Kerykes, Iris, Atlas |
+| `knowledge-resource.deleted` | `resourceId` (one never published) | later Iris, Atlas |
+| `knowledge-version.created` | `resourceId`, `version` (`id`, `number`, `state`, `checksum`, `basedOnVersionId`) | later Iris, Atlas |
+| `knowledge-version.submitted` / `.approved` / `.rejected` | `resourceId`, `version`, `reviewId` | later Kerykes (reviews waiting), Iris, Atlas |
+| `knowledge-version.returned` | `resourceId`, `version`, `reviewId`, `reason` (`changes_requested`, `withdrawn`) | later Kerykes (the author) |
+| `knowledge-version.published` | `resource`, `version`, `previousVersionId` | later Seshat (indexes it, reading the content from Episteme's API), Kerykes |
+| `knowledge-version.withdrawn` | `resourceId`, `version`, `reason` (`superseded`, `resource_archived`) | later Seshat (stops returning it as current) |
+
 ### Learning, council sessions and meetings (Proposal)
 
 Councils (`councils.md`) add Hephaestus's `council-session.started` / `.ended`; `deliberation-round.concluded` and `council-plan.proposed` are built (above).
