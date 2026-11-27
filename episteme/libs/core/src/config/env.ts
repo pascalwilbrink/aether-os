@@ -16,6 +16,11 @@ export const zEnv = z.object({
   OUTBOX_RELAY_INTERVAL_MS: z.coerce.number().int().min(0).default(1000),
   /** Pistis, whose access tokens every request needs. */
   ...zAuthEnv.shape,
+  /** Polis's API: organizations, departments, teams and projects (with Episteme's own token). */
+  POLIS_URL: z.url({ protocol: /^https?$/ }),
+  /** Episteme's own client at Pistis (client credentials, `platform:read`). */
+  PISTIS_CLIENT_ID: z.string().min(1).default('episteme'),
+  PISTIS_CLIENT_SECRET: z.string().min(16),
 });
 
 export type Env = z.infer<typeof zEnv>;

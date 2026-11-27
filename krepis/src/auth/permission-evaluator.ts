@@ -52,7 +52,20 @@ export abstract class PermissionEvaluator {
  * agent sees what they see and changes nothing on its own.
  */
 export const SESSION_ORGANIZATION_PERMISSIONS: readonly OrganizationPermission[] =
-  ['org:read', 'agent:read', 'council:read', 'org:work:read'];
+  [
+    'org:read',
+    'agent:read',
+    'council:read',
+    'org:work:read',
+    'org:knowledge:read',
+    // A draft in Episteme is a proposal: nothing is authoritative until a
+    // person approves and publishes it.
+    'org:knowledge:draft',
+  ];
+
+/** Organization permissions only people hold, whatever a service account's roles. */
+const PEOPLE_ONLY_ORGANIZATION_PERMISSIONS: readonly OrganizationPermission[] =
+  ['org:knowledge:review', 'org:knowledge:publish'];
 export const SESSION_PROJECT_PERMISSIONS: readonly ProjectPermission[] = [
   'project:read',
   'task:read',
@@ -74,6 +87,12 @@ export class FixedPermissionEvaluator extends PermissionEvaluator {
     if (
       principal.sessionId !== null &&
       !SESSION_ORGANIZATION_PERMISSIONS.includes(permission)
+    ) {
+      return false;
+    }
+    if (
+      PEOPLE_ONLY_ORGANIZATION_PERMISSIONS.includes(permission) &&
+      principal.subType !== 'user'
     ) {
       return false;
     }

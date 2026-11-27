@@ -179,6 +179,9 @@ importers:
       '@opentelemetry/api':
         specifier: ^1.10.0
         version: 1.10.0
+      diff:
+        specifier: ^8.0.4
+        version: 8.0.4
       jose:
         specifier: ^6.2.17
         version: 6.2.17
@@ -6592,6 +6595,10 @@ packages:
 
   diff@5.2.2:
     resolution: {integrity: sha512-vtcDfH3TOjP8UekytvnHH1o1P4FcUdt4eQ1Y+Abap1tk/OB2MWQvcwS2ClCd1zuIhc3JKOx6p3kod8Vfys3E+A==}
+    engines: {node: '>=0.3.1'}
+
+  diff@8.0.4:
+    resolution: {integrity: sha512-DPi0FmjiSU5EvQV0++GFDOJ9ASQUVFh5kD+OzOnYdi7n3Wpm9hWWGfB/O2blfHcMVTL5WkQXSnRiK9makhrcnw==}
     engines: {node: '>=0.3.1'}
 
   dingbat-to-unicode@1.0.2:
@@ -15652,6 +15659,8 @@ snapshots:
       wrappy: 1.0.2
 
   diff@5.2.2: {}
+
+  diff@8.0.4: {}
 
   dingbat-to-unicode@1.0.2: {}
 

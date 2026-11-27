@@ -14,4 +14,6 @@ process.env.NODE_ENV = 'test';
 const { tokens } = await import('./tokens.js');
 process.env.PISTIS_ISSUER = tokens.issuer;
 process.env.PISTIS_JWKS = JSON.stringify(tokens.jwks);
+process.env.PISTIS_CLIENT_SECRET = 'not-used-polis-is-faked';
+process.env.POLIS_URL = 'http://polis.invalid';
 initializeTransactions();

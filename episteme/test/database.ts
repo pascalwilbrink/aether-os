@@ -5,5 +5,9 @@ import { DataSource } from 'typeorm';
 export async function resetDatabase(
   app: INestApplicationContext,
 ): Promise<void> {
-  await app.get(DataSource).query('TRUNCATE outbox, inbox');
+  await app
+    .get(DataSource)
+    .query(
+      'TRUNCATE knowledge_audit, knowledge_reviews, knowledge_versions, knowledge_resources, persons, outbox, inbox',
+    );
 }

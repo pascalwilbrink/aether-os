@@ -8,7 +8,7 @@ describe('Episteme (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
-    app = await createApp();
+    ({ app } = await createApp());
   });
 
   afterEach(async () => {

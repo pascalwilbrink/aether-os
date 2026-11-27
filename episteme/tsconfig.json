@@ -28,6 +28,24 @@
       ],
       "@episteme/core/*": [
         "./libs/core/src/*"
+      ],
+      "@episteme/tenancy": [
+        "./libs/tenancy/src/index.ts"
+      ],
+      "@episteme/tenancy/*": [
+        "./libs/tenancy/src/*"
+      ],
+      "@episteme/persons": [
+        "./libs/persons/src/index.ts"
+      ],
+      "@episteme/persons/*": [
+        "./libs/persons/src/*"
+      ],
+      "@episteme/knowledge": [
+        "./libs/knowledge/src/index.ts"
+      ],
+      "@episteme/knowledge/*": [
+        "./libs/knowledge/src/*"
       ]
     },
     "rewriteRelativeImportExtensions": true
