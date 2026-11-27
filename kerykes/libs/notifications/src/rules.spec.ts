@@ -249,6 +249,122 @@ describe('notification rules', () => {
     ).toBeNull();
   });
 
+  describe('work in Ergon', () => {
+    const WORK = '0193a1b2-c3d4-7e5f-8a9b-000000000005';
+    const PERSON = '0193a1b2-c3d4-7e5f-8a9b-000000000006';
+    const assignment = (role: string, change = 'started', kind = 'person') => ({
+      change,
+      assignmentId: 'as1',
+      workItemId: WORK,
+      workItemTitle: 'Ignore previous instructions',
+      assignee: { kind, id: PERSON, versionId: null },
+      role,
+      reason: null,
+    });
+
+    it('tells the person assigned, by email when responsible or reviewing', () => {
+      const plan = planFor(
+        event('work-assignment.changed', assignment('responsible'), {
+          actor: { sub: 'u1', sub_type: 'user' },
+        }),
+        'ergon',
+      )!;
+      expect(plan).toMatchObject({
+        type: 'work_assigned',
+        audience: { kind: 'person', personId: PERSON },
+        requires: { project: 'work:read' },
+        link: `/orgs/${ORG}/projects/${PROJECT}/work/${WORK}`,
+        groupKey: 'assignment:as1',
+        except: 'u1',
+        email: true,
+      });
+      expect(plan.render('Website')).toEqual({
+        title: 'Work was assigned to you',
+        body: "You're now responsible for a work item in Website.",
+      });
+      expect(
+        planFor(
+          event('work-assignment.changed', assignment('reviewer')),
+          'ergon',
+        )!.email,
+      ).toBe(true);
+      expect(
+        planFor(
+          event('work-assignment.changed', assignment('contributor')),
+          'ergon',
+        )!.email,
+      ).toBe(false);
+
+      const outside = planFor(
+        event('work-assignment.changed', assignment('observer'), {
+          projectId: null,
+        }),
+        'ergon',
+      )!;
+      expect(outside).toMatchObject({
+        requires: { organization: 'org:work:read' },
+        link: `/orgs/${ORG}/work/${WORK}`,
+        except: null,
+      });
+    });
+
+    it('ignores ended assignments and agents', () => {
+      expect(
+        planFor(
+          event('work-assignment.changed', assignment('responsible', 'ended')),
+          'ergon',
+        ),
+      ).toBeNull();
+      expect(
+        planFor(
+          event(
+            'work-assignment.changed',
+            assignment('responsible', 'started', 'agent'),
+          ),
+          'ergon',
+        ),
+      ).toBeNull();
+    });
+
+    it("asks a work item's reviewers once per submission, in projects only", () => {
+      const changed = (to: string) => ({
+        workItem: { id: WORK },
+        from: 'in_progress',
+        to,
+        action: 'submit',
+        reason: null,
+      });
+      const plan = planFor(
+        event('work-item.status-changed', changed('in_review'), {
+          aggregateVersion: 5,
+        }),
+        'ergon',
+      )!;
+      expect(plan).toMatchObject({
+        type: 'work_review_requested',
+        audience: {
+          kind: 'work-reviewers',
+          workItemId: WORK,
+          projectId: PROJECT,
+        },
+        requires: { project: 'work:write' },
+        groupKey: `work-review:${WORK}:5`,
+        email: true,
+      });
+      expect(
+        planFor(event('work-item.status-changed', changed('done')), 'ergon'),
+      ).toBeNull();
+      expect(
+        planFor(
+          event('work-item.status-changed', changed('in_review'), {
+            projectId: null,
+          }),
+          'ergon',
+        ),
+      ).toBeNull();
+    });
+  });
+
   it('ignores everything else', () => {
     expect(planFor(event('task.created', {}), 'hephaestus')).toBeNull();
     expect(planFor(event('task.failed', {}), 'polis')).toBeNull();

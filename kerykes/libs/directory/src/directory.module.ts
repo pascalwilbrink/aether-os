@@ -14,7 +14,7 @@ import {
   type DirectoryOptions,
 } from './http-directory.js';
 
-/** Memberships and projects from Polis, users from Pistis, with Kerykes's own token. */
+/** Memberships, projects and persons from Polis, users from Pistis, work's assignees from Ergon, with Kerykes's own token. */
 @Module({
   providers: [
     {
@@ -22,6 +22,7 @@ import {
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>): DirectoryOptions => ({
         polisUrl: config.get('POLIS_URL', { infer: true }),
+        ergonUrl: config.get('ERGON_URL', { infer: true }),
         pistisUrl:
           config.get('PISTIS_URL', { infer: true }) ??
           new URL(config.get('PISTIS_ISSUER', { infer: true })).origin,

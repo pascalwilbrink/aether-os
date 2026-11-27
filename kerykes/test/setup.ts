@@ -16,6 +16,7 @@ process.env.PISTIS_ISSUER = tokens.issuer;
 process.env.PISTIS_JWKS = JSON.stringify(tokens.jwks);
 process.env.PISTIS_CLIENT_SECRET = 'not-used-directory-is-faked';
 process.env.POLIS_URL = 'http://polis.invalid';
+process.env.ERGON_URL = 'http://ergon.invalid';
 // Email "on", through test/fake-email.ts; tests send with EmailDispatcher.tick().
 process.env.EMAIL_DRIVER = 'smtp';
 process.env.SMTP_URL = 'smtp://smtp.invalid:25';

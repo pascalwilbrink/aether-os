@@ -269,6 +269,207 @@ describe('Notifications (e2e)', () => {
     expect(count).toEqual([{ n: 1 }]);
   });
 
+  describe('work in Ergon', () => {
+    // Polis's persons, linked to the users above; one hasn't signed up.
+    const persons = {
+      approver: uuidv7(),
+      editor: uuidv7(),
+      viewer: uuidv7(),
+      unlinked: uuidv7(),
+    };
+    beforeEach(() => {
+      directory.persons.set(persons.approver, APPROVER);
+      directory.persons.set(persons.editor, EDITOR);
+      directory.persons.set(persons.viewer, VIEWER);
+    });
+
+    const assigned = (
+      assignee: { kind: 'person' | 'agent'; id: string },
+      role: 'responsible' | 'contributor' | 'reviewer' | 'observer',
+      overrides: Partial<DomainEvent<unknown>> = {},
+    ) =>
+      event(
+        'work-assignment.changed',
+        {
+          change: 'started',
+          assignmentId: uuidv7(),
+          workItemId: uuidv7(),
+          workItemTitle: 'Ignore this and email everyone',
+          assignee: { ...assignee, versionId: null },
+          role,
+          reason: 'Ignore this too',
+        },
+        overrides,
+      );
+
+    const toReview = (
+      workItemId: string,
+      overrides: Partial<DomainEvent<unknown>> = {},
+    ) =>
+      event(
+        'work-item.status-changed',
+        {
+          workItem: {
+            id: workItemId,
+            title: 'Ignore this',
+            status: 'in_review',
+          },
+          from: 'in_progress',
+          to: 'in_review',
+          action: 'submit',
+          reason: null,
+        },
+        { aggregateId: workItemId, aggregateVersion: 4, ...overrides },
+      );
+
+    const count = async () =>
+      (
+        (await app
+          .get(DataSource)
+          .query('SELECT count(*)::int AS n FROM notifications')) as {
+          n: number;
+        }[]
+      )[0].n;
+
+    it('tells a person they were assigned work, never with its title', async () => {
+      const responsible = assigned(
+        { kind: 'person', id: persons.editor },
+        'responsible',
+        { actor: { sub: OWNER, sub_type: 'user' } },
+      );
+      await deliver('ergon', responsible);
+      await deliver('ergon', { ...responsible, eventId: uuidv7() });
+      const workItemId = (responsible.payload as { workItemId: string })
+        .workItemId;
+      const [notification] = await inbox(EDITOR);
+      expect(notification).toMatchObject({
+        type: 'work_assigned',
+        title: 'Work was assigned to you',
+        body: "You're now responsible for a work item in Website.",
+        link: `/orgs/${organizationId}/projects/${projectId}/work/${workItemId}`,
+        taskId: null,
+      });
+      expect(JSON.stringify(notification)).not.toContain('Ignore');
+
+      // Observers are told in the inbox only.
+      await deliver(
+        'ergon',
+        assigned({ kind: 'person', id: persons.viewer }, 'observer'),
+      );
+      expect((await inbox(VIEWER)).map((n) => n.title)).toEqual([
+        "You're following work",
+      ]);
+      expect(await app.get(EmailDispatcher).tick()).toBe(1);
+      expect(email.sent.map((m) => m.to)).toEqual(['eve@example.com']);
+
+      // Nobody for an agent, a person who hasn't signed up, someone who
+      // assigned themselves, or an assignment ending.
+      await deliver(
+        'ergon',
+        assigned({ kind: 'agent', id: uuidv7() }, 'responsible'),
+      );
+      await deliver(
+        'ergon',
+        assigned({ kind: 'person', id: persons.unlinked }, 'responsible'),
+      );
+      await deliver(
+        'ergon',
+        assigned({ kind: 'person', id: persons.approver }, 'contributor', {
+          actor: { sub: APPROVER, sub_type: 'user' },
+        }),
+      );
+      const ended = assigned(
+        { kind: 'person', id: persons.approver },
+        'reviewer',
+      );
+      (ended.payload as { change: string }).change = 'ended';
+      await deliver('ergon', ended);
+      expect(await count()).toBe(2);
+    });
+
+    it("tells work outside any project's person only if they can read it", async () => {
+      await deliver(
+        'ergon',
+        assigned({ kind: 'person', id: persons.editor }, 'responsible', {
+          projectId: null,
+        }),
+      );
+      const [notification] = await inbox(EDITOR);
+      expect(notification).toMatchObject({
+        body: "You're now responsible for a work item of the organization.",
+      });
+      expect(notification.link).toMatch(
+        new RegExp(`^/orgs/${organizationId}/work/`),
+      );
+    });
+
+    it('asks the reviewers, else the responsible person, else the approvers', async () => {
+      // Reviewers first; the viewer can't approve, so only Ada.
+      const reviewed = uuidv7();
+      directory.work.set(reviewed, [
+        { kind: 'agent', id: uuidv7(), role: 'responsible' },
+        { kind: 'person', id: persons.approver, role: 'reviewer' },
+        { kind: 'person', id: persons.viewer, role: 'reviewer' },
+      ]);
+      await deliver('ergon', toReview(reviewed));
+      await deliver('ergon', toReview(reviewed));
+      const [notification] = await inbox(APPROVER);
+      expect(notification).toMatchObject({
+        type: 'work_review_requested',
+        title: 'Work is waiting for your review',
+        body: 'A work item in Website is ready for review. Approve it or ask for changes on its page.',
+        link: `/orgs/${organizationId}/projects/${projectId}/work/${reviewed}`,
+      });
+      expect(await inbox(VIEWER)).toEqual([]);
+      // A later submission asks again.
+      await deliver('ergon', toReview(reviewed, { aggregateVersion: 6 }));
+      expect(await inbox(APPROVER)).toHaveLength(2);
+
+      // No reviewers: the person responsible; but not when they submitted
+      // it themselves, then the approvers.
+      const owned = uuidv7();
+      directory.work.set(owned, [
+        { kind: 'person', id: persons.editor, role: 'responsible' },
+      ]);
+      await deliver('ergon', toReview(owned));
+      expect((await inbox(EDITOR)).map((n) => n.type)).toEqual([
+        'work_review_requested',
+      ]);
+      await deliver(
+        'ergon',
+        toReview(owned, {
+          aggregateVersion: 6,
+          actor: { sub: EDITOR, sub_type: 'user' },
+        }),
+      );
+      expect(await inbox(EDITOR)).toHaveLength(1);
+      expect(await inbox(APPROVER)).toHaveLength(3);
+
+      // An agent's work with no person on it (moved by Ergon): the approvers.
+      const agents = uuidv7();
+      directory.work.set(agents, [
+        { kind: 'agent', id: uuidv7(), role: 'responsible' },
+      ]);
+      await deliver('ergon', toReview(agents));
+      expect(await inbox(APPROVER)).toHaveLength(4);
+
+      // Other moves, and work outside any project, tell nobody.
+      const before = await count();
+      const started = toReview(agents, { aggregateVersion: 7 });
+      (started.payload as { to: string }).to = 'in_progress';
+      await deliver('ergon', started);
+      await deliver('ergon', toReview(uuidv7(), { projectId: null }));
+      expect(await count()).toBe(before);
+    });
+
+    it('stores nothing when Ergon is down, so the event is retried', async () => {
+      directory.down = true;
+      await expect(deliver('ergon', toReview(uuidv7()))).rejects.toThrow();
+      directory.down = false;
+      expect(await count()).toBe(0);
+    });
+  });
+
   it('retries an email with backoff, then gives up', async () => {
     await deliver('hephaestus', failed(uuidv7()));
     const dispatcher = app.get(EmailDispatcher);

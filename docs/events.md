@@ -172,8 +172,8 @@ Work management (`../ergon/CLAUDE.md`, `../contracts/ergon.asyncapi.yaml`). `wor
 | Event | Payload | Consumers |
 |---|---|---|
 | `work-item.created` / `.updated` | `workItem` (`id`, `parentId`, `type`, `title`, `status`, `priority`, `needsReview`, `dueAt`, `source`); `.updated` adds `changedFields` | later Iris, Seshat |
-| `work-item.status-changed` | `workItem`, `from`, `to`, `action`, `reason` (done and cancelled included) | later Kerykes, Kairos |
-| `work-assignment.changed` | `change` (`started` / `ended`), `assignmentId`, `workItemId`, `workItemTitle`, `assignee` (`kind`, `id`, `versionId`), `role`, `reason` | Kairos (`ergon.work-assigned` automations start the agent made responsible); later Kerykes |
+| `work-item.status-changed` | `workItem`, `from`, `to`, `action`, `reason` (done and cancelled included) | Kerykes (`in_review`: the work's reviewers); later Kairos |
+| `work-assignment.changed` | `change` (`started` / `ended`), `assignmentId`, `workItemId`, `workItemTitle`, `assignee` (`kind`, `id`, `versionId`), `role`, `reason` | Kairos (`ergon.work-assigned` automations start the agent made responsible), Kerykes (the person assigned) |
 | `work-dependency.created` / `.removed` | `dependencyId`, `kind`, `fromWorkItemId`, `toWorkItemId` | later Iris |
 | `work-execution.started` / `.completed` | `executionId`, `workItemId`, `taskId`, `agentId`, `status`, `failureReason`, `primaryArtifactId`; the execution as aggregate (1 started, one more per ending) | later Kerykes, Iris |
 

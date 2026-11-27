@@ -3,7 +3,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 import { v7 as uuidv7 } from 'uuid';
 
-import { Transactional, type DomainEvent } from '@kerykes/core';
+import {
+  Transactional,
+  type DomainEvent,
+  type ProjectPermission,
+} from '@kerykes/core';
 import { Directory } from '@kerykes/directory';
 import { MembershipsService } from '@kerykes/memberships';
 
@@ -16,6 +20,17 @@ import {
   type NotificationsOptions,
 } from './notifications.options.js';
 import { planFor, type Audience, type NotificationPlan } from './rules.js';
+
+/** What a recipient must still hold in the project before an email goes. */
+const PROJECT_PERMISSIONS: Partial<
+  Record<NotificationEntity['type'], ProjectPermission>
+> = {
+  review_requested: 'task:approve',
+  membership_granted: 'project:read',
+  plan_review_requested: 'session:use',
+  work_assigned: 'work:read',
+  work_review_requested: 'work:write',
+};
 
 /**
  * Turns events into notifications (docs/notifications.md): the plan from
@@ -113,30 +128,27 @@ export class NotificationsService {
       'organizationId' | 'projectId' | 'recipient' | 'type'
     >,
   ): Promise<boolean> {
-    const { organizationId, projectId, recipient } = notification;
+    const { organizationId, projectId, recipient, type } = notification;
     if (projectId) {
       return this.memberships.holdsProjectPermission(
         organizationId,
         projectId,
         recipient,
-        notification.type === 'review_requested'
-          ? 'task:approve'
-          : notification.type === 'membership_granted'
-            ? 'project:read'
-            : notification.type === 'plan_review_requested'
-              ? 'session:use'
-              : 'task:read',
+        PROJECT_PERMISSIONS[type] ?? 'task:read',
       );
     }
     return this.memberships.holdsOrganizationPermission(
       organizationId,
       recipient,
-      'org:read',
+      type === 'work_assigned' ? 'org:work:read' : 'org:read',
     );
   }
 
   private async recipients(plan: NotificationPlan): Promise<string[]> {
-    const candidates = await this.audience(plan.organizationId, plan.audience);
+    const except = plan.except ?? null;
+    const candidates = (
+      await this.audience(plan.organizationId, plan.audience, except)
+    ).filter((sub) => sub !== except);
     const { requires } = plan;
     if (!requires) {
       return candidates;
@@ -163,18 +175,71 @@ export class NotificationsService {
     return allowed;
   }
 
-  private audience(
+  private async audience(
     organizationId: string,
     audience: Audience,
+    except: string | null,
   ): Promise<string[]> {
     switch (audience.kind) {
       case 'user':
         // Only members are users Kerykes knows (a service's `sub` isn't).
-        return Promise.resolve([audience.sub]);
+        return [audience.sub];
       case 'approvers':
         return this.memberships.approvers(organizationId, audience.projectId);
       case 'organization-admins':
         return this.memberships.organizationAdmins(organizationId);
+      case 'person': {
+        const user = await this.directory.personUser(
+          organizationId,
+          audience.personId,
+        );
+        return user ? [user] : [];
+      }
+      case 'work-reviewers':
+        return this.workReviewers(organizationId, audience, except);
     }
+  }
+
+  /**
+   * A work item's reviewers (persons with the `reviewer` role), else the
+   * person responsible for it, else the project's approvers: the first of
+   * these with a signed-up user other than `except` who may change the work
+   * (`work:write`), so a reviewer who can't approve passes it on.
+   */
+  private async workReviewers(
+    organizationId: string,
+    audience: Extract<Audience, { kind: 'work-reviewers' }>,
+    except: string | null,
+  ): Promise<string[]> {
+    const assignees =
+      (await this.directory.workAssignments(
+        organizationId,
+        audience.workItemId,
+      )) ?? [];
+    for (const role of ['reviewer', 'responsible'] as const) {
+      const users: string[] = [];
+      for (const assignee of assignees) {
+        if (assignee.kind !== 'person' || assignee.role !== role) continue;
+        const user = await this.directory.personUser(
+          organizationId,
+          assignee.id,
+        );
+        if (
+          user &&
+          user !== except &&
+          !users.includes(user) &&
+          (await this.memberships.holdsProjectPermission(
+            organizationId,
+            audience.projectId,
+            user,
+            'work:write',
+          ))
+        ) {
+          users.push(user);
+        }
+      }
+      if (users.length > 0) return users;
+    }
+    return this.memberships.approvers(organizationId, audience.projectId);
   }
 }

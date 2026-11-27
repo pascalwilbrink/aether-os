@@ -27,6 +27,12 @@ export class EventsListener {
     await this.notifications.notify('pylon', event);
   }
 
+  @OnDomainEvent('ergon.work-assignment.changed')
+  @OnDomainEvent('ergon.work-item.status-changed')
+  async onErgonEvent(event: DomainEvent<unknown>): Promise<void> {
+    await this.notifications.notify('ergon', event);
+  }
+
   @OnDomainEvent('polis.membership.granted')
   @OnDomainEvent('polis.project-membership.granted')
   async onPolisEvent(event: DomainEvent<unknown>): Promise<void> {

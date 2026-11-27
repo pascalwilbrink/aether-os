@@ -21,10 +21,19 @@ export interface UserInfo {
   status: 'active' | 'disabled';
 }
 
+/** An active assignment on a work item in Ergon. */
+export interface WorkAssigneeInfo {
+  kind: 'person' | 'agent';
+  /** Polis's person or Agora's agent. */
+  id: string;
+  role: 'responsible' | 'contributor' | 'reviewer' | 'observer';
+}
+
 /**
- * Who people are and where they belong, from Polis and Pistis, asked with
- * Kerykes's own token (`platform:read`). Throws `DirectoryUnavailableError`
- * when either can't answer. An interface, so tests use a fake.
+ * Who people are and where they belong, from Polis and Pistis, and who
+ * takes part in work, from Ergon, asked with Kerykes's own token
+ * (`platform:read`). Throws `DirectoryUnavailableError` when one can't
+ * answer. An interface, so tests use a fake.
  */
 export abstract class Directory {
   /** Every user member of the organization (service accounts left out). */
@@ -44,4 +53,22 @@ export abstract class Directory {
 
   /** A user's profile in Pistis, or null when there's no such user. */
   abstract user(sub: string): Promise<UserInfo | null>;
+
+  /**
+   * The Pistis user a person of the organization is linked to (Polis), or
+   * null when there's no such person or they haven't signed up.
+   */
+  abstract personUser(
+    organizationId: string,
+    personId: string,
+  ): Promise<string | null>;
+
+  /**
+   * A work item's active assignments (Ergon; work in a project only), or
+   * null when Ergon doesn't know the work item.
+   */
+  abstract workAssignments(
+    organizationId: string,
+    workItemId: string,
+  ): Promise<WorkAssigneeInfo[] | null>;
 }
