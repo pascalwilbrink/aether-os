@@ -46,6 +46,8 @@ describe("knowledge", () => {
     expect(decisionsFor("superseded")).toEqual([]);
     // A repository's documents change with commits.
     expect(decisionsFor("accepted", "repository")).toEqual([]);
+    // Episteme's knowledge changes when a version is published there.
+    expect(decisionsFor("accepted", "episteme")).toEqual([]);
   });
 
   it("says where an item came from and how it matched", () => {
@@ -78,6 +80,21 @@ describe("knowledge", () => {
         createdBy: "repository:acme/api",
       }),
     ).toBe("From acme/api");
+    expect(
+      sourceLabel({
+        source: {
+          kind: "episteme",
+          taskId: null,
+          episteme: {
+            resourceId: "r-1",
+            versionId: "v-2",
+            versionNumber: 2,
+            knowledgeType: "standard_operating_procedure",
+          },
+        },
+        createdBy: "episteme",
+      }),
+    ).toBe("Published in Episteme (standard operating procedure, version 2)");
     expect(shortCommit("abcdef1234567")).toBe("abcdef1");
     expect(shortCommit(null)).toBe("");
     expect(matchedByLabel(["keyword", "semantic"])).toBe("words and meaning");

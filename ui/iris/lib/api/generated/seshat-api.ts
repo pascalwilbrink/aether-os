@@ -571,11 +571,13 @@ export interface components {
          *     `session` (an agent in a person's session proposed it, e.g. a
          *     council's facilitator: `sessionId`, `agentId`), or `repository` (a
          *     document indexed from a repository linked to the project, with
-         *     `repository`; read-only: change it with a commit).
+         *     `repository`; read-only: change it with a commit), or `episteme`
+         *     (the published version of a resource in Episteme, with `episteme`;
+         *     read-only: publish a new version there).
          */
         KnowledgeSource: {
             /** @enum {string} */
-            kind: "person" | "task" | "session" | "repository";
+            kind: "person" | "task" | "session" | "repository" | "episteme";
             /** Format: uuid */
             taskId?: string | null;
             /** Format: uuid */
@@ -586,6 +588,17 @@ export interface components {
              */
             agentId?: string | null;
             repository?: components["schemas"]["KnowledgeRepositoryFile"] | null;
+            episteme?: components["schemas"]["EpistemeVersionRef"] | null;
+        };
+        /** @description The Episteme resource and its published version the item holds. */
+        EpistemeVersionRef: {
+            /** Format: uuid */
+            resourceId: string;
+            /** Format: uuid */
+            versionId: string;
+            versionNumber: number;
+            /** @description Episteme's `KnowledgeType` (policy, procedure, runbook, …). */
+            knowledgeType: string;
         };
         /** @description A file in a repository linked to the project, at a commit of its default branch. */
         KnowledgeRepositoryFile: {
@@ -702,17 +715,17 @@ export interface components {
             organizationId: string;
             /**
              * Format: uuid
-             * @description The project it belongs to; null for a department's item.
+             * @description The project it belongs to; null for a department's or the organization's item.
              */
             projectId: string | null;
             /**
              * Format: uuid
-             * @description The department it belongs to (seen by every project in it); null for a project's item.
+             * @description The department it belongs to (seen by every project in it); null for a project's or the organization's item. Both null is the organization's (Episteme's only, for now), seen by every project and department.
              */
             departmentId: string | null;
             type: components["schemas"]["KnowledgeItemType"];
             title: string;
-            /** @description Markdown; for a document, empty (its text is in its chunks). */
+            /** @description Markdown; for a document, empty (its text is in its chunks), except Episteme's, whose body is the published version's content. */
             body: string;
             /** @description A decision's rationale; null for anything else, or none given. */
             rationale: string | null;

@@ -35,16 +35,16 @@ import {
 import { KnowledgeResourcesService } from './knowledge-resources.service.js';
 
 /**
- * Knowledge resources, their scopes, stewards and audit. Where the contract
- * says "or as one of its owners", the route asks for `org:knowledge:draft`
- * and the service checks the rest.
+ * Knowledge resources, their scopes, stewards and audit. The route checks
+ * the organization (`org:read`); what the caller may do with a resource
+ * follows its owner, which `KnowledgeAccess` checks.
  */
 @Controller('organizations/:organizationId/knowledge/resources')
 export class KnowledgeResourcesController {
   constructor(private readonly resources: KnowledgeResourcesService) {}
 
   @Get()
-  @RequirePermission('org:knowledge:read')
+  @RequirePermission('org:read')
   @ZodSerializerDto(ResourcePage)
   list(
     @Param() { organizationId }: OrganizationParams,
@@ -54,7 +54,7 @@ export class KnowledgeResourcesController {
   }
 
   @Post()
-  @RequirePermission('org:knowledge:draft')
+  @RequirePermission('org:read')
   @ZodSerializerDto(ResourceResponse)
   create(
     @Param() { organizationId }: OrganizationParams,
@@ -64,7 +64,7 @@ export class KnowledgeResourcesController {
   }
 
   @Get(':resourceId')
-  @RequirePermission('org:knowledge:read')
+  @RequirePermission('org:read')
   // Seshat reads what it indexes.
   @PlatformAccess('platform:read')
   @ZodSerializerDto(ResourceResponse)
@@ -73,7 +73,7 @@ export class KnowledgeResourcesController {
   }
 
   @Put(':resourceId')
-  @RequirePermission('org:knowledge:draft')
+  @RequirePermission('org:read')
   @ZodSerializerDto(ResourceResponse)
   update(
     @Param() { organizationId, resourceId }: ResourceParams,
@@ -84,7 +84,7 @@ export class KnowledgeResourcesController {
   }
 
   @Delete(':resourceId')
-  @RequirePermission('org:knowledge:draft')
+  @RequirePermission('org:read')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Param() { organizationId, resourceId }: ResourceParams,
@@ -94,7 +94,7 @@ export class KnowledgeResourcesController {
   }
 
   @Post(':resourceId/archive')
-  @RequirePermission('org:knowledge:draft')
+  @RequirePermission('org:read')
   @HttpCode(HttpStatus.OK)
   @ZodSerializerDto(ResourceResponse)
   archive(
@@ -106,7 +106,7 @@ export class KnowledgeResourcesController {
   }
 
   @Put(':resourceId/scopes')
-  @RequirePermission('org:knowledge:draft')
+  @RequirePermission('org:read')
   @ZodSerializerDto(ResourceResponse)
   setScopes(
     @Param() { organizationId, resourceId }: ResourceParams,
@@ -117,7 +117,7 @@ export class KnowledgeResourcesController {
   }
 
   @Put(':resourceId/stewards')
-  @RequirePermission('org:knowledge:draft')
+  @RequirePermission('org:read')
   @ZodSerializerDto(ResourceResponse)
   setStewards(
     @Param() { organizationId, resourceId }: ResourceParams,
@@ -133,7 +133,7 @@ export class KnowledgeResourcesController {
   }
 
   @Get(':resourceId/audit')
-  @RequirePermission('org:knowledge:read')
+  @RequirePermission('org:read')
   @ZodSerializerDto(AuditPage)
   audit(
     @Param() { organizationId, resourceId }: ResourceParams,

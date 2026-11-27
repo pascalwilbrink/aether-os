@@ -1,11 +1,23 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
+import { ValidationProblemException } from '@episteme/core';
+
 import { PolisClient } from './polis-client.js';
-import { OrganizationSuspendedError } from './tenancy.errors.js';
+import {
+  DepartmentArchivedError,
+  OrganizationSuspendedError,
+  ProjectArchivedError,
+} from './tenancy.errors.js';
 
 export interface ScopeRef {
   type: 'department' | 'team' | 'project';
   id: string;
+}
+
+/** What owns a resource: a project, a department, or (neither) the organization. */
+export interface Owner {
+  projectId: string | null;
+  departmentId: string | null;
 }
 
 /**
@@ -25,6 +37,39 @@ export class TenancyService {
     }
     if (organization.status === 'suspended') {
       throw new OrganizationSuspendedError(organizationId);
+    }
+  }
+
+  /**
+   * The organization's checks, then the owning project or department: an
+   * unknown one is a `400` naming the field, an archived one
+   * `PROJECT_ARCHIVED` / `DEPARTMENT_ARCHIVED`.
+   */
+  async assertOwnerAcceptsWrites(
+    organizationId: string,
+    owner: Owner,
+  ): Promise<void> {
+    await this.assertOrganizationAcceptsWrites(organizationId);
+    if (owner.projectId) {
+      const project = await this.polis.getProject(
+        organizationId,
+        owner.projectId,
+      );
+      if (project?.organizationId !== organizationId)
+        throw unknownOwner('projectId');
+      if (project.status === 'archived')
+        throw new ProjectArchivedError(owner.projectId);
+    }
+    if (owner.departmentId) {
+      const department = await this.polis.getDepartment(
+        organizationId,
+        owner.departmentId,
+      );
+      if (department?.organizationId !== organizationId)
+        throw unknownOwner('departmentId');
+      if (department.status === 'archived') {
+        throw new DepartmentArchivedError(owner.departmentId);
+      }
     }
   }
 
@@ -53,4 +98,17 @@ export class TenancyService {
     }
     return unknown;
   }
+}
+
+function unknownOwner(
+  field: 'projectId' | 'departmentId',
+): ValidationProblemException {
+  return new ValidationProblemException([
+    {
+      pointer: `/${field}`,
+      parameter: null,
+      code: 'INVALID',
+      detail: `Not a ${field === 'projectId' ? 'project' : 'department'} of the organization.`,
+    },
+  ]);
 }

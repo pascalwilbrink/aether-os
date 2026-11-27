@@ -3,7 +3,8 @@
 import * as z from 'zod';
 
 /**
- * `ORGANIZATION_SUSPENDED`; `INVALID_TRANSITION` (the version's state
+ * `ORGANIZATION_SUSPENDED`; `PROJECT_ARCHIVED` and
+ * `DEPARTMENT_ARCHIVED` (its owner can't change); `INVALID_TRANSITION` (the version's state
  * doesn't allow it); `DRAFT_EXISTS` (a version is already in `draft`
  * or `in_review`); `NOT_A_DRAFT`; `NOT_IN_REVIEW`; `NOT_APPROVED`;
  * `RESOURCE_ARCHIVED`; `RESOURCE_PUBLISHED` (deleting one that was
@@ -14,6 +15,8 @@ import * as z from 'zod';
  */
 export const zDomainErrorCode = z.enum([
   'ORGANIZATION_SUSPENDED',
+  'PROJECT_ARCHIVED',
+  'DEPARTMENT_ARCHIVED',
   'INVALID_TRANSITION',
   'DRAFT_EXISTS',
   'NOT_A_DRAFT',
@@ -144,6 +147,8 @@ export const zKnowledgeResourceUpdateRequest = z.object({
 export const zMarkdownContent = z.string().max(1048576);
 
 export const zKnowledgeResourceCreateRequest = z.object({
+  projectId: z.uuid().nullish(),
+  departmentId: z.uuid().nullish(),
   knowledgeType: zKnowledgeType,
   title: z.string().min(1).max(200),
   description: z.string().max(2000).nullish(),
@@ -170,6 +175,22 @@ export const zKnowledgeVersionState = z.enum([
   'superseded',
 ]);
 
+/**
+ * Seshat's answer for a published version (`seshat.asyncapi.yaml`,
+ * `knowledge-indexing.completed` / `.failed`): `pending` from
+ * publishing until it answers, then `indexed` (searchable there as
+ * `itemId`) or `failed` (with `error`).
+ *
+ */
+export const zKnowledgeVersionIndexing = z.object({
+  status: z.enum(['pending', 'indexed', 'failed']),
+  itemId: z.uuid().nullable(),
+  chunkCount: z.int().gte(0).nullable(),
+  error: z.string().nullable(),
+  requestedAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
 export const zKnowledgeVersionSummary = z.object({
   id: z.uuid(),
   resourceId: z.uuid(),
@@ -185,11 +206,14 @@ export const zKnowledgeVersionSummary = z.object({
   submittedAt: z.iso.datetime().nullable(),
   approvedAt: z.iso.datetime().nullable(),
   publishedAt: z.iso.datetime().nullable(),
+  indexing: zKnowledgeVersionIndexing.nullable(),
 });
 
 export const zKnowledgeResourceResponse = z.object({
   id: z.uuid(),
   organizationId: z.uuid(),
+  projectId: z.uuid().nullable(),
+  departmentId: z.uuid().nullable(),
   knowledgeType: zKnowledgeType,
   title: z.string(),
   description: z.string().nullable(),
@@ -422,6 +446,9 @@ export const zListKnowledgeResourcesQuery = z.object({
   status: zKnowledgeResourceStatus.optional(),
   scopeType: zKnowledgeScopeType.optional(),
   scopeId: z.uuid().optional(),
+  projectId: z.uuid().optional(),
+  departmentId: z.uuid().optional(),
+  owner: z.enum(['organization', 'project', 'department']).optional(),
   stewardPersonId: z.uuid().optional(),
   tag: zTag.optional(),
   q: z.string().min(1).max(200).optional(),
@@ -430,7 +457,7 @@ export const zListKnowledgeResourcesQuery = z.object({
 });
 
 /**
- * Most recently updated first
+ * Most recently updated first; a project's resources only where the caller may read the project's knowledge
  */
 export const zListKnowledgeResourcesResponse = zKnowledgeResourcePage;
 

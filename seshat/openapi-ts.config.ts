@@ -46,6 +46,17 @@ export default defineConfig([
     },
     plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
   },
+  // Episteme's API: a resource and its published version, used behind
+  // EpistemeSource (Episteme's knowledge, docs/knowledge.md).
+  {
+    input: 'node_modules/@aether-os/contracts/episteme.openapi.yaml',
+    output: {
+      path: 'libs/core/src/clients/episteme/generated',
+      importFileExtension: '.js',
+      clean: true,
+    },
+    plugins: ['@hey-api/typescript', '@hey-api/client-fetch', '@hey-api/sdk'],
+  },
   // Polis's API: a typed HTTP client, used behind PolisClient.
   {
     input: 'node_modules/@aether-os/contracts/polis.openapi.yaml',

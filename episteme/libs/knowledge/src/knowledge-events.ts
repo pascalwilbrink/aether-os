@@ -9,7 +9,8 @@ import type { KnowledgeResourceEntity } from './entities/index.js';
 /**
  * An event about a resource: the resource is the aggregate, its `version`
  * the `aggregateVersion` (the events of one change share it), and
- * `projectId` is null (resources belong to the organization).
+ * `projectId` is its owning project (null for the organization's or a
+ * department's).
  */
 export function resourceEvent<T extends EpistemeEventType>(
   resource: KnowledgeResourceEntity,
@@ -21,7 +22,7 @@ export function resourceEvent<T extends EpistemeEventType>(
     aggregateId: resource.id,
     aggregateVersion: resource.version,
     organizationId: resource.organizationId,
-    projectId: null,
+    projectId: resource.projectId,
     payload,
   };
 }

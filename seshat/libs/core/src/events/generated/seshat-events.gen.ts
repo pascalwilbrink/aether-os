@@ -2,16 +2,47 @@
 // (@aether-os/contracts). Do not edit it by hand; run `pnpm generate:api`.
 
 /**
+ * Payload of `knowledge-indexing.completed`.
+ */
+export interface KnowledgeIndexingCompleted {
+  resourceId: string;
+  versionId: string;
+  versionNumber: number;
+  itemId: string;
+  /**
+   * The item's content version.
+   */
+  itemVersion: number;
+  /**
+   * Its passages.
+   */
+  chunkCount: number;
+}
+
+/**
+ * Payload of `knowledge-indexing.failed`.
+ */
+export interface KnowledgeIndexingFailed {
+  resourceId: string;
+  versionId: string;
+  versionNumber: number;
+  /**
+   * Why
+   */
+  error: string;
+}
+
+/**
  * Payload of `knowledge-item.accepted`.
  */
 export interface KnowledgeItemAccepted {
   itemId: string;
   /**
-   * The project the item belongs to; null for a department's item.
+   * The project the item belongs to; null for a department's or the organization's item.
    */
   projectId: string | null;
   /**
-   * The department the item belongs to; null for a project's item.
+   * The department the item belongs to; null for a project's or the organization's item.
    */
   departmentId: string | null;
   type:
@@ -21,7 +52,7 @@ export interface KnowledgeItemAccepted {
    * The item's content version (its text, or a document's file).
    */
   version: number;
-  sourceKind: 'person' | 'task' | 'session' | 'repository';
+  sourceKind: 'person' | 'task' | 'session' | 'repository' | 'episteme';
   supersededBy: string | null;
 }
 
@@ -31,11 +62,11 @@ export interface KnowledgeItemAccepted {
 export interface KnowledgeItemIndexed {
   itemId: string;
   /**
-   * The project the item belongs to; null for a department's item.
+   * The project the item belongs to; null for a department's or the organization's item.
    */
   projectId: string | null;
   /**
-   * The department the item belongs to; null for a project's item.
+   * The department the item belongs to; null for a project's or the organization's item.
    */
   departmentId: string | null;
   /**
@@ -51,11 +82,11 @@ export interface KnowledgeItemIndexed {
 export interface KnowledgeItemProposed {
   itemId: string;
   /**
-   * The project the item belongs to; null for a department's item.
+   * The project the item belongs to; null for a department's or the organization's item.
    */
   projectId: string | null;
   /**
-   * The department the item belongs to; null for a project's item.
+   * The department the item belongs to; null for a project's or the organization's item.
    */
   departmentId: string | null;
   type:
@@ -65,7 +96,7 @@ export interface KnowledgeItemProposed {
    * The item's content version (its text, or a document's file).
    */
   version: number;
-  sourceKind: 'person' | 'task' | 'session' | 'repository';
+  sourceKind: 'person' | 'task' | 'session' | 'repository' | 'episteme';
   supersededBy: string | null;
 }
 
@@ -75,11 +106,11 @@ export interface KnowledgeItemProposed {
 export interface KnowledgeItemRejected {
   itemId: string;
   /**
-   * The project the item belongs to; null for a department's item.
+   * The project the item belongs to; null for a department's or the organization's item.
    */
   projectId: string | null;
   /**
-   * The department the item belongs to; null for a project's item.
+   * The department the item belongs to; null for a project's or the organization's item.
    */
   departmentId: string | null;
   type:
@@ -89,7 +120,7 @@ export interface KnowledgeItemRejected {
    * The item's content version (its text, or a document's file).
    */
   version: number;
-  sourceKind: 'person' | 'task' | 'session' | 'repository';
+  sourceKind: 'person' | 'task' | 'session' | 'repository' | 'episteme';
   supersededBy: string | null;
 }
 
@@ -99,11 +130,11 @@ export interface KnowledgeItemRejected {
 export interface KnowledgeItemRetired {
   itemId: string;
   /**
-   * The project the item belongs to; null for a department's item.
+   * The project the item belongs to; null for a department's or the organization's item.
    */
   projectId: string | null;
   /**
-   * The department the item belongs to; null for a project's item.
+   * The department the item belongs to; null for a project's or the organization's item.
    */
   departmentId: string | null;
   type:
@@ -113,7 +144,7 @@ export interface KnowledgeItemRetired {
    * The item's content version (its text, or a document's file).
    */
   version: number;
-  sourceKind: 'person' | 'task' | 'session' | 'repository';
+  sourceKind: 'person' | 'task' | 'session' | 'repository' | 'episteme';
   supersededBy: string | null;
 }
 
@@ -123,11 +154,11 @@ export interface KnowledgeItemRetired {
 export interface KnowledgeItemSuperseded {
   itemId: string;
   /**
-   * The project the item belongs to; null for a department's item.
+   * The project the item belongs to; null for a department's or the organization's item.
    */
   projectId: string | null;
   /**
-   * The department the item belongs to; null for a project's item.
+   * The department the item belongs to; null for a project's or the organization's item.
    */
   departmentId: string | null;
   type:
@@ -137,7 +168,7 @@ export interface KnowledgeItemSuperseded {
    * The item's content version (its text, or a document's file).
    */
   version: number;
-  sourceKind: 'person' | 'task' | 'session' | 'repository';
+  sourceKind: 'person' | 'task' | 'session' | 'repository' | 'episteme';
   supersededBy: string | null;
 }
 
@@ -147,11 +178,11 @@ export interface KnowledgeItemSuperseded {
 export interface KnowledgeItemUpdated {
   itemId: string;
   /**
-   * The project the item belongs to; null for a department's item.
+   * The project the item belongs to; null for a department's or the organization's item.
    */
   projectId: string | null;
   /**
-   * The department the item belongs to; null for a project's item.
+   * The department the item belongs to; null for a project's or the organization's item.
    */
   departmentId: string | null;
   type:
@@ -161,12 +192,14 @@ export interface KnowledgeItemUpdated {
    * The item's content version (its text, or a document's file).
    */
   version: number;
-  sourceKind: 'person' | 'task' | 'session' | 'repository';
+  sourceKind: 'person' | 'task' | 'session' | 'repository' | 'episteme';
   supersededBy: string | null;
 }
 
 /** Every Seshat event type, mapped to its payload. */
 export interface SeshatEventPayloads {
+  'knowledge-indexing.completed': KnowledgeIndexingCompleted;
+  'knowledge-indexing.failed': KnowledgeIndexingFailed;
   'knowledge-item.accepted': KnowledgeItemAccepted;
   'knowledge-item.indexed': KnowledgeItemIndexed;
   'knowledge-item.proposed': KnowledgeItemProposed;
@@ -180,6 +213,8 @@ export type SeshatEventType = keyof SeshatEventPayloads;
 
 /** Every Seshat event type in the spec. */
 export const SESHAT_EVENT_TYPES = [
+  'knowledge-indexing.completed',
+  'knowledge-indexing.failed',
   'knowledge-item.accepted',
   'knowledge-item.indexed',
   'knowledge-item.proposed',

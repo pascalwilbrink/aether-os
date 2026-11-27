@@ -33,6 +33,8 @@ export class KnowledgeMapper {
     return {
       id: entity.id,
       organizationId: entity.organizationId,
+      projectId: entity.projectId,
+      departmentId: entity.departmentId,
       knowledgeType: entity.knowledgeType,
       title: entity.title,
       description: entity.description,
@@ -70,6 +72,19 @@ export class KnowledgeMapper {
       submittedAt: iso(entity.submittedAt),
       approvedAt: iso(entity.approvedAt),
       publishedAt: iso(entity.publishedAt),
+      indexing:
+        entity.indexingStatus && entity.indexingRequestedAt
+          ? {
+              status: entity.indexingStatus,
+              itemId: entity.indexingItemId,
+              chunkCount: entity.indexingChunkCount,
+              error: entity.indexingError,
+              requestedAt: entity.indexingRequestedAt.toISOString(),
+              updatedAt: (
+                entity.indexingUpdatedAt ?? entity.indexingRequestedAt
+              ).toISOString(),
+            }
+          : null,
     };
   }
 
@@ -112,6 +127,8 @@ export class KnowledgeMapper {
   toResourceSnapshot(entity: KnowledgeResourceEntity): KnowledgeResource {
     return {
       id: entity.id,
+      projectId: entity.projectId,
+      departmentId: entity.departmentId,
       knowledgeType: entity.knowledgeType,
       status: entity.status,
       tags: entity.tags,

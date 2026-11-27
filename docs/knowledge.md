@@ -133,13 +133,23 @@ A department (Polis, `polis/CLAUDE.md`) has knowledge of its own, under `/v1/org
 - **Which department:** Seshat keeps a copy of each project's department from Polis's `project.created` and `project.department-changed` (version-guarded), asking Polis the first time a project comes up; reads go on without the department's items when Polis can't be asked.
 - **Search:** by keywords. A department's items aren't embedded yet: Pylon charges embeddings to a project, and a department has none. Embedding them needs Pylon to charge an organization (later).
 
+### Episteme's knowledge (built)
+
+Episteme (`../episteme/CLAUDE.md`) governs policies, procedures, runbooks and the like; Seshat indexes what it publishes, read-only, where the resource belongs:
+
+- **Where:** a project's resource in the project, a department's in the department (so its projects see it too), and the organization's in **every** project and department of the organization: an item with neither `projectId` nor `departmentId` (`scope_id` falls back to the organization). Only Episteme's items are the organization's for now.
+- **One item per resource,** of type `document`, `source.kind: episteme`, accepted, its body the published version's Markdown, created and changed by `episteme`. A newer published version is a new version of the item; archiving or deleting the resource retires it. Search results and reads name the resource and the version (`source.episteme`: `resourceId`, `versionId`, `versionNumber`, `knowledgeType`), so a caller can ask Episteme whether it's still current. Changing, retiring or rejecting it in Seshat is `KNOWLEDGE_ITEM_READ_ONLY`.
+- **How:** Episteme's events (`knowledge-version.published`, `.withdrawn`, `knowledge-resource.updated`, `.archived`, `.deleted`) only say which resource changed. Seshat reads it as it is now from Episteme's API with its own token (`platform:read`, `EPISTEME_URL`) and makes the item match, ignoring a read older than its last (the resource's `version`). So late or repeated events change nothing.
+- **The answer:** for every publication, Seshat publishes `knowledge-indexing.completed` (the item and its passages) or `.failed` (Episteme refused for good). Episteme keeps it on the version (`indexing`: `pending` until then, `indexed` or `failed`). Episteme not answering is retried by the inbox.
+- **Search:** by keywords for the organization's and a department's (Pylon charges embeddings to a project); a project's resource is embedded like the project's other items.
+
 ## In Iris
 
 A **Knowledge** page per project (built): search, filters by type and status, each item with its source, history and what supersedes it; upload documents; write decisions, facts and conventions; the proposals waiting for review, to accept or reject (or open and edit first). Still to come: the task page showing which knowledge an execution used (it's in the activity log for now), and the knowledge inbox in Kerykes.
 
 ## Events
 
-Seshat publishes to `seshat.events` (`events.md`, `../contracts/seshat.asyncapi.yaml`), with the item as aggregate and its `revision` (one more per event) as `aggregateVersion`: `knowledge-item.proposed`, `.accepted`, `.rejected`, `.updated`, `.superseded`, `.retired` (`itemId`, `projectId`, `type`, `status`, `version`, `sourceKind`, `supersededBy`), and `knowledge-item.indexed` (`itemId`, `projectId`, `version`, `chunkCount`) whenever an item's passages change (Seshat embeds them right after, step 2). It consumes Proxenos's `git.repository-linked`, `git.repository-unlinked` and `git.pushed` (repository documents). Later it consumes Polis's `project.deleted` and `organization.deleted` (deleting their knowledge) and Hephaestus's `document.version-published`.
+Seshat publishes to `seshat.events` (`events.md`, `../contracts/seshat.asyncapi.yaml`), with the item as aggregate and its `revision` (one more per event) as `aggregateVersion`: `knowledge-item.proposed`, `.accepted`, `.rejected`, `.updated`, `.superseded`, `.retired` (`itemId`, `projectId`, `type`, `status`, `version`, `sourceKind`, `supersededBy`), and `knowledge-item.indexed` (`itemId`, `projectId`, `version`, `chunkCount`) whenever an item's passages change (Seshat embeds them right after, step 2). It consumes Proxenos's `git.repository-linked`, `git.repository-unlinked` and `git.pushed` (repository documents), and Episteme's `knowledge-version.published`, `.withdrawn` and `knowledge-resource.updated`, `.archived`, `.deleted` (Episteme's knowledge, answered with `knowledge-indexing.completed` / `.failed`). Later it consumes Polis's `project.deleted` and `organization.deleted` (deleting their knowledge) and Hephaestus's `document.version-published`.
 
 ## Open questions
 

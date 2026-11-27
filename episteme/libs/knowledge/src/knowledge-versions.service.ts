@@ -13,6 +13,7 @@ import {
 
 import { checksumOf, unifiedDiff } from './domain/index.js';
 import type { KnowledgeVersionEntity } from './entities/index.js';
+import { NOT_INDEXED } from './entities/index.js';
 import { assertMatches, KnowledgeAccess } from './knowledge-access.service.js';
 import { KnowledgeAudit } from './knowledge-audit.service.js';
 import { resourceEvent } from './knowledge-events.js';
@@ -43,7 +44,10 @@ export class KnowledgeVersionsService {
     resourceId: string,
     page: PageRequest,
   ): Promise<Page<ApiTypes.KnowledgeVersionSummary>> {
-    await this.store.resource(organizationId, resourceId);
+    this.access.assertCan(
+      await this.store.resource(organizationId, resourceId),
+      'read',
+    );
     const versions = await this.store.pageVersions(
       organizationId,
       resourceId,
@@ -59,6 +63,10 @@ export class KnowledgeVersionsService {
     resourceId: string,
     versionId: string,
   ): Promise<Response> {
+    this.access.assertCan(
+      await this.store.resource(organizationId, resourceId),
+      'read',
+    );
     return this.mapper.toVersionResponse(
       await this.store.version(organizationId, resourceId, versionId),
     );
@@ -79,6 +87,7 @@ export class KnowledgeVersionsService {
       resourceId,
       true,
     );
+    this.access.assertCan(resource, 'draft');
     await this.access.assertWritable(resource);
     if (resource.openVersionId) throw draftExists();
     let content = request.content ?? null;
@@ -121,6 +130,7 @@ export class KnowledgeVersionsService {
       submittedAt: null,
       approvedAt: null,
       publishedAt: null,
+      ...NOT_INDEXED,
     };
     resource.latestVersionNumber = version.number;
     resource.openVersionId = version.id;
@@ -210,6 +220,10 @@ export class KnowledgeVersionsService {
     versionId: string,
     against: string,
   ): Promise<ApiTypes.KnowledgeVersionDiff> {
+    this.access.assertCan(
+      await this.store.resource(organizationId, resourceId),
+      'read',
+    );
     const to = await this.store.version(organizationId, resourceId, versionId);
     const from = await this.store.findVersion(resourceId, against);
     if (!from) throw unknownVersion(against);

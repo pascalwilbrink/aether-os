@@ -164,7 +164,15 @@ describe('Knowledge (e2e)', () => {
     expect(second.body.items[0].id).not.toBe(paged.body.items[0].id);
 
     // Viewers can't draft; another organization's resource is a 404.
-    await viewer.post(resources()).send({}).expect(403);
+    await viewer
+      .post(resources())
+      .send({
+        knowledgeType: 'faq',
+        title: 'Not allowed',
+        stewards: [{ role: 'owner', personId: OLGA.person }],
+        content: '',
+      })
+      .expect(403);
     const other = await asMember(app, polis.organization(), ['owner']);
     await other
       .get(`/v1/organizations/${orgId}/knowledge/resources/${resource.id}`)
@@ -517,6 +525,234 @@ describe('Knowledge (e2e)', () => {
     expect((await outboxEvents(app)).at(-1)?.eventType).toBe(
       'knowledge-resource.deleted',
     );
+  });
+
+  it("governs a project's resource with the project's permissions", async () => {
+    const projectId = polis.project(orgId);
+    // Members (a viewer's project roles are capped at viewer).
+    const editor = await asMember(app, orgId, ['member'], {
+      sub: OLGA.user,
+      projectRoles: { [projectId]: 'editor' },
+    });
+    const approver = await asMember(app, orgId, ['member'], {
+      sub: ADA.user,
+      projectRoles: { [projectId]: 'approver' },
+    });
+    const created = await editor
+      .post(resources())
+      .send({
+        projectId,
+        knowledgeType: 'runbook',
+        title: 'Deploy the website',
+        stewards: [{ role: 'owner', personId: OLGA.person }],
+        content: 'Steps',
+      })
+      .expect(201);
+    expect(created.body).toMatchObject({ projectId, departmentId: null });
+    const path = `${versions(created.body.id)}/${created.body.openVersion.id}`;
+
+    // Outside the project it doesn't exist, and lists leave it out.
+    await mia.get(`${resources()}/${created.body.id}`).expect(404);
+    expect((await mia.get(resources()).expect(200)).body.items).toEqual([]);
+    expect(
+      (await editor.get(resources()).query({ projectId }).expect(200)).body
+        .items,
+    ).toHaveLength(1);
+    // The organization's own resources only.
+    expect(
+      (
+        await admin
+          .get(resources())
+          .query({ owner: 'organization' })
+          .expect(200)
+      ).body.items,
+    ).toEqual([]);
+
+    // The project's approver approves and publishes (knowledge:approve);
+    // its editor can't.
+    await editor.post(`${path}/submit`).send({}).expect(200);
+    await editor
+      .post(`${path}/decisions`)
+      .send({ decision: 'approve' })
+      .expect(403);
+    await approver
+      .post(`${path}/decisions`)
+      .send({ decision: 'approve' })
+      .expect(200);
+    await editor.post(`${path}/publish`).send({}).expect(403);
+    await approver.post(`${path}/publish`).send({}).expect(200);
+    const published = (await outboxEvents(app)).find(
+      (e) => e.eventType === 'knowledge-version.published',
+    )!;
+    expect(published.projectId).toBe(projectId);
+    expect(published.payload).toMatchObject({
+      resource: { projectId, departmentId: null },
+    });
+
+    // An archived project takes no more changes.
+    polis.projects.set(projectId, {
+      id: projectId,
+      organizationId: orgId,
+      status: 'archived',
+      version: 2,
+    });
+    const archived = await editor
+      .post(versions(created.body.id))
+      .send({ content: 'More steps' })
+      .expect(409);
+    expect(archived.body.code).toBe('PROJECT_ARCHIVED');
+  });
+
+  it("checks a department's resource's owner", async () => {
+    const department = polis.department(orgId);
+    const created = await create({ departmentId: department });
+    const got = await viewer.get(`${resources()}/${created.id}`).expect(200);
+    expect(got.body).toMatchObject({
+      projectId: null,
+      departmentId: department,
+    });
+    expect(
+      (
+        await viewer
+          .get(resources())
+          .query({ departmentId: department })
+          .expect(200)
+      ).body.items,
+    ).toHaveLength(1);
+
+    const unknown = await olga
+      .post(resources())
+      .send({
+        departmentId: uuidv7(),
+        knowledgeType: 'faq',
+        title: 'Lost',
+        stewards: [{ role: 'owner', personId: OLGA.person }],
+        content: '',
+      })
+      .expect(400);
+    expect(unknown.body.errors[0].pointer).toBe('/departmentId');
+    const both = await olga
+      .post(resources())
+      .send({
+        departmentId: department,
+        projectId: polis.project(orgId),
+        knowledgeType: 'faq',
+        title: 'Both',
+        stewards: [{ role: 'owner', personId: OLGA.person }],
+        content: '',
+      })
+      .expect(400);
+    expect(both.body.errors[0].pointer).toBe('/departmentId');
+    const archivedDepartment = polis.department(orgId, 'archived');
+    const refused = await olga
+      .post(resources())
+      .send({
+        departmentId: archivedDepartment,
+        knowledgeType: 'faq',
+        title: 'Old',
+        stewards: [{ role: 'owner', personId: OLGA.person }],
+        content: '',
+      })
+      .expect(409);
+    expect(refused.body.code).toBe('DEPARTMENT_ARCHIVED');
+  });
+
+  it("keeps Seshat's indexing answer on each published version", async () => {
+    const resource = await create();
+    const versionId = resource.openVersion.id;
+    const path = `${versions(resource.id)}/${versionId}`;
+    // Never published: no indexing.
+    expect((await viewer.get(path).expect(200)).body.indexing).toBeNull();
+
+    const published = await publishOpen(resource.id, versionId);
+    expect(published.body.indexing).toMatchObject({
+      status: 'pending',
+      itemId: null,
+      chunkCount: null,
+      error: null,
+    });
+
+    const answer = (eventType: string, payload: Record<string, unknown>) =>
+      app.get(EventInbox).receive('seshat', {
+        eventId: uuidv7(),
+        eventType,
+        schemaVersion: 1,
+        aggregateId: resource.id,
+        aggregateVersion: 1,
+        occurredAt: new Date(),
+        organizationId: orgId,
+        projectId: null,
+        actor: null,
+        payload: {
+          resourceId: resource.id,
+          versionId,
+          versionNumber: 1,
+          ...payload,
+        },
+      } as DomainEvent);
+
+    await answer('knowledge-indexing.failed', {
+      error: 'Episteme answered 403',
+    });
+    expect((await viewer.get(path).expect(200)).body.indexing).toMatchObject({
+      status: 'failed',
+      error: 'Episteme answered 403',
+    });
+
+    const itemId = uuidv7();
+    await answer('knowledge-indexing.completed', {
+      itemId,
+      itemVersion: 1,
+      chunkCount: 2,
+    });
+    const indexed = (await viewer.get(path).expect(200)).body.indexing;
+    expect(indexed).toMatchObject({
+      status: 'indexed',
+      itemId,
+      chunkCount: 2,
+      error: null,
+    });
+    // On the resource's published version too.
+    const read = await viewer.get(`${resources()}/${resource.id}`).expect(200);
+    expect(read.body.publishedVersion.indexing).toMatchObject({
+      status: 'indexed',
+    });
+
+    // A late failure doesn't undo it; an answer for a draft is ignored.
+    await answer('knowledge-indexing.failed', { error: 'late' });
+    expect((await viewer.get(path).expect(200)).body.indexing.status).toBe(
+      'indexed',
+    );
+    const draft = await olga
+      .post(versions(resource.id))
+      .send({ content: '# Travel\n\nBook trains.\n' })
+      .expect(201);
+    await app.get(EventInbox).receive('seshat', {
+      eventId: uuidv7(),
+      eventType: 'knowledge-indexing.completed',
+      schemaVersion: 1,
+      aggregateId: resource.id,
+      aggregateVersion: 1,
+      occurredAt: new Date(),
+      organizationId: orgId,
+      projectId: null,
+      actor: null,
+      payload: {
+        resourceId: resource.id,
+        versionId: draft.body.id,
+        versionNumber: 2,
+        itemId,
+        itemVersion: 2,
+        chunkCount: 1,
+      },
+    } as DomainEvent);
+    expect(
+      (
+        await viewer
+          .get(`${versions(resource.id)}/${draft.body.id}`)
+          .expect(200)
+      ).body.indexing,
+    ).toBeNull();
   });
 
   it('refuses changes while the organization is suspended', async () => {

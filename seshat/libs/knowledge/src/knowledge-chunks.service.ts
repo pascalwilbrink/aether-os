@@ -206,7 +206,8 @@ export class KnowledgeChunksService {
    * The best passage of each matching item, best item first: the item's
    * status and type must be among those asked for, and only its current
    * version counts. A project's items and its department's (either may be
-   * null: `= NULL` matches nothing).
+   * null: `= NULL` matches nothing), and the organization's (neither,
+   * Episteme's knowledge).
    */
   async search(search: ChunkSearch): Promise<ChunkMatch[]> {
     const rows: { item_id: string; text: string; score: number }[] =
@@ -217,7 +218,8 @@ export class KnowledgeChunksService {
            JOIN knowledge_items i ON i.id = c.item_id AND i.version = c.version
            CROSS JOIN websearch_to_tsquery('english', $3) q
           WHERE c.organization_id = $1
-            AND (c.project_id = $2::uuid OR c.department_id = $6::uuid)
+            AND (c.project_id = $2::uuid OR c.department_id = $6::uuid
+                 OR (c.project_id IS NULL AND c.department_id IS NULL))
             AND c.tsv @@ q
             AND i.status = ANY($4)
             AND ($5::text[] IS NULL OR i.type = ANY($5))

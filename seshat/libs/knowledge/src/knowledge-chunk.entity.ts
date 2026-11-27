@@ -17,11 +17,11 @@ export class KnowledgeChunkEntity {
   @Column({ type: 'uuid' })
   organizationId: string;
 
-  /** The item's project; null for a department's item. */
+  /** The item's project; null for a department's or the organization's item. */
   @Column({ type: 'uuid', nullable: true })
   projectId: string | null;
 
-  /** The item's department; null for a project's item. */
+  /** The item's department; null for a project's or the organization's item (both null). */
   @Column({ type: 'uuid', nullable: true })
   departmentId: string | null;
 

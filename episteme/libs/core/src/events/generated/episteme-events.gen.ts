@@ -11,6 +11,14 @@ export interface KnowledgeResourceArchived {
   resource: {
     id: string;
     /**
+     * The project that owns it; null for the organization's or a department's.
+     */
+    projectId: string | null;
+    /**
+     * The department that owns it; null for the organization's or a project's.
+     */
+    departmentId: string | null;
+    /**
      * The API's `KnowledgeType`.
      */
     knowledgeType: string;
@@ -54,6 +62,14 @@ export interface KnowledgeResourceCreated {
    */
   resource: {
     id: string;
+    /**
+     * The project that owns it; null for the organization's or a department's.
+     */
+    projectId: string | null;
+    /**
+     * The department that owns it; null for the organization's or a project's.
+     */
+    departmentId: string | null;
     /**
      * The API's `KnowledgeType`.
      */
@@ -101,6 +117,14 @@ export interface KnowledgeResourceUpdated {
    */
   resource: {
     id: string;
+    /**
+     * The project that owns it; null for the organization's or a department's.
+     */
+    projectId: string | null;
+    /**
+     * The department that owns it; null for the organization's or a project's.
+     */
+    departmentId: string | null;
     /**
      * The API's `KnowledgeType`.
      */
@@ -189,6 +213,14 @@ export interface KnowledgeVersionPublished {
    */
   resource: {
     id: string;
+    /**
+     * The project that owns it; null for the organization's or a department's.
+     */
+    projectId: string | null;
+    /**
+     * The department that owns it; null for the organization's or a project's.
+     */
+    departmentId: string | null;
     /**
      * The API's `KnowledgeType`.
      */

@@ -9,7 +9,7 @@ Seshat is the Aether-os service for **project knowledge** (see `../CLAUDE.md` an
 Agents search, read and propose it with Hephaestus's knowledge tools (with their task token); people manage it on Iris's Knowledge page.
 
 Planned:
-- organization-wide items, other Office formats, OCR for scanned PDFs.
+- organization-wide items written here (only Episteme's are the organization's so far), other Office formats, OCR for scanned PDFs.
 
 It follows `../docs/engineering.md` like Agora: NestJS 12 (ESM, TypeScript 6), controller → service → TypeORM repository with mappers, Zod DTOs generated from the spec, `typeorm-transactional`, Postgres with migrations, and tests against Postgres (with pgvector) and RabbitMQ in containers.
 
@@ -43,19 +43,20 @@ Validated at startup (`libs/core/src/config/env.ts`, `seshatConfigModule()`); lo
 - **Embeddings:** `PYLON_URL` (optional: without it nothing is embedded and search is by keyword only), `EMBEDDING_MODEL` (`openai/text-embedding-3-small`: `<provider>/<model>`, an `embedding` model of Pylon's catalogue; changing it embeds everything again), `EMBEDDER_INTERVAL_MS` (2000; 0 turns the embedder off, as the tests do), `SEARCH_MIN_SIMILARITY` (0.3: the least cosine similarity of a match by meaning).
 - **Postgres needs pgvector** (`CREATE EXTENSION vector`, in the `Embeddings` migration): `../docker-compose.yml` runs `pgvector/pgvector:0.8.0-pg17`.
 - `INDEXER_INTERVAL_MS` (2000; 0 turns the indexer off, as the tests do) and `DOCUMENT_MAX_BYTES` (10 MiB).
+- **Episteme's knowledge:** `EPISTEME_URL` (optional: without it Episteme's events are ignored). Seshat reads resources and their published versions with its own token (`platform:read`).
 - **Repository documents:** `PROXENOS_URL` (optional: without it repositories are recorded but not read), `REPOSITORY_SYNC_INTERVAL_MS` (5000; 0 turns the syncer off, as the tests do), `REPOSITORY_DEFAULT_PATHS` (`docs/,specs/,adr/,README.md`: what a newly linked repository indexes) and `REPOSITORY_MAX_DOCUMENTS` (500 per repository).
 
 ## Architecture
 
 Same layout as Agora (`../agora/CLAUDE.md`): `src/` is the app shell, and code lives in libraries under `libs/`, aliased `@seshat/<name>`. Dependency graph: `core` ← `tenancy` ← `knowledge`. Every entity is listed in `src/database/entities.ts`.
 
-- **`core`:** configuration, database, Krepis re-exported, Seshat's API types and Zod schemas (`../contracts/seshat.openapi.yaml`), the generated Polis, Loculus, Pylon and Proxenos clients, its events (`SeshatEvents`, `../contracts/seshat.asyncapi.yaml`) and Proxenos's types (`ProxenosEvents`).
+- **`core`:** configuration, database, Krepis re-exported, Seshat's API types and Zod schemas (`../contracts/seshat.openapi.yaml`), the generated Polis, Loculus, Pylon, Proxenos and Episteme clients, its events (`SeshatEvents`, `../contracts/seshat.asyncapi.yaml`) and Proxenos's, Polis's and Episteme's types (`ProxenosEvents`, `PolisEvents`, `EpistemeEvents`).
 - **`tenancy`:**
   - `TenancyService.assertProjectAcceptsWrites` asks Polis before every write. It answers 404 for an unknown organization or project, `ORGANIZATION_SUSPENDED`, `PROJECT_ARCHIVED`, or `503` when Polis can't be reached. `assertDepartmentAcceptsWrites` does the same for a department (`DEPARTMENT_ARCHIVED`).
   - **Which department a project is in** (`project_departments`, `departmentOf`): a copy from Polis's `project.created` and `project.department-changed` (`seshat.polis-events`, `POLIS_SUBSCRIPTIONS`; an older `aggregateVersion` changes nothing), and from Polis's API the first time a project comes up (or on every write to it). When Polis can't be asked, a project's reads go on without its department's items.
   - Reads only need the token (Krepis).
   - It also provides `ServiceTokens` (Seshat's own token), which the Loculus client uses too.
-- **Messaging (`src/app.module.ts`):** Krepis's `EventsModule` publishes Seshat's events to `seshat.events` through the outbox, and consumes Proxenos's `git.repository-linked`, `git.repository-unlinked` and `git.pushed` (`seshat.proxenos-events`) and Polis's `project.created` and `project.department-changed` (`seshat.polis-events`), through the inbox, with retries and dead-lettering.
+- **Messaging (`src/app.module.ts`):** Krepis's `EventsModule` publishes Seshat's events to `seshat.events` through the outbox, and consumes Proxenos's `git.repository-linked`, `git.repository-unlinked` and `git.pushed` (`seshat.proxenos-events`) and Polis's `project.created` and `project.department-changed` (`seshat.polis-events`) and Episteme's `knowledge-version.published`, `.withdrawn` and `knowledge-resource.updated`, `.archived`, `.deleted` (`seshat.episteme-events`, `EPISTEME_SUBSCRIPTIONS`), through the inbox, with retries and dead-lettering.
 - **`knowledge`:**
   - **Items** (`KnowledgeItemsService`, `knowledge_items`; API under `/v1/organizations/{organizationId}/projects/{projectId}/knowledge`):
     - `POST /items` needs `knowledge:propose` (everyone with `knowledge:write`, and session tokens), `PUT /items/{id}` `knowledge:write`. A person's item (`subType` `user`) is `accepted` at once, with `source.kind: person`. A service account's (an agent's task token) is `proposed`, with `source.kind: task` and the token's `task_id`. A session token's (an agent in a person's session, e.g. a council's facilitator recording a decision; `../docs/councils.md`) is `proposed` too, with `source.kind: session` and the token's `session_id` and `agent_id` (`source_session_id`, `source_agent_id`).
@@ -72,6 +73,11 @@ Same layout as Agora (`../agora/CLAUDE.md`): `src/` is the app shell, and code l
     - `POST /documents` (`{ fileId, title?, tags? }`) checks through `DocumentFiles` that the file is an `available` file of the project in Loculus, no larger than `DOCUMENT_MAX_BYTES`; otherwise it fails with `KNOWLEDGE_DOCUMENT_INVALID`. It then creates a `document` item, with an empty body, that waits for indexing.
     - `PUT /documents/{id}` points the item at a new file: a new version, indexed again.
     - The file itself stays in Loculus. Seshat stores its ID, name, type, size and SHA-256, never a URL.
+  - **Episteme's knowledge** (`KnowledgeEpistemeService`, `EpistemeSource` → `HttpEpistemeSource`, Episteme's generated client; `../docs/knowledge.md`, Episteme's knowledge; `../episteme/CLAUDE.md`):
+    - Each event only names the resource: `reconcile` reads it as it is now (`GET …/knowledge/resources/{id}` and its published version) and `KnowledgeItemsService.syncEpistemeItem` makes its one current item match (`episteme_resource_id`, a partial unique index on current items): a new accepted `document` item whose body is the version's Markdown, created by `episteme`, passaged at once, or a new version when the version, title, tags or type changed. A read with an older resource `version` than the item's last (`episteme_resource_version`) changes nothing. Unpublished (archived) or gone (404) retires it (`retireEpistemeItem`).
+    - **Where it belongs:** a project's resource is the project's item, a department's the department's, the organization's has neither (`ck_knowledge_items_owner` allows that for `source_kind` `episteme` only; `scope_id` is `COALESCE(project_id, department_id, organization_id)`). Every project's and department's scope includes the organization (`scopeIds`), and keyword search includes passages with neither project nor department. Only a project's is embedded.
+    - **Read-only:** changing, accepting, rejecting, retiring or superseding one is `KNOWLEDGE_ITEM_READ_ONLY` (`KnowledgeItemFromEpistemeError`). The item's `source.episteme` names the resource, version, number and Episteme's type.
+    - **The answer:** a `knowledge-version.published` is answered with `knowledge-indexing.completed` (the item, its version and passages) when the item now holds that version, or `.failed` when Episteme refuses for good (an `EpistemeSourceError` that isn't retryable); not answering throws, for the inbox to retry. Both have the Episteme resource as aggregate. Migration `EpistemeKnowledge`; tests in `test/episteme.e2e-spec.ts` (`test/fake-episteme.ts`).
   - **Repository documents** (`KnowledgeRepositoriesService`, `knowledge_repositories`, one row per Proxenos repository link; `RepositorySyncer`; `../docs/knowledge.md`, Repository documents):
     - `proxenos.git.repository-linked` adds the link with `REPOSITORY_DEFAULT_PATHS`, `proxenos.git.repository-unlinked` retires its documents and removes it, `proxenos.git.pushed` marks each of the push's links pending unless it was read at that commit.
     - `GET …/knowledge/repositories` and `GET …/{linkId}` need `knowledge:read`; `PUT …/{linkId}` (`{ paths }`: folders end in `/`; adds a link that isn't indexed yet, e.g. one linked before), `POST …/{linkId}/sync` and `DELETE …/{linkId}` (retires its documents) need `knowledge:approve`. Another project's link is a 404.
@@ -109,6 +115,7 @@ Same layout as Agora (`../agora/CLAUDE.md`): `src/` is the app shell, and code l
 - `test/fake-polis.ts`: organizations and projects as Polis would return them;
 - `test/fake-files.ts`: Loculus's files, with `failure` to make reading fail;
 - `test/fake-repositories.ts`: repositories behind Proxenos, files at a new commit per `set`, recording listings and reads, with `failure`;
+- `test/fake-episteme.ts`: Episteme's resources (`publish`, `archive`, `remove`), recording reads, with `failure`;
 - `test/fake-embeddings.ts`: Pylon's embeddings, vectors from a few concepts ("car" near "automobile") and hashed words, recording every call, with `failure`; `createApp({ embeddings: null })` for none.
 
 `test/global-setup.ts` starts Postgres with pgvector (`PGVECTOR_TEST_IMAGE`), applies the migrations and fails if the entities differ from them. `test/knowledge.e2e-spec.ts` covers items, documents (PDF and Word included) and their events; `test/embeddings.e2e-spec.ts` covers embedding, hybrid search, new versions, failures and search without Pylon; `test/repositories.e2e-spec.ts` covers repository documents (Proxenos's events through the inbox, the syncer, read-only items, paths, failures). `createApp` waits for the event consumer's queues before a test starts. Every test empties the tables (`test/database.ts`).

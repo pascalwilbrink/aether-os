@@ -9,3 +9,5 @@ export * from './embeddings.js';
 export * from './knowledge-repositories.service.js';
 export * from './repository-syncer.js';
 export * from './repository-files.js';
+export * from './episteme-source.js';
+export * from './knowledge-episteme.service.js';

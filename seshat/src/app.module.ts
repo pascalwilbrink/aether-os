@@ -13,7 +13,7 @@ import {
   SeshatEventsModule,
   type Env,
 } from '@seshat/core';
-import { KnowledgeModule } from '@seshat/knowledge';
+import { EPISTEME_SUBSCRIPTIONS, KnowledgeModule } from '@seshat/knowledge';
 
 /** Proxenos's events repository documents follow (docs/knowledge.md). */
 export const PROXENOS_SUBSCRIPTIONS = [
@@ -47,6 +47,9 @@ export const POLIS_SUBSCRIPTIONS = [
         ...checkIf(config.get('PROXENOS_URL', { infer: true }), (url) =>
           serviceCheck('proxenos', url),
         ),
+        ...checkIf(config.get('EPISTEME_URL', { infer: true }), (url) =>
+          serviceCheck('episteme', url),
+        ),
       ],
     }),
     // Publishes Seshat's events to seshat.events through the outbox, and
@@ -58,6 +61,8 @@ export const POLIS_SUBSCRIPTIONS = [
       subscribe: {
         proxenos: PROXENOS_SUBSCRIPTIONS,
         polis: POLIS_SUBSCRIPTIONS,
+        // Episteme's published knowledge (seshat.episteme-events).
+        episteme: EPISTEME_SUBSCRIPTIONS,
       },
       rabbitmq: {
         inject: [ConfigService],

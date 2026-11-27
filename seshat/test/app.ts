@@ -8,6 +8,7 @@ import { configureHttpApp, EventConsumer } from '@seshat/core';
 import {
   DocumentFiles,
   Embeddings,
+  EpistemeSource,
   NoEmbeddings,
   RepositoryFiles,
 } from '@seshat/knowledge';
@@ -16,6 +17,7 @@ import { PolisClient } from '@seshat/tenancy';
 import { AppModule } from '../src/app.module.js';
 import { resetDatabase } from './database.js';
 import { FakeEmbeddings } from './fake-embeddings.js';
+import { FakeEpisteme } from './fake-episteme.js';
 import { FakeFiles } from './fake-files.js';
 import { FakePolis } from './fake-polis.js';
 import { FakeRepositories } from './fake-repositories.js';
@@ -23,8 +25,8 @@ import { tokens } from './tokens.js';
 
 /**
  * The whole Seshat app, configured as in main.ts, on an empty database,
- * with fakes for Polis, Loculus, Proxenos's repositories and Pylon's
- * embeddings (`embeddings: null` for none, as without PYLON_URL).
+ * with fakes for Polis, Loculus, Proxenos's repositories, Episteme's
+ * resources and Pylon's embeddings (`embeddings: null` for none, as without PYLON_URL).
  */
 export async function createApp(
   options: { embeddings?: Embeddings | null } = {},
@@ -34,11 +36,13 @@ export async function createApp(
   files: FakeFiles;
   embeddings: FakeEmbeddings;
   repositories: FakeRepositories;
+  episteme: FakeEpisteme;
 }> {
   const polis = new FakePolis();
   const files = new FakeFiles();
   const embeddings = new FakeEmbeddings();
   const repositories = new FakeRepositories();
+  const episteme = new FakeEpisteme();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(PolisClient)
     .useValue(polis)
@@ -46,6 +50,8 @@ export async function createApp(
     .useValue(files)
     .overrideProvider(RepositoryFiles)
     .useValue(repositories)
+    .overrideProvider(EpistemeSource)
+    .useValue(episteme)
     .overrideProvider(Embeddings)
     .useValue(
       options.embeddings === undefined
@@ -66,6 +72,7 @@ export async function createApp(
     files,
     embeddings,
     repositories,
+    episteme,
   };
 }
 

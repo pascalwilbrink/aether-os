@@ -162,8 +162,10 @@ Every event has the knowledge item as its aggregate; the item's `revision` grows
 
 | Event | Payload | Consumers |
 |---|---|---|
-| `knowledge-item.proposed` / `.accepted` / `.rejected` / `.updated` / `.superseded` / `.retired` | `itemId`, `projectId` and `departmentId` (one of them, the other null), `type`, `status`, `version`, `sourceKind`, `supersededBy` | later Kerykes (proposals to review), Iris |
+| `knowledge-item.proposed` / `.accepted` / `.rejected` / `.updated` / `.superseded` / `.retired` | `itemId`, `projectId` and `departmentId` (at most one of them; neither for the organization's, Episteme's), `type`, `status`, `version`, `sourceKind` (`episteme` for Episteme's knowledge), `supersededBy` | later Kerykes (proposals to review), Iris |
 | `knowledge-item.indexed` | `itemId`, `projectId`, `departmentId`, `version`, `chunkCount` | later Iris |
+| `knowledge-indexing.completed` | `resourceId`, `versionId`, `versionNumber`, `itemId`, `itemVersion`, `chunkCount`; the **Episteme resource** as aggregate, its `version` as read | Episteme (the version's `indexing`) |
+| `knowledge-indexing.failed` | `resourceId`, `versionId`, `versionNumber`, `error` (Episteme refused for good; not answering is retried by the inbox) | Episteme |
 
 ### Ergon (`ergon.events`)
 
@@ -179,17 +181,17 @@ Work management (`../ergon/CLAUDE.md`, `../contracts/ergon.asyncapi.yaml`). `wor
 
 ### Episteme (`episteme.events`)
 
-Knowledge governance (`../episteme/CLAUDE.md`, `../contracts/episteme.asyncapi.yaml`), published by Episteme's resources, versions and reviews. Every event has the **resource** as aggregate and its `version` (one counter for the resource and its versions); `projectId` is null, since resources belong to the organization. IDs, states and checksums only: no titles, content or personal data.
+Knowledge governance (`../episteme/CLAUDE.md`, `../contracts/episteme.asyncapi.yaml`), published by Episteme's resources, versions and reviews. Every event has the **resource** as aggregate and its `version` (one counter for the resource and its versions); `projectId` is its owning project, null for the organization's or a department's. IDs, states and checksums only: no titles, content or personal data.
 
 | Event | Payload | Consumers |
 |---|---|---|
-| `knowledge-resource.created` / `.updated` / `.archived` | `resource` (`id`, `knowledgeType`, `status`, `tags`, `scopes`, `stewards` by person ID, `publishedVersionId`, `latestVersionNumber`); `.updated` adds `changedFields`, `.archived` the `withdrawnVersionId` | later Seshat (scopes for filtering), Kerykes, Iris, Atlas |
-| `knowledge-resource.deleted` | `resourceId` (one never published) | later Iris, Atlas |
+| `knowledge-resource.created` / `.updated` / `.archived` | `resource` (`id`, `projectId`, `departmentId` (its owner), `knowledgeType`, `status`, `tags`, `scopes`, `stewards` by person ID, `publishedVersionId`, `latestVersionNumber`); `.updated` adds `changedFields`, `.archived` the `withdrawnVersionId` | Seshat (`.updated`, `.archived`: reads the resource again), later Kerykes, Iris, Atlas |
+| `knowledge-resource.deleted` | `resourceId` (one never published) | Seshat (retires its item, if any), later Iris, Atlas |
 | `knowledge-version.created` | `resourceId`, `version` (`id`, `number`, `state`, `checksum`, `basedOnVersionId`) | later Iris, Atlas |
 | `knowledge-version.submitted` / `.approved` / `.rejected` | `resourceId`, `version`, `reviewId` | later Kerykes (reviews waiting), Iris, Atlas |
 | `knowledge-version.returned` | `resourceId`, `version`, `reviewId`, `reason` (`changes_requested`, `withdrawn`) | later Kerykes (the author) |
-| `knowledge-version.published` | `resource`, `version`, `previousVersionId` | later Seshat (indexes it, reading the content from Episteme's API), Kerykes |
-| `knowledge-version.withdrawn` | `resourceId`, `version`, `reason` (`superseded`, `resource_archived`) | later Seshat (stops returning it as current) |
+| `knowledge-version.published` | `resource`, `version`, `previousVersionId` | Seshat (indexes it where the resource belongs, reading it from Episteme's API, and answers with `knowledge-indexing.*`), later Kerykes |
+| `knowledge-version.withdrawn` | `resourceId`, `version`, `reason` (`superseded`, `resource_archived`) | Seshat (reads the resource again: its item holds only the published version) |
 
 ### Learning, council sessions and meetings (Proposal)
 

@@ -34,6 +34,9 @@ import { KnowledgeRepositoryMapper } from './knowledge-repository.mapper.js';
 import { HttpRepositoryFiles } from './http-repository-files.js';
 import { NoRepositoryFiles, RepositoryFiles } from './repository-files.js';
 import { RepositorySyncer } from './repository-syncer.js';
+import { EpistemeSource, NoEpistemeSource } from './episteme-source.js';
+import { HttpEpistemeSource } from './http-episteme-source.js';
+import { KnowledgeEpistemeService } from './knowledge-episteme.service.js';
 import {
   KNOWLEDGE_OPTIONS,
   type KnowledgeOptions,
@@ -41,7 +44,8 @@ import {
 
 /**
  * Project knowledge: items, documents (indexed from Loculus, or from
- * repositories linked to the project through Proxenos), their
+ * repositories linked to the project through Proxenos), Episteme's
+ * published knowledge, their
  * passages' embeddings (through Pylon) and hybrid search.
  */
 @Module({
@@ -72,6 +76,7 @@ import {
     KnowledgeRepositoriesService,
     KnowledgeRepositoryMapper,
     RepositorySyncer,
+    KnowledgeEpistemeService,
     {
       provide: KNOWLEDGE_OPTIONS,
       inject: [ConfigService],
@@ -113,6 +118,17 @@ import {
       },
     },
     {
+      // Through Episteme with EPISTEME_URL; else its events are ignored.
+      provide: EpistemeSource,
+      inject: [ConfigService, ServiceTokens],
+      useFactory: (config: ConfigService<Env, true>, tokens: ServiceTokens) => {
+        const baseUrl = config.get('EPISTEME_URL', { infer: true });
+        return baseUrl
+          ? new HttpEpistemeSource({ baseUrl }, tokens)
+          : new NoEpistemeSource();
+      },
+    },
+    {
       // Through Pylon with PYLON_URL; else nothing is embedded.
       provide: Embeddings,
       inject: [ConfigService, ServiceTokens],
@@ -137,6 +153,7 @@ import {
     KnowledgeEmbedder,
     KnowledgeRepositoriesService,
     RepositorySyncer,
+    KnowledgeEpistemeService,
   ],
 })
 export class KnowledgeModule {}

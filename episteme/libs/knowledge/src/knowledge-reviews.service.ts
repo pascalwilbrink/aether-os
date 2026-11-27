@@ -75,6 +75,10 @@ export class KnowledgeReviewsService {
     versionId: string,
     page: PageRequest,
   ): Promise<Page<ApiTypes.KnowledgeReviewResponse>> {
+    this.access.assertCan(
+      await this.store.resource(organizationId, resourceId),
+      'read',
+    );
     await this.store.version(organizationId, resourceId, versionId);
     const reviews = await this.store.pageReviews(
       organizationId,
@@ -211,6 +215,7 @@ export class KnowledgeReviewsService {
       resourceId,
       versionId,
     );
+    this.access.assertCan(resource, 'review');
     const review = await this.store.openReview(versionId);
     if (!review) throw notInReview();
     await this.access.assertWritable(resource);
@@ -220,12 +225,12 @@ export class KnowledgeReviewsService {
       const allowed =
         approvers.size > 0
           ? [...persons].some((person) => approvers.has(person))
-          : this.access.has('org:knowledge:publish');
+          : this.access.can(resource, 'publish');
       if (!allowed) {
         throw new ForbiddenException(
           approvers.size > 0
             ? "Only the resource's approvers may approve it"
-            : 'Approving a resource without approvers needs org:knowledge:publish',
+            : 'Approving a resource without approvers needs the permission to publish it',
         );
       }
     }
@@ -292,6 +297,7 @@ export class KnowledgeReviewsService {
       resourceId,
       versionId,
     );
+    this.access.assertCan(resource, 'publish');
     if (version.state === 'published')
       return this.mapper.toVersionResponse(version);
     if (resource.status === 'archived') throw resourceArchived();
@@ -302,6 +308,15 @@ export class KnowledgeReviewsService {
     const actor = this.access.actor();
     const now = this.transition(resource, version, 'publish');
     version.publishedAt = now;
+    // Seshat indexes it and answers (KnowledgeIndexingListener).
+    Object.assign(version, {
+      indexingStatus: 'pending',
+      indexingItemId: null,
+      indexingChunkCount: null,
+      indexingError: null,
+      indexingRequestedAt: now,
+      indexingUpdatedAt: now,
+    } satisfies Partial<KnowledgeVersionEntity>);
     const previousId = resource.publishedVersionId;
     const superseded = (
       await this.store.versionsIn(resourceId, ['approved', 'published'])

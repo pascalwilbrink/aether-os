@@ -7,7 +7,8 @@ export type ClientOptions = {
 export type Problem = CommonOpenapiProblem;
 
 /**
- * `ORGANIZATION_SUSPENDED`; `INVALID_TRANSITION` (the version's state
+ * `ORGANIZATION_SUSPENDED`; `PROJECT_ARCHIVED` and
+ * `DEPARTMENT_ARCHIVED` (its owner can't change); `INVALID_TRANSITION` (the version's state
  * doesn't allow it); `DRAFT_EXISTS` (a version is already in `draft`
  * or `in_review`); `NOT_A_DRAFT`; `NOT_IN_REVIEW`; `NOT_APPROVED`;
  * `RESOURCE_ARCHIVED`; `RESOURCE_PUBLISHED` (deleting one that was
@@ -18,6 +19,8 @@ export type Problem = CommonOpenapiProblem;
  */
 export type DomainErrorCode =
   | 'ORGANIZATION_SUSPENDED'
+  | 'PROJECT_ARCHIVED'
+  | 'DEPARTMENT_ARCHIVED'
   | 'INVALID_TRANSITION'
   | 'DRAFT_EXISTS'
   | 'NOT_A_DRAFT'
@@ -133,6 +136,14 @@ export type KnowledgeStewardsRequest = {
 };
 
 export type KnowledgeResourceCreateRequest = {
+  /**
+   * The project that owns it; leave out (with `departmentId`) for the organization.
+   */
+  projectId?: string | null;
+  /**
+   * The department that owns it; not with `projectId`.
+   */
+  departmentId?: string | null;
   knowledgeType: KnowledgeType;
   title: string;
   description?: string | null;
@@ -155,6 +166,14 @@ export type KnowledgeResourceUpdateRequest = {
 export type KnowledgeResourceResponse = {
   id: string;
   organizationId: string;
+  /**
+   * The project that owns it; null for the organization's or a department's.
+   */
+  projectId: string | null;
+  /**
+   * The department that owns it; null for the organization's or a project's.
+   */
+  departmentId: string | null;
   knowledgeType: KnowledgeType;
   title: string;
   description: string | null;
@@ -229,6 +248,35 @@ export type KnowledgeVersionSummary = {
   submittedAt: string | null;
   approvedAt: string | null;
   publishedAt: string | null;
+  /**
+   * Whether Seshat made it searchable, for a version that was published; null for one that never was.
+   */
+  indexing: null | KnowledgeVersionIndexing;
+};
+
+/**
+ * Seshat's answer for a published version (`seshat.asyncapi.yaml`,
+ * `knowledge-indexing.completed` / `.failed`): `pending` from
+ * publishing until it answers, then `indexed` (searchable there as
+ * `itemId`) or `failed` (with `error`).
+ *
+ */
+export type KnowledgeVersionIndexing = {
+  status: 'pending' | 'indexed' | 'failed';
+  /**
+   * The Seshat knowledge item that holds it.
+   */
+  itemId: string | null;
+  chunkCount: number | null;
+  error: string | null;
+  /**
+   * When it was published.
+   */
+  requestedAt: string;
+  /**
+   * When Seshat's answer came, or `requestedAt` before it.
+   */
+  updatedAt: string;
 };
 
 export type KnowledgeVersionResponse = KnowledgeVersionSummary & {
@@ -492,6 +540,18 @@ export type ListKnowledgeResourcesData = {
     scopeType?: KnowledgeScopeType;
     scopeId?: string;
     /**
+     * Only the resources this project owns.
+     */
+    projectId?: string;
+    /**
+     * Only the resources this department owns.
+     */
+    departmentId?: string;
+    /**
+     * Only the organization's own resources (`organization`), or only those of a project or a department.
+     */
+    owner?: 'organization' | 'project' | 'department';
+    /**
      * Only resources this person is a steward of (any role).
      */
     stewardPersonId?: string;
@@ -542,7 +602,7 @@ export type ListKnowledgeResourcesError =
 
 export type ListKnowledgeResourcesResponses = {
   /**
-   * Most recently updated first
+   * Most recently updated first; a project's resources only where the caller may read the project's knowledge
    */
   200: KnowledgeResourcePage;
 };

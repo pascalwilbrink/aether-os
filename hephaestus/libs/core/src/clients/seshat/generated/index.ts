@@ -72,6 +72,7 @@ export type {
   DocumentIndexing,
   DomainErrorCode,
   DomainProblem,
+  EpistemeVersionRef,
   GetDepartmentKnowledgeItemData,
   GetDepartmentKnowledgeItemError,
   GetDepartmentKnowledgeItemErrors,
