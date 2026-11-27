@@ -18,12 +18,13 @@
     "migration:run": "typeorm migration:run -d dist/src/database/data-source.js",
     "migration:show": "typeorm migration:show -d dist/src/database/data-source.js",
     "migration:generate": "typeorm migration:generate -p -d dist/src/database/data-source.js",
-    "lint": "oxlint --type-aware src/ libs/ test/",
+    "lint": "oxlint --type-aware --ignore-pattern \"libs/core/src/api/generated/**\" src/ libs/ test/",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.ts"
+    "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
+    "generate:api": "openapi-ts --no-log-file && aether-asyncapi-types node_modules/@aether-os/contracts/episteme.asyncapi.yaml libs/core/src/events/generated/episteme-events.gen.ts --name Episteme && prettier --log-level warn --write libs/core/src/api/generated libs/core/src/events/generated"
   },
   "dependencies": {
     "@aether-os/krepis": "workspace:*",
@@ -46,6 +47,8 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@aether-os/contracts": "workspace:*",
+    "@hey-api/openapi-ts": "^0.99.0",
     "@nestjs/cli": "^12.0.0",
     "@nestjs/mau": "^0.2.6",
     "@nestjs/schematics": "^12.0.0",

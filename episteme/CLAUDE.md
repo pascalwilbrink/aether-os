@@ -8,7 +8,7 @@ Episteme is the Aether OS service for **knowledge management and governance**: t
 
 Package: **`@aether-os/episteme`**.
 
-Status: **the service's shell is built** (What's built, below): a NestJS app on port `3014` with its database, Pistis tokens, the outbox and inbox, health checks, telemetry and logging, and no domain yet. This file is the starting point for building the rest. It says what Episteme owns, how it fits with the other services, and which rules its code must follow.
+Status: **the service's shell is built** (What's built, below): a NestJS app on port `3014` with its database, Pistis tokens, the outbox and inbox, health checks, telemetry and logging, and its **contracts** (The contracts, below), with no domain yet. This file is the starting point for building the rest. It says what Episteme owns, how it fits with the other services, and which rules its code must follow.
 
 - Statements without a marker are **decided**: they follow from the platform's agreed design (`../CLAUDE.md`, `../docs/*.md`) or from Episteme's mission.
 - **(Proposal)** marks a recommendation that still needs validation. Implement it only after it's confirmed, or as the smallest version that can be changed cheaply.
@@ -18,13 +18,17 @@ Read the root `../CLAUDE.md` first. It describes the platform, the shared conven
 
 ## Decisions
 
-Settled with the platform's owner (they were open questions 1, 2, 3 and 5). The sections below follow them.
+Settled with the platform's owner (open questions 1, 2, 3 and 5, and parts of 4 and 6). The sections below follow them.
 
 | Question | Decision |
 |---|---|
 | **Service names** | The **repository's names**: Proxenos for external integrations, Themis for policy (with OPA and APS), Krepis and `@aether-os/contracts` for shared code, schemas and tool contracts, Kerykes for notifications. Events follow the repository's convention, `<aggregate>.<past-tense verb>` with kebab-case aggregates: `knowledge-version.published`, not `knowledge.version.published`. |
 | **Seshat migration** | **New kinds of knowledge first.** Episteme starts with the knowledge Seshat doesn't hold: policies, procedures, runbooks, handbooks and the like. Seshat keeps its project and department items (and their lifecycle) for now. Once Episteme's model is proven, Seshat's items move over with an import that **keeps their IDs and versions**, so the versions tasks pinned still resolve (as Agora took Hephaestus's agents, `pnpm import:hephaestus`). Seshat stays the indexing and retrieval layer throughout. |
 | **Drafts and versions** | **A draft is a version in the `draft` state**, editable in place until it's submitted. From submission on, a version isn't edited (a request for changes or a withdrawal returns it to `draft`). Published versions never change. **At most one draft per resource at a time.** `title` and `description` belong to the resource and **aren't versioned** with the content: they change in place, recorded in the audit. |
+| **The first contracts** | **The core first:** resources, versions (Markdown drafts, submit, review, approve, publish, restore, diff), the two lifecycles, scopes, stewards, the audit and their events (`../contracts/episteme.openapi.yaml`, `../contracts/episteme.asyncapi.yaml`). Taxonomy beyond the fixed type list, relationships, indexing status, review schedules and expiry, and access restrictions are added as their open questions (6 to 11, 13) are settled. |
+| **Permissions** | **Extend `knowledge:*`:** organization permissions `org:knowledge:read` (owners, admins, members, viewers), `org:knowledge:draft` and `org:knowledge:review` (owners, admins, members), `org:knowledge:publish` and `org:knowledge:govern` (owners and admins), in Krepis's table. Resources belong to the organization, so the project-level ones wait until resources can belong to a project (Seshat's migration). Seshat's `knowledge:write` / `:approve` and `org:knowledge:write` stay until the migration (open question 2). |
+| **Stewards** (part of question 4) | **Polis persons**, as Ergon's assignments: a person can be accountable before they sign up, and acts once linked to a Pistis user. Teams and departments as owners come later. |
+| **Approvals** (part of question 6) | **One approval**, from one of the resource's approvers, or from anyone holding `org:knowledge:publish` when it names none; the same for every knowledge type. **Approving a version you wrote is allowed.** Rules per type (a second approver, no self-approval) can come later without breaking the API. |
 | **Content format** | **Markdown** is the authoring and stored format. It is what Seshat indexes and agents read today, versions compare as text diffs, and imports convert to it. A rich-text editor can come later on top of Markdown. Files (PDF, `.docx`) are attachments in Loculus, not the content format. |
 
 ## Aether OS, briefly
@@ -273,6 +277,20 @@ Where a resource came from: `sourceType` (`internal`, `import`, `sync`, `derived
 - **Decided:** every lifecycle transition, review decision, ownership change, scope change, access restriction change and indexing request is recorded as a `GovernanceEvent` (who, which principal type, when, what changed, why where given), in the same transaction as the change.
 - **(Proposal)** the audit log is Episteme's own table, read through its API, distinct from the outbox (which is for delivery to other services) but written in the same transaction.
 
+## The contracts (built)
+
+`../contracts/episteme.openapi.yaml` (0.1.0) and `../contracts/episteme.asyncapi.yaml` (0.1.0), generated in `libs/core` (`pnpm generate:api`). Beyond the Decisions above, they settle:
+
+- **Paths:** `/v1/organizations/{organizationId}/knowledge/resources[/{resourceId}]`, with its `archive`, `scopes`, `stewards`, `audit`, and `versions[/{versionId}]` with `diff?against=`, `submit`, `withdraw`, `decisions`, `reviews` and `publish`. Everything else in the endpoint table below is still a proposal.
+- **One open version:** a resource has at most one version in `draft` or `in_review` (`DRAFT_EXISTS`), so a request for changes never leaves two drafts. Creating a resource creates its first draft.
+- **Restoring** is `POST …/versions` with `basedOnVersionId` and no `content`.
+- **Decisions are posted on the version** (`POST …/versions/{id}/decisions`), on its open review; `GET …/versions/{id}/reviews` lists each submission (`round`) with its decisions. Reviewers and approvers are the resource's stewards in those roles; per-review assignment comes later.
+- **Who may do what**, on top of the permissions: a draft is edited and submitted by its author or the resource's owners and maintainers; a resource's title, tags, scopes and stewards are changed by its owners or with `org:knowledge:govern`; deleting (only never-published resources) and archiving by its owners or with `org:knowledge:publish`. Only people decide and publish (`PEOPLE_DECIDE`).
+- **Scopes** are departments, teams and projects; none means the whole organization (no `organization` scope row).
+- **Concurrency:** `If-Match` with the resource's `version` (one counter for the resource and its versions, also the events' `aggregateVersion`), and with a draft's `revision` for editing and submitting it.
+- **Events** have the resource as aggregate and carry IDs, states and checksums only (no titles, content or personal data); Seshat reads a published version's content from `GET …/versions/{id}` with `platform:read`. The review withdrawal is `knowledge-version.returned` (`withdrawn`), so `knowledge-version.withdrawn` keeps its meaning: no longer current.
+- **Left for later:** scheduled publication (`at`), which comes with the poller.
+
 ## Lifecycle
 
 Two lifecycles, kept apart: the **resource's** (is there authoritative knowledge here, and is it current?) and each **version's** (where is this particular content in review?).
@@ -429,6 +447,8 @@ API-first and spec-first: `../contracts/episteme.openapi.yaml` and `../contracts
 
 ### Endpoints to consider (Proposal)
 
+The core of these is now in the contracts (The contracts, above); the rest stays a proposal.
+
 | Area | Endpoints |
 |---|---|
 | Resources | `POST …/resources`, `GET …/resources` (filters: type, status, scope, owner, tag, category, text in title and metadata), `GET …/resources/{id}`, `PUT …/resources/{id}` (metadata), `POST …/resources/{id}/archive`. No hard delete of a resource that was ever published. Deleting a never-published draft resource is allowed. |
@@ -443,6 +463,8 @@ API-first and spec-first: `../contracts/episteme.openapi.yaml` and `../contracts
 **Search by meaning stays in Seshat.** Episteme's list endpoint filters metadata (titles, tags, types, scopes, owners, status) with SQL. It's not a second search engine.
 
 ### Events (Proposal)
+
+The contracts publish the core of these (with `knowledge-version.returned` and `knowledge-resource.deleted` added); review-due, expiry, supersession by another resource and indexing come later.
 
 On `episteme.events`, described in `../contracts/episteme.asyncapi.yaml`, IDs only (no content, no personal data), published through the outbox. Names follow the repository's convention, `<aggregate>.<past-tense verb>` with kebab-case aggregates (`knowledge-item.accepted`, `team-member.added`), not the brief's `knowledge.resource.created` (decided, **Decisions**).
 
@@ -537,9 +559,9 @@ Settle each one before the code that depends on it, and record the answer here (
 1. ~~**Names.**~~ **Settled** (Decisions): the repository's names and event convention.
 2. **Seshat migration: the import's details.** The order is settled (Decisions): new kinds of knowledge first, Seshat's items later with their IDs and versions. Still open, for when the import comes: what happens to the `knowledge:*` permissions, Seshat's `knowledge-item.*` events, Iris's Knowledge page, Hephaestus's `propose_knowledge`, and `../docs/knowledge.md`? And when is Episteme's model "proven"?
 3. ~~**Drafts and versions.**~~ **Settled** (Decisions): a draft is a `draft` version, one per resource, title and description unversioned.
-4. **Ownership across departments.** Who owns a resource shared by several departments: one owner, co-owners, or a team or department as owner? Can a Polis person without a Pistis account be an owner (accountable but unable to act)? What happens when an owner leaves the organization (a person deleted, a membership revoked)? Who reviews a resource shared by several departments: every department's approver, or one?
+4. **Ownership across departments.** *Partly settled (Decisions): stewards are Polis persons.* Who owns a resource shared by several departments: one owner, co-owners, or a team or department as owner? Can a Polis person without a Pistis account be an owner (accountable but unable to act)? What happens when an owner leaves the organization (a person deleted, a membership revoked)? Who reviews a resource shared by several departments: every department's approver, or one?
 5. ~~**Content format.**~~ **Settled** (Decisions): Markdown; files are attachments.
-6. **Approval workflows per type.** Do the lifecycle and approval rules differ per knowledge type? For example, a policy needing two approvers and a fact needing none. Is that configuration Episteme's (per organization and type) or a policy in Themis?
+6. **Approval workflows per type.** *Partly settled (Decisions): one approval, for every type, for now.* Do the lifecycle and approval rules differ per knowledge type? For example, a policy needing two approvers and a fact needing none. Is that configuration Episteme's (per organization and type) or a policy in Themis?
 7. **External sources.** How are external platforms synchronized through Proxenos: a one-time import, periodic pull, or webhook-driven? Is the external system or Episteme authoritative after import? How are conflicts and deletions upstream handled? Is Kairos (once it supports schedules) the scheduler, or Episteme's poller?
 8. **Taxonomy.** Is it global, per organization, or a platform vocabulary with per-organization extensions? Can organizations define knowledge types of their own, with metadata schemas?
 9. **Relationships.** Do relationships link resources only, or also specific versions? Which types does the lifecycle maintain automatically? How deep do impact queries go, and when, if ever, would a graph store be justified?
@@ -552,7 +574,7 @@ Settle each one before the code that depends on it, and record the answer here (
 
 ## Roadmap (Proposal)
 
-1. **Contracts:** write `../contracts/episteme.openapi.yaml` and `../contracts/episteme.asyncapi.yaml` (open questions 1, 3 and 5 are settled; the migration's order too).
+1. **Contracts** (built, the core: The contracts, above).
 2. **KnowledgeResource and KnowledgeVersion** with Markdown content, the version and resource transition tables, publication, the audit log and the outbox.
 3. **Scopes and stewardship** with Polis's IDs and a copy of their statuses.
 4. **Reviews and approvals**, with the "people approve, agents propose" rule.
@@ -575,10 +597,12 @@ The service's shell, copied from Ergon's without its domain, so step 1 (the cont
 - **`libs/core`** (`@episteme/core`): Krepis re-exported, the configuration (`DATABASE_URL`, `RABBITMQ_URL`, `OUTBOX_RELAY_INTERVAL_MS`, `PORT` 3014, `PISTIS_ISSUER`; validated at startup, `env.spec.ts`), the database module (migrations only, never `synchronize`).
 - **Database:** migration `Initial` (the outbox and the inbox); `src/database/entities.ts` lists every entity for the TypeORM CLI and the tests' schema check.
 - **Tests:** `pnpm test` (the configuration); `pnpm test:e2e` against Postgres and RabbitMQ in containers (`test/global-setup.ts` applies the migrations and fails if the entities differ from them; `test/health.e2e-spec.ts`).
-- **Not yet:** `generate:api` (it comes with `../contracts/episteme.openapi.yaml` and `.asyncapi.yaml`), the Polis client, and everything in the domain model.
+- **Contracts:** `pnpm generate:api` writes `libs/core/src/api/generated` (types and Zod from `../contracts/episteme.openapi.yaml`) and `libs/core/src/events/generated` (event types from `../contracts/episteme.asyncapi.yaml`).
+- **Not yet:** the Polis client, the `org:knowledge:*` permissions in Krepis, and everything in the domain model.
 
 ```bash
 cp .env.example .env && pnpm start:dev   # build, migrate, watch (port 3014)
+pnpm generate:api                        # types and Zod from ../contracts/episteme.*.yaml
 pnpm build | lint | test                 # test: unit tests (the configuration, later the domain)
 pnpm test:e2e                            # against Postgres and RabbitMQ (Testcontainers; needs Docker)
 pnpm build && pnpm migration:generate src/database/migrations/<Name>   # then review it and add it to migrations/index.ts
