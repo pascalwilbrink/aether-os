@@ -179,11 +179,11 @@ Work management (`../ergon/CLAUDE.md`, `../contracts/ergon.asyncapi.yaml`). `wor
 
 ### Episteme (`episteme.events`)
 
-Knowledge governance (`../episteme/CLAUDE.md`, `../contracts/episteme.asyncapi.yaml`), published by Episteme's resources, versions and reviews. Every event has the **resource** as aggregate and its `version` (one counter for the resource and its versions); `projectId` is null, since resources belong to the organization. IDs, states and checksums only: no titles, content or personal data.
+Knowledge governance (`../episteme/CLAUDE.md`, `../contracts/episteme.asyncapi.yaml`), published by Episteme's resources, versions and reviews. Every event has the **resource** as aggregate and its `version` (one counter for the resource and its versions); `projectId` is its owning project, null for the organization's or a department's. IDs, states and checksums only: no titles, content or personal data.
 
 | Event | Payload | Consumers |
 |---|---|---|
-| `knowledge-resource.created` / `.updated` / `.archived` | `resource` (`id`, `knowledgeType`, `status`, `tags`, `scopes`, `stewards` by person ID, `publishedVersionId`, `latestVersionNumber`); `.updated` adds `changedFields`, `.archived` the `withdrawnVersionId` | later Seshat (scopes for filtering), Kerykes, Iris, Atlas |
+| `knowledge-resource.created` / `.updated` / `.archived` | `resource` (`id`, `projectId`, `departmentId` (its owner), `knowledgeType`, `status`, `tags`, `scopes`, `stewards` by person ID, `publishedVersionId`, `latestVersionNumber`); `.updated` adds `changedFields`, `.archived` the `withdrawnVersionId` | later Seshat (scopes for filtering), Kerykes, Iris, Atlas |
 | `knowledge-resource.deleted` | `resourceId` (one never published) | later Iris, Atlas |
 | `knowledge-version.created` | `resourceId`, `version` (`id`, `number`, `state`, `checksum`, `basedOnVersionId`) | later Iris, Atlas |
 | `knowledge-version.submitted` / `.approved` / `.rejected` | `resourceId`, `version`, `reviewId` | later Kerykes (reviews waiting), Iris, Atlas |

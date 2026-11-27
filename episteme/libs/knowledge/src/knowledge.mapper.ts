@@ -33,6 +33,8 @@ export class KnowledgeMapper {
     return {
       id: entity.id,
       organizationId: entity.organizationId,
+      projectId: entity.projectId,
+      departmentId: entity.departmentId,
       knowledgeType: entity.knowledgeType,
       title: entity.title,
       description: entity.description,
@@ -112,6 +114,8 @@ export class KnowledgeMapper {
   toResourceSnapshot(entity: KnowledgeResourceEntity): KnowledgeResource {
     return {
       id: entity.id,
+      projectId: entity.projectId,
+      departmentId: entity.departmentId,
       knowledgeType: entity.knowledgeType,
       status: entity.status,
       tags: entity.tags,

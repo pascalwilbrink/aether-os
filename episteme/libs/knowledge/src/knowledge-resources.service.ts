@@ -71,7 +71,22 @@ export class KnowledgeResourcesService {
     organizationId: string,
     request: ApiTypes.KnowledgeResourceCreateRequest,
   ): Promise<Response> {
-    await this.access.assertOrganizationWritable(organizationId);
+    if (request.projectId && request.departmentId) {
+      throw new ValidationProblemException([
+        {
+          pointer: '/departmentId',
+          parameter: null,
+          code: 'INVALID',
+          detail: 'A resource is owned by a project or a department, not both.',
+        },
+      ]);
+    }
+    const owner = {
+      projectId: request.projectId ?? null,
+      departmentId: request.departmentId ?? null,
+    };
+    this.access.assertCan(owner, 'draft');
+    await this.access.assertOwnerWritable(organizationId, owner);
     const scopes = await this.checkScopes(organizationId, request.scopes ?? []);
     const stewards = await this.checkStewards(organizationId, request.stewards);
     const actor = this.access.actor();
@@ -80,6 +95,7 @@ export class KnowledgeResourcesService {
     const resource: KnowledgeResourceEntity = {
       id: uuidv7(),
       organizationId,
+      ...owner,
       knowledgeType: request.knowledgeType,
       title: request.title,
       description: request.description ?? null,
@@ -165,6 +181,10 @@ export class KnowledgeResourcesService {
     }
     const filters: ResourceFilters = {
       ...rest,
+      readable: {
+        projects: this.access.readableProjects(),
+        organization: this.access.readsOrganization(),
+      },
       ...(scopeType && scopeId
         ? { scope: { type: scopeType, id: scopeId } }
         : {}),
@@ -178,9 +198,9 @@ export class KnowledgeResourcesService {
   }
 
   async get(organizationId: string, resourceId: string): Promise<Response> {
-    return this.presentOne(
-      await this.store.resource(organizationId, resourceId),
-    );
+    const resource = await this.store.resource(organizationId, resourceId);
+    this.access.assertCan(resource, 'read');
+    return this.presentOne(resource);
   }
 
   @Transactional()
@@ -329,7 +349,7 @@ export class KnowledgeResourcesService {
       resourceId,
       true,
     );
-    await this.access.assertOwnerOr(resource, 'org:knowledge:publish');
+    await this.access.assertOwnerOr(resource, 'publish');
     if (resource.status === 'archived') {
       return this.presentOne(resource);
     }
@@ -403,12 +423,12 @@ export class KnowledgeResourcesService {
       resourceId,
       true,
     );
-    await this.access.assertOwnerOr(resource, 'org:knowledge:publish');
+    await this.access.assertOwnerOr(resource, 'publish');
     if (await this.store.wasPublished(resourceId)) throw resourcePublished();
     if (ifMatch !== undefined) {
       assertMatches(ifMatch, resource.version, 'Resource');
     }
-    await this.access.assertOrganizationWritable(organizationId);
+    await this.access.assertOwnerWritable(organizationId, resource);
     const now = new Date();
     resource.version += 1;
     await this.store.deleteResource(resourceId);
@@ -430,7 +450,10 @@ export class KnowledgeResourcesService {
     resourceId: string,
     page: PageRequest,
   ): Promise<Page<ApiTypes.KnowledgeAuditEntry>> {
-    await this.store.resource(organizationId, resourceId);
+    this.access.assertCan(
+      await this.store.resource(organizationId, resourceId),
+      'read',
+    );
     const entries = await this.audit.page(organizationId, resourceId, page);
     return mapPage(entries, (entry) => this.mapper.toAuditEntry(entry));
   }
@@ -470,7 +493,7 @@ export class KnowledgeResourcesService {
       resourceId,
       true,
     );
-    await this.access.assertOwnerOr(resource, 'org:knowledge:govern');
+    await this.access.assertOwnerOr(resource, 'govern');
     await this.access.assertWritable(resource, ifMatch);
     return resource;
   }

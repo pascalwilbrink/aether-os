@@ -3,7 +3,8 @@
 import * as z from 'zod';
 
 /**
- * `ORGANIZATION_SUSPENDED`; `INVALID_TRANSITION` (the version's state
+ * `ORGANIZATION_SUSPENDED`; `PROJECT_ARCHIVED` and
+ * `DEPARTMENT_ARCHIVED` (its owner can't change); `INVALID_TRANSITION` (the version's state
  * doesn't allow it); `DRAFT_EXISTS` (a version is already in `draft`
  * or `in_review`); `NOT_A_DRAFT`; `NOT_IN_REVIEW`; `NOT_APPROVED`;
  * `RESOURCE_ARCHIVED`; `RESOURCE_PUBLISHED` (deleting one that was
@@ -14,6 +15,8 @@ import * as z from 'zod';
  */
 export const zDomainErrorCode = z.enum([
   'ORGANIZATION_SUSPENDED',
+  'PROJECT_ARCHIVED',
+  'DEPARTMENT_ARCHIVED',
   'INVALID_TRANSITION',
   'DRAFT_EXISTS',
   'NOT_A_DRAFT',
@@ -144,6 +147,8 @@ export const zKnowledgeResourceUpdateRequest = z.object({
 export const zMarkdownContent = z.string().max(1048576);
 
 export const zKnowledgeResourceCreateRequest = z.object({
+  projectId: z.uuid().nullish(),
+  departmentId: z.uuid().nullish(),
   knowledgeType: zKnowledgeType,
   title: z.string().min(1).max(200),
   description: z.string().max(2000).nullish(),
@@ -190,6 +195,8 @@ export const zKnowledgeVersionSummary = z.object({
 export const zKnowledgeResourceResponse = z.object({
   id: z.uuid(),
   organizationId: z.uuid(),
+  projectId: z.uuid().nullable(),
+  departmentId: z.uuid().nullable(),
   knowledgeType: zKnowledgeType,
   title: z.string(),
   description: z.string().nullable(),
@@ -422,6 +429,9 @@ export const zListKnowledgeResourcesQuery = z.object({
   status: zKnowledgeResourceStatus.optional(),
   scopeType: zKnowledgeScopeType.optional(),
   scopeId: z.uuid().optional(),
+  projectId: z.uuid().optional(),
+  departmentId: z.uuid().optional(),
+  owner: z.enum(['organization', 'project', 'department']).optional(),
   stewardPersonId: z.uuid().optional(),
   tag: zTag.optional(),
   q: z.string().min(1).max(200).optional(),
@@ -430,7 +440,7 @@ export const zListKnowledgeResourcesQuery = z.object({
 });
 
 /**
- * Most recently updated first
+ * Most recently updated first; a project's resources only where the caller may read the project's knowledge
  */
 export const zListKnowledgeResourcesResponse = zKnowledgeResourcePage;
 

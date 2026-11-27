@@ -164,7 +164,15 @@ describe('Knowledge (e2e)', () => {
     expect(second.body.items[0].id).not.toBe(paged.body.items[0].id);
 
     // Viewers can't draft; another organization's resource is a 404.
-    await viewer.post(resources()).send({}).expect(403);
+    await viewer
+      .post(resources())
+      .send({
+        knowledgeType: 'faq',
+        title: 'Not allowed',
+        stewards: [{ role: 'owner', personId: OLGA.person }],
+        content: '',
+      })
+      .expect(403);
     const other = await asMember(app, polis.organization(), ['owner']);
     await other
       .get(`/v1/organizations/${orgId}/knowledge/resources/${resource.id}`)
@@ -517,6 +525,136 @@ describe('Knowledge (e2e)', () => {
     expect((await outboxEvents(app)).at(-1)?.eventType).toBe(
       'knowledge-resource.deleted',
     );
+  });
+
+  it("governs a project's resource with the project's permissions", async () => {
+    const projectId = polis.project(orgId);
+    // Members (a viewer's project roles are capped at viewer).
+    const editor = await asMember(app, orgId, ['member'], {
+      sub: OLGA.user,
+      projectRoles: { [projectId]: 'editor' },
+    });
+    const approver = await asMember(app, orgId, ['member'], {
+      sub: ADA.user,
+      projectRoles: { [projectId]: 'approver' },
+    });
+    const created = await editor
+      .post(resources())
+      .send({
+        projectId,
+        knowledgeType: 'runbook',
+        title: 'Deploy the website',
+        stewards: [{ role: 'owner', personId: OLGA.person }],
+        content: 'Steps',
+      })
+      .expect(201);
+    expect(created.body).toMatchObject({ projectId, departmentId: null });
+    const path = `${versions(created.body.id)}/${created.body.openVersion.id}`;
+
+    // Outside the project it doesn't exist, and lists leave it out.
+    await mia.get(`${resources()}/${created.body.id}`).expect(404);
+    expect((await mia.get(resources()).expect(200)).body.items).toEqual([]);
+    expect(
+      (await editor.get(resources()).query({ projectId }).expect(200)).body
+        .items,
+    ).toHaveLength(1);
+    // The organization's own resources only.
+    expect(
+      (
+        await admin
+          .get(resources())
+          .query({ owner: 'organization' })
+          .expect(200)
+      ).body.items,
+    ).toEqual([]);
+
+    // The project's approver approves and publishes (knowledge:approve);
+    // its editor can't.
+    await editor.post(`${path}/submit`).send({}).expect(200);
+    await editor
+      .post(`${path}/decisions`)
+      .send({ decision: 'approve' })
+      .expect(403);
+    await approver
+      .post(`${path}/decisions`)
+      .send({ decision: 'approve' })
+      .expect(200);
+    await editor.post(`${path}/publish`).send({}).expect(403);
+    await approver.post(`${path}/publish`).send({}).expect(200);
+    const published = (await outboxEvents(app)).find(
+      (e) => e.eventType === 'knowledge-version.published',
+    )!;
+    expect(published.projectId).toBe(projectId);
+    expect(published.payload).toMatchObject({
+      resource: { projectId, departmentId: null },
+    });
+
+    // An archived project takes no more changes.
+    polis.projects.set(projectId, {
+      id: projectId,
+      organizationId: orgId,
+      status: 'archived',
+      version: 2,
+    });
+    const archived = await editor
+      .post(versions(created.body.id))
+      .send({ content: 'More steps' })
+      .expect(409);
+    expect(archived.body.code).toBe('PROJECT_ARCHIVED');
+  });
+
+  it("checks a department's resource's owner", async () => {
+    const department = polis.department(orgId);
+    const created = await create({ departmentId: department });
+    const got = await viewer.get(`${resources()}/${created.id}`).expect(200);
+    expect(got.body).toMatchObject({
+      projectId: null,
+      departmentId: department,
+    });
+    expect(
+      (
+        await viewer
+          .get(resources())
+          .query({ departmentId: department })
+          .expect(200)
+      ).body.items,
+    ).toHaveLength(1);
+
+    const unknown = await olga
+      .post(resources())
+      .send({
+        departmentId: uuidv7(),
+        knowledgeType: 'faq',
+        title: 'Lost',
+        stewards: [{ role: 'owner', personId: OLGA.person }],
+        content: '',
+      })
+      .expect(400);
+    expect(unknown.body.errors[0].pointer).toBe('/departmentId');
+    const both = await olga
+      .post(resources())
+      .send({
+        departmentId: department,
+        projectId: polis.project(orgId),
+        knowledgeType: 'faq',
+        title: 'Both',
+        stewards: [{ role: 'owner', personId: OLGA.person }],
+        content: '',
+      })
+      .expect(400);
+    expect(both.body.errors[0].pointer).toBe('/departmentId');
+    const archivedDepartment = polis.department(orgId, 'archived');
+    const refused = await olga
+      .post(resources())
+      .send({
+        departmentId: archivedDepartment,
+        knowledgeType: 'faq',
+        title: 'Old',
+        stewards: [{ role: 'owner', personId: OLGA.person }],
+        content: '',
+      })
+      .expect(409);
+    expect(refused.body.code).toBe('DEPARTMENT_ARCHIVED');
   });
 
   it('refuses changes while the organization is suspended', async () => {

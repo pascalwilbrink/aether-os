@@ -17,3 +17,21 @@ export class PolisUnavailableError extends ServiceUnavailableException {
     super(`Polis can't be reached right now (${reason}). Try again.`);
   }
 }
+
+export class ProjectArchivedError extends DomainError {
+  constructor(projectId: string) {
+    super(
+      `Project ${projectId} is archived and can't be changed.`,
+      'PROJECT_ARCHIVED',
+    );
+  }
+}
+
+export class DepartmentArchivedError extends DomainError {
+  constructor(departmentId: string) {
+    super(
+      `Department ${departmentId} is archived and can't be changed.`,
+      'DEPARTMENT_ARCHIVED',
+    );
+  }
+}

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Episteme API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Knowledge governance (`../episteme/CLAUDE.md`): the organization's
     authoritative knowledge as **resources** (a policy, a procedure, a
@@ -19,13 +19,29 @@ info:
     (`superseded`). A resource has at most one version in `draft` or
     `in_review` at a time. Published versions never change.
 
+    **Who owns a resource:** the organization (no `projectId` or
+    `departmentId`), or one of its projects or departments, chosen when it
+    is created and never changed. What a caller may do follows the owner:
+
+    | To | The organization's or a department's | A project's |
+    |---|---|---|
+    | read | `org:knowledge:read` | `knowledge:read` in the project |
+    | draft and submit | `org:knowledge:draft` | `knowledge:propose` there |
+    | decide a review | `org:knowledge:review` | `knowledge:approve` there |
+    | publish, archive, delete | `org:knowledge:publish` | `knowledge:approve` there |
+    | govern (metadata, scopes, stewards) | `org:knowledge:govern` | `project:manage` there |
+
+    Each operation's `x-permission` names the organization's; a project's
+    resource takes the project's equivalent from this table (a project the
+    caller can't read is a 404).
+
     **Scope is not authorization**, and neither is stewardship: scopes say
     where knowledge is relevant (departments, teams, projects of Polis; none
-    means the whole organization), stewards who is accountable (persons of
-    Polis). What a caller may do comes from the `org:knowledge:*`
-    permissions. **People approve and publish, agents propose:** task and
+    means wherever its owner is), stewards who is accountable (persons of
+    Polis). **People approve and publish, agents propose:** task and
     session tokens may read, draft and submit, never decide or publish
-    (`org:knowledge:review` and `:publish` are people's only, in Krepis).
+    (Krepis gives `org:knowledge:review`, `:publish` and `knowledge:approve`
+    to people only).
 
     **Search stays in Seshat.** The list filters resources' metadata; Seshat
     indexes what Episteme publishes (`knowledge-version.published`) and
@@ -78,6 +94,21 @@ paths:
           in: query
           required: false
           schema: { type: string, format: uuid }
+        - name: projectId
+          in: query
+          required: false
+          description: Only the resources this project owns.
+          schema: { type: string, format: uuid }
+        - name: departmentId
+          in: query
+          required: false
+          description: Only the resources this department owns.
+          schema: { type: string, format: uuid }
+        - name: owner
+          in: query
+          required: false
+          description: Only the organization's own resources (`organization`), or only those of a project or a department.
+          schema: { type: string, enum: [organization, project, department] }
         - name: stewardPersonId
           in: query
           required: false
@@ -96,7 +127,7 @@ paths:
         - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
-          description: Most recently updated first
+          description: Most recently updated first; a project's resources only where the caller may read the project's knowledge
           content:
             application/json:
               schema: { $ref: '#/components/schemas/KnowledgeResourcePage' }
@@ -109,8 +140,11 @@ paths:
       x-permission: '`org:knowledge:draft`'
       description: |
         A new resource (`draft`) with its first version, a `draft` with the
-        content given. The stewards must include an owner. Persons, and the
-        scopes' departments, teams and projects, must be active ones of the
+        content given, owned by the organization or by the `projectId` or
+        `departmentId` given (at most one; an active one of the organization:
+        `400` for an unknown one, `PROJECT_ARCHIVED`, `DEPARTMENT_ARCHIVED`).
+        The stewards must include an owner. Persons, and the scopes'
+        departments, teams and projects, must be active ones of the
         organization in Polis.
       requestBody:
         required: true
@@ -136,7 +170,7 @@ paths:
     get:
       tags: [resources]
       operationId: getKnowledgeResource
-      x-permission: '`org:knowledge:read`, or `platform:read` (Seshat)'
+      x-permission: '`org:knowledge:read` (or the project''s equivalent), or `platform:read` (Seshat)'
       description: The resource with its scopes, stewards, published version and open version (without content).
       responses:
         '200':
@@ -641,7 +675,8 @@ components:
     DomainErrorCode:
       type: string
       description: |
-        `ORGANIZATION_SUSPENDED`; `INVALID_TRANSITION` (the version's state
+        `ORGANIZATION_SUSPENDED`; `PROJECT_ARCHIVED` and
+        `DEPARTMENT_ARCHIVED` (its owner can't change); `INVALID_TRANSITION` (the version's state
         doesn't allow it); `DRAFT_EXISTS` (a version is already in `draft`
         or `in_review`); `NOT_A_DRAFT`; `NOT_IN_REVIEW`; `NOT_APPROVED`;
         `RESOURCE_ARCHIVED`; `RESOURCE_PUBLISHED` (deleting one that was
@@ -650,6 +685,8 @@ components:
         `against` isn't a version of this resource).
       enum:
         - ORGANIZATION_SUSPENDED
+        - PROJECT_ARCHIVED
+        - DEPARTMENT_ARCHIVED
         - INVALID_TRANSITION
         - DRAFT_EXISTS
         - NOT_A_DRAFT
@@ -779,6 +816,14 @@ components:
       additionalProperties: false
       required: [knowledgeType, title, stewards, content]
       properties:
+        projectId:
+          type: [string, 'null']
+          format: uuid
+          description: The project that owns it; leave out (with `departmentId`) for the organization.
+        departmentId:
+          type: [string, 'null']
+          format: uuid
+          description: The department that owns it; not with `projectId`.
         knowledgeType: { $ref: '#/components/schemas/KnowledgeType' }
         title: { type: string, minLength: 1, maxLength: 200 }
         description: { type: [string, 'null'], maxLength: 2000 }
@@ -811,10 +856,18 @@ components:
           items: { $ref: '#/components/schemas/Tag' }
     KnowledgeResourceResponse:
       type: object
-      required: [id, organizationId, knowledgeType, title, description, tags, status, scopes, stewards, publishedVersion, openVersion, latestVersionNumber, publishedAt, archivedAt, createdBy, createdAt, updatedAt, version]
+      required: [id, organizationId, projectId, departmentId, knowledgeType, title, description, tags, status, scopes, stewards, publishedVersion, openVersion, latestVersionNumber, publishedAt, archivedAt, createdBy, createdAt, updatedAt, version]
       properties:
         id: { type: string, format: uuid }
         organizationId: { type: string, format: uuid }
+        projectId:
+          type: [string, 'null']
+          format: uuid
+          description: The project that owns it; null for the organization's or a department's.
+        departmentId:
+          type: [string, 'null']
+          format: uuid
+          description: The department that owns it; null for the organization's or a project's.
         knowledgeType: { $ref: '#/components/schemas/KnowledgeType' }
         title: { type: string }
         description: { type: [string, 'null'] }

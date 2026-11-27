@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Episteme events
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Events Episteme publishes to the `episteme.events` topic exchange on
     RabbitMQ; the routing key is the event type. Every message is the Krepis
@@ -12,8 +12,8 @@ info:
     on `eventId`. Every event has the **resource** as aggregate, and its
     `version` as `aggregateVersion` (it grows with every change to the
     resource or its versions), so a consumer applies them in order per
-    resource. `projectId` is always null: resources belong to the
-    organization; projects are among their scopes.
+    resource. `projectId` is the resource's owning project, null for the
+    organization's or a department's (whose ID is in the snapshot).
 
     Payloads carry IDs, states and checksums, never content, titles or
     personal data: read the resource or version from Episteme's API
@@ -196,7 +196,10 @@ components:
         aggregateVersion: { type: integer, minimum: 1 }
         occurredAt: { type: string, format: date-time }
         organizationId: { $ref: '#/components/schemas/Uuid' }
-        projectId: { type: 'null' }
+        projectId:
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
         actor:
           oneOf:
             - type: 'null'
@@ -210,9 +213,19 @@ components:
       type: object
       description: The resource as it is after the change, without its title, description or content.
       additionalProperties: false
-      required: [id, knowledgeType, status, tags, scopes, stewards, publishedVersionId, latestVersionNumber]
+      required: [id, projectId, departmentId, knowledgeType, status, tags, scopes, stewards, publishedVersionId, latestVersionNumber]
       properties:
         id: { $ref: '#/components/schemas/Uuid' }
+        projectId:
+          description: The project that owns it; null for the organization's or a department's.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
+        departmentId:
+          description: The department that owns it; null for the organization's or a project's.
+          oneOf:
+            - $ref: '#/components/schemas/Uuid'
+            - type: 'null'
         knowledgeType: { type: string, description: 'The API''s `KnowledgeType`.' }
         status: { type: string, enum: [draft, active, under_review, expired, superseded, archived] }
         tags:

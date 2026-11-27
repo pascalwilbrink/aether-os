@@ -17,6 +17,11 @@ export type Actor = ApiTypes.Actor;
   'ck_knowledge_resources_status',
   `status IN ('draft', 'active', 'under_review', 'expired', 'superseded', 'archived')`,
 )
+// A project's or a department's, never both.
+@Check(
+  'ck_knowledge_resources_owner',
+  'project_id IS NULL OR department_id IS NULL',
+)
 // The organization's resources, most recently updated first.
 @Index('ix_knowledge_resources_organization_updated_at_id', [
   'organizationId',
@@ -29,6 +34,14 @@ export class KnowledgeResourceEntity {
 
   @Column({ type: 'uuid' })
   organizationId: string;
+
+  /** The project that owns it, if one does (never changed). */
+  @Column({ type: 'uuid', nullable: true })
+  projectId: string | null;
+
+  /** The department that owns it, if one does (never changed). */
+  @Column({ type: 'uuid', nullable: true })
+  departmentId: string | null;
 
   @Column({ type: 'text' })
   knowledgeType: ApiTypes.KnowledgeType;

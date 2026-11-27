@@ -19,6 +19,11 @@ import {
 } from './entities/index.js';
 
 export interface ResourceFilters {
+  /** The projects whose resources the caller may read, and whether the organization's and departments'. */
+  readable: { projects: 'all' | string[]; organization: boolean };
+  owner?: 'organization' | 'project' | 'department';
+  projectId?: string;
+  departmentId?: string;
   knowledgeType?: ApiTypes.KnowledgeType;
   status?: ApiTypes.KnowledgeResourceStatus;
   scope?: { type: ApiTypes.KnowledgeScopeType; id: string };
@@ -198,9 +203,40 @@ export class KnowledgeStore {
       direction: 'DESC',
       filters: { organizationId, ...filters },
     });
+    const { readable, ...rest } = filters;
     const query = this.resources
       .createQueryBuilder('resource')
       .where('resource.organization_id = :organizationId', { organizationId });
+    const projects = readable.projects;
+    const projectClause =
+      projects === 'all'
+        ? 'resource.project_id IS NOT NULL'
+        : projects.length > 0
+          ? 'resource.project_id IN (:...readableProjects)'
+          : 'FALSE';
+    query.andWhere(
+      `(${projectClause}${readable.organization ? ' OR resource.project_id IS NULL' : ''})`,
+      projects === 'all' ? {} : { readableProjects: projects },
+    );
+    if (rest.owner === 'organization') {
+      query.andWhere(
+        'resource.project_id IS NULL AND resource.department_id IS NULL',
+      );
+    } else if (rest.owner === 'project') {
+      query.andWhere('resource.project_id IS NOT NULL');
+    } else if (rest.owner === 'department') {
+      query.andWhere('resource.department_id IS NOT NULL');
+    }
+    if (rest.projectId) {
+      query.andWhere('resource.project_id = :ownerProject', {
+        ownerProject: rest.projectId,
+      });
+    }
+    if (rest.departmentId) {
+      query.andWhere('resource.department_id = :ownerDepartment', {
+        ownerDepartment: rest.departmentId,
+      });
+    }
     if (filters.knowledgeType) {
       query.andWhere('resource.knowledge_type = :type', {
         type: filters.knowledgeType,

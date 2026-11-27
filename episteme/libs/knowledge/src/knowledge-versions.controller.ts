@@ -45,7 +45,7 @@ export class KnowledgeVersionsController {
   ) {}
 
   @Get()
-  @RequirePermission('org:knowledge:read')
+  @RequirePermission('org:read')
   @ZodSerializerDto(VersionPage)
   list(
     @Param() { organizationId, resourceId }: ResourceParams,
@@ -55,7 +55,7 @@ export class KnowledgeVersionsController {
   }
 
   @Post()
-  @RequirePermission('org:knowledge:draft')
+  @RequirePermission('org:read')
   @ZodSerializerDto(VersionResponse)
   create(
     @Param() { organizationId, resourceId }: ResourceParams,
@@ -65,7 +65,7 @@ export class KnowledgeVersionsController {
   }
 
   @Get(':versionId')
-  @RequirePermission('org:knowledge:read')
+  @RequirePermission('org:read')
   // Seshat reads the content it indexes.
   @PlatformAccess('platform:read')
   @ZodSerializerDto(VersionResponse)
@@ -74,7 +74,7 @@ export class KnowledgeVersionsController {
   }
 
   @Put(':versionId')
-  @RequirePermission('org:knowledge:draft')
+  @RequirePermission('org:read')
   @ZodSerializerDto(VersionResponse)
   update(
     @Param() { organizationId, resourceId, versionId }: VersionParams,
@@ -91,7 +91,7 @@ export class KnowledgeVersionsController {
   }
 
   @Get(':versionId/diff')
-  @RequirePermission('org:knowledge:read')
+  @RequirePermission('org:read')
   @ZodSerializerDto(VersionDiff)
   diff(
     @Param() { organizationId, resourceId, versionId }: VersionParams,
@@ -101,7 +101,7 @@ export class KnowledgeVersionsController {
   }
 
   @Post(':versionId/submit')
-  @RequirePermission('org:knowledge:draft')
+  @RequirePermission('org:read')
   @HttpCode(HttpStatus.OK)
   @ZodSerializerDto(VersionResponse)
   submit(
@@ -119,7 +119,7 @@ export class KnowledgeVersionsController {
   }
 
   @Post(':versionId/withdraw')
-  @RequirePermission('org:knowledge:draft')
+  @RequirePermission('org:read')
   @HttpCode(HttpStatus.OK)
   @ZodSerializerDto(VersionResponse)
   withdraw(
@@ -130,7 +130,7 @@ export class KnowledgeVersionsController {
   }
 
   @Post(':versionId/decisions')
-  @RequirePermission('org:knowledge:review')
+  @RequirePermission('org:read')
   @HttpCode(HttpStatus.OK)
   @ZodSerializerDto(VersionResponse)
   decide(
@@ -141,7 +141,7 @@ export class KnowledgeVersionsController {
   }
 
   @Get(':versionId/reviews')
-  @RequirePermission('org:knowledge:read')
+  @RequirePermission('org:read')
   @ZodSerializerDto(ReviewPage)
   listReviews(
     @Param() { organizationId, resourceId, versionId }: VersionParams,
@@ -151,7 +151,7 @@ export class KnowledgeVersionsController {
   }
 
   @Post(':versionId/publish')
-  @RequirePermission('org:knowledge:publish')
+  @RequirePermission('org:read')
   @HttpCode(HttpStatus.OK)
   @ZodSerializerDto(VersionResponse)
   publish(

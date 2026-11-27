@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 
-import type { OrganizationRole } from '@aether-os/krepis';
+import type { OrganizationRole, ProjectRole } from '@aether-os/krepis';
 import { configureHttpApp, EventConsumer } from '@episteme/core';
 import { PolisClient } from '@episteme/tenancy';
 
@@ -43,7 +43,11 @@ export const asMember = async (
   app: INestApplication<App>,
   organizationId: string,
   roles: OrganizationRole[],
-  options: { sub?: string; subType?: 'user' | 'service_account' } = {},
+  options: {
+    sub?: string;
+    subType?: 'user' | 'service_account';
+    projectRoles?: Record<string, ProjectRole>;
+  } = {},
 ) =>
   client(
     app,
@@ -52,5 +56,6 @@ export const asMember = async (
       organizationId,
       roles,
       subType: options.subType,
+      projectRoles: options.projectRoles,
     }),
   );
