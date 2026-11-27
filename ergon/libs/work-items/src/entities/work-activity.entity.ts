@@ -11,7 +11,7 @@ export type ActivityValue = string | number | boolean | null | object;
 @Entity({ name: 'work_activity' })
 @Check(
   'ck_work_activity_kind',
-  `kind IN ('created', 'updated', 'status_changed', 'assignment_started', 'assignment_ended', 'dependency_added', 'dependency_removed')`,
+  `kind IN ('created', 'updated', 'status_changed', 'assignment_started', 'assignment_ended', 'dependency_added', 'dependency_removed', 'execution_started', 'execution_finished')`,
 )
 // A work item's record, oldest first.
 @Index('ix_work_activity_work_item_created_at_id', [

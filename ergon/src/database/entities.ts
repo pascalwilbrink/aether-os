@@ -5,6 +5,7 @@ import {
   WorkActivityEntity,
   WorkAssignmentEntity,
   WorkDependencyEntity,
+  WorkExecutionEntity,
   WorkItemEntity,
 } from '../../libs/work-items/src/entities/index.js';
 
@@ -14,6 +15,7 @@ export const entities = [
   WorkAssignmentEntity,
   WorkDependencyEntity,
   WorkActivityEntity,
+  WorkExecutionEntity,
   PersonEntity,
   AgentEntity,
   OutboxMessageEntity,
